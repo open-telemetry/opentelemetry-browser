@@ -15,7 +15,52 @@ See the [Packages](#packages) section below for a list of browser-related packag
 ### Installation
 
 ```bash
-npm install --save @opentelemetry/sdk-trace-web
+npm install @opentelemetry/sdk-trace-web \
+  @opentelemetry/opentelemetry-browser-detector \
+  @opentelemetry/instrumentation \
+  @opentelemetry/exporter-trace-otlp-http \
+  @opentelemetry/instrumentation-fetch \
+  @opentelemetry/instrumentation-xml-http-request
+```
+
+### Basic example
+
+```js
+import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import { resourceFromAttributes, detectResources } from '@opentelemetry/resources';
+import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
+import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
+
+// configure resources
+let resource = resourceFromAttributes({
+  [ATTR_SERVICE_NAME]: 'my-app',
+});
+let detectedResources = await detectResources({detectors:[browserDetector]});
+resource = resource.merge(detectedResources);
+
+// configure exporter
+const exporter = new OTLPTraceExporter({
+  url: '<opentelemetry-collector-url>'
+});
+
+// initialize trace provider
+const provider = new WebTracerProvider({
+  resource,
+  spanProcessors: [new BatchSpanProcessor(exporter)]
+});
+provider.register();
+
+// Registering instrumentations
+registerInstrumentations({
+  instrumentations: [
+    new FetchInstrumentation(),
+    new XMLHttpRequestInstrumentation()
+  ],
+});
 ```
 
 ## Packages
