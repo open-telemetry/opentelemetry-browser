@@ -1,0 +1,18 @@
+node_modules
+
+# output
+dist
+*.tgz
+
+# dotenv environment variable files
+.env
+
+# caches
+.cache
+*.tsbuildinfo
+
+# IntelliJ based IDEs
+.idea
+
+# Finder (MacOS) folder config
+.DS_Store

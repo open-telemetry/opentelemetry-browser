@@ -1,0 +1,27 @@
+{
+  "name": "opentelemetry-browser",
+  "version": "0.0.0",
+  "description": "OpenTelemetry is a distributed tracing and stats collection framework.",
+  "keywords": [
+    "opentelemetry",
+    "observability",
+    "browser",
+    "web"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": "github:open-telemetry/opentelemetry-browser",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "lint": "biome format --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.2.5"
+  },
+  "peerDependencies": {
+    "typescript": "5.9.3"
+  }
+}
