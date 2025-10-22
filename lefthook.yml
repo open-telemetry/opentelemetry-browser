@@ -1,0 +1,9 @@
+pre-commit:
+  jobs:
+    - name: lint
+      run: npm run lint
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: npx commitlint --edit {1}
