@@ -16,6 +16,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "check-types": "tsc --noEmit",
     "lint": "biome format --write ."
   },
   "devDependencies": {
@@ -28,7 +29,8 @@
     "@vitest/browser-playwright": "4.0.9",
     "jsdom": "27.2.0",
     "lefthook": "2.0.4",
-    "vitest": "4.0.9"
+    "vitest": "4.0.9",
+    "turbo": "2.5.8"
   },
   "peerDependencies": {
     "typescript": "5.9.3"
@@ -45,5 +47,6 @@
   ],
   "commitlint": {
     "extends": "@commitlint/config-conventional"
-  }
+  },
+  "packageManager": "npm@11.6.0"
 }
