@@ -25,12 +25,13 @@
     "@commitlint/config-conventional": "20.0.0",
     "@opentelemetry/api-logs": "0.208.0",
     "@opentelemetry/sdk-logs": "0.208.0",
+    "@turbo/gen": "2.5.8",
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.9",
     "jsdom": "27.2.0",
     "lefthook": "2.0.4",
-    "vitest": "4.0.9",
-    "turbo": "2.5.8"
+    "turbo": "2.5.8",
+    "vitest": "4.0.9"
   },
   "peerDependencies": {
     "typescript": "5.9.3"
