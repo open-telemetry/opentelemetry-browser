@@ -8,8 +8,9 @@ dist
 .env
 
 # caches
-.cache
 *.tsbuildinfo
+.cache
+.turbo
 
 # IntelliJ based IDEs
 .idea
