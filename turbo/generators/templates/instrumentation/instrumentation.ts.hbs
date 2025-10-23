@@ -1,0 +1,31 @@
+import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
+
+/**
+ * {{pascalCase name}}Instrumentation Configuration
+ */
+export interface {{pascalCase name}}InstrumentationConfig extends InstrumentationConfig {
+  // TODO: Add configuration options
+}
+
+/**
+ * {{description}}
+ */
+export class {{pascalCase name}}Instrumentation extends InstrumentationBase {
+  constructor(config: {{pascalCase name}}InstrumentationConfig = {}) {
+    super('@opentelemetry/instrumentation-{{kebabCase name}}', '0.1.0', config);
+  }
+
+  protected override init() {
+    // TODO: Implement instrumentation logic
+    return [];
+  }
+
+  override enable(): void {
+    // TODO: Implement enable logic
+  }
+
+  override disable(): void {
+    // TODO: Implement disable logic
+  }
+}
