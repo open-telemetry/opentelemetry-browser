@@ -14,26 +14,51 @@
  * limitations under the License.
  */
 
+type GetElementXPathOptions = {
+  /**
+    If true, the function will attempt to use element ID to create condensed XPath.
+   */
+  useIdForTargetElement?: boolean;
+  /**
+    If true, the function will attempt to use element ID for all ancestor elements to create condensed XPath.
+   */
+  useIdForAncestors?: boolean;
+};
+
 /**
  * Generates the XPath of a given element in the DOM tree.
  *
  * @example //html/body/div[2]/span
  * @example //*[@id="unique-id"]
  */
-export const getElementXPath = (element: Node, optimized = false): string => {
+export const getElementXPath = (
+  element: Node,
+  {
+    useIdForTargetElement = false,
+    useIdForAncestors = false,
+  }: GetElementXPathOptions = {},
+): string => {
   if (element.nodeType === Node.DOCUMENT_NODE) {
     return '/';
   }
 
-  const nodeValue = getNodeValue(element as HTMLElement, optimized);
+  const nodeValue = getNodeValue(
+    element,
+    useIdForTargetElement || useIdForAncestors,
+  );
 
   // if optimized and found an ID selector, stop recursion early
-  if (optimized && nodeValue.startsWith('//*[@id=')) {
+  if (useIdForTargetElement && nodeValue.startsWith('//*[@id=')) {
     return nodeValue;
   }
 
   const parent = element.parentNode;
-  const parentXPath = parent ? getElementXPath(parent, false) : '';
+  const parentXPath = parent
+    ? getElementXPath(parent, {
+        useIdForAncestors,
+        useIdForTargetElement,
+      })
+    : '';
 
   return parentXPath + nodeValue;
 };
@@ -52,16 +77,36 @@ const getNodeIndex = (element: HTMLElement): number => {
   return siblings.length > 1 ? siblings.indexOf(element) + 1 : 0;
 };
 
-const getNodeValue = (element: HTMLElement, optimized = false): string => {
+const getNodeValue = (element: Node, useElementId = false): string => {
   const type = element.nodeType;
   if (type === Node.ELEMENT_NODE) {
-    const id = element.getAttribute('id');
-    if (optimized && id) {
-      return `//*[@id="${id}"]`;
+    const htmlElement = element as HTMLElement;
+
+    const id = htmlElement.getAttribute('id');
+    if (useElementId && id) {
+      // Check if ID is duplicated for any siblings
+      const sameIdSiblings = htmlElement.parentNode
+        ? Array.from(htmlElement.parentNode.childNodes).filter((n) => {
+            if (n.nodeType !== Node.ELEMENT_NODE) {
+              return false;
+            }
+
+            const siblingElement = n as HTMLElement;
+
+            return (
+              siblingElement !== htmlElement &&
+              siblingElement.getAttribute('id') === id
+            );
+          })
+        : [];
+
+      if (sameIdSiblings.length === 0) {
+        return `//*[@id="${id}"]`;
+      }
     }
 
-    const index = getNodeIndex(element);
-    const name = element.localName;
+    const index = getNodeIndex(htmlElement);
+    const name = htmlElement.localName;
 
     return index > 1 ? `/${name}[${index}]` : `/${name}`;
   }

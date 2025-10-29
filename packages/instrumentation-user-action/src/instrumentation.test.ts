@@ -48,7 +48,7 @@ describe('UserActionInstrumentation', () => {
   };
 
   const dispatchMouseDownEvent = (element: HTMLElement, button: number) => {
-    const clickEvent = new MouseEvent('mousedown', {
+    const clickEvent = new MouseEvent('click', {
       button,
       bubbles: true,
       clientX: 100,
@@ -67,12 +67,12 @@ describe('UserActionInstrumentation', () => {
 
     const log = logs[0];
     expect(log?.severityNumber).toBe(SeverityNumber.INFO);
-    expect(log?.eventName).toBe('browser.user_action');
-    expect(log?.attributes['page.x']).toBe(100);
-    expect(log?.attributes['page.y']).toBe(150);
-    expect(log?.attributes['tag_name']).toBe('DIV');
-    expect(log?.attributes['type']).toBe('mousedown.left');
-    expect(log?.attributes['xpath']).toBe('//html/body/div');
+    expect(log?.eventName).toBe('browser.user_action.click');
+    expect(log?.attributes['browser.mouse_event.button']).toBe('left');
+    expect(log?.attributes['browser.page.x']).toBe(100);
+    expect(log?.attributes['browser.page.y']).toBe(150);
+    expect(log?.attributes['browser.tag_name']).toBe('DIV');
+    expect(log?.attributes['browser.xpath']).toBe('//html/body/div');
   });
 
   it('should emit a log when the element triggers a mousedown event with the right and middle click', () => {
@@ -85,17 +85,21 @@ describe('UserActionInstrumentation', () => {
     expect(logs.length).toBe(2);
 
     const middleClickLog = logs[0];
-    expect(middleClickLog?.attributes['type']).toBe('mousedown.middle');
+    expect(middleClickLog?.attributes['browser.mouse_event.button']).toBe(
+      'middle',
+    );
 
     const rightClickLog = logs[1];
-    expect(rightClickLog?.attributes['type']).toBe('mousedown.right');
+    expect(rightClickLog?.attributes['browser.mouse_event.button']).toBe(
+      'right',
+    );
   });
 
   it('should not emit a log when the event target is not an HTMLElement', () => {
     const textNode = document.createTextNode('Test Text Node');
     document.body.appendChild(textNode);
 
-    const clickEvent = new MouseEvent('mousedown', {
+    const clickEvent = new MouseEvent('click', {
       button: 0,
       bubbles: true,
       clientX: 100,
@@ -128,7 +132,7 @@ describe('UserActionInstrumentation', () => {
     expect(logs.length).toBe(1);
 
     const log = logs[0];
-    expect(log?.attributes['tags']).toEqual({
+    expect(log?.attributes['browser.element.attributes']).toEqual({
       'user-id': '12345',
       'session-id': 'abcde',
     });

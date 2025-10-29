@@ -20,46 +20,46 @@
  * @see https://github.com/open-telemetry/opentelemetry-js/tree/main/semantic-conventions#unstable-semconv
  */
 
-export const EVENT_NAME = 'browser.user_action';
+export const CLICK_EVENT_NAME = 'browser.user_action.click';
+
+/**
+ * @example left
+ *
+ * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
+ */
+export const ATTR_MOUSE_EVENT_BUTTON = 'browser.mouse_event.button';
 
 /**
  * @example 10
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_PAGE_X = 'page.x';
+export const ATTR_PAGE_X = 'browser.page.x';
 
 /**
  * @example 10
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_PAGE_Y = 'page.y';
+export const ATTR_PAGE_Y = 'browser.page.y';
 
 /**
  * @example "BUTTON"
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_TAG_NAME = 'tag_name';
+export const ATTR_TAG_NAME = 'browser.tag_name';
 
 /**
- * @example ["id", "name"]
+ * @example {"id": "123", "name": "Name"}
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_TAGS = 'tags';
-
-/**
- * @example "click.right"
- *
- * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
- */
-export const ATTR_TYPE = 'type';
+export const ATTR_TAGS = 'browser.element.attributes';
 
 /**
  * @example "//*[@id='testBtn']"
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_XPATH = 'xpath';
+export const ATTR_XPATH = 'browser.xpath';

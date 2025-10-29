@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { getElementXPath } from './getElementXPath';
 
-describe(getElementXPath, () => {
+describe('getElementXPath', () => {
   const expectXPath = (xpath: string, node: Node) => {
     const result = document.evaluate(
       xpath,
@@ -31,6 +31,10 @@ describe(getElementXPath, () => {
     expect(result.singleNodeValue).toBe(node);
   };
 
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
   it('should return "/" for document node', () => {
     const xpath = getElementXPath(document);
 
@@ -38,17 +42,34 @@ describe(getElementXPath, () => {
     expectXPath(xpath, document);
   });
 
-  it('should return correct XPath for element with ID when optimized', () => {
+  it('should return correct XPath for element with ID when useIdForTargetElement is true', () => {
     const div = document.createElement('div');
     div.id = 'test-id';
     document.body.appendChild(div);
 
-    const xpath = getElementXPath(div, true);
+    const xpath = getElementXPath(div, {
+      useIdForTargetElement: true,
+    });
 
     expect(xpath).toBe('//*[@id="test-id"]');
     expectXPath(xpath, div);
+  });
 
-    document.body.removeChild(div);
+  it('should not use ID for element with ID when useIdForTargetElement is true but there are duplicated IDs', () => {
+    const div = document.createElement('div');
+    div.id = 'test-id';
+    document.body.appendChild(div);
+
+    const duplicateDiv = document.createElement('div');
+    duplicateDiv.id = 'test-id';
+    document.body.appendChild(duplicateDiv);
+
+    const xpath = getElementXPath(div, {
+      useIdForTargetElement: true,
+    });
+
+    expect(xpath).toBe('//html/body/div');
+    expectXPath(xpath, div);
   });
 
   it('should return correct XPath for nested elements', () => {
@@ -61,8 +82,21 @@ describe(getElementXPath, () => {
 
     expect(xpath).toBe('//html/body/div/span');
     expectXPath(xpath, child);
+  });
 
-    document.body.removeChild(parent);
+  it('should return correct XPath using ID for nested elements', () => {
+    const parent = document.createElement('div');
+    parent.id = 'parent-id';
+    const child = document.createElement('span');
+    parent.appendChild(child);
+    document.body.appendChild(parent);
+
+    const xpath = getElementXPath(child, {
+      useIdForAncestors: true,
+    });
+
+    expect(xpath).toBe('//html/body//*[@id="parent-id"]/span');
+    expectXPath(xpath, child);
   });
 
   it('should return correct XPath with index for sibling elements', () => {
@@ -77,7 +111,5 @@ describe(getElementXPath, () => {
 
     expect(xpath).toBe('//html/body/div/span[2]');
     expectXPath(xpath, child2);
-
-    document.body.removeChild(parent);
   });
 });
