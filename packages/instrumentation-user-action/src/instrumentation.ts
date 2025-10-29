@@ -18,21 +18,21 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { getElementXPath } from '@opentelemetry/web-utils';
 import {
+  ATTR_MOUSE_EVENT_BUTTON,
   ATTR_PAGE_X,
   ATTR_PAGE_Y,
   ATTR_TAG_NAME,
   ATTR_TAGS,
-  ATTR_TYPE,
   ATTR_XPATH,
-  EVENT_NAME,
+  CLICK_EVENT_NAME,
 } from './semconv';
 import type {
   AutoCapturedUserAction,
-  UserActionEvent,
+  MouseButton,
   UserActionInstrumentationConfig,
 } from './types';
 
-const DEFAULT_AUTO_CAPTURED_ACTIONS: AutoCapturedUserAction[] = ['mousedown'];
+const DEFAULT_AUTO_CAPTURED_ACTIONS: AutoCapturedUserAction[] = ['click'];
 const OTEL_ELEMENT_ATTRIBUTE_PREFIX = 'data-otel-';
 
 /**
@@ -47,16 +47,16 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     return [];
   }
 
-  private _getUserActionFromMouseEvent(event: MouseEvent): UserActionEvent {
+  private _getMouseButtonFromMouseEvent(event: MouseEvent): MouseButton {
     switch (event.button) {
       case 0:
-        return 'mousedown.left';
+        return 'left';
       case 1:
-        return 'mousedown.middle';
+        return 'middle';
       case 2:
-        return 'mousedown.right';
+        return 'right';
       default:
-        return 'mousedown.left';
+        return 'left';
     }
   }
 
@@ -71,7 +71,10 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       return;
     }
 
-    const xPath = getElementXPath(element, true);
+    const xPath = getElementXPath(element, {
+      useIdForTargetElement: true,
+      useIdForAncestors: true,
+    });
     const otelPrefixedAttributes: Record<string, string> = {};
 
     // Grab all the attributes in the element that start with data-otel-*
@@ -85,13 +88,13 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
 
     this.logger.emit({
       severityNumber: SeverityNumber.INFO,
-      eventName: EVENT_NAME,
+      eventName: CLICK_EVENT_NAME,
       attributes: {
         [ATTR_PAGE_X]: event.pageX,
         [ATTR_PAGE_Y]: event.pageY,
         [ATTR_TAG_NAME]: element.tagName,
         [ATTR_TAGS]: otelPrefixedAttributes,
-        [ATTR_TYPE]: this._getUserActionFromMouseEvent(event),
+        [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
         [ATTR_XPATH]: xPath,
       },
     });
@@ -101,12 +104,12 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     const autoCapturedActions =
       this._config.autoCapturedActions ?? DEFAULT_AUTO_CAPTURED_ACTIONS;
 
-    if (autoCapturedActions.includes('mousedown')) {
-      document.addEventListener('mousedown', this._clickHandler, true);
+    if (autoCapturedActions.includes('click')) {
+      document.addEventListener('click', this._clickHandler, true);
     }
   }
 
   override disable(): void {
-    document.removeEventListener('mousedown', this._clickHandler, true);
+    document.removeEventListener('click', this._clickHandler, true);
   }
 }

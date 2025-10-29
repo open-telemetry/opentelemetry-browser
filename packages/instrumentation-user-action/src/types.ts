@@ -16,12 +16,9 @@
 
 import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
-export type AutoCapturedUserAction = 'mousedown';
+export type AutoCapturedUserAction = 'click';
 
-export type UserActionEvent =
-  | 'mousedown.left'
-  | 'mousedown.middle'
-  | 'mousedown.right';
+export type MouseButton = 'left' | 'middle' | 'right';
 
 /**
  * UserActionInstrumentation Configuration
