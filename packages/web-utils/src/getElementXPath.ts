@@ -85,8 +85,8 @@ const getNodeValue = (element: Node, useElementId = false): string => {
     const id = htmlElement.getAttribute('id');
     if (useElementId && id) {
       // Check if ID is duplicated for any siblings
-      const sameIdSiblings = htmlElement.parentNode
-        ? Array.from(htmlElement.parentNode.childNodes).filter((n) => {
+      const foundSameIdSibling = htmlElement.parentNode
+        ? Array.from(htmlElement.parentNode.childNodes).some((n) => {
             if (n.nodeType !== Node.ELEMENT_NODE) {
               return false;
             }
@@ -98,9 +98,9 @@ const getNodeValue = (element: Node, useElementId = false): string => {
               siblingElement.getAttribute('id') === id
             );
           })
-        : [];
+        : false;
 
-      if (sameIdSiblings.length === 0) {
+      if (!foundSameIdSibling) {
         return `//*[@id="${id}"]`;
       }
     }
