@@ -16,14 +16,14 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
-import { getElementXPath } from '@opentelemetry/web-utils';
+import { getElementCSSSelector } from '@opentelemetry/web-utils';
 import {
+  ATTR_CSS_SELECTOR,
   ATTR_MOUSE_EVENT_BUTTON,
   ATTR_PAGE_X,
   ATTR_PAGE_Y,
   ATTR_TAG_NAME,
   ATTR_TAGS,
-  ATTR_XPATH,
   CLICK_EVENT_NAME,
 } from './semconv';
 import type {
@@ -71,7 +71,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       return;
     }
 
-    const xPath = getElementXPath(element, {
+    const xPath = getElementCSSSelector(element, {
       useIdForTargetElement: true,
       useIdForAncestors: true,
     });
@@ -95,7 +95,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
         [ATTR_TAG_NAME]: element.tagName,
         [ATTR_TAGS]: otelPrefixedAttributes,
         [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
-        [ATTR_XPATH]: xPath,
+        [ATTR_CSS_SELECTOR]: xPath,
       },
     });
   };

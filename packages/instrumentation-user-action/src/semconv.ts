@@ -58,8 +58,8 @@ export const ATTR_TAG_NAME = 'browser.tag_name';
 export const ATTR_TAGS = 'browser.element.attributes';
 
 /**
- * @example "//*[@id='testBtn']"
+ * @example "#main > div:nth-child(2) > button.submit"
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_XPATH = 'browser.xpath';
+export const ATTR_CSS_SELECTOR = 'browser.css_selector';

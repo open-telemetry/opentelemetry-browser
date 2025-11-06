@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { getElementCSSSelector } from './getElementCSSSelector';
 import { getElementXPath } from './getElementXPath';
 
-export { getElementXPath };
+export { getElementCSSSelector, getElementXPath };

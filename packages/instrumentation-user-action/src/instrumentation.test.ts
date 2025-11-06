@@ -72,7 +72,7 @@ describe('UserActionInstrumentation', () => {
     expect(log?.attributes['browser.page.x']).toBe(100);
     expect(log?.attributes['browser.page.y']).toBe(150);
     expect(log?.attributes['browser.tag_name']).toBe('DIV');
-    expect(log?.attributes['browser.xpath']).toBe('//html/body/div');
+    expect(log?.attributes['browser.css_selector']).toBe('html > body > div');
   });
 
   it('should emit a log when the element triggers a mousedown event with the right and middle click', () => {
