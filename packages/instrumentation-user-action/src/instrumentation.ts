@@ -71,7 +71,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       return;
     }
 
-    const xPath = getElementCSSSelector(element, {
+    const cssSelector = getElementCSSSelector(element, {
       useIdForTargetElement: true,
       useIdForAncestors: true,
     });
