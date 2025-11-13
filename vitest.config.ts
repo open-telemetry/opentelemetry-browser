@@ -15,6 +15,7 @@
  */
 
 import path from 'node:path';
+import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -29,6 +30,12 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
+    browser: {
+      provider: playwright(),
+      enabled: true,
+      headless: true,
+      instances: [{ browser: 'chromium' }],
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
