@@ -16,7 +16,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "check-types": "tsc --noEmit",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
     "lint": "biome format --write ."
   },
   "devDependencies": {
