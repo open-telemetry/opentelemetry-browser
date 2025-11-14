@@ -40,8 +40,8 @@
     "@opentelemetry/web-utils": "*"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "*",
-    "vitest": "*"
+    "@opentelemetry/sdk-logs": "0.208.0",
+    "vitest": "4.0.9"
   },
   "publishConfig": {
     "access": "public"
