@@ -22,7 +22,7 @@
     "@biomejs/biome": "2.3.5",
     "@commitlint/cli": "20.1.0",
     "@commitlint/config-conventional": "20.0.0",
-    "lefthook": "2.0.3"
+    "lefthook": "2.0.4"
   },
   "peerDependencies": {
     "typescript": "5.9.3"
