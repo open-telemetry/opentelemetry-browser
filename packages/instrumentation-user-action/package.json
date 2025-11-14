@@ -39,10 +39,6 @@
     "@opentelemetry/instrumentation": "*",
     "@opentelemetry/web-utils": "*"
   },
-  "devDependencies": {
-    "@opentelemetry/sdk-logs": "*",
-    "vitest": "*"
-  },
   "publishConfig": {
     "access": "public"
   }
