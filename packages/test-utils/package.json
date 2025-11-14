@@ -33,10 +33,5 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
-  },
-  "devDependencies": {
-    "vitest": "4.0.9",
-    "@opentelemetry/api-logs": "0.208.0",
-    "@opentelemetry/sdk-logs": "0.208.0"
   }
 }
