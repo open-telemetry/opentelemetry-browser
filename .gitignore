@@ -1,5 +1,4 @@
 node_modules
-.turbo
 
 # output
 dist
@@ -9,8 +8,9 @@ dist
 .env
 
 # caches
-.cache
 *.tsbuildinfo
+.cache
+.turbo
 
 # IntelliJ based IDEs
 .idea
