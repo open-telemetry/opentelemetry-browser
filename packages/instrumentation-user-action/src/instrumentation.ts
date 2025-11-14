@@ -95,7 +95,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
         [ATTR_TAG_NAME]: element.tagName,
         [ATTR_TAGS]: otelPrefixedAttributes,
         [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
-        [ATTR_CSS_SELECTOR]: xPath,
+        [ATTR_CSS_SELECTOR]: cssSelector,
       },
     });
   };
