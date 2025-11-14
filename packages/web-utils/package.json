@@ -35,6 +35,6 @@
     "test:coverage": "vitest --coverage"
   },
   "devDependencies": {
-    "vitest": "*"
+    "vitest": "4.0.9"
   }
 }
