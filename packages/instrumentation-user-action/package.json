@@ -29,7 +29,7 @@
   "scripts": {
     "build": "tsc",
     "clean": "node -e \"fs.rmSync('dist', {recursive: true, force: true})\"",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
