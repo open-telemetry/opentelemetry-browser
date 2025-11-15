@@ -19,15 +19,16 @@
     "directory": "packages/instrumentation-user-action"
   },
   "type": "module",
+  "types": "./dist/index.d.mts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.mjs"
   },
   "files": [
     "dist",
     "src"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsdown",
     "clean": "node -e \"fs.rmSync('dist', {recursive: true, force: true})\"",
     "check-types": "tsc",
     "test": "vitest run",
