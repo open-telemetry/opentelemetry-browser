@@ -15,17 +15,17 @@
   "author": "OpenTelemetry Authors",
   "repository": {
     "type": "git",
-    "url": "https://github.com/open-telemetry/opentelemetry-browser.git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
     "directory": "packages/instrumentation-user-action"
   },
   "type": "module",
-  "types": "./dist/index.d.mts",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.mjs"
+    ".": "./dist/index.js"
   },
   "files": [
     "dist",
-    "src"
+    "*.md"
   ],
   "scripts": {
     "build": "tsdown",

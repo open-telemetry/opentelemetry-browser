@@ -21,6 +21,7 @@
     "lint": "biome format --write ."
   },
   "devDependencies": {
+    "@arethetypeswrong/core": "0.18.2",
     "@biomejs/biome": "2.3.5",
     "@commitlint/cli": "20.1.0",
     "@commitlint/config-conventional": "20.0.0",
@@ -30,6 +31,7 @@
     "@vitest/browser-playwright": "4.0.9",
     "jsdom": "27.0.1",
     "lefthook": "2.0.4",
+    "publint": "0.3.15",
     "tsdown": "0.16.4",
     "turbo": "2.6.1",
     "vitest": "4.0.9"
