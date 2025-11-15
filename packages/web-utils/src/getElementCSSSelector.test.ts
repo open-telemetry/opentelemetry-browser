@@ -19,12 +19,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { getElementCSSSelector } from './getElementCSSSelector';
 
 // Polyfill for CSS.escape in jsdom environment
-// @ts-expect-error
 globalThis.CSS = {
   escape(string: string): string {
     return string.replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`{|}~])/g, '\\$1');
   },
-};
+} as typeof CSS;
 
 describe('getElementCSSSelector', () => {
   const expectSelector = (selector: string, element: Element) => {
