@@ -26,7 +26,7 @@
     "@opentelemetry/sdk-logs": "0.208.0",
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.9",
-    "jsdom": "27.0.1",
+    "jsdom": "27.2.0",
     "lefthook": "2.0.4",
     "vitest": "4.0.9"
   },
