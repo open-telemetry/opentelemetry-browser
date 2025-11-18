@@ -19,16 +19,16 @@
     "lint": "biome format --write ."
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.5",
+    "@biomejs/biome": "2.3.6",
     "@commitlint/cli": "20.1.0",
     "@commitlint/config-conventional": "20.0.0",
     "@opentelemetry/api-logs": "0.208.0",
     "@opentelemetry/sdk-logs": "0.208.0",
     "@types/jsdom": "27.0.0",
-    "@vitest/browser-playwright": "4.0.9",
+    "@vitest/browser-playwright": "4.0.10",
     "jsdom": "27.2.0",
     "lefthook": "2.0.4",
-    "vitest": "4.0.9"
+    "vitest": "4.0.10"
   },
   "peerDependencies": {
     "typescript": "5.9.3"
