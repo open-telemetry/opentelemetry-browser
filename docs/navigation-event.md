@@ -9,7 +9,7 @@
 
 ### Reliable count of page loads (hard navigations)
 
-For full page loads, this event SHOULD be emitted as early as practical after the browser commits the new URL. Durations and detailed milestones for page load are captured separately by the Navigation Timing event (from the PerformanceNavigationTiming API). Navigation timing data is typically sent when timing fields are finalized (often after the `load` event), which means it may be missing if the user leaves early or if `load` never fires. The navigation event therefore provides a more reliable analytics signal, while navigation timing is used for performance analysis.
+For full page loads, this event SHOULD be emitted as early as practical after the browser commits the new URL. Durations and detailed milestones for page load are captured separately by the Navigation Timing event (from the PerformanceNavigationTiming API). Navigation timing data is typically sent when timing fields are finalized (often after the `load` event), which means the event might be lost if the user leaves the page early or if `load` event never fires. The navigation event therefore provides a more reliable analytics signal, while navigation timing is used for performance analysis.
 
 Hard page loads MUST be distinguishable from other navigation types. Implementations MUST include the `same_document` attribute to indicate whether the navigation replaced the document (`same_document = false`) or not.
 
