@@ -1,0 +1,45 @@
+{
+  "name": "@opentelemetry/instrumentation-user-action",
+  "version": "0.1.0",
+  "description": "OpenTelemetry instrumentation for user actions for browser applications.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "instrumentation",
+    "user-action"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/instrumentation-user-action"
+  },
+  "type": "module",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"fs.rmSync('dist', {recursive: true, force: true})\"",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "*",
+    "@opentelemetry/instrumentation": "*",
+    "@opentelemetry/web-utils": "*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
