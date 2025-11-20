@@ -13,7 +13,9 @@ For full page loads, this event SHOULD be emitted as early as practical after th
 
 Hard page loads MUST be distinguishable from other navigation types. Implementations MUST include the `same_document` attribute to indicate whether the navigation replaced the document (`same_document = false`) or not.
 
-### Capturing soft navigations
+### Capturing same-document navigations
+
+#### Soft navigations
 
 The concept of soft navigation (e.g., SPA route changes) is not standardized and is typically implemented by framework routers. Practical heuristics include: initiated by a user action (for example, a click) and resulting in both a URL change (e.g., `history.pushState`/`replaceState`) and a visible change in page content.
 
@@ -21,7 +23,7 @@ Since soft navigations are analyzed similarly to page loads, they SHOULD be repr
 
 TODO: Define how soft navigations are identified and represented in semantic conventions. This is not standardized yet.
 
-### Capturing same-document navigations
+#### Other URL changes
 
 This event can also capture same-document navigations for deeper session and user-journey analysis. Examples can include:
 
