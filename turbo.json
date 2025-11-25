@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/turbo/schema.json",
+  "globalDependencies": ["*.json", "*.config.ts"],
   "tasks": {
     "build": {
+      "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
     "check-types": {
