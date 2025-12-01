@@ -6,6 +6,10 @@
   ],
   "packageRules": [
     {
+      "groupName": "otel",
+      "matchPackagePatterns": ["^@opentelemetry/"]
+    },
+    {
       "groupName": "all patch versions",
       "matchUpdateTypes": ["patch"],
       "schedule": ["before 8am every weekday"]
