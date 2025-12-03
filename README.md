@@ -94,10 +94,8 @@ The following tables list browser-related packages, where they live today, and t
 
 This project requires **Node.js >= 22.12.0** and **npm 11.6.0** (npm > 11.6.0 has a bug with missing optional dependencies).
 
-Enable Corepack to automatically use the correct npm version:
-
 ```bash
-corepack enable
+npm install -g npm@11.6.0
 ```
 
 ### Maintainers

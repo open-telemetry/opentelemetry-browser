@@ -22,7 +22,7 @@ jobs:
           cache: 'npm'
 
       # npm > 11.6.0 has a bug with missing optional dependencies
-      - run: corepack enable
+      - run: npm install -g npm@11.6.0
 
       - run: npm ci
 
