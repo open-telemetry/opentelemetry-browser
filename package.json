@@ -56,5 +56,8 @@
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.6.0"
+  "packageManager": "npm@11.6.0",
+  "engines": {
+    "node": ">=22.12.0"
+  }
 }
