@@ -24,8 +24,7 @@
     ".": "./dist/index.js"
   },
   "files": [
-    "dist",
-    "*.md"
+    "dist"
   ],
   "scripts": {
     "build": "tsdown",
