@@ -16,9 +16,15 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "lint": "biome format --write ."
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "lint": "biome format --write .",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "test:coverage": "turbo run test:coverage"
   },
   "devDependencies": {
+    "@arethetypeswrong/core": "0.18.2",
     "@biomejs/biome": "2.3.8",
     "@commitlint/cli": "20.1.0",
     "@commitlint/config-conventional": "20.0.0",
@@ -26,8 +32,12 @@
     "@opentelemetry/sdk-logs": "0.208.0",
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.14",
+    "@vitest/coverage-v8": "4.0.14",
     "jsdom": "27.2.0",
     "lefthook": "2.0.4",
+    "publint": "0.3.15",
+    "tsdown": "0.16.4",
+    "turbo": "2.6.1",
     "vitest": "4.0.14"
   },
   "peerDependencies": {
@@ -35,15 +45,16 @@
   },
   "dependencies": {
     "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/api-logs": "0.207.0",
+    "@opentelemetry/api-logs": "0.208.0",
     "@opentelemetry/core": "2.2.0",
-    "@opentelemetry/instrumentation": "0.207.0",
-    "@opentelemetry/sdk-logs": "0.207.0"
+    "@opentelemetry/instrumentation": "0.208.0",
+    "@opentelemetry/sdk-logs": "0.208.0"
   },
   "workspaces": [
     "packages/*"
   ],
   "commitlint": {
     "extends": "@commitlint/config-conventional"
-  }
+  },
+  "packageManager": "npm@11.6.0"
 }
