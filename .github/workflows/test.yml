@@ -21,6 +21,9 @@ jobs:
           node-version-file: package.json
           cache: 'npm'
 
+      # npm > 11.6.0 has a bug with missing optional dependencies
+      - run: corepack enable
+
       - run: npm ci
 
       - run: npm run build
