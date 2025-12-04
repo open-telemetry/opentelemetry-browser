@@ -6,6 +6,11 @@
   ],
   "packageRules": [
     {
+      "description": "npm > 11.6.0 has a bug with missing optional dependencies",
+      "matchPackageNames": ["npm"],
+      "enabled": false
+    },
+    {
       "groupName": "otel",
       "schedule": ["before 8am on Monday"],
       "matchPackageNames": ["/^@opentelemetry//"]
