@@ -1,0 +1,32 @@
+# @opentelemetry/instrumentation-{{kebabCase name}}
+
+{{description}}
+
+## Installation
+
+```bash
+npm install @opentelemetry/instrumentation-{{kebabCase name}}
+```
+
+## Usage
+
+```typescript
+import { {{pascalCase name}}Instrumentation } from '@opentelemetry/instrumentation-{{kebabCase name}}';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+
+registerInstrumentations({
+  instrumentations: [
+    new {{pascalCase name}}Instrumentation({
+      // configuration options
+    }),
+  ],
+});
+```
+
+## Configuration
+
+TODO: Document configuration options
+
+## License
+
+Apache-2.0
