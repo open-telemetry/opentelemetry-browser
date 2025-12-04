@@ -3,34 +3,90 @@
   "vcs": {
     "enabled": true,
     "clientKind": "git",
+    "defaultBranch": "main",
     "useIgnoreFile": true
   },
   "files": {
-    "ignoreUnknown": false
-  },
-  "formatter": {
-    "enabled": true,
-    "indentStyle": "space"
-  },
-  "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "style": {
-        "useBlockStatements": "error"
-      }
-    }
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single"
-    }
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!!**/.next",
+      "!!**/.turbo",
+      "!!**/public"
+    ]
   },
   "assist": {
     "enabled": true,
     "actions": {
       "source": {
         "organizeImports": "on"
+      }
+    }
+  },
+  "formatter": {
+    "indentStyle": "space"
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single"
+    }
+  },
+  "css": {
+    "parser": {
+      // webpack integration tests use tailwind
+      "tailwindDirectives": true
+    }
+  },
+  "linter": {
+    "rules": {
+      "security": {
+        "recommended": true
+      },
+      "a11y": {
+        "recommended": true
+      },
+      "complexity": {
+        "recommended": true,
+        // incompatible with typescript:
+        // https://github.com/biomejs/biome/discussions/7404
+        "useLiteralKeys": "off"
+      },
+      "correctness": {
+        "recommended": true
+        // TBD on whether to use ts or js extensions
+        // "useImportExtensions": "error"
+        // https://github.com/biomejs/biome/issues/7734
+        // "useImportExtensions": {
+        //   "level": "error",
+        //   "options": {
+        //     "forceJsExtensions": true  // Force .js even for .ts files
+        //   }
+        // }
+      },
+      "performance": {
+        "recommended": true,
+        "noReExportAll": "error"
+      },
+      "style": {
+        "recommended": true,
+        "useImportType": {
+          "level": "error",
+          "options": {
+            "style": "separatedType"
+          }
+        },
+        "useNodejsImportProtocol": {
+          "level": "error",
+          "fix": "unsafe"
+        },
+        "useBlockStatements": "error"
+      },
+      "suspicious": {
+        "recommended": true
+      },
+      "nursery": {
+        // experimental rule but working well
+        "noImportCycles": "error"
       }
     }
   }
