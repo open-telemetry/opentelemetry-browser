@@ -36,7 +36,7 @@
     "jsdom": "27.2.0",
     "lefthook": "2.0.4",
     "publint": "0.3.15",
-    "tsdown": "0.16.4",
+    "tsdown": "0.16.8",
     "turbo": "2.6.1",
     "vitest": "4.0.14"
   },
@@ -56,5 +56,5 @@
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.6.0"
+  "packageManager": "npm@11.6.4"
 }
