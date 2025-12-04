@@ -16,6 +16,8 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "prepare": "lefthook install -f",
+    "clean": "npx -y rimraf -g \"**/.turbo\" \"**/dist\" \"**/node_modules\"",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
     "lint": "biome format --write .",
