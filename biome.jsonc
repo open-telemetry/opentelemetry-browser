@@ -52,16 +52,8 @@
         "useLiteralKeys": "off"
       },
       "correctness": {
-        "recommended": true
-        // TBD on whether to use ts or js extensions
-        // "useImportExtensions": "error"
-        // https://github.com/biomejs/biome/issues/7734
-        // "useImportExtensions": {
-        //   "level": "error",
-        //   "options": {
-        //     "forceJsExtensions": true  // Force .js even for .ts files
-        //   }
-        // }
+        "recommended": true,
+        "useImportExtensions": "error"
       },
       "performance": {
         "recommended": true,

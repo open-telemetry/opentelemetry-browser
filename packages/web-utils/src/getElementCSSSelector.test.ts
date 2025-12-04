@@ -16,7 +16,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { getElementCSSSelector } from './getElementCSSSelector';
+import { getElementCSSSelector } from './getElementCSSSelector.ts';
 
 // Polyfill for CSS.escape in jsdom environment
 globalThis.CSS = {

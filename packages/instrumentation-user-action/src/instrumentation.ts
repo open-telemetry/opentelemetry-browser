@@ -25,12 +25,12 @@ import {
   ATTR_TAG_NAME,
   ATTR_TAGS,
   CLICK_EVENT_NAME,
-} from './semconv';
+} from './semconv.ts';
 import type {
   AutoCapturedUserAction,
   MouseButton,
   UserActionInstrumentationConfig,
-} from './types';
+} from './types.ts';
 
 const DEFAULT_AUTO_CAPTURED_ACTIONS: AutoCapturedUserAction[] = ['click'];
 const OTEL_ELEMENT_ATTRIBUTE_PREFIX = 'data-otel-';

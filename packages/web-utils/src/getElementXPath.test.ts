@@ -16,7 +16,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { getElementXPath } from './getElementXPath';
+import { getElementXPath } from './getElementXPath.ts';
 
 describe('getElementXPath', () => {
   const expectXPath = (xpath: string, node: Node) => {
