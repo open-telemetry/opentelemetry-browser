@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { UserActionInstrumentation } from './instrumentation';
+export { UserActionInstrumentation } from './instrumentation.ts';
