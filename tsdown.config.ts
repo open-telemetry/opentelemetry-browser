@@ -7,6 +7,7 @@ export default defineConfig({
   publint: true,
   target: 'es2022',
   attw: {
-    profile: 'esmOnly',
+    profile: 'esm-only',
   },
+  unbundle: true,
 });
