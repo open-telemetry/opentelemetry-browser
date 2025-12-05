@@ -21,8 +21,7 @@ jobs:
           node-version-file: package.json
           cache: 'npm'
 
-      # npm > 11.6.0 has a bug with missing optional dependencies
-      - run: npm install -g npm@11.6.0
+      - run: npm install -g npm@11.6.4
 
       - run: npm ci
 
