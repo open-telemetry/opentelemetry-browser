@@ -1,0 +1,44 @@
+{
+  "name": "@opentelemetry/instrumentation-navigation-timing",
+  "version": "0.1.0",
+  "description": "OpenTelemetry instrumentation for navigation timing for browser applications.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "instrumentation",
+    "navigation-timing"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/instrumentation-navigation-timing"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "*",
+    "@opentelemetry/instrumentation": "*",
+    "@opentelemetry/web-utils": "*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
