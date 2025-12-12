@@ -15,7 +15,7 @@
  */
 
 import { InstrumentationBase } from "@opentelemetry/instrumentation";
-import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { SeverityNumber } from "@opentelemetry/api-logs";
 import {
   ATTR_NAVIGATION_CONNECT_END,
   ATTR_NAVIGATION_CONNECT_START,
@@ -60,7 +60,11 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override enable(): void {
-    this._observeNavigationTimings();
+    if (document.readyState === "complete") {
+      this._observeNavigationTimings();
+    } else {
+      window.addEventListener("load", () => this._observeNavigationTimings());
+    }
   }
 
   override disable(): void {
@@ -68,6 +72,10 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       this._observer.disconnect();
       this._observer = undefined;
     }
+
+    window.removeEventListener("load", () => {
+      this._observeNavigationTimings();
+    });
   }
 
   private _observeNavigationTimings() {
@@ -90,12 +98,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   private _emitNavigationTiming(entry: PerformanceNavigationTiming) {
-    const logger = logs.getLogger(
-      this.instrumentationName,
-      this.instrumentationVersion
-    );
-
-    logger.emit({
+    this.logger.emit({
       body: NAVIGATION_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       attributes: {
