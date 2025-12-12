@@ -14,19 +14,45 @@
  * limitations under the License.
  */
 
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
-import type { NavigationTimingInstrumentationConfig } from './types';
+import { InstrumentationBase } from "@opentelemetry/instrumentation";
+import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import {
+  ATTR_NAVIGATION_CONNECT_END,
+  ATTR_NAVIGATION_CONNECT_START,
+  ATTR_NAVIGATION_DECODED_BODY_SIZE,
+  ATTR_NAVIGATION_DOM_COMPLETE,
+  ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_END,
+  ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_START,
+  ATTR_NAVIGATION_DOM_INTERACTIVE,
+  ATTR_NAVIGATION_DOMAIN_LOOKUP_END,
+  ATTR_NAVIGATION_DOMAIN_LOOKUP_START,
+  ATTR_NAVIGATION_DURATION,
+  ATTR_NAVIGATION_ENCODED_BODY_SIZE,
+  ATTR_NAVIGATION_FETCH_START,
+  ATTR_NAVIGATION_LOAD_EVENT_END,
+  ATTR_NAVIGATION_LOAD_EVENT_START,
+  ATTR_NAVIGATION_REDIRECT_COUNT,
+  ATTR_NAVIGATION_REQUEST_START,
+  ATTR_NAVIGATION_RESPONSE_END,
+  ATTR_NAVIGATION_RESPONSE_START,
+  ATTR_NAVIGATION_SECURE_CONNECTION_START,
+  ATTR_NAVIGATION_TRANSFER_SIZE,
+  ATTR_NAVIGATION_TYPE,
+  ATTR_NAVIGATION_UNLOAD_EVENT_END,
+  ATTR_NAVIGATION_UNLOAD_EVENT_START,
+  ATTR_NAVIGATION_URL,
+  NAVIGATION_TIMING_EVENT_NAME,
+} from "./semconv";
+import type { NavigationTimingInstrumentationConfig } from "./types";
 
 /**
  * This class automatically instruments navigation timing within the browser.
  */
 export class NavigationTimingInstrumentation extends InstrumentationBase<NavigationTimingInstrumentationConfig> {
+  private _observer?: PerformanceObserver;
+
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
-    super(
-      '@opentelemetry/instrumentation-navigation-timing',
-      '0.1.0',
-      config,
-    );
+    super("@opentelemetry/instrumentation-navigation-timing", "0.1.0", config);
   }
 
   protected override init() {
@@ -34,10 +60,75 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override enable(): void {
-    // TODO: Implement navigation timing instrumentation
+    this._observeNavigationTimings();
   }
 
   override disable(): void {
-    // TODO: Implement cleanup for navigation timing instrumentation
+    if (this._observer) {
+      this._observer.disconnect();
+      this._observer = undefined;
+    }
+  }
+
+  private _observeNavigationTimings() {
+    if (typeof PerformanceObserver === "undefined") {
+      return;
+    }
+
+    this._observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        this._emitNavigationTiming(
+          entry as PerformanceNavigationTiming as PerformanceNavigationTiming
+        );
+      }
+    });
+
+    this._observer.observe({
+      type: "navigation",
+      buffered: true,
+    });
+  }
+
+  private _emitNavigationTiming(entry: PerformanceNavigationTiming) {
+    const logger = logs.getLogger(
+      this.instrumentationName,
+      this.instrumentationVersion
+    );
+
+    logger.emit({
+      body: NAVIGATION_TIMING_EVENT_NAME,
+      severityNumber: SeverityNumber.INFO,
+      attributes: {
+        [ATTR_NAVIGATION_TYPE]: entry.type,
+        [ATTR_NAVIGATION_URL]: entry.name,
+        [ATTR_NAVIGATION_DURATION]: entry.duration,
+        [ATTR_NAVIGATION_DOM_COMPLETE]: entry.domComplete,
+        [ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_END]:
+          entry.domContentLoadedEventEnd,
+        [ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_START]:
+          entry.domContentLoadedEventStart,
+        [ATTR_NAVIGATION_DOM_INTERACTIVE]: entry.domInteractive,
+        [ATTR_NAVIGATION_LOAD_EVENT_END]: entry.loadEventEnd,
+        [ATTR_NAVIGATION_LOAD_EVENT_START]: entry.loadEventStart,
+
+        // TODO: clarify if these will have different attribute names because they are the same as in the resource timings instrumentation
+        // TODO: do we already have semantic attributes for these?
+        [ATTR_NAVIGATION_REDIRECT_COUNT]: entry.redirectCount,
+        [ATTR_NAVIGATION_UNLOAD_EVENT_END]: entry.unloadEventEnd,
+        [ATTR_NAVIGATION_UNLOAD_EVENT_START]: entry.unloadEventStart,
+        [ATTR_NAVIGATION_FETCH_START]: entry.fetchStart,
+        [ATTR_NAVIGATION_DOMAIN_LOOKUP_START]: entry.domainLookupStart,
+        [ATTR_NAVIGATION_DOMAIN_LOOKUP_END]: entry.domainLookupEnd,
+        [ATTR_NAVIGATION_CONNECT_START]: entry.connectStart,
+        [ATTR_NAVIGATION_CONNECT_END]: entry.connectEnd,
+        [ATTR_NAVIGATION_SECURE_CONNECTION_START]: entry.secureConnectionStart,
+        [ATTR_NAVIGATION_REQUEST_START]: entry.requestStart,
+        [ATTR_NAVIGATION_RESPONSE_START]: entry.responseStart,
+        [ATTR_NAVIGATION_RESPONSE_END]: entry.responseEnd,
+        [ATTR_NAVIGATION_TRANSFER_SIZE]: entry.transferSize,
+        [ATTR_NAVIGATION_ENCODED_BODY_SIZE]: entry.encodedBodySize,
+        [ATTR_NAVIGATION_DECODED_BODY_SIZE]: entry.decodedBodySize,
+      },
+    });
   }
 }
