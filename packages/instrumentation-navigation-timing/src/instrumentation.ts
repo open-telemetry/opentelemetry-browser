@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { InstrumentationBase } from "@opentelemetry/instrumentation";
 import { SeverityNumber } from "@opentelemetry/api-logs";
+import { InstrumentationBase } from "@opentelemetry/instrumentation";
 import {
   ATTR_NAVIGATION_CONNECT_END,
   ATTR_NAVIGATION_CONNECT_START,
@@ -50,6 +50,7 @@ import type { NavigationTimingInstrumentationConfig } from "./types";
  */
 export class NavigationTimingInstrumentation extends InstrumentationBase<NavigationTimingInstrumentationConfig> {
   private _observer?: PerformanceObserver;
+  private _lastEntry?: PerformanceNavigationTiming;
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super("@opentelemetry/instrumentation-navigation-timing", "0.1.0", config);
@@ -60,11 +61,15 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override enable(): void {
-    if (document.readyState === "complete") {
-      this._observeNavigationTimings();
-    } else {
-      window.addEventListener("load", () => this._observeNavigationTimings());
-    }
+    this._observeNavigationTimings();
+
+    window.addEventListener("pagehide", () => {
+      this._emitNavigationTiming(
+        this._lastEntry as PerformanceNavigationTiming
+      );
+      this._lastEntry = undefined;
+      this._unsubscribeAll();
+    });
   }
 
   override disable(): void {
@@ -73,9 +78,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       this._observer = undefined;
     }
 
-    window.removeEventListener("load", () => {
-      this._observeNavigationTimings();
-    });
+    this._unsubscribeAll();
   }
 
   private _observeNavigationTimings() {
@@ -85,9 +88,13 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
     this._observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        this._emitNavigationTiming(
-          entry as PerformanceNavigationTiming as PerformanceNavigationTiming
-        );
+        if ((entry as PerformanceNavigationTiming).loadEventEnd > 0) {
+          this._emitNavigationTiming(entry as PerformanceNavigationTiming);
+          this._lastEntry = undefined;
+          this._unsubscribeAll();
+        } else {
+          this._lastEntry = entry as PerformanceNavigationTiming;
+        }
       }
     });
 
@@ -98,6 +105,10 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   private _emitNavigationTiming(entry: PerformanceNavigationTiming) {
+    if (!entry) {
+      return;
+    }
+
     this.logger.emit({
       body: NAVIGATION_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
@@ -132,6 +143,16 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
         [ATTR_NAVIGATION_ENCODED_BODY_SIZE]: entry.encodedBodySize,
         [ATTR_NAVIGATION_DECODED_BODY_SIZE]: entry.decodedBodySize,
       },
+    });
+  }
+
+  private _unsubscribeAll(): void {
+    document.removeEventListener("load", () => {
+      this._emitNavigationTiming;
+    });
+
+    document.removeEventListener("pagehide", () => {
+      this._emitNavigationTiming;
     });
   }
 }
