@@ -15,8 +15,13 @@ const licensePattern =
 export default [
   {
     files: ['packages/*/src/**/*.{js,ts,mjs}'],
+    ignores: ['**/*.test.ts', '**/*.spec.ts'],
     languageOptions: {
       parser: tseslint.parser,
+      // enables type-aware linting to detect instance method usage
+      parserOptions: {
+        projectService: true,
+      },
     },
     plugins: {
       'baseline-js': baselinePlugin,
