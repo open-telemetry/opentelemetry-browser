@@ -45,12 +45,29 @@ import {
 } from "./semconv";
 import type { NavigationTimingInstrumentationConfig } from "./types";
 
+const COMPLETE_ENTRY_DELAY_MS = 0;
+
 /**
  * This class automatically instruments navigation timing within the browser.
  */
 export class NavigationTimingInstrumentation extends InstrumentationBase<NavigationTimingInstrumentationConfig> {
-  private _observer?: PerformanceObserver;
   private _lastEntry?: PerformanceNavigationTiming;
+  private _didEmit = false;
+  private _completeDelayTimeoutId?: number;
+
+  private _onLoad = () => {
+    this._tryEmitOrSchedule();
+  };
+
+  private _onPageHide = () => {
+    this._handleUnload();
+  };
+
+  private _onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      this._handleUnload();
+    }
+  };
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super("@opentelemetry/instrumentation-navigation-timing", "0.1.0", config);
@@ -61,47 +78,111 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override enable(): void {
-    this._observeNavigationTimings();
-
-    window.addEventListener("pagehide", () => {
-      this._emitNavigationTiming(
-        this._lastEntry as PerformanceNavigationTiming
-      );
-      this._lastEntry = undefined;
-      this._unsubscribeAll();
-    });
-  }
-
-  override disable(): void {
-    if (this._observer) {
-      this._observer.disconnect();
-      this._observer = undefined;
-    }
-
-    this._unsubscribeAll();
-  }
-
-  private _observeNavigationTimings() {
-    if (typeof PerformanceObserver === "undefined") {
+    if (
+      typeof performance === "undefined" ||
+      typeof performance.getEntriesByType !== "function"
+    ) {
       return;
     }
 
-    this._observer = new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) {
-        if ((entry as PerformanceNavigationTiming).loadEventEnd > 0) {
-          this._emitNavigationTiming(entry as PerformanceNavigationTiming);
-          this._lastEntry = undefined;
-          this._unsubscribeAll();
-        } else {
-          this._lastEntry = entry as PerformanceNavigationTiming;
-        }
-      }
-    });
+    // Try emitting immediately (e.g. when enabled after load),
+    // otherwise schedule for `load` or fall back to unload.
+    this._tryEmitOrSchedule();
+    if (this._didEmit) {
+      return;
+    }
 
-    this._observer.observe({
-      type: "navigation",
-      buffered: true,
-    });
+    window.addEventListener("pagehide", this._onPageHide);
+
+    // Some environments (and some navigations) may not reliably deliver `pagehide`.
+    // Use `visibilitychange` as a best-effort fallback for unloading.
+    document.addEventListener("visibilitychange", this._onVisibilityChange);
+  }
+
+  override disable(): void {
+    this._unsubscribeAll();
+    this._lastEntry = undefined;
+  }
+
+  private _getLatestNavigationEntry(): PerformanceNavigationTiming | undefined {
+    const entries = performance?.getEntriesByType?.(
+      "navigation"
+    ) as PerformanceNavigationTiming[] | undefined;
+    if (!entries || entries.length === 0) {
+      return;
+    }
+
+    return entries[entries.length - 1];
+  }
+
+  /**
+   * Attempts to emit the navigation timing event.
+   *
+   * - Emits immediately if a complete `PerformanceNavigationTiming` entry is available.
+   * - If the page is still loading, waits for `window.load` and retries.
+   * - If the page is already loaded but the entry is not finalized yet, schedules one
+   *   deferred re-check (to allow the browser to populate the timing fields).
+   *
+   * This method can be called multiple times (from `enable()`, the load handler, or the
+   * deferred timeout), so it must be safe to re-enter.
+   */
+  private _tryEmitOrSchedule(): void {
+    if (this._didEmit) {
+      return;
+    }
+
+    const entry = this._getLatestNavigationEntry();
+    if (entry) {
+      this._lastEntry = entry;
+    }
+
+    // Prefer emitting a "complete" navigation entry.
+    if (entry && entry.loadEventEnd > 0) {
+      this._emitAndCleanup(entry);
+      return;
+    }
+
+    // If the document is still loading, wait for `load` and try again.
+    if (document.readyState !== "complete") {
+      window.addEventListener("load", this._onLoad, { once: true });
+      return;
+    }
+
+    // If the document is already complete but navigation timings are not finalized yet,
+    // do a single deferred re-check to allow the browser to finish populating the entry.
+    if (!this._completeDelayTimeoutId) {
+      this._completeDelayTimeoutId = window.setTimeout(() => {
+        this._completeDelayTimeoutId = undefined;
+        this._tryEmitOrSchedule();
+      }, COMPLETE_ENTRY_DELAY_MS);
+    }
+  }
+
+  private _handleUnload(): void {
+    if (this._didEmit) {
+      return;
+    }
+
+    const entry = this._getLatestNavigationEntry() ?? this._lastEntry;
+    if (!entry) {
+      this._unsubscribeAll();
+      return;
+    }
+
+    // Emit even if partial (e.g. loadEventEnd === 0).
+    this._emitAndCleanup(entry);
+  }
+
+  private _emitAndCleanup(entry: PerformanceNavigationTiming): void {
+    if (this._didEmit) {
+      return;
+    }
+
+    this._didEmit = true;
+
+    this._emitNavigationTiming(entry);
+    this._lastEntry = undefined;
+    this._unsubscribeAll();
   }
 
   private _emitNavigationTiming(entry: PerformanceNavigationTiming) {
@@ -147,12 +228,13 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   private _unsubscribeAll(): void {
-    document.removeEventListener("load", () => {
-      this._emitNavigationTiming;
-    });
+    if (this._completeDelayTimeoutId) {
+      clearTimeout(this._completeDelayTimeoutId);
+      this._completeDelayTimeoutId = undefined;
+    }
 
-    document.removeEventListener("pagehide", () => {
-      this._emitNavigationTiming;
-    });
+    window.removeEventListener("load", this._onLoad);
+    window.removeEventListener("pagehide", this._onPageHide);
+    document.removeEventListener("visibilitychange", this._onVisibilityChange);
   }
 }

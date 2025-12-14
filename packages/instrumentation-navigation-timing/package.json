@@ -28,10 +28,11 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "watch": "tsdown --watch",
     "check-types": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest --coverage"
+    "test": "vitest run --browser.enabled=false",
+    "test:watch": "vitest --browser.enabled=false",
+    "test:coverage": "vitest --coverage --browser.enabled=false"
   },
   "dependencies": {
     "@opentelemetry/api-logs": "*",
