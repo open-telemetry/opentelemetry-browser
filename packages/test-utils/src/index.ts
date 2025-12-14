@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-import { setupTestLogExporter } from './logTestUtils';
+import { setupTestLogExporter } from './logTestUtils.ts';
 
 export { setupTestLogExporter };
