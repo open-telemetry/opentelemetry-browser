@@ -63,12 +63,6 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     this._handleUnload();
   };
 
-  private _onVisibilityChange = () => {
-    if (document.visibilityState === "hidden") {
-      this._handleUnload();
-    }
-  };
-
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super("@opentelemetry/instrumentation-navigation-timing", "0.1.0", config);
   }
@@ -93,10 +87,6 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     window.addEventListener("pagehide", this._onPageHide);
-
-    // Some environments (and some navigations) may not reliably deliver `pagehide`.
-    // Use `visibilitychange` as a best-effort fallback for unloading.
-    document.addEventListener("visibilitychange", this._onVisibilityChange);
   }
 
   override disable(): void {
@@ -235,6 +225,5 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
     window.removeEventListener("load", this._onLoad);
     window.removeEventListener("pagehide", this._onPageHide);
-    document.removeEventListener("visibilitychange", this._onVisibilityChange);
   }
 }
