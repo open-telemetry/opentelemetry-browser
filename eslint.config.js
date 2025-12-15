@@ -10,7 +10,7 @@ const defaultLicense = `
 `;
 
 const licensePattern =
-  /^\/\*\n \* Copyright The OpenTelemetry Authors\n \* SPDX-License-Identifier: Apache-2\.0\n \*\/$/;
+  /^\/\*\n \* Copyright The OpenTelemetry Authors(?:, [^\n]+)*\n(?: \* Copyright [^\n]+\n)*(?: \*\n)? \* SPDX-License-Identifier: Apache-2\.0\n \*\/$/;
 
 export default [
   {
