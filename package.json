@@ -38,7 +38,7 @@
     "jsdom": "27.2.0",
     "lefthook": "2.0.9",
     "publint": "0.3.16",
-    "tsdown": "0.17.2",
+    "tsdown": "0.17.3",
     "turbo": "2.6.3",
     "vitest": "4.0.15"
   },
