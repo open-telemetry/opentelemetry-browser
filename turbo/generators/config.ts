@@ -36,6 +36,11 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
       },
       {
         type: 'add',
+        path: 'packages/instrumentation-{{kebabCase name}}/src/instrumentation.test.ts',
+        templateFile: 'templates/instrumentation/instrumentation.test.ts.hbs',
+      },
+      {
+        type: 'add',
         path: 'packages/instrumentation-{{kebabCase name}}/src/semconv.ts',
         templateFile: 'templates/instrumentation/semconv.ts.hbs',
       },

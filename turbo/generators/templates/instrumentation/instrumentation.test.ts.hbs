@@ -1,0 +1,24 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { {{pascalCase name}}Instrumentation } from './instrumentation.ts';
+
+describe('{{pascalCase name}}Instrumentation', () => {
+  let instrumentation: {{pascalCase name}}Instrumentation;
+
+  beforeEach(() => {
+    instrumentation = new {{pascalCase name}}Instrumentation();
+    instrumentation.enable();
+  });
+
+  afterEach(() => {
+    instrumentation.disable();
+  });
+
+  it('should be defined', () => {
+    expect(instrumentation).toBeDefined();
+  });
+});
