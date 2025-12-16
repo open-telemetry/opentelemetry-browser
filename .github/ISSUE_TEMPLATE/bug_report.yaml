@@ -1,0 +1,46 @@
+name: Bug Report
+description: File a bug report
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing a bug, please search [existing issues](https://github.com/open-telemetry/opentelemetry-browser/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
+
+  - type: textarea
+    attributes:
+      label: What happened?
+      value: |
+        ## Steps to Reproduce
+
+        ## Expected Result
+
+        ## Actual Result
+
+        ## Additional Details
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: OpenTelemetry Setup Code
+      description: Please provide the code you use to set up OpenTelemetry.
+      render: "JavaScript"
+
+  - type: textarea
+    attributes:
+      label: package.json
+      description: Relevant dependencies from your package.json.
+      render: "JSON"
+
+  - type: textarea
+    attributes:
+      label: Relevant log output
+      render: shell
+
+  - type: textarea
+    attributes:
+      label: Browser and Version
+      placeholder: Chrome 140, Firefox 130, Safari 26.2, ...
+    validations:
+      required: false
