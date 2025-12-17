@@ -17,6 +17,7 @@
   "private": true,
   "scripts": {
     "prepare": "lefthook install -f",
+    "generate": "turbo generate",
     "clean": "npx -y rimraf -g \"**/.turbo\" \"**/dist\" \"**/node_modules\"",
     "build": "turbo run build",
     "check-types": "turbo run check-types",
@@ -32,6 +33,7 @@
     "@commitlint/config-conventional": "20.2.0",
     "@opentelemetry/api-logs": "0.208.0",
     "@opentelemetry/sdk-logs": "0.208.0",
+    "@turbo/gen": "2.6.3",
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.15",
     "@vitest/coverage-v8": "4.0.15",
