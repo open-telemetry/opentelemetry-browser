@@ -1,0 +1,29 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import type { {{pascalCase name}}InstrumentationConfig } from './types.ts';
+
+/**
+ * {{description}}
+ */
+export class {{pascalCase name}}Instrumentation extends InstrumentationBase<{{pascalCase name}}InstrumentationConfig> {
+  constructor(config: {{pascalCase name}}InstrumentationConfig = {}) {
+    super('@opentelemetry/instrumentation-{{kebabCase name}}', '0.1.0', config);
+  }
+
+  protected override init() {
+    // TODO: Implement instrumentation logic
+    return [];
+  }
+
+  override enable(): void {
+    // TODO: Implement enable logic
+  }
+
+  override disable(): void {
+    // TODO: Implement disable logic
+  }
+}
