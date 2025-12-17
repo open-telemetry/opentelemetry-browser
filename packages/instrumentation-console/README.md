@@ -9,7 +9,6 @@ Compatible with OpenTelemetry JS API and SDK `1.0+`.
 
 ## Installation
 
-
 ```bash
 npm install @opentelemetry/instrumentation-console
 ```
