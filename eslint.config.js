@@ -1,0 +1,39 @@
+import baselinePlugin from 'eslint-plugin-baseline-js';
+import yalhPlugin from 'eslint-plugin-yet-another-license-header';
+import tseslint from 'typescript-eslint';
+
+const defaultLicense = `
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+`;
+
+const licensePattern =
+  /^\/\*\n \* Copyright The OpenTelemetry Authors(?:, [^\n]+)*\n(?: \* Copyright [^\n]+\n)*(?: \*\n)? \* SPDX-License-Identifier: Apache-2\.0\n \*\/$/;
+
+export default [
+  {
+    files: ['packages/*/src/**/*.{js,ts,mjs}'],
+    languageOptions: {
+      parser: tseslint.parser,
+    },
+    plugins: {
+      'baseline-js': baselinePlugin,
+      'yet-another-license-header': yalhPlugin,
+    },
+    rules: {
+      ...baselinePlugin.configs['recommended-ts']({
+        available: 'widely',
+        level: 'error',
+      }).rules,
+      'yet-another-license-header/header': [
+        'error',
+        {
+          header: defaultLicense,
+          allowedHeaderPatterns: [licensePattern],
+        },
+      ],
+    },
+  },
+];

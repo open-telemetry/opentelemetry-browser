@@ -25,4 +25,4 @@ jobs:
 
       - run: npm ci
 
-      - run: npx biome ci
+      - run: npm run lint:ci
