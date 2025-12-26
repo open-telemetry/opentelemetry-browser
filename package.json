@@ -48,7 +48,7 @@
     "publint": "0.3.16",
     "tsdown": "0.17.4",
     "turbo": "2.6.3",
-    "typescript-eslint": "8.50.0",
+    "typescript-eslint": "8.50.1",
     "vitest": "4.0.16"
   },
   "peerDependencies": {
