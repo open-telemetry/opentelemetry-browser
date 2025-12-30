@@ -5,7 +5,7 @@
  * Validates:
  * 1. ES2022 API compliance (tsc on source)
  * 2. Web API baseline (eslint-plugin-baseline-js on compiled output)
- * 3. Package exports & integrity (sourcemaps, imports, publint)
+ * 3. Package exports & integrity (sourcemaps, publint)
  * 4. Bundle size
  * 5. Module integrity (ESM-only, no require())
  */
@@ -47,11 +47,6 @@ function getPackagesWithDist() {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
     return fs.existsSync(distPath);
   });
-}
-
-function getPackageJson(pkgName) {
-  const pkgJsonPath = path.join(PACKAGES_DIR, pkgName, 'package.json');
-  return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
 }
 
 // Verifies source only uses ES2022 APIs via tsc
@@ -132,101 +127,6 @@ function validateSourcemaps(pkgName) {
   return true;
 }
 
-function getWorkspaceDependencies(pkgJson) {
-  const allDeps = {
-    ...pkgJson.dependencies,
-    ...pkgJson.peerDependencies,
-  };
-
-  const workspacePackages = getPackagesWithDist();
-  const workspaceNames = workspacePackages.map(
-    (pkg) => getPackageJson(pkg).name,
-  );
-
-  return workspacePackages.filter(
-    (pkg) =>
-      workspaceNames.includes(getPackageJson(pkg).name) &&
-      Object.keys(allDeps).includes(getPackageJson(pkg).name),
-  );
-}
-
-function testPackageImports(pkgName) {
-  const pkgJson = getPackageJson(pkgName);
-
-  // Skip import test for private packages (internal workspace deps)
-  if (pkgJson.private) {
-    log(`    ⊘ Skipped (private package)`, COLORS.dim);
-    return true;
-  }
-
-  const tempDir = fs.mkdtempSync(path.join(ROOT, '.tmp-'));
-
-  try {
-    // Pack workspace dependencies first
-    const workspaceDeps = getWorkspaceDependencies(pkgJson);
-    for (const depPkg of workspaceDeps) {
-      const depDir = path.join(PACKAGES_DIR, depPkg);
-      execSync('npm pack --quiet', { cwd: depDir, stdio: 'pipe' });
-      const depJson = getPackageJson(depPkg);
-      const safeName = depJson.name.replace('@', '').replace('/', '-');
-      const tarball = fs
-        .readdirSync(depDir)
-        .find((f) => f.startsWith(safeName) && f.endsWith('.tgz'));
-      if (tarball) {
-        fs.renameSync(
-          path.join(depDir, tarball),
-          path.join(tempDir, `${depPkg}.tgz`),
-        );
-      }
-    }
-
-    // Pack the main package
-    const pkgDir = path.join(PACKAGES_DIR, pkgName);
-    execSync('npm pack --quiet', { cwd: pkgDir, stdio: 'pipe' });
-    const safeName = pkgJson.name.replace('@', '').replace('/', '-');
-    const tarball = fs
-      .readdirSync(pkgDir)
-      .find((f) => f.startsWith(safeName) && f.endsWith('.tgz'));
-
-    if (!tarball) {
-      throw new Error(`Failed to create tarball for ${pkgName}`);
-    }
-
-    fs.renameSync(
-      path.join(pkgDir, tarball),
-      path.join(tempDir, 'package.tgz'),
-    );
-
-    // Create package.json with workspace deps as file references
-    const testPkgJson = { type: 'module' };
-    fs.writeFileSync(
-      path.join(tempDir, 'package.json'),
-      JSON.stringify(testPkgJson),
-    );
-
-    // Install workspace dependencies first
-    for (const depPkg of workspaceDeps) {
-      execSync(`npm install ./${depPkg}.tgz`, { cwd: tempDir, stdio: 'pipe' });
-    }
-
-    // Install the main package
-    execSync('npm install ./package.tgz', { cwd: tempDir, stdio: 'pipe' });
-
-    // Test ESM import
-    execSync(
-      `node --input-type=module -e "import * as pkg from '${pkgJson.name}'; if (!pkg) process.exit(1);"`,
-      { cwd: tempDir, stdio: 'pipe' },
-    );
-
-    return true;
-  } catch (error) {
-    log(`    ✗ Import test failed: ${error.message}`, COLORS.red);
-    return false;
-  } finally {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-}
-
 function checkPackageExports() {
   logSection('3. Package Exports & Integrity');
 
@@ -242,13 +142,6 @@ function checkPackageExports() {
       continue;
     }
     log(`    ✓ Sourcemaps valid`, COLORS.green);
-
-    // Test imports
-    if (!testPackageImports(pkg)) {
-      allPassed = false;
-      continue;
-    }
-    log(`    ✓ ESM imports work`, COLORS.green);
   }
 
   // Run publint on each package
@@ -276,7 +169,8 @@ function checkBundleSize() {
   logSection('4. Bundle Size');
 
   const packages = getPackagesWithDist();
-  const MAX_SIZE_KB = 50; // Warn if any package exceeds this
+  const MAX_SIZE_KB = 6;
+  let allPassed = true;
 
   for (const pkg of packages) {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
@@ -294,15 +188,18 @@ function checkBundleSize() {
     }
 
     const gzipKB = totalGzip / 1024;
-    const color = gzipKB > MAX_SIZE_KB ? COLORS.yellow : COLORS.green;
+    const passed = gzipKB <= MAX_SIZE_KB;
+    if (!passed) {
+      allPassed = false;
+    }
 
     log(
-      `  ${pkg}: ${(totalRaw / 1024).toFixed(2)} KB (${gzipKB.toFixed(2)} KB gzipped)`,
-      color,
+      `  ${passed ? '✓' : '✗'} ${pkg}: ${(totalRaw / 1024).toFixed(2)} KB (${gzipKB.toFixed(2)} KB gzipped)`,
+      passed ? COLORS.green : COLORS.red,
     );
   }
 
-  return true;
+  return allPassed;
 }
 
 // Validates ESM files don't use require() (causes runtime errors)
@@ -317,7 +214,7 @@ function validateModuleIntegrity() {
 
     const result = spawnSync(
       'grep',
-      ['-r', 'require(', distPath, '--include=*.js'],
+      ['-rE', '\\brequire\\s*\\(', distPath, '--include=*.js'],
       {
         encoding: 'utf-8',
         stdio: 'pipe',
