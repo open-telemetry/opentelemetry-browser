@@ -43,7 +43,6 @@
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.16",
     "@vitest/coverage-v8": "4.0.16",
-    "es-check": "9.5.2",
     "eslint": "9.39.2",
     "eslint-plugin-baseline-js": "0.4.2",
     "eslint-plugin-yet-another-license-header": "0.2.0",

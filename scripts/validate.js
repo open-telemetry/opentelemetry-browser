@@ -3,7 +3,7 @@
  * Build validation for OpenTelemetry Browser packages
  *
  * Validates:
- * 1. Syntax compliance (es-check on compiled output)
+ * 1. ES2022 API compliance (tsc on source)
  * 2. Web API baseline (eslint-plugin-baseline-js on compiled output)
  * 3. Package exports & integrity (sourcemaps, imports, publint)
  * 4. Bundle size
@@ -54,42 +54,25 @@ function getPackageJson(pkgName) {
   return JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
 }
 
-// Verifies compiled bundles parse as expected ES version
-function checkSyntaxCompliance() {
-  logSection('1. Syntax Compliance (es-check)');
+// Verifies source only uses ES2022 APIs via tsc
+function checkAPICompliance() {
+  logSection('1. ES2022 API Compliance (tsc)');
 
-  const packages = getPackagesWithDist();
+  const result = spawnSync('npm', ['run', 'check:tsc'], {
+    encoding: 'utf-8',
+    stdio: 'pipe',
+    cwd: ROOT,
+  });
 
-  if (packages.length === 0) {
-    log('  ⚠ No packages with dist/ found', COLORS.yellow);
-    return true;
-  }
-
-  const failures = [];
-
-  for (const pkg of packages) {
-    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
-    const pattern = `${distPath}/**/*.js`;
-
-    const result = spawnSync(
-      'npx',
-      ['es-check', 'es2022', pattern, '--module'],
-      { encoding: 'utf-8', stdio: 'pipe' },
-    );
-
-    if (result.status !== 0) {
-      log(`  ✗ ${pkg}`, COLORS.red);
-      failures.push(pkg);
-    } else {
-      log(`  ✓ ${pkg}`, COLORS.green);
+  if (result.status !== 0) {
+    log('  ✗ Non-ES2022 APIs found in source', COLORS.red);
+    if (result.stderr) {
+      log(result.stderr.trim(), COLORS.dim);
     }
-  }
-
-  if (failures.length > 0) {
     return false;
   }
 
-  log('\n✓ All syntax checks passed', COLORS.green);
+  log('  ✓ All source uses ES2022 APIs', COLORS.green);
   return true;
 }
 
@@ -371,7 +354,7 @@ function main() {
   log(`Found ${packages.length} packages with dist/`, COLORS.dim);
 
   const results = [
-    { name: 'Syntax compliance', passed: checkSyntaxCompliance() },
+    { name: 'API compliance', passed: checkAPICompliance() },
     { name: 'Web API baseline', passed: checkBaselineAPIs() },
     { name: 'Package exports', passed: checkPackageExports() },
     { name: 'Bundle size', passed: checkBundleSize() },
