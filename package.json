@@ -46,7 +46,7 @@
     "jsdom": "27.3.0",
     "lefthook": "2.0.13",
     "publint": "0.3.16",
-    "tsdown": "0.17.4",
+    "tsdown": "0.18.3",
     "turbo": "2.7.2",
     "typescript-eslint": "8.50.1",
     "vitest": "4.0.16"
