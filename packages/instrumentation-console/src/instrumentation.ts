@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { trace, context } from '@opentelemetry/api';
+import { context, trace } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
