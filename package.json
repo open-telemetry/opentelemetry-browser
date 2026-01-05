@@ -43,7 +43,7 @@
     "eslint": "9.39.2",
     "eslint-plugin-baseline-js": "0.4.2",
     "eslint-plugin-yet-another-license-header": "0.2.0",
-    "jsdom": "27.3.0",
+    "jsdom": "27.4.0",
     "lefthook": "2.0.13",
     "publint": "0.3.16",
     "tsdown": "0.18.4",
