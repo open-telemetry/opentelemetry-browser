@@ -45,6 +45,8 @@ console.log('Hello, World!');
 console.error('Something went wrong!');
 ```
 
+> **Warning:** Do not use this instrumentation with the `ConsoleSpanExporter`. This creates an infinite loop where console logs from the exporter itself are captured as new logs, creating more console output. See [OpenTelemetry Browser Exporters](https://opentelemetry.io/docs/languages/js/getting-started/browser/#creating-an-exporter) for available options.
+
 ## Configuration
 
 | Option | Type | Default | Description |

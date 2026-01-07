@@ -86,6 +86,7 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
           eventName: CONSOLE_LOG_EVENT_NAME,
           severityNumber: SEVERITY_MAP[method],
           severityText: method,
+          context: context.active(),
           attributes: {
             [ATTR_CONSOLE_METHOD]: method,
             ...(spanContext && {
