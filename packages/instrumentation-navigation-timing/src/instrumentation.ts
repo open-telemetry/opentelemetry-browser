@@ -74,6 +74,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   override disable(): void {
     this._unsubscribeAll();
     this._lastEntry = undefined;
+    this._didEmit = false;
   }
 
   private _getLatestNavigationEntry(): PerformanceNavigationTiming | undefined {

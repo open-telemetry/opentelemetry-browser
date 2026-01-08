@@ -319,4 +319,31 @@ describe("NavigationTimingInstrumentation", () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_ENCODED_BODY_SIZE]).toBe(800);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DECODED_BODY_SIZE]).toBe(2000);
   });
+
+  it("should work correctly when disable() is called then immediately enable() again", () => {
+    setReadyState("complete");
+
+    const entry = {
+      name: "https://example.test/",
+      entryType: "navigation",
+      startTime: 0,
+      duration: 100,
+      type: "navigate",
+      loadEventEnd: 200,
+    };
+
+    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+    instrumentation.enable();
+    expect(getNavigationTimingLogs().length).toBe(1);
+
+    instrumentation.disable();
+    inMemoryExporter.reset();
+
+    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+    instrumentation.enable();
+
+    const logs = getNavigationTimingLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(200);
+  });
 });
