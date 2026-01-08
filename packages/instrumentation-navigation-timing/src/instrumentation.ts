@@ -34,7 +34,8 @@ import {
 } from './semconv.ts';
 import type { NavigationTimingInstrumentationConfig } from './types.ts';
 
-const COMPLETE_ENTRY_DELAY_MS = 0;
+const BASE_DELAY_MS = 50;
+const MAX_RETRIES = 5;
 
 /**
  * This class automatically instruments navigation timing within the browser.
@@ -43,6 +44,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   private _lastEntry?: PerformanceNavigationTiming;
   private _didEmit = false;
   private _completeDelayTimeoutId?: number;
+  private _retryCount = 0;
 
   private _onLoad = () => {
     this._tryEmitOrSchedule();
@@ -75,6 +77,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     this._unsubscribeAll();
     this._lastEntry = undefined;
     this._didEmit = false;
+    this._retryCount = 0;
   }
 
   private _getLatestNavigationEntry(): PerformanceNavigationTiming | undefined {
@@ -86,6 +89,10 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     return entries[entries.length - 1];
+  }
+
+  private _calculateBackoffDelay(): number {
+    return this._retryCount * BASE_DELAY_MS;
   }
 
   /**
@@ -122,12 +129,18 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     // If the document is already complete but navigation timings are not finalized yet,
-    // do a single deferred re-check to allow the browser to finish populating the entry.
-    if (!this._completeDelayTimeoutId) {
+    // schedule a deferred re-check with linear backoff to allow the browser to finish
+    // populating the entry.
+    if (this._completeDelayTimeoutId !== undefined || this._retryCount > MAX_RETRIES) {
+      return;
+    } else {
+      const delay = this._calculateBackoffDelay();
+      this._retryCount++;
+
       this._completeDelayTimeoutId = window.setTimeout(() => {
         this._completeDelayTimeoutId = undefined;
         this._tryEmitOrSchedule();
-      }, COMPLETE_ENTRY_DELAY_MS);
+      }, delay);
     }
   }
 

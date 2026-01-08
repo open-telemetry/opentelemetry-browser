@@ -43,7 +43,7 @@ import {
   NAVIGATION_TIMING_EVENT_NAME,
 } from './semconv.ts';
 
-describe('NavigationTimingInstrumentation', () => {
+describe("NavigationTimingInstrumentation", () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
   let instrumentation: NavigationTimingInstrumentation;
   let restoreReadyState: (() => void) | undefined;
@@ -66,18 +66,18 @@ describe('NavigationTimingInstrumentation', () => {
     instrumentation.disable();
     inMemoryExporter.reset();
     getEntriesByTypeSpy.mockRestore();
-    document.body.innerHTML = '';
+    document.body.innerHTML = "";
     restoreReadyState?.();
     restoreReadyState = undefined;
     restoreGetEntriesByType?.();
     restoreGetEntriesByType = undefined;
   });
 
-  it('should create an instance of NavigationTimingInstrumentation', () => {
+  it("should create an instance of NavigationTimingInstrumentation", () => {
     expect(instrumentation).toBeInstanceOf(NavigationTimingInstrumentation);
   });
 
-  it('should enable and disable without errors', () => {
+  it("should enable and disable without errors", () => {
     expect(() => {
       instrumentation.enable();
       instrumentation.disable();
@@ -105,7 +105,7 @@ describe('NavigationTimingInstrumentation', () => {
     };
   };
 
-  it('should emit immediately when the navigation entry is complete', () => {
+  it("should emit immediately when the navigation entry is complete", () => {
     setReadyState('complete');
 
     const entry = {
@@ -127,7 +127,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
   });
 
-  it('should wait for load when the document is loading and entry is incomplete', () => {
+  it("should wait for load when the document is loading and entry is incomplete", () => {
     setReadyState('loading');
 
     let entry = {
@@ -158,7 +158,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(999);
   });
 
-  it('should delay once when readyState is complete but navigation entry is not finalized yet', () => {
+  it("should delay once when readyState is complete but navigation entry is not finalized yet", () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout'],
     });
@@ -174,26 +174,76 @@ describe('NavigationTimingInstrumentation', () => {
     };
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
-
     instrumentation.enable();
     expect(getNavigationTimingLogs().length).toBe(0);
 
-    // Simulate the timing entry being finalized after enable().
-    entry = {
-      ...entry,
-      loadEventEnd: 222,
-    };
+    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+    vi.runOnlyPendingTimers();
+    expect(getNavigationTimingLogs().length).toBe(0);
+
+    entry = { ...entry, loadEventEnd: 222 };
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
     vi.runOnlyPendingTimers();
 
-    const logs = getNavigationTimingLogs();
-    expect(logs.length).toBe(1);
-    expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(222);
+    expect(getNavigationTimingLogs().length).toBe(1);
+    expect(
+      getNavigationTimingLogs()[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]
+    ).toBe(222);
 
     vi.useRealTimers();
   });
 
-  it('should emit partial values on pagehide if the page unloads before load completes', () => {
+  it("should stop retrying after max attempts", () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    setReadyState('complete');
+
+    const entry = {
+      name: 'https://example.test/',
+      entryType: 'navigation',
+      startTime: 0,
+      duration: 1,
+      type: 'navigate',
+      loadEventEnd: 0,
+    };
+
+    getEntriesByTypeSpy.mockReturnValue([entry]);
+    instrumentation.enable();
+
+    for (let i = 0; i < 5; i++) {
+      vi.runOnlyPendingTimers();
+    }
+
+    expect(getNavigationTimingLogs().length).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it("should use correct backoff delays and cleanup timers", () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    setReadyState('complete');
+
+    const entry = {
+      name: 'https://example.test/',
+      entryType: 'navigation',
+      startTime: 0,
+      duration: 1,
+      type: 'navigate',
+      loadEventEnd: 0,
+    };
+
+    getEntriesByTypeSpy.mockReturnValue([entry]);
+    instrumentation.enable();
+
+    const delays = [0, 50, 100];
+    for (let i = 0; i < delays.length; i++) {
+      expect(setTimeoutSpy).toHaveBeenLastCalledWith(
+        expect.any(Function),
+        delays[i]
+      );
+      setTimeoutSpy.mock.lastCall?.[0]?.();
+    }
+  });
+
+  it("should emit partial values on pagehide if the page unloads before load completes", () => {
     setReadyState('loading');
 
     const entry = {
@@ -217,7 +267,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(0);
   });
 
-  it('should not emit twice (load then pagehide)', () => {
+  it("should not emit twice (load then pagehide)", () => {
     setReadyState('loading');
 
     let entry = {
@@ -247,7 +297,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(getNavigationTimingLogs().length).toBe(1);
   });
 
-  it('should build andemit a complete navigation timing event containing all the attributes', () => {
+  it("should build and emit a complete navigation timing event containing all the attributes", () => {
     setReadyState('complete');
 
     const entry = {
@@ -290,15 +340,15 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_START]).toBe(4900);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_TYPE]).toBe('navigate');
     expect(logs[0]?.attributes[ATTR_NAVIGATION_URL]).toBe(
-      'https://example.test/',
+      'https://example.test/'
     );
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DURATION]).toBe(5000);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DOM_COMPLETE]).toBe(4800);
     expect(
-      logs[0]?.attributes[ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_END],
+      logs[0]?.attributes[ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_END]
     ).toBe(3500);
     expect(
-      logs[0]?.attributes[ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_START],
+      logs[0]?.attributes[ATTR_NAVIGATION_DOM_CONTENT_LOADED_EVENT_START]
     ).toBe(3000);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DOM_INTERACTIVE]).toBe(2500);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_REDIRECT_COUNT]).toBe(2);
@@ -310,7 +360,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_CONNECT_START]).toBe(150);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_CONNECT_END]).toBe(250);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_SECURE_CONNECTION_START]).toBe(
-      200,
+      200
     );
     expect(logs[0]?.attributes[ATTR_NAVIGATION_REQUEST_START]).toBe(250);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_RESPONSE_START]).toBe(300);
@@ -320,7 +370,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DECODED_BODY_SIZE]).toBe(2000);
   });
 
-  it('should work correctly when disable() is called then immediately enable() again', () => {
+  it("should work correctly when disable() is called then immediately enable() again", () => {
     setReadyState('complete');
 
     const entry = {
@@ -347,7 +397,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(200);
   });
 
-  it('should re-subscribe pagehide listener after disable and enable', () => {
+  it("should re-subscribe pagehide listener after disable and enable", () => {
     const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
     const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
 
@@ -356,20 +406,20 @@ describe('NavigationTimingInstrumentation', () => {
     instrumentation.enable();
     expect(addEventListenerSpy).toHaveBeenCalledWith(
       'pagehide',
-      expect.any(Function),
+      expect.any(Function)
     );
 
     instrumentation.disable();
     expect(removeEventListenerSpy).toHaveBeenCalledWith(
       'pagehide',
-      expect.any(Function),
+      expect.any(Function)
     );
 
     addEventListenerSpy.mockClear();
     instrumentation.enable();
     expect(addEventListenerSpy).toHaveBeenCalledWith(
       'pagehide',
-      expect.any(Function),
+      expect.any(Function)
     );
 
     addEventListenerSpy.mockRestore();
