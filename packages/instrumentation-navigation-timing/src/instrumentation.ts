@@ -1,21 +1,10 @@
 /*
  * Copyright The OpenTelemetry Authors
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SeverityNumber } from "@opentelemetry/api-logs";
-import { InstrumentationBase } from "@opentelemetry/instrumentation";
+import { SeverityNumber } from '@opentelemetry/api-logs';
+import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import {
   ATTR_NAVIGATION_CONNECT_END,
   ATTR_NAVIGATION_CONNECT_START,
@@ -42,8 +31,8 @@ import {
   ATTR_NAVIGATION_UNLOAD_EVENT_START,
   ATTR_NAVIGATION_URL,
   NAVIGATION_TIMING_EVENT_NAME,
-} from "./semconv";
-import type { NavigationTimingInstrumentationConfig } from "./types";
+} from './semconv.ts';
+import type { NavigationTimingInstrumentationConfig } from './types.ts';
 
 const COMPLETE_ENTRY_DELAY_MS = 0;
 
@@ -64,7 +53,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   };
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
-    super("@opentelemetry/instrumentation-navigation-timing", "0.1.0", config);
+    super('@opentelemetry/instrumentation-navigation-timing', '0.1.0', config);
   }
 
   protected override init() {
@@ -73,8 +62,8 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
   override enable(): void {
     if (
-      typeof performance === "undefined" ||
-      typeof performance.getEntriesByType !== "function"
+      typeof performance === 'undefined' ||
+      typeof performance.getEntriesByType !== 'function'
     ) {
       return;
     }
@@ -86,7 +75,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       return;
     }
 
-    window.addEventListener("pagehide", this._onPageHide);
+    window.addEventListener('pagehide', this._onPageHide);
   }
 
   override disable(): void {
@@ -95,9 +84,9 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   private _getLatestNavigationEntry(): PerformanceNavigationTiming | undefined {
-    const entries = performance?.getEntriesByType?.(
-      "navigation"
-    ) as PerformanceNavigationTiming[] | undefined;
+    const entries = performance?.getEntriesByType?.('navigation') as
+      | PerformanceNavigationTiming[]
+      | undefined;
     if (!entries || entries.length === 0) {
       return;
     }
@@ -133,8 +122,8 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     // If the document is still loading, wait for `load` and try again.
-    if (document.readyState !== "complete") {
-      window.addEventListener("load", this._onLoad, { once: true });
+    if (document.readyState !== 'complete') {
+      window.addEventListener('load', this._onLoad, { once: true });
       return;
     }
 
@@ -223,7 +212,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       this._completeDelayTimeoutId = undefined;
     }
 
-    window.removeEventListener("load", this._onLoad);
-    window.removeEventListener("pagehide", this._onPageHide);
+    window.removeEventListener('load', this._onLoad);
+    window.removeEventListener('pagehide', this._onPageHide);
   }
 }
