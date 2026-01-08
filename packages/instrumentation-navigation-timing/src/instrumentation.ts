@@ -61,13 +61,6 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override enable(): void {
-    if (
-      typeof performance === 'undefined' ||
-      typeof performance.getEntriesByType !== 'function'
-    ) {
-      return;
-    }
-
     // Try emitting immediately (e.g. when enabled after load),
     // otherwise schedule for `load` or fall back to unload.
     this._tryEmitOrSchedule();
