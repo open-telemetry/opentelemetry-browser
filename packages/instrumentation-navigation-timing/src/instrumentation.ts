@@ -131,7 +131,10 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     // If the document is already complete but navigation timings are not finalized yet,
     // schedule a deferred re-check with linear backoff to allow the browser to finish
     // populating the entry.
-    if (this._completeDelayTimeoutId !== undefined || this._retryCount > MAX_RETRIES) {
+    if (
+      this._completeDelayTimeoutId !== undefined ||
+      this._retryCount > MAX_RETRIES
+    ) {
       return;
     } else {
       const delay = this._calculateBackoffDelay();
