@@ -38,8 +38,8 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "0.208.0",
-    "@opentelemetry/core": "2.2.0",
-    "@opentelemetry/instrumentation": "0.208.0"
+    "@opentelemetry/instrumentation": "0.208.0",
+    "@opentelemetry/web-utils": "*"
   },
   "publishConfig": {
     "access": "public"

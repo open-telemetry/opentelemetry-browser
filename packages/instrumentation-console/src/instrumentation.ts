@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { context, trace } from '@opentelemetry/api';
+import { context, propagation, ROOT_CONTEXT, trace } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { getTraceParentString } from '@opentelemetry/web-utils';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 import type { ConsoleInstrumentationConfig, ConsoleMethod } from './types.ts';
-import { getTraceParent } from './utils.ts';
 
 const DEFAULT_LOG_METHODS: ConsoleMethod[] = [
   'log',
@@ -70,15 +70,22 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
     method: ConsoleMethod,
   ): (original: Console[ConsoleMethod]) => Console[ConsoleMethod] {
     const instrumentation = this;
-    // Get the page-level traceparent for fallback
-    const pageTraceParent = getTraceParent();
     const serializer = instrumentation._getMessageSerializer();
 
     return function patchConsoleMethod(original: Console[ConsoleMethod]) {
       return function (this: Console, ...args: unknown[]) {
-        // Get the active span context at call time, fallback to page traceparent
-        const activeSpan = trace.getSpan(context.active());
-        const spanContext = activeSpan?.spanContext() ?? pageTraceParent;
+        // Get the active context, or extract from meta tag traceparent if no active span
+        let logContext = context.active();
+        const activeSpan = trace.getSpan(logContext);
+
+        if (!activeSpan) {
+          // No active span, try to extract context from meta tag traceparent
+          const traceparent = getTraceParentString();
+          if (traceparent) {
+            logContext = propagation.extract(ROOT_CONTEXT, { traceparent });
+          }
+        }
+
         const body = serializer(args);
 
         instrumentation.logger.emit({
@@ -86,13 +93,9 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
           eventName: CONSOLE_LOG_EVENT_NAME,
           severityNumber: SEVERITY_MAP[method],
           severityText: method,
-          context: context.active(),
+          context: logContext,
           attributes: {
             [ATTR_CONSOLE_METHOD]: method,
-            ...(spanContext && {
-              'trace.id': spanContext.traceId,
-              'span.id': spanContext.spanId,
-            }),
           },
         });
 

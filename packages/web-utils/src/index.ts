@@ -5,5 +5,11 @@
 
 import { getElementCSSSelector } from './getElementCSSSelector.ts';
 import { getElementXPath } from './getElementXPath.ts';
+import { getTraceParent, getTraceParentString } from './getTraceParent.ts';
 
-export { getElementCSSSelector, getElementXPath };
+export {
+  getElementCSSSelector,
+  getElementXPath,
+  getTraceParent,
+  getTraceParentString,
+};
