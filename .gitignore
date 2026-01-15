@@ -15,5 +15,8 @@ dist
 # IntelliJ based IDEs
 .idea
 
+# VSCode
+.vscode
+
 # Finder (MacOS) folder config
 .DS_Store
