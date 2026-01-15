@@ -6,16 +6,38 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import { setupTestLogExporter } from '@opentelemetry/test-utils';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from 'vitest';
 import { ConsoleInstrumentation } from './instrumentation.ts';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 
 describe('ConsoleInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
   let instrumentation: ConsoleInstrumentation;
+  let originalConsole: Console;
 
   beforeAll(() => {
+    originalConsole = globalThis.console;
+    globalThis.console = {
+      error: () => {},
+      log: () => {},
+      info: () => {},
+      warn: () => {},
+      trace: () => {},
+      debug: () => {},
+    } as unknown as Console;
     inMemoryExporter = setupTestLogExporter();
+  });
+
+  afterAll(() => {
+    globalThis.console = originalConsole;
   });
 
   beforeEach(() => {
@@ -100,10 +122,9 @@ describe('ConsoleInstrumentation', () => {
       instrumentation.disable();
       inMemoryExporter.reset();
       instrumentation = new ConsoleInstrumentation({
-        enabled: false,
+        enabled: true,
         logMethods: ['error', 'warn'],
       });
-      instrumentation.enable();
 
       console.log('log message');
       console.info('info message');
@@ -122,10 +143,9 @@ describe('ConsoleInstrumentation', () => {
       instrumentation.disable();
       inMemoryExporter.reset();
       instrumentation = new ConsoleInstrumentation({
-        enabled: false,
+        enabled: true,
         logMethods: [],
       });
-      instrumentation.enable();
 
       console.log('log message');
       console.warn('warn message');
@@ -174,11 +194,10 @@ describe('ConsoleInstrumentation', () => {
     it('should use custom serializer when provided', () => {
       instrumentation.disable();
       instrumentation = new ConsoleInstrumentation({
-        enabled: false,
+        enabled: true,
         messageSerializer: (args) =>
           args.map((arg) => `[${typeof arg}]`).join('-'),
       });
-      instrumentation.enable();
 
       console.log('hello', 123, { test: true });
 
@@ -232,6 +251,9 @@ describe('ConsoleInstrumentation', () => {
 
       const logs = inMemoryExporter.getFinishedLogRecords();
       expect(logs.length).toBe(0);
+
+      // enable instrumentation again
+      instrumentation.enable();
     });
 
     it('should emit logs when re-enabled', () => {
@@ -253,6 +275,9 @@ describe('ConsoleInstrumentation', () => {
 
       // After disable, console.log should be different (unwrapped)
       expect(console.log).not.toBe(wrappedLog);
+
+      // enable instrumentation again
+      instrumentation.enable();
     });
   });
 });
