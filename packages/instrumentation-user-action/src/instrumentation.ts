@@ -28,6 +28,8 @@ const OTEL_ELEMENT_ATTRIBUTE_PREFIX = 'data-otel-';
  * This class automatically instruments different User Actions within the browser.
  */
 export class UserActionInstrumentation extends InstrumentationBase<UserActionInstrumentationConfig> {
+  private declare _onClickHandler?: (event: MouseEvent) => void;
+
   constructor(config: UserActionInstrumentationConfig = {}) {
     super('@opentelemetry/instrumentation-user-action', '0.1.0', config);
   }
@@ -49,7 +51,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     }
   }
 
-  private _clickHandler = (event: MouseEvent) => {
+  private onClick(event: MouseEvent) {
     const element = event.target;
 
     if (!(element instanceof HTMLElement)) {
@@ -87,18 +89,23 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
         [ATTR_CSS_SELECTOR]: cssSelector,
       },
     });
-  };
+  }
 
   override enable(): void {
     const autoCapturedActions =
       this._config.autoCapturedActions ?? DEFAULT_AUTO_CAPTURED_ACTIONS;
+    if (!this._onClickHandler) {
+      this._onClickHandler = this.onClick.bind(this);
+    }
 
     if (autoCapturedActions.includes('click')) {
-      document.addEventListener('click', this._clickHandler, true);
+      document.addEventListener('click', this._onClickHandler, true);
     }
   }
 
   override disable(): void {
-    document.removeEventListener('click', this._clickHandler, true);
+    if (this._onClickHandler) {
+      document.removeEventListener('click', this._onClickHandler, true);
+    }
   }
 }
