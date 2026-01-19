@@ -45,6 +45,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   private _didEmit = false;
   private _completeDelayTimeoutId?: number;
   private _retryCount = 0;
+  private _isEnabled = false;
 
   private _onLoad = () => {
     this._tryEmitOrSchedule();
@@ -63,6 +64,11 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override enable(): void {
+    if (this._isEnabled) {
+      return;
+    }
+    this._isEnabled = true;
+
     // Try emitting immediately (e.g. when enabled after load),
     // otherwise schedule for `load` or fall back to unload.
     this._tryEmitOrSchedule();
@@ -74,6 +80,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   }
 
   override disable(): void {
+    this._isEnabled = false;
     this._unsubscribeAll();
     this._lastEntry = undefined;
     this._didEmit = false;

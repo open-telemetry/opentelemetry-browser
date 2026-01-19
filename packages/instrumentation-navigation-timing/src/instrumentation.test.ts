@@ -425,4 +425,39 @@ describe('NavigationTimingInstrumentation', () => {
     addEventListenerSpy.mockRestore();
     removeEventListenerSpy.mockRestore();
   });
+
+  it('should not subscribe multiple listeners when calling enable() consecutively', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    setReadyState('loading');
+
+    const entry = {
+      name: 'https://example.test/',
+      entryType: 'navigation',
+      startTime: 0,
+      duration: 1,
+      type: 'navigate',
+      loadEventEnd: 0,
+    };
+
+    getEntriesByTypeSpy.mockReturnValue([entry]);
+
+    // Call enable() multiple times consecutively
+    instrumentation.enable();
+    instrumentation.enable();
+    instrumentation.enable();
+
+    // Should only subscribe once to 'pagehide'
+    const pagehideCalls = addEventListenerSpy.mock.calls.filter(
+      (call) => call[0] === 'pagehide',
+    );
+    expect(pagehideCalls.length).toBe(1);
+
+    // Should only subscribe once to 'load'
+    const loadCalls = addEventListenerSpy.mock.calls.filter(
+      (call) => call[0] === 'load',
+    );
+    expect(loadCalls.length).toBe(1);
+
+    addEventListenerSpy.mockRestore();
+  });
 });
