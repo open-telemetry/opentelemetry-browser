@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { context, propagation, ROOT_CONTEXT, trace } from '@opentelemetry/api';
+import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
-import { getTraceParentString } from '@opentelemetry/web-utils';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 import type { ConsoleInstrumentationConfig, ConsoleMethod } from './types.ts';
 
@@ -74,18 +73,7 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
 
     return function patchConsoleMethod(original: Console[ConsoleMethod]) {
       return function (this: Console, ...args: unknown[]) {
-        // Get the active context, or extract from meta tag traceparent if no active span
-        let logContext = context.active();
-        const activeSpan = trace.getSpan(logContext);
-
-        if (!activeSpan) {
-          // No active span, try to extract context from meta tag traceparent
-          const traceparent = getTraceParentString();
-          if (traceparent) {
-            logContext = propagation.extract(ROOT_CONTEXT, { traceparent });
-          }
-        }
-
+        const logContext = context.active();
         const body = serializer(args);
 
         instrumentation.logger.emit({
