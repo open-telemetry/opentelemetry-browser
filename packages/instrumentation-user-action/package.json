@@ -38,6 +38,9 @@
     "@opentelemetry/instrumentation": "*",
     "@opentelemetry/web-utils": "*"
   },
+  "devDependencies": {
+    "@opentelemetry/test-utils": "*"
+  },
   "publishConfig": {
     "access": "public"
   }
