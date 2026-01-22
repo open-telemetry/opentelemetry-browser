@@ -4,6 +4,7 @@
  */
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import { setupTestLogExporter } from '@opentelemetry/test-utils';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -11,20 +12,20 @@ import { UserActionInstrumentation } from './instrumentation.ts';
 
 describe('UserActionInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
-  let instrumentation: UserActionInstrumentation;
+  let disableInstrumentations: () => void;
 
   beforeAll(() => {
     inMemoryExporter = setupTestLogExporter();
   });
 
   beforeEach(() => {
-    instrumentation = new UserActionInstrumentation();
-
-    instrumentation.enable();
+    disableInstrumentations = registerInstrumentations({
+      instrumentations: [new UserActionInstrumentation()],
+    });
   });
 
   afterEach(() => {
-    instrumentation.disable();
+    disableInstrumentations();
     inMemoryExporter.reset();
     document.body.innerHTML = '';
   });
@@ -129,7 +130,7 @@ describe('UserActionInstrumentation', () => {
 
   it('should not emit click logs when disabled', () => {
     // Disable previous instrumentation and create a new one with click disabled
-    instrumentation.disable();
+    disableInstrumentations();
     const disabledInstrumentation = new UserActionInstrumentation({
       autoCapturedActions: [],
     });
