@@ -19,17 +19,16 @@ npm install @opentelemetry/instrumentation-console
 
 ```typescript
 import { logs } from '@opentelemetry/api-logs';
-import {
-  ConsoleLogRecordExporter,
-  LoggerProvider,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
+import { LoggerProvider, SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { ConsoleInstrumentation } from '@opentelemetry/instrumentation-console';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 
 const logProvider = new LoggerProvider({
   processors: [
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor(new OTLPLogExporter({
+      url: 'http://localhost:8000/v1/logs',
+    })),
   ],
 });
 logs.setGlobalLoggerProvider(logProvider);
@@ -45,7 +44,7 @@ console.log('Hello, World!');
 console.error('Something went wrong!');
 ```
 
-> **Warning:** Do not use this instrumentation with the `ConsoleSpanExporter`. This creates an infinite loop where console logs from the exporter itself are captured as new logs, creating more console output. See [OpenTelemetry Browser Exporters](https://opentelemetry.io/docs/languages/js/getting-started/browser/#creating-an-exporter) for available options.
+> **Warning:** Do not use this instrumentation with the `ConsoleSpanExporter` or `ConsoleLogRecordExporter`. This creates an infinite loop where console logs from the exporter itself are captured as new logs, creating more console output. Use exporters that send data over the network, such as `OTLPLogExporter`, `OTLPTraceExporter`, or other non-console exporters. See [OpenTelemetry Browser Exporters](https://opentelemetry.io/docs/languages/js/getting-started/browser/#creating-an-exporter) for available options.
 
 ## Configuration
 
