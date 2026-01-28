@@ -36,8 +36,7 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "*",
-    "@opentelemetry/instrumentation": "*",
-    "@opentelemetry/web-utils": "*"
+    "@opentelemetry/instrumentation": "*"
   },
   "publishConfig": {
     "access": "public"
