@@ -37,6 +37,11 @@
       "tailwindDirectives": true
     }
   },
+  "html": {
+    "formatter": {
+      "enabled": true
+    }
+  },
   "linter": {
     "rules": {
       "security": {
