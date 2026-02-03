@@ -34,8 +34,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@opentelemetry/api-logs": "*",
-    "@opentelemetry/instrumentation": "*",
+    "@opentelemetry/api-logs": "^0.211.0",
+    "@opentelemetry/instrumentation": "^0.211.0",
     "@opentelemetry/web-utils": "*"
   },
   "devDependencies": {

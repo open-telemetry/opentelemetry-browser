@@ -37,8 +37,8 @@
     "@biomejs/biome": "2.3.13",
     "@commitlint/cli": "20.3.1",
     "@commitlint/config-conventional": "20.3.1",
-    "@opentelemetry/api-logs": "0.211.0",
-    "@opentelemetry/sdk-logs": "0.211.0",
+    "@opentelemetry/instrumentation": "^0.211.0",
+    "@opentelemetry/sdk-logs": "^0.211.0",
     "@turbo/gen": "2.8.1",
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.18",
@@ -57,22 +57,15 @@
   "peerDependencies": {
     "typescript": "5.9.3"
   },
-  "dependencies": {
-    "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/api-logs": "0.211.0",
-    "@opentelemetry/core": "2.5.0",
-    "@opentelemetry/instrumentation": "0.211.0",
-    "@opentelemetry/sdk-logs": "0.211.0"
-  },
   "workspaces": [
     "packages/*"
   ],
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.6.4",
+  "packageManager": "npm@11.8.0",
   "engines": {
     "node": ">=22.12.0",
-    "npm": ">=11.6.3"
+    "npm": ">=11.8.0"
   }
 }
