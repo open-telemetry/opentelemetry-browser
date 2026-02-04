@@ -4,26 +4,54 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 10,
+  "rebaseWhen": "conflicted",
+  "postUpdateOptions": ["npmDedupe"],
+  "schedule": ["before 8am on Monday"],
+  "labels": ["dependencies"],
   "packageRules": [
     {
-      "description": "npm > 11.6.0 has a bug with missing optional dependencies",
-      "matchPackageNames": ["npm"],
-      "enabled": false
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
     },
     {
-      "groupName": "otel",
-      "schedule": ["before 8am on Monday"],
-      "matchPackageNames": ["/^@opentelemetry//"]
+      "description": "Production dependencies (non-OTel)",
+      "matchDepTypes": ["dependencies"],
+      "groupName": "production-deps"
     },
     {
-      "groupName": "all patch versions",
-      "matchUpdateTypes": ["patch"],
-      "schedule": ["before 8am every weekday"]
+      "description": "OpenTelemetry group",
+      "matchDepNames": ["/^@opentelemetry//"],
+      "groupName": "opentelemetry"
     },
     {
-      "matchUpdateTypes": ["minor", "major"],
-      "schedule": ["before 8am on Monday"]
+      "description": "Dev patches and minors",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "dev-deps"
+    },
+    {
+      "description": "Dev major updates",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "dev-deps-major"
+    },
+    {
+      "description": "Vitest packages must stay version-aligned",
+      "matchDepNames": ["vitest", "/^@vitest//"],
+      "groupName": "vitest"
+    },
+    {
+      "description": "Turbo packages must stay version-aligned",
+      "matchDepNames": ["turbo", "/^@turbo//"],
+      "groupName": "turbo"
+    },
+    {
+      "description": "Commitlint packages must stay version-aligned",
+      "matchDepNames": ["/^@commitlint//"],
+      "groupName": "commitlint"
     }
-  ],
-  "labels": ["dependencies"]
+  ]
 }
