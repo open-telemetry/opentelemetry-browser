@@ -1,13 +1,13 @@
 {
-  "name": "@opentelemetry/instrumentation-user-action",
+  "name": "@opentelemetry/instrumentation-web-vitals",
   "version": "0.1.0",
-  "description": "OpenTelemetry instrumentation for user actions for browser applications.",
+  "description": "OpenTelemetry instrumentation for Core Web Vitals for browser applications.",
   "keywords": [
     "opentelemetry",
     "browser",
     "web",
     "instrumentation",
-    "user-action"
+    "web-vitals"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -16,7 +16,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
-    "directory": "packages/instrumentation-user-action"
+    "directory": "packages/instrumentation-web-vitals"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -37,10 +37,10 @@
   "dependencies": {
     "@opentelemetry/api-logs": "^0.212.0",
     "@opentelemetry/instrumentation": "^0.212.0",
-    "@opentelemetry/web-utils": "*"
+    "web-vitals": "^5.1.0"
   },
-  "devDependencies": {
-    "@opentelemetry/test-utils": "*"
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
   },
   "publishConfig": {
     "access": "public"

@@ -1,0 +1,20 @@
+{
+  "name": "examples-all-instrumentations",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "tsc && vite build",
+    "check-types": "tsc",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.212.0",
+    "@opentelemetry/sdk-logs": "^0.212.0",
+    "@opentelemetry/instrumentation": "^0.212.0",
+    "@opentelemetry/instrumentation-navigation-timing": "*",
+    "@opentelemetry/instrumentation-user-action": "*",
+    "@opentelemetry/instrumentation-web-vitals": "*"
+  }
+}
