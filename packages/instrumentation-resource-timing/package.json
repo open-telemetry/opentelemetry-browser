@@ -1,0 +1,44 @@
+{
+  "name": "@opentelemetry/instrumentation-resource-timing",
+  "version": "0.1.0",
+  "description": "OpenTelemetry instrumentation for resource timing for browser applications.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "instrumentation",
+    "resource-timing"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/instrumentation-resource-timing"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "watch": "tsdown --watch",
+    "check-types": "tsc",
+    "test": "vitest run --browser.enabled=false",
+    "test:watch": "vitest --browser.enabled=false",
+    "test:coverage": "vitest --coverage --browser.enabled=false"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.211.0",
+    "@opentelemetry/instrumentation": "^0.211.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
