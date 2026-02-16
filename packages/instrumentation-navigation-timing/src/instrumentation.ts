@@ -187,7 +187,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     this.logger.emit({
-      body: NAVIGATION_TIMING_EVENT_NAME,
+      eventName: NAVIGATION_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       attributes: {
         [ATTR_NAVIGATION_TYPE]: entry.type,
