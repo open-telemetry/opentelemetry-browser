@@ -87,7 +87,7 @@ describe('NavigationTimingInstrumentation', () => {
   const getNavigationTimingLogs = () =>
     inMemoryExporter
       .getFinishedLogRecords()
-      .filter((log) => log.body === NAVIGATION_TIMING_EVENT_NAME);
+      .filter((log) => log.eventName === NAVIGATION_TIMING_EVENT_NAME);
 
   const setReadyState = (state: DocumentReadyState) => {
     const original = Object.getOwnPropertyDescriptor(document, 'readyState');
@@ -123,7 +123,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
-    expect(logs[0]?.body).toBe(NAVIGATION_TIMING_EVENT_NAME);
+    expect(logs[0]?.eventName).toBe(NAVIGATION_TIMING_EVENT_NAME);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
   });
 
@@ -335,7 +335,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
-    expect(logs[0]?.body).toBe(NAVIGATION_TIMING_EVENT_NAME);
+    expect(logs[0]?.eventName).toBe(NAVIGATION_TIMING_EVENT_NAME);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(5000);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_START]).toBe(4900);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_TYPE]).toBe('navigate');

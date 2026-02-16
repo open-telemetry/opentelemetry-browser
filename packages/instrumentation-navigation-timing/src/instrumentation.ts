@@ -187,7 +187,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     this.logger.emit({
-      body: NAVIGATION_TIMING_EVENT_NAME,
+      eventName: NAVIGATION_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       attributes: {
         [ATTR_NAVIGATION_TYPE]: entry.type,
@@ -201,9 +201,6 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
         [ATTR_NAVIGATION_DOM_INTERACTIVE]: entry.domInteractive,
         [ATTR_NAVIGATION_LOAD_EVENT_END]: entry.loadEventEnd,
         [ATTR_NAVIGATION_LOAD_EVENT_START]: entry.loadEventStart,
-
-        // TODO: clarify if these will have different attribute names because they are the same as in the resource timings instrumentation
-        // TODO: do we already have semantic attributes for these?
         [ATTR_NAVIGATION_REDIRECT_COUNT]: entry.redirectCount,
         [ATTR_NAVIGATION_UNLOAD_EVENT_END]: entry.unloadEventEnd,
         [ATTR_NAVIGATION_UNLOAD_EVENT_START]: entry.unloadEventStart,
