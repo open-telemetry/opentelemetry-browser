@@ -157,7 +157,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _emitResource(entry: PerformanceResourceTiming): void {
     this.logger.emit({
-      body: RESOURCE_TIMING_EVENT_NAME,
+      eventName: RESOURCE_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       attributes: {
         [ATTR_RESOURCE_URL]: entry.name,
