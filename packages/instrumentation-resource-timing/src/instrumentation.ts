@@ -76,9 +76,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   override disable(): void {
     this._isEnabled = false;
+    this._flush();
     this._observer?.disconnect();
     this._observer = undefined;
-    this._cancelScheduledProcessing();
     this._pendingEntries = [];
   }
 
