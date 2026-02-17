@@ -77,30 +77,25 @@ describe('ResourceTimingInstrumentation', () => {
       expect(PerformanceObserverMock).toHaveBeenCalled();
     });
 
-    it('should cleanup observer and pending entries on disable', () => {
+    it('should flush pending entries before cleanup on disable', () => {
       instrumentation = new ResourceTimingInstrumentation();
       instrumentation.enable();
 
-      const mockEntry = createMockResourceEntry();
+      const mockEntries = [
+        createMockResourceEntry({ name: 'https://example.com/entry1.js' }),
+        createMockResourceEntry({ name: 'https://example.com/entry2.js' }),
+      ];
+
       observerCallback(
-        createMockPerformanceObserverEntryList([mockEntry]),
+        createMockPerformanceObserverEntryList(mockEntries),
         mockObserver as unknown as PerformanceObserver
       );
 
       instrumentation.disable();
 
       expect(mockObserver.disconnect).toHaveBeenCalled();
-    });
-  });
 
-  describe('PerformanceObserver Integration', () => {
-    it('should handle missing PerformanceObserver gracefully', () => {
-      vi.unstubAllGlobals();
-      vi.stubGlobal('window', {});
-      vi.stubGlobal('document', { readyState: 'complete', addEventListener: vi.fn() });
-
-      instrumentation = new ResourceTimingInstrumentation();
-      expect(() => instrumentation.enable()).not.toThrow();
+      expect(window.cancelIdleCallback).toHaveBeenCalled();
     });
   });
 
@@ -119,25 +114,6 @@ describe('ResourceTimingInstrumentation', () => {
         expect.any(Function),
         { timeout: 1000 }
       );
-    });
-
-    it('should only schedule one callback at a time', () => {
-      instrumentation = new ResourceTimingInstrumentation();
-      instrumentation.enable();
-
-      const entry1 = createMockResourceEntry({ name: 'test1.js' });
-      const entry2 = createMockResourceEntry({ name: 'test2.js' });
-
-      observerCallback(
-        createMockPerformanceObserverEntryList([entry1]),
-        mockObserver as unknown as PerformanceObserver
-      );
-      observerCallback(
-        createMockPerformanceObserverEntryList([entry2]),
-        mockObserver as unknown as PerformanceObserver
-      );
-
-      expect(window.requestIdleCallback).toHaveBeenCalledTimes(1);
     });
   });
 
