@@ -3,47 +3,88 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {
+  InMemoryLogRecordExporter,
+  LoggerProvider,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ResourceTimingInstrumentation } from './instrumentation.ts';
+import {
+  ATTR_RESOURCE_DURATION,
+  ATTR_RESOURCE_TRANSFER_SIZE,
+  ATTR_RESOURCE_URL,
+  RESOURCE_TIMING_EVENT_NAME,
+} from './semconv.ts';
+
+function withTestLogger(
+  inst: ResourceTimingInstrumentation,
+  provider: LoggerProvider,
+): void {
+  Object.defineProperty(inst, 'logger', {
+    value: provider.getLogger('test'),
+    configurable: true,
+  });
+}
+
+function triggerIdleCallback(timeRemaining = 10, didTimeout = false): void {
+  const callback = vi.mocked(window.requestIdleCallback).mock.lastCall?.[0];
+  callback?.({ timeRemaining: () => timeRemaining, didTimeout });
+}
 
 describe('ResourceTimingInstrumentation', () => {
   let instrumentation: ResourceTimingInstrumentation;
+  let exporter: InMemoryLogRecordExporter;
+  let provider: LoggerProvider;
   let mockObserver: {
     observe: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
   };
   let observerCallback: PerformanceObserverCallback;
   let PerformanceObserverMock: ReturnType<typeof vi.fn>;
+  let mockDocument: {
+    readyState: string;
+    hidden: boolean;
+    addEventListener: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
+    exporter = new InMemoryLogRecordExporter();
+    provider = new LoggerProvider({
+      processors: [new SimpleLogRecordProcessor(exporter)],
+    });
+
     mockObserver = {
       observe: vi.fn(),
       disconnect: vi.fn(),
     };
 
-    PerformanceObserverMock = vi.fn(
-      function (callback: PerformanceObserverCallback) {
-        observerCallback = callback;
-        return mockObserver;
-      }
-    );
+    PerformanceObserverMock = vi.fn(function (
+      this: unknown,
+      callback: PerformanceObserverCallback,
+    ) {
+      observerCallback = callback;
+      return mockObserver;
+    });
 
-    vi.stubGlobal('document', {
+    mockDocument = {
       readyState: 'complete',
       hidden: false,
       addEventListener: vi.fn(),
-    });
+    };
+
+    vi.stubGlobal('document', mockDocument);
 
     vi.stubGlobal('window', {
       PerformanceObserver: PerformanceObserverMock,
       requestIdleCallback: vi.fn((cb) => setTimeout(cb, 0)),
       cancelIdleCallback: vi.fn(clearTimeout),
       addEventListener: vi.fn(),
+      requestAnimationFrame: vi.fn((cb) => setTimeout(cb, 0)),
+      cancelAnimationFrame: vi.fn(clearTimeout),
     });
 
     vi.stubGlobal('PerformanceObserver', PerformanceObserverMock);
-    vi.stubGlobal('requestIdleCallback', vi.fn((cb) => setTimeout(cb, 0)));
-    vi.stubGlobal('cancelIdleCallback', vi.fn(clearTimeout));
   });
 
   afterEach(() => {
@@ -55,7 +96,10 @@ describe('ResourceTimingInstrumentation', () => {
   describe('Instrumentation lifecycle', () => {
     it('should wait for load event when document not ready', () => {
       const listeners = new Map();
-      vi.stubGlobal('document', { readyState: 'loading', addEventListener: vi.fn() });
+      vi.stubGlobal('document', {
+        readyState: 'loading',
+        addEventListener: vi.fn(),
+      });
       vi.stubGlobal('window', {
         PerformanceObserver: PerformanceObserverMock,
         addEventListener: vi.fn((event, handler, options) => {
@@ -77,8 +121,9 @@ describe('ResourceTimingInstrumentation', () => {
       expect(PerformanceObserverMock).toHaveBeenCalled();
     });
 
-    it('should flush pending entries before cleanup on disable', () => {
+    it('should flush pending entries on disable', () => {
       instrumentation = new ResourceTimingInstrumentation();
+      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const mockEntries = [
@@ -88,36 +133,39 @@ describe('ResourceTimingInstrumentation', () => {
 
       observerCallback(
         createMockPerformanceObserverEntryList(mockEntries),
-        mockObserver as unknown as PerformanceObserver
+        mockObserver as unknown as PerformanceObserver,
       );
 
       instrumentation.disable();
 
-      expect(mockObserver.disconnect).toHaveBeenCalled();
-
-      expect(window.cancelIdleCallback).toHaveBeenCalled();
+      const records = exporter.getFinishedLogRecords();
+      expect(records).toHaveLength(2);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/entry1.js',
+      );
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/entry2.js',
+      );
     });
   });
 
-  describe('Idle Callback Scheduling', () => {
-    it('should schedule idle callback for processing', () => {
+  describe('Configuration', () => {
+    it('should use default idleTimeout of 1000ms', () => {
       instrumentation = new ResourceTimingInstrumentation();
       instrumentation.enable();
 
       const mockEntry = createMockResourceEntry();
       observerCallback(
         createMockPerformanceObserverEntryList([mockEntry]),
-        mockObserver as unknown as PerformanceObserver
+        mockObserver as unknown as PerformanceObserver,
       );
 
       expect(window.requestIdleCallback).toHaveBeenCalledWith(
         expect.any(Function),
-        { timeout: 1000 }
+        { timeout: 1000 },
       );
     });
-  });
 
-  describe('Configuration', () => {
     it('should respect custom idleTimeout', () => {
       instrumentation = new ResourceTimingInstrumentation({
         idleTimeout: 500,
@@ -127,20 +175,193 @@ describe('ResourceTimingInstrumentation', () => {
       const mockEntry = createMockResourceEntry();
       observerCallback(
         createMockPerformanceObserverEntryList([mockEntry]),
-        mockObserver as unknown as PerformanceObserver
+        mockObserver as unknown as PerformanceObserver,
       );
 
       expect(window.requestIdleCallback).toHaveBeenCalledWith(
         expect.any(Function),
-        { timeout: 500 }
+        { timeout: 500 },
       );
+    });
+
+    it('should respect maxProcessingTime and limit entries processed per chunk', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        maxProcessingTime: 0,
+        batchSize: 100,
+      });
+      withTestLogger(instrumentation, provider);
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+        createMockResourceEntry({ name: '3' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      // With maxProcessingTime: 0, time budget is exhausted immediately
+      triggerIdleCallback(0);
+
+      // No entries should be emitted since the time budget was 0
+      const records = exporter.getFinishedLogRecords();
+      expect(records).toHaveLength(0);
+    });
+  });
+  describe('Data Emission', () => {
+    it('should emit log records with correct attributes', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      withTestLogger(instrumentation, provider);
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        name: 'https://example.com/script.js',
+        duration: 50,
+        transferSize: 1000,
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = exporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/script.js',
+      );
+      expect(records[0]?.attributes[ATTR_RESOURCE_DURATION]).toBe(50);
+      expect(records[0]?.attributes[ATTR_RESOURCE_TRANSFER_SIZE]).toBe(1000);
+      expect(
+        (records[0] as unknown as { eventName: string } | undefined)?.eventName,
+      ).toBe(RESOURCE_TIMING_EVENT_NAME);
+    });
+
+    it('should flush on visibility change', () => {
+      const visibilityListeners: Array<() => void> = [];
+      mockDocument.addEventListener = vi.fn((event, handler) => {
+        if (event === 'visibilitychange') {
+          visibilityListeners.push(handler as () => void);
+        }
+      });
+
+      instrumentation = new ResourceTimingInstrumentation();
+      withTestLogger(instrumentation, provider);
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry();
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      // Simulate page becoming hidden
+      mockDocument.hidden = true;
+      for (const handler of visibilityListeners) {
+        handler();
+      }
+
+      const records = exporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
     });
   });
 
+  describe('Browser Compatibility', () => {
+    it('should fallback to requestAnimationFrame if requestIdleCallback is missing', () => {
+      vi.stubGlobal('window', {
+        PerformanceObserver: PerformanceObserverMock,
+        addEventListener: vi.fn(),
+        requestAnimationFrame: vi.fn((cb) => setTimeout(cb, 0)),
+        cancelAnimationFrame: vi.fn(clearTimeout),
+      });
+      vi.stubGlobal('requestIdleCallback', undefined);
+
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry();
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      expect(window.requestAnimationFrame).toHaveBeenCalled();
+    });
+
+    it('should handle missing PerformanceObserver gracefully', () => {
+      vi.stubGlobal('window', {
+        requestIdleCallback: vi.fn(),
+        addEventListener: vi.fn(),
+      });
+      vi.stubGlobal('PerformanceObserver', undefined);
+
+      instrumentation = new ResourceTimingInstrumentation();
+      expect(() => instrumentation.enable()).not.toThrow();
+    });
+  });
+
+  describe('Queueing and Batching', () => {
+    it('should flush synchronously when maxQueueSize is reached', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        maxQueueSize: 2,
+      });
+      withTestLogger(instrumentation, provider);
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+        createMockResourceEntry({ name: '3' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      const records = exporter.getFinishedLogRecords();
+      expect(records).toHaveLength(2);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('1');
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
+    });
+
+    it('should respect batchSize', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        batchSize: 2,
+      });
+      withTestLogger(instrumentation, provider);
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+        createMockResourceEntry({ name: '3' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      const records = exporter.getFinishedLogRecords();
+      expect(records).toHaveLength(2);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('1');
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
+
+      expect(window.requestIdleCallback).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 
 function createMockResourceEntry(
-  overrides: Partial<PerformanceResourceTiming> = {}
+  overrides: Partial<PerformanceResourceTiming> = {},
 ): PerformanceResourceTiming {
   return {
     name: 'https://example.com/resource.js',
@@ -173,7 +394,7 @@ function createMockResourceEntry(
 }
 
 function createMockPerformanceObserverEntryList(
-  entries: PerformanceResourceTiming[]
+  entries: PerformanceResourceTiming[],
 ): PerformanceObserverEntryList {
   return {
     getEntries: () => entries,

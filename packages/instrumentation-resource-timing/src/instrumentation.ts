@@ -101,7 +101,6 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           this._config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
         const entries = list.getEntries() as PerformanceResourceTiming[];
 
-        // Add entries to queue
         for (const entry of entries) {
           // Queue full - flush immediately to prevent memory issues
           if (this._pendingEntries.length >= maxQueueSize) {
@@ -133,12 +132,12 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       // eslint-disable-next-line baseline-js/use-baseline
       this._idleCallbackId = window.requestIdleCallback(
         (deadline) => this._processChunk(deadline),
-        { timeout: idleTimeout }
+        { timeout: idleTimeout },
       );
     } else {
       // Safari fallback
       this._idleCallbackId = window.requestAnimationFrame(() =>
-        setTimeout(() => this._processChunk(), 1)
+        setTimeout(() => this._processChunk(), 1),
       ) as unknown as number;
     }
   }
@@ -149,27 +148,29 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       return;
     }
 
-    const maxTime = this._config.maxProcessingTime ?? DEFAULT_MAX_PROCESSING_TIME;
+    const maxTime =
+      this._config.maxProcessingTime ?? DEFAULT_MAX_PROCESSING_TIME;
     const batchSize = this._config.batchSize ?? DEFAULT_BATCH_SIZE;
     const startTime = performance.now();
 
     // Process entries while we have time and haven't hit batch limit
-    for (let i = 0; i < batchSize && this._pendingEntries.length > 0; i++) {
-      // Check time budget
+    for (let i = 0; i < batchSize; i++) {
+      if (this._pendingEntries.length === 0) {
+        break;
+      }
+
       const elapsed = performance.now() - startTime;
       const timeLeft = deadline?.timeRemaining() ?? maxTime;
       if (elapsed >= maxTime || timeLeft < 1) {
         break;
       }
 
-      // Emit resource
       const entry = this._pendingEntries.shift();
       if (entry) {
         this._emitResource(entry);
       }
     }
 
-    // Schedule next chunk if needed
     if (this._pendingEntries.length > 0) {
       this._scheduleProcessing();
     }
@@ -211,13 +212,10 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   private _flush(): void {
     this._cancelScheduledProcessing();
 
-    // Emit all pending entries
-    while (this._pendingEntries.length > 0) {
-      const entry = this._pendingEntries.shift();
-      if (entry) {
-        this._emitResource(entry);
-      }
+    for (const entry of this._pendingEntries) {
+      this._emitResource(entry);
     }
+    this._pendingEntries = [];
   }
 
   private _cancelScheduledProcessing(): void {
