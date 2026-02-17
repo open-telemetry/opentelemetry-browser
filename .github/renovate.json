@@ -24,6 +24,7 @@
     {
       "description": "OpenTelemetry group",
       "matchDepNames": ["/^@opentelemetry//"],
+      "rangeStrategy": "bump",
       "groupName": "opentelemetry"
     },
     {
