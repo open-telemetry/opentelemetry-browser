@@ -76,7 +76,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   override disable(): void {
     this._isEnabled = false;
-    this._cleanup();
+    this._observer?.disconnect();
+    this._observer = undefined;
+    this._cancelScheduledProcessing();
     this._pendingEntries = [];
   }
 
@@ -213,11 +215,5 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   private _hasIdleCallback(): boolean {
     // eslint-disable-next-line baseline-js/use-baseline
     return typeof window.requestIdleCallback === 'function';
-  }
-
-  private _cleanup(): void {
-    this._observer?.disconnect();
-    this._observer = undefined;
-    this._cancelScheduledProcessing();
   }
 }
