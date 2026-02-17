@@ -58,7 +58,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   override enable(): void {
-    if (this._isEnabled) return;
+    if (this._isEnabled) {
+      return;
+    }
     this._isEnabled = true;
 
     if (document.readyState === 'complete') {
@@ -70,7 +72,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this._flush();
+      if (document.hidden) {
+        this._flush();
+      }
     });
   }
 
@@ -83,11 +87,15 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   private _setupObserver(): void {
-    if (!this._isEnabled || !('PerformanceObserver' in window)) return;
+    if (!this._isEnabled || !('PerformanceObserver' in window)) {
+      return;
+    }
 
     try {
       this._observer = new PerformanceObserver((list) => {
-        if (!this._isEnabled) return;
+        if (!this._isEnabled) {
+          return;
+        }
 
         const maxQueueSize =
           this._config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
@@ -115,7 +123,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   private _scheduleProcessing(): void {
-    if (this._idleCallbackId !== undefined) return;
+    if (this._idleCallbackId !== undefined) {
+      return;
+    }
 
     const idleTimeout = this._config.idleTimeout ?? DEFAULT_IDLE_TIMEOUT;
 
@@ -135,7 +145,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _processChunk(deadline?: IdleDeadline): void {
     this._idleCallbackId = undefined;
-    if (!this._isEnabled || this._pendingEntries.length === 0) return;
+    if (!this._isEnabled || this._pendingEntries.length === 0) {
+      return;
+    }
 
     const maxTime = this._config.maxProcessingTime ?? DEFAULT_MAX_PROCESSING_TIME;
     const batchSize = this._config.batchSize ?? DEFAULT_BATCH_SIZE;
@@ -146,15 +158,21 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       // Check time budget
       const elapsed = performance.now() - startTime;
       const timeLeft = deadline?.timeRemaining() ?? maxTime;
-      if (elapsed >= maxTime || timeLeft < 1) break;
+      if (elapsed >= maxTime || timeLeft < 1) {
+        break;
+      }
 
       // Emit resource
       const entry = this._pendingEntries.shift();
-      if (entry) this._emitResource(entry);
+      if (entry) {
+        this._emitResource(entry);
+      }
     }
 
     // Schedule next chunk if needed
-    if (this._pendingEntries.length > 0) this._scheduleProcessing();
+    if (this._pendingEntries.length > 0) {
+      this._scheduleProcessing();
+    }
   }
 
   private _emitResource(entry: PerformanceResourceTiming): void {
@@ -196,12 +214,16 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     // Emit all pending entries
     while (this._pendingEntries.length > 0) {
       const entry = this._pendingEntries.shift();
-      if (entry) this._emitResource(entry);
+      if (entry) {
+        this._emitResource(entry);
+      }
     }
   }
 
   private _cancelScheduledProcessing(): void {
-    if (this._idleCallbackId === undefined) return;
+    if (this._idleCallbackId === undefined) {
+      return;
+    }
 
     if (this._hasIdleCallback()) {
       // eslint-disable-next-line baseline-js/use-baseline
