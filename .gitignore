@@ -20,3 +20,6 @@ dist
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# AI agent rules
+AGENTS.md
