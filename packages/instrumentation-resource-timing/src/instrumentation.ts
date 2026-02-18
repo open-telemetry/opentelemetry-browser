@@ -141,7 +141,8 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       return;
     }
 
-    const timeout = this._config.forceProcessingAfter ?? DEFAULT_FORCE_PROCESSING_AFTER;
+    const timeout =
+      this._config.forceProcessingAfter ?? DEFAULT_FORCE_PROCESSING_AFTER;
     this._idleHandle = requestIdleCallbackShim(
       (deadline) => this._processChunk(deadline),
       { timeout },

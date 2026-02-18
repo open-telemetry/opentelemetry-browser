@@ -212,7 +212,7 @@ describe('ResourceTimingInstrumentation', () => {
       expect(records).toHaveLength(0);
     });
   });
-    
+
   describe('Data Emission', () => {
     it('should emit log records with correct attributes', () => {
       instrumentation = new ResourceTimingInstrumentation();
