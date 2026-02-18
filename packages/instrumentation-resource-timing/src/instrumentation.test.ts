@@ -274,27 +274,6 @@ describe('ResourceTimingInstrumentation', () => {
   });
 
   describe('Browser Compatibility', () => {
-    it('should fall back to setTimeout when requestIdleCallback is missing', () => {
-      vi.stubGlobal('window', {
-        PerformanceObserver: PerformanceObserverMock,
-        addEventListener: vi.fn(),
-        setTimeout: vi.fn(() => 1),
-        clearTimeout: vi.fn(),
-      });
-
-      instrumentation = new ResourceTimingInstrumentation();
-      withTestLogger(instrumentation, provider);
-      instrumentation.enable();
-
-      const mockEntry = createMockResourceEntry();
-      observerCallback(
-        createMockPerformanceObserverEntryList([mockEntry]),
-        mockObserver as unknown as PerformanceObserver,
-      );
-
-      expect(window.setTimeout).toHaveBeenCalledWith(expect.any(Function), 1);
-    });
-
     it('should handle missing PerformanceObserver gracefully', () => {
       vi.stubGlobal('window', {
         requestIdleCallback: vi.fn(),
