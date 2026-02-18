@@ -5,6 +5,11 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import type { IdleCallbackHandle } from './idle-callback-shim.ts';
+import {
+  cancelIdleCallbackShim,
+  requestIdleCallbackShim,
+} from './idle-callback-shim.ts';
 import {
   ATTR_RESOURCE_CONNECT_END,
   ATTR_RESOURCE_CONNECT_START,
@@ -31,7 +36,7 @@ import {
 import type { ResourceTimingInstrumentationConfig } from './types.ts';
 
 const DEFAULT_BATCH_SIZE = 50;
-const DEFAULT_IDLE_TIMEOUT = 1000;
+const DEFAULT_FORCE_PROCESSING_AFTER = 1000;
 const DEFAULT_MAX_PROCESSING_TIME = 50;
 const DEFAULT_MAX_QUEUE_SIZE = 1000;
 
@@ -46,8 +51,9 @@ const DEFAULT_MAX_QUEUE_SIZE = 1000;
 export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceTimingInstrumentationConfig> {
   private _observer?: PerformanceObserver;
   private _pendingEntries: PerformanceResourceTiming[] = [];
-  private _idleCallbackId?: number;
+  private _idleHandle?: IdleCallbackHandle;
   private _isEnabled = false;
+  private _visibilityChangeHandler?: () => void;
 
   constructor(config: ResourceTimingInstrumentationConfig = {}) {
     super('@opentelemetry/instrumentation-resource-timing', '0.1.0', config);
@@ -71,11 +77,15 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       });
     }
 
-    document.addEventListener('visibilitychange', () => {
+    this._visibilityChangeHandler = () => {
       if (document.hidden) {
         this._flush();
       }
-    });
+    };
+    document.addEventListener(
+      'visibilitychange',
+      this._visibilityChangeHandler,
+    );
   }
 
   override disable(): void {
@@ -83,7 +93,13 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     this._flush();
     this._observer?.disconnect();
     this._observer = undefined;
-    this._pendingEntries = [];
+    if (this._visibilityChangeHandler) {
+      document.removeEventListener(
+        'visibilitychange',
+        this._visibilityChangeHandler,
+      );
+      this._visibilityChangeHandler = undefined;
+    }
   }
 
   private _setupObserver(): void {
@@ -92,7 +108,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     }
 
     try {
-      this._observer = new PerformanceObserver((list) => {
+      const observer = new PerformanceObserver((list) => {
         if (!this._isEnabled) {
           return;
         }
@@ -102,48 +118,38 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
         const entries = list.getEntries() as PerformanceResourceTiming[];
 
         for (const entry of entries) {
-          // Queue full - flush immediately to prevent memory issues
           if (this._pendingEntries.length >= maxQueueSize) {
             this._flush();
           }
           this._pendingEntries.push(entry);
         }
 
-        // Schedule idle processing
         if (this._pendingEntries.length > 0) {
           this._scheduleProcessing();
         }
       });
 
-      this._observer.observe({ type: 'resource', buffered: true });
+      this._observer = observer;
+      observer.observe({ type: 'resource', buffered: true });
     } catch {
       // Graceful degradation
     }
   }
 
   private _scheduleProcessing(): void {
-    if (this._idleCallbackId !== undefined) {
+    if (this._idleHandle !== undefined) {
       return;
     }
 
-    const idleTimeout = this._config.idleTimeout ?? DEFAULT_IDLE_TIMEOUT;
-
-    if (this._hasIdleCallback()) {
-      // eslint-disable-next-line baseline-js/use-baseline
-      this._idleCallbackId = window.requestIdleCallback(
-        (deadline) => this._processChunk(deadline),
-        { timeout: idleTimeout },
-      );
-    } else {
-      // Safari fallback
-      this._idleCallbackId = window.requestAnimationFrame(() =>
-        setTimeout(() => this._processChunk(), 1),
-      ) as unknown as number;
-    }
+    const timeout = this._config.forceProcessingAfter ?? DEFAULT_FORCE_PROCESSING_AFTER;
+    this._idleHandle = requestIdleCallbackShim(
+      (deadline) => this._processChunk(deadline),
+      { timeout },
+    );
   }
 
-  private _processChunk(deadline?: IdleDeadline): void {
-    this._idleCallbackId = undefined;
+  private _processChunk(deadline: IdleDeadline): void {
+    this._idleHandle = undefined;
     if (!this._isEnabled || this._pendingEntries.length === 0) {
       return;
     }
@@ -153,15 +159,13 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     const batchSize = this._config.batchSize ?? DEFAULT_BATCH_SIZE;
     const startTime = performance.now();
 
-    // Process entries while we have time and haven't hit batch limit
     for (let i = 0; i < batchSize; i++) {
       if (this._pendingEntries.length === 0) {
         break;
       }
 
       const elapsed = performance.now() - startTime;
-      const timeLeft = deadline?.timeRemaining() ?? maxTime;
-      if (elapsed >= maxTime || timeLeft < 1) {
+      if (elapsed >= maxTime || deadline.timeRemaining() < 1) {
         break;
       }
 
@@ -219,21 +223,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   private _cancelScheduledProcessing(): void {
-    if (this._idleCallbackId === undefined) {
-      return;
+    if (this._idleHandle !== undefined) {
+      cancelIdleCallbackShim(this._idleHandle);
+      this._idleHandle = undefined;
     }
-
-    if (this._hasIdleCallback()) {
-      // eslint-disable-next-line baseline-js/use-baseline
-      window.cancelIdleCallback(this._idleCallbackId);
-    } else {
-      window.cancelAnimationFrame(this._idleCallbackId);
-    }
-    this._idleCallbackId = undefined;
-  }
-
-  private _hasIdleCallback(): boolean {
-    // eslint-disable-next-line baseline-js/use-baseline
-    return typeof window.requestIdleCallback === 'function';
   }
 }

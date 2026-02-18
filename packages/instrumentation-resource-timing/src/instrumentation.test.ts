@@ -46,6 +46,7 @@ describe('ResourceTimingInstrumentation', () => {
     readyState: string;
     hidden: boolean;
     addEventListener: ReturnType<typeof vi.fn>;
+    removeEventListener: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
@@ -71,6 +72,7 @@ describe('ResourceTimingInstrumentation', () => {
       readyState: 'complete',
       hidden: false,
       addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
     };
 
     vi.stubGlobal('document', mockDocument);
@@ -80,8 +82,6 @@ describe('ResourceTimingInstrumentation', () => {
       requestIdleCallback: vi.fn((cb) => setTimeout(cb, 0)),
       cancelIdleCallback: vi.fn(clearTimeout),
       addEventListener: vi.fn(),
-      requestAnimationFrame: vi.fn((cb) => setTimeout(cb, 0)),
-      cancelAnimationFrame: vi.fn(clearTimeout),
     });
 
     vi.stubGlobal('PerformanceObserver', PerformanceObserverMock);
@@ -99,6 +99,7 @@ describe('ResourceTimingInstrumentation', () => {
       vi.stubGlobal('document', {
         readyState: 'loading',
         addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
       });
       vi.stubGlobal('window', {
         PerformanceObserver: PerformanceObserverMock,
@@ -150,7 +151,7 @@ describe('ResourceTimingInstrumentation', () => {
   });
 
   describe('Configuration', () => {
-    it('should use default idleTimeout of 1000ms', () => {
+    it('should use default forceProcessingAfter of 1000ms', () => {
       instrumentation = new ResourceTimingInstrumentation();
       instrumentation.enable();
 
@@ -166,9 +167,9 @@ describe('ResourceTimingInstrumentation', () => {
       );
     });
 
-    it('should respect custom idleTimeout', () => {
+    it('should respect custom forceProcessingAfter', () => {
       instrumentation = new ResourceTimingInstrumentation({
-        idleTimeout: 500,
+        forceProcessingAfter: 500,
       });
       instrumentation.enable();
 
@@ -211,6 +212,7 @@ describe('ResourceTimingInstrumentation', () => {
       expect(records).toHaveLength(0);
     });
   });
+    
   describe('Data Emission', () => {
     it('should emit log records with correct attributes', () => {
       instrumentation = new ResourceTimingInstrumentation();
@@ -272,16 +274,16 @@ describe('ResourceTimingInstrumentation', () => {
   });
 
   describe('Browser Compatibility', () => {
-    it('should fallback to requestAnimationFrame if requestIdleCallback is missing', () => {
+    it('should fall back to setTimeout when requestIdleCallback is missing', () => {
       vi.stubGlobal('window', {
         PerformanceObserver: PerformanceObserverMock,
         addEventListener: vi.fn(),
-        requestAnimationFrame: vi.fn((cb) => setTimeout(cb, 0)),
-        cancelAnimationFrame: vi.fn(clearTimeout),
+        setTimeout: vi.fn(() => 1),
+        clearTimeout: vi.fn(),
       });
-      vi.stubGlobal('requestIdleCallback', undefined);
 
       instrumentation = new ResourceTimingInstrumentation();
+      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const mockEntry = createMockResourceEntry();
@@ -290,7 +292,7 @@ describe('ResourceTimingInstrumentation', () => {
         mockObserver as unknown as PerformanceObserver,
       );
 
-      expect(window.requestAnimationFrame).toHaveBeenCalled();
+      expect(window.setTimeout).toHaveBeenCalledWith(expect.any(Function), 1);
     });
 
     it('should handle missing PerformanceObserver gracefully', () => {
