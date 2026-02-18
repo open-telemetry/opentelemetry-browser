@@ -56,12 +56,12 @@ registerInstrumentations({
       batchSize: 100,
 
       // Wait max 2 seconds for idle time before forcing processing (default: 1000)
-      idleTimeout: 2000,
+      forceProcessingAfter: 2000,
 
       // Spend max 100ms processing per idle callback (default: 50)
       maxProcessingTime: 100,
 
-      // Maximum queue size before dropping entries (default: 1000)
+      // Maximum queue size before forcing immediate flush (default: 1000)
       maxQueueSize: 2000,
     }),
   ],
@@ -73,9 +73,9 @@ registerInstrumentations({
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `batchSize` | `number` | `50` | Number of resources to process per batch. Lower values reduce memory pressure but increase overhead. |
-| `idleTimeout` | `number` | `1000` | Maximum time (ms) to wait for an idle callback before forcing processing. Ensures resources are eventually emitted even if the browser never idles. |
+| `forceProcessingAfter` | `number` | `1000` | Maximum time (ms) to wait for an idle callback before forcing processing. Ensures resources are eventually emitted even if the browser never idles. |
 | `maxProcessingTime` | `number` | `50` | Maximum time (ms) to spend processing resources per idle callback. Prevents blocking the main thread. |
-| `maxQueueSize` | `number` | `1000` | Maximum number of resources to queue before forcing immediate flush. Prevents memory issues during extreme bursts. When reached, the queue is flushed immediately and a warning is emitted. |
+| `maxQueueSize` | `number` | `1000` | Maximum number of resources to queue before forcing immediate flush. Prevents memory issues during extreme bursts. When reached, the queue is flushed immediately. |
 
 ## How It Works
 
@@ -86,7 +86,7 @@ The instrumentation waits for the `load` event before setting up the `Performanc
 Using `{ buffered: true }` allows the observer to capture historical resource timing entries that occurred before the observer was created.
 
 ### 3. **Idle Scheduling**
-Resources are processed during browser idle time using `requestIdleCallback` (with automatic fallback to `requestAnimationFrame` + `setTimeout` for Safari).
+Resources are processed during browser idle time using `requestIdleCallback` (with automatic fallback to `setTimeout` for Safari).
 
 ### 4. **Time-Budgeted Processing**
 Resources are processed in chunks (default: 50 per idle callback) with a maximum processing time (default: 50ms) to ensure the main thread remains responsive.
@@ -119,7 +119,7 @@ Each resource timing event includes:
 | Buffered Mode | ✅ 89+ | ✅ 68+ | ✅ 15.4+ | ✅ 89+ |
 | requestIdleCallback | ✅ 47+ | ✅ 55+ | ❌ Fallback | ✅ 79+ |
 
-**Note**: Safari doesn't support `requestIdleCallback`, but this instrumentation automatically falls back to `requestAnimationFrame` + `setTimeout` for graceful degradation.
+**Note**: Safari doesn't support `requestIdleCallback`, but this instrumentation automatically falls back to `setTimeout` for graceful degradation.
 
 ## Performance Considerations
 
@@ -127,12 +127,11 @@ Each resource timing event includes:
 - **Batching**: Processes resources in chunks to avoid holding large arrays in memory
 - **Queue Limit**: Max 1000 resources queued (configurable). Queue is force-flushed when limit is reached, preventing memory exhaustion
 - **Force Flush**: When queue fills, all entries are immediately emitted (bypassing idle scheduling) to ensure no data loss
-- **Warning on Overflow**: Emits a warning log event when queue fills up, helping diagnose excessive resource loads
 
 ### Main Thread Impact
 - **Idle Processing**: Uses browser idle time to avoid blocking user interactions
 - **Time Budget**: Respects idle deadline and max processing time to maintain responsiveness
-- **Forced Processing**: If browser never idles, forces processing after `idleTimeout` (default: 1000ms) to ensure data is captured
+- **Forced Processing**: If browser never idles, forces processing after `forceProcessingAfter` (default: 1000ms) to ensure data is captured
 - **Adaptive**: Processes fewer resources when `timeRemaining()` is low during forced execution
 - **Visibility Change**: Flushes pending entries when page becomes hidden (tab switch, navigation) to prevent data loss
 
