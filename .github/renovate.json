@@ -4,8 +4,6 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "prHourlyLimit": 0,
-  "prConcurrentLimit": 10,
   "rebaseWhen": "conflicted",
   "postUpdateOptions": ["npmDedupe"],
   "schedule": ["before 8am on Monday"],
@@ -22,12 +20,6 @@
       "groupName": "production-deps"
     },
     {
-      "description": "OpenTelemetry group",
-      "matchDepNames": ["/^@opentelemetry//"],
-      "rangeStrategy": "bump",
-      "groupName": "opentelemetry"
-    },
-    {
       "description": "Dev patches and minors",
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["patch", "minor"],
@@ -40,18 +32,25 @@
       "groupName": "dev-deps-major"
     },
     {
+      "description": "OpenTelemetry group",
+      "matchDepNames": ["@opentelemetry/*"],
+      "matchDepTypes": ["dependencies", "devDependencies"],
+      "rangeStrategy": "bump",
+      "groupName": "opentelemetry"
+    },
+    {
       "description": "Vitest packages must stay version-aligned",
-      "matchDepNames": ["vitest", "/^@vitest//"],
+      "matchDepNames": ["vitest", "@vitest/*"],
       "groupName": "vitest"
     },
     {
       "description": "Turbo packages must stay version-aligned",
-      "matchDepNames": ["turbo", "/^@turbo//"],
+      "matchDepNames": ["turbo", "@turbo/*"],
       "groupName": "turbo"
     },
     {
       "description": "Commitlint packages must stay version-aligned",
-      "matchDepNames": ["/^@commitlint//"],
+      "matchDepNames": ["@commitlint/*"],
       "groupName": "commitlint"
     }
   ]
