@@ -166,6 +166,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       }
 
       const elapsed = performance.now() - startTime;
+      // eslint-disable-next-line baseline-js/use-baseline
       if (elapsed >= maxTime || deadline.timeRemaining() < 1) {
         break;
       }
