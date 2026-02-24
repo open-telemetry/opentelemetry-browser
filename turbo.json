@@ -6,8 +6,12 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "lint": {
+      "cache": false
+    },
     "check-types": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "dev": {
       "persistent": true,
