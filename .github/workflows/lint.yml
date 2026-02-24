@@ -21,8 +21,6 @@ jobs:
           node-version-file: package.json
           cache: "npm"
 
-      - run: npm install -g npm@11.8.0
-
       - run: npm ci
 
       - run: npm run lint:ci
