@@ -1,0 +1,46 @@
+{
+  "name": "@opentelemetry/instrumentation-browser",
+  "version": "0.1.0",
+  "description": "OpenTelemetry consolidated browser instrumentations with subpath exports.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "instrumentation"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/instrumentation-browser"
+  },
+  "type": "module",
+  "exports": {
+    "./experimental/user-action": "./dist/user-action/index.js",
+    "./experimental/navigation-timing": "./dist/navigation-timing/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc",
+    "test": "vitest run --browser.enabled=false",
+    "test:watch": "vitest --browser.enabled=false",
+    "test:coverage": "vitest --coverage --browser.enabled=false"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.212.0",
+    "@opentelemetry/instrumentation": "^0.212.0",
+    "@opentelemetry/web-utils": "*"
+  },
+  "devDependencies": {
+    "@opentelemetry/test-utils": "*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
