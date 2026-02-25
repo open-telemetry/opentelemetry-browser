@@ -17,5 +17,7 @@ export const simpleInstrumentationScenario: BundleScenario = {
   notExpectedInBundle: [
     'NavigationTimingInstrumentation',
     'browser.navigation_timing',
+    'WebVitalsInstrumentation',
+    'browser.web_vital',
   ],
 };

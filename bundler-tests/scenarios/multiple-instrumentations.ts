@@ -22,5 +22,5 @@ export const multipleInstrumentationsScenario: BundleScenario = {
     'browser.user_action.click',
     'browser.navigation_timing',
   ],
-  notExpectedInBundle: [],
+  notExpectedInBundle: ['WebVitalsInstrumentation', 'browser.web_vital'],
 };
