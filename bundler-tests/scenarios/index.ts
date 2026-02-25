@@ -16,3 +16,4 @@ export interface BundleScenario {
 export { multipleInstrumentationsScenario } from './multiple-instrumentations.ts';
 export { sdkWithInstrumentationsScenario } from './sdk-with-instrumentations.ts';
 export { simpleInstrumentationScenario } from './simple-instrumentation.ts';
+export { webVitalsOnlyScenario } from './web-vitals-only.ts';

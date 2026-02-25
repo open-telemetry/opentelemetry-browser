@@ -20,7 +20,8 @@
   "type": "module",
   "exports": {
     "./experimental/user-action": "./dist/user-action/index.js",
-    "./experimental/navigation-timing": "./dist/navigation-timing/index.js"
+    "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
+    "./experimental/web-vitals": "./dist/web-vitals/index.js"
   },
   "files": [
     "dist"
@@ -35,7 +36,8 @@
   "dependencies": {
     "@opentelemetry/api-logs": "^0.212.0",
     "@opentelemetry/instrumentation": "^0.212.0",
-    "@opentelemetry/web-utils": "*"
+    "@opentelemetry/web-utils": "*",
+    "web-vitals": "^5.1.0"
   },
   "devDependencies": {
     "@opentelemetry/test-utils": "*"

@@ -14,6 +14,7 @@ import {
   multipleInstrumentationsScenario,
   sdkWithInstrumentationsScenario,
   simpleInstrumentationScenario,
+  webVitalsOnlyScenario,
 } from '../scenarios/index.ts';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +26,7 @@ const scenarios: BundleScenario[] = [
   simpleInstrumentationScenario,
   multipleInstrumentationsScenario,
   sdkWithInstrumentationsScenario,
+  webVitalsOnlyScenario,
 ];
 
 beforeAll(() => {
