@@ -14,6 +14,9 @@ const licensePattern =
 
 export default [
   {
+    ignores: ['bundler-tests/**'],
+  },
+  {
     files: ['packages/*/src/**/*.{js,ts,mjs}'],
     ignores: ['**/*.test.ts', '**/*.spec.ts'],
     languageOptions: {
