@@ -1,13 +1,12 @@
 {
-  "name": "@opentelemetry/instrumentation-user-action",
+  "name": "@opentelemetry/instrumentation-browser",
   "version": "0.1.0",
-  "description": "OpenTelemetry instrumentation for user actions for browser applications.",
+  "description": "OpenTelemetry consolidated browser instrumentations with subpath exports.",
   "keywords": [
     "opentelemetry",
     "browser",
     "web",
-    "instrumentation",
-    "user-action"
+    "instrumentation"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -16,12 +15,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
-    "directory": "packages/instrumentation-user-action"
+    "directory": "packages/instrumentation-browser"
   },
   "type": "module",
-  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js"
+    "./experimental/user-action": "./dist/user-action/index.js",
+    "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
+    "./experimental/web-vitals": "./dist/web-vitals/index.js"
   },
   "files": [
     "dist"
@@ -29,14 +29,15 @@
   "scripts": {
     "build": "tsdown",
     "check-types": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest --coverage"
+    "test": "vitest run --browser.enabled=false",
+    "test:watch": "vitest --browser.enabled=false",
+    "test:coverage": "vitest --coverage --browser.enabled=false"
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.212.0",
     "@opentelemetry/instrumentation": "^0.212.0",
-    "@opentelemetry/web-utils": "*"
+    "@opentelemetry/web-utils": "*",
+    "web-vitals": "^5.1.0"
   },
   "devDependencies": {
     "@opentelemetry/test-utils": "*"

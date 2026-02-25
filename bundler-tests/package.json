@@ -1,0 +1,26 @@
+{
+  "name": "bundler-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.212.0",
+    "@opentelemetry/instrumentation": "^0.212.0",
+    "@opentelemetry/sdk-trace-web": "^2.0.0",
+    "@opentelemetry/sdk-logs": "^0.212.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/web-common": "^0.212.0",
+    "@opentelemetry/instrumentation-browser": "file:../packages/instrumentation-browser",
+    "@opentelemetry/sdk-browser": "file:../packages/sdk-browser"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "rollup": "^4.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.0",
+    "@rollup/plugin-terser": "^0.4.0",
+    "vitest": "^4.0.0"
+  }
+}

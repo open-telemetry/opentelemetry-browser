@@ -1,13 +1,12 @@
 {
-  "name": "@opentelemetry/instrumentation-navigation-timing",
+  "name": "@opentelemetry/sdk-browser",
   "version": "0.1.0",
-  "description": "OpenTelemetry instrumentation for navigation timing for browser applications.",
+  "description": "OpenTelemetry simplified browser SDK configuration.",
   "keywords": [
     "opentelemetry",
     "browser",
     "web",
-    "instrumentation",
-    "navigation-timing"
+    "sdk"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -16,7 +15,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
-    "directory": "packages/instrumentation-navigation-timing"
+    "directory": "packages/sdk-browser"
   },
   "type": "module",
   "types": "./dist/index.d.ts",
@@ -28,15 +27,19 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "watch": "tsdown --watch",
     "check-types": "tsc",
     "test": "vitest run --browser.enabled=false",
     "test:watch": "vitest --browser.enabled=false",
     "test:coverage": "vitest --coverage --browser.enabled=false"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/api-logs": "^0.212.0",
-    "@opentelemetry/instrumentation": "^0.212.0"
+    "@opentelemetry/instrumentation": "^0.212.0",
+    "@opentelemetry/sdk-trace-web": "^2.0.0",
+    "@opentelemetry/sdk-logs": "^0.212.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/web-common": "^0.212.0"
   },
   "publishConfig": {
     "access": "public"
