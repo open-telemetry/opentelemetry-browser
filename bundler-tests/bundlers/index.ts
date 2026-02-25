@@ -6,6 +6,7 @@
 export interface BundlerAdapter {
   name: string;
   bundle(entryPoint: string, outFile: string): Promise<void>;
+  bundleMinified(entryPoint: string, outFile: string): Promise<void>;
 }
 
 export { esbuildAdapter } from './esbuild.ts';

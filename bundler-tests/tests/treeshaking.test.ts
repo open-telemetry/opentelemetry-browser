@@ -49,6 +49,9 @@ for (const bundler of bundlers) {
 
         await bundler.bundle(entryFile, outFile);
 
+        const minFile = outFile.replace(/\.js$/, '.min.js');
+        await bundler.bundleMinified(entryFile, minFile);
+
         const output = fs.readFileSync(outFile, 'utf-8');
 
         for (const expected of scenario.expectedInBundle) {
