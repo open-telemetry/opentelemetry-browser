@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "tsdown",
-    "dev": "tsdown --watch --no-clean",
+    "watch": "tsdown --watch --no-clean",
     "check-types": "tsc",
     "test": "vitest run --browser.enabled=false",
     "test:watch": "vitest --browser.enabled=false",
