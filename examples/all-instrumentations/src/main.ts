@@ -4,6 +4,7 @@ import { logs } from '@opentelemetry/api-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/instrumentation-navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/instrumentation-user-action';
+import { WebVitalsInstrumentation } from '@opentelemetry/instrumentation-web-vitals';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,
@@ -22,5 +23,6 @@ registerInstrumentations({
   instrumentations: [
     new NavigationTimingInstrumentation(),
     new UserActionInstrumentation(),
+    new WebVitalsInstrumentation({ includeRawAttribution: true }),
   ],
 });

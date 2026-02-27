@@ -1,0 +1,48 @@
+{
+  "name": "@opentelemetry/instrumentation-web-vitals",
+  "version": "0.1.0",
+  "description": "OpenTelemetry instrumentation for Core Web Vitals for browser applications.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "instrumentation",
+    "web-vitals"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/instrumentation-web-vitals"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.212.0",
+    "@opentelemetry/instrumentation": "^0.212.0",
+    "web-vitals": "^5.1.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
