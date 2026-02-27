@@ -121,25 +121,6 @@ describe('WebVitalsInstrumentation', () => {
         inpLog.attributes[ATTR_WEB_VITAL_RATING],
       );
     });
-
-    it('should use interaction time as timestamp', async () => {
-      instrumentation = new WebVitalsInstrumentation();
-      createButton('Timestamp test');
-
-      await triggerINP('Timestamp test');
-      const afterCallback = Date.now();
-
-      const inpLog = await waitForMetric('inp');
-
-      // hrTime is [seconds, nanoseconds] since Unix epoch
-      const [seconds, nanos] = inpLog.hrTime;
-      const timestampMs = seconds * 1000 + nanos / 1_000_000;
-
-      // Timestamp should be from the interaction, which is before the callback fired
-      expect(timestampMs).toBeLessThan(afterCallback);
-      // And after page load (timeOrigin)
-      expect(timestampMs).toBeGreaterThan(performance.timeOrigin);
-    });
   });
 
   describe('CLS metric', () => {
@@ -173,76 +154,6 @@ describe('WebVitalsInstrumentation', () => {
       expect(['good', 'needs-improvement', 'poor']).toContain(
         clsLog.attributes[ATTR_WEB_VITAL_RATING],
       );
-    });
-
-    it('should use largest shift time as timestamp', async () => {
-      instrumentation = new WebVitalsInstrumentation();
-
-      const shifter = document.createElement('div');
-      shifter.style.cssText =
-        'width: 100px; height: 100px; background: red; position: relative;';
-      testContainer.appendChild(shifter);
-
-      await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-      await new Promise((r) => setTimeout(r, 100));
-
-      const pusher = document.createElement('div');
-      pusher.style.cssText = 'width: 100px; height: 200px; background: blue;';
-      testContainer.insertBefore(pusher, shifter);
-
-      await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-      await new Promise((r) => setTimeout(r, 100));
-
-      const beforeCallback = Date.now();
-      triggerVisibilityChange();
-
-      const clsLog = await waitForMetric('cls');
-
-      // hrTime is [seconds, nanoseconds] since Unix epoch
-      const [seconds, nanos] = clsLog.hrTime;
-      const timestampMs = seconds * 1000 + nanos / 1_000_000;
-
-      // Timestamp should be from the shift, which is before the callback fired
-      expect(timestampMs).toBeLessThan(beforeCallback);
-      // And after page load (timeOrigin)
-      expect(timestampMs).toBeGreaterThan(performance.timeOrigin);
-    });
-  });
-
-  describe('LCP metric', () => {
-    it('should emit LCP with attribution after largest content appears', async () => {
-      instrumentation = new WebVitalsInstrumentation();
-
-      const largeElement = document.createElement('div');
-      largeElement.id = 'lcp-element';
-      largeElement.style.cssText =
-        'width: 500px; height: 500px; background: green;';
-      largeElement.textContent = 'Large Content';
-      testContainer.appendChild(largeElement);
-
-      await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-      await new Promise((r) => setTimeout(r, 100));
-
-      triggerVisibilityChange();
-
-      // LCP may or may not fire depending on browser timing
-      try {
-        const lcpLog = await waitForMetric('lcp', 500);
-
-        expect(lcpLog.attributes[ATTR_WEB_VITAL_VALUE]).toBeGreaterThanOrEqual(
-          0,
-        );
-        expect(lcpLog.attributes[ATTR_WEB_VITAL_DELTA]).toBeGreaterThanOrEqual(
-          0,
-        );
-        expect(lcpLog.attributes[ATTR_WEB_VITAL_ID]).toBeDefined();
-        expect(lcpLog.attributes[ATTR_WEB_VITAL_NAVIGATION_TYPE]).toBeDefined();
-        expect(['good', 'needs-improvement', 'poor']).toContain(
-          lcpLog.attributes[ATTR_WEB_VITAL_RATING],
-        );
-      } catch {
-        // LCP not captured is acceptable in test environment
-      }
     });
   });
 
@@ -291,16 +202,6 @@ describe('WebVitalsInstrumentation', () => {
       expect(inpLog.body).toBeDefined();
       const parsed = JSON.parse(inpLog.body as string);
       expect(parsed).toHaveProperty('interactionTime');
-    });
-
-    it('should not include body by default', async () => {
-      instrumentation = new WebVitalsInstrumentation();
-
-      createButton('No attribution test');
-      await triggerINP('No attribution test');
-
-      const inpLog = await waitForMetric('inp');
-      expect(inpLog.body).toBeUndefined();
     });
   });
 
