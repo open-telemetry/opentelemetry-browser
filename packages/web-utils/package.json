@@ -27,6 +27,7 @@
   ],
   "scripts": {
     "build": "tsdown",
+    "dev": "tsdown --watch --no-clean",
     "check-types": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
