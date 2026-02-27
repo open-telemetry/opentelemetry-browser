@@ -1,6 +1,7 @@
 node_modules
 
 # output
+__screenshots__
 dist
 *.tgz
 
