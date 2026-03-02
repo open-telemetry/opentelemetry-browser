@@ -52,7 +52,7 @@
     "publint": "0.3.17",
     "tsdown": "0.20.3",
     "turbo": "2.8.10",
-    "typescript-eslint": "8.56.0",
+    "typescript-eslint": "8.56.1",
     "vite": "^8.0.0-beta.15",
     "vitest": "4.0.18"
   },
