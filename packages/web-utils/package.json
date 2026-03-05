@@ -1,5 +1,6 @@
 {
   "name": "@opentelemetry/web-utils",
+  "private": true,
   "version": "0.1.0",
   "description": "Utility package with web-specific helpers",
   "keywords": [
