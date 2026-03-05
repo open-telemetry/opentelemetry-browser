@@ -1,10 +1,10 @@
 import './style.css';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
+import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
+import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { NavigationTimingInstrumentation } from '@opentelemetry/instrumentation-navigation-timing';
-import { UserActionInstrumentation } from '@opentelemetry/instrumentation-user-action';
-import { WebVitalsInstrumentation } from '@opentelemetry/instrumentation-web-vitals';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,
