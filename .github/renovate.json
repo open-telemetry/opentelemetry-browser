@@ -4,12 +4,13 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "rebaseWhen": "behind-base-branch",
-  "postUpdateOptions": ["npmDedupe"],
   "schedule": ["before 8am on Monday"],
-  "labels": ["dependencies"],
+  "rebaseWhen": "behind-base-branch",
   "ignoreDeps": ["@types/node", "node", "npm"],
+  "labels": ["dependencies"],
+  "postUpdateOptions": ["npmDedupe"],
   "rangeStrategy": "bump",
+  "separateMajorMinor": false,
   "packageRules": [
     {
       "description": "GitHub Actions",
@@ -17,43 +18,14 @@
       "groupName": "github-actions"
     },
     {
-      "description": "Production dependencies (non-OTel)",
-      "matchDepTypes": ["dependencies"],
-      "groupName": "production-deps"
-    },
-    {
-      "description": "Dev patches and minors",
-      "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["patch", "minor"],
-      "groupName": "dev-deps"
-    },
-    {
-      "description": "Dev major updates",
-      "matchDepTypes": ["devDependencies"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "dev-deps-major"
-    },
-    {
-      "description": "OpenTelemetry group",
-      "matchDepNames": ["@opentelemetry/*"],
+      "description": "All dependencies",
       "matchDepTypes": ["dependencies", "devDependencies"],
-      "rangeStrategy": "bump",
+      "groupName": "dependencies"
+    },
+    {
+      "description": "OpenTelemetry",
+      "matchDepNames": ["@opentelemetry/**"],
       "groupName": "opentelemetry"
-    },
-    {
-      "description": "Vitest packages must stay version-aligned",
-      "matchDepNames": ["vitest", "@vitest/*"],
-      "groupName": "vitest"
-    },
-    {
-      "description": "Turbo packages must stay version-aligned",
-      "matchDepNames": ["turbo", "@turbo/*"],
-      "groupName": "turbo"
-    },
-    {
-      "description": "Commitlint packages must stay version-aligned",
-      "matchDepNames": ["@commitlint/*"],
-      "groupName": "commitlint"
     }
   ]
 }
