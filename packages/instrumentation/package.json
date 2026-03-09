@@ -33,9 +33,9 @@
     "build": "tsdown",
     "watch": "tsdown --watch --no-clean",
     "check-types": "tsc",
-    "test": "vitest run --browser.enabled=false --exclude='**/web-vitals/**' && vitest run 'src/web-vitals/'",
-    "test:watch": "vitest --browser.enabled=false",
-    "test:coverage": "vitest --coverage --browser.enabled=false"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.212.0",
