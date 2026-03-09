@@ -18,7 +18,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
-    "directory": "packages/browser-instrumentation"
+    "directory": "packages/instrumentation"
   },
   "type": "module",
   "exports": {
