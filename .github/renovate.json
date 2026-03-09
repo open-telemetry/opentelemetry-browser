@@ -4,10 +4,12 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
-  "rebaseWhen": "conflicted",
+  "rebaseWhen": "behind-base-branch",
   "postUpdateOptions": ["npmDedupe"],
   "schedule": ["before 8am on Monday"],
   "labels": ["dependencies"],
+  "ignoreDeps": ["@types/node", "node", "npm"],
+  "rangeStrategy": "bump",
   "packageRules": [
     {
       "description": "GitHub Actions",
