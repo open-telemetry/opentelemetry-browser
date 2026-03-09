@@ -40,7 +40,7 @@
     "@commitlint/config-conventional": "20.4.2",
     "@opentelemetry/instrumentation": "^0.212.0",
     "@opentelemetry/sdk-logs": "^0.212.0",
-    "@turbo/gen": "2.8.10",
+    "@turbo/gen": "2.8.13",
     "@types/jsdom": "27.0.0",
     "@vitest/browser-playwright": "4.0.18",
     "@vitest/coverage-v8": "4.0.18",
@@ -51,7 +51,7 @@
     "lefthook": "2.1.1",
     "publint": "0.3.17",
     "tsdown": "0.20.3",
-    "turbo": "2.8.10",
+    "turbo": "2.8.13",
     "typescript-eslint": "8.56.1",
     "vite": "8.0.0-beta.16",
     "vitest": "4.0.18"
