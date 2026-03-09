@@ -6,7 +6,10 @@
     "opentelemetry",
     "browser",
     "web",
-    "instrumentation"
+    "instrumentation",
+    "navigation-timing",
+    "user-action",
+    "web-vitals"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
