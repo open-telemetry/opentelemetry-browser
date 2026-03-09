@@ -36,8 +36,8 @@
   "devDependencies": {
     "@arethetypeswrong/core": "0.18.2",
     "@biomejs/biome": "2.4.4",
-    "@commitlint/cli": "20.4.2",
-    "@commitlint/config-conventional": "20.4.2",
+    "@commitlint/cli": "20.4.3",
+    "@commitlint/config-conventional": "20.4.3",
     "@opentelemetry/instrumentation": "^0.213.0",
     "@opentelemetry/sdk-logs": "^0.213.0",
     "@turbo/gen": "2.8.13",
