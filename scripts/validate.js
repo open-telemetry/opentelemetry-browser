@@ -307,6 +307,38 @@ function validateModuleIntegrity(units) {
   return allPassed;
 }
 
+function checkNoUnresolvedSubpathImports(units) {
+  logSection('7. No Unresolved Subpath Imports');
+
+  const hashImportPattern = /(?:from|import)\s*['"]#[^'"]+['"]/;
+  let allPassed = true;
+
+  for (const { label, distPath } of units) {
+    const jsFilePaths = getJsFiles(distPath);
+    const matches = [];
+
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath, 'utf-8');
+      if (hashImportPattern.test(content)) {
+        matches.push(path.relative(distPath, jsFilePath));
+      }
+    }
+
+    if (matches.length > 0) {
+      log(`  ✗ ${label}: Found unresolved # imports in dist`, COLORS.red);
+      log(`    ${matches.join(', ')}`, COLORS.dim);
+      allPassed = false;
+    } else {
+      log(`  ✓ ${label}: No unresolved # imports`, COLORS.green);
+    }
+  }
+
+  if (allPassed) {
+    log('\n✓ No unresolved subpath imports', COLORS.green);
+  }
+  return allPassed;
+}
+
 function main() {
   logSection('OpenTelemetry Browser Validation');
 
@@ -327,6 +359,10 @@ function main() {
     { name: 'Bundle size', passed: checkBundleSize(units) },
     { name: 'No node_modules in dist', passed: checkNoNodeModulesInDist() },
     { name: 'Module integrity', passed: validateModuleIntegrity(units) },
+    {
+      name: 'No unresolved subpath imports',
+      passed: checkNoUnresolvedSubpathImports(units),
+    },
   ];
 
   logSection('Validation Summary');

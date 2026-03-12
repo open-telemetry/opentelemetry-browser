@@ -63,6 +63,13 @@ export default [
                 '#instrumentation-test-utils is for test files only, not production source.',
             },
           ],
+          patterns: [
+            {
+              group: ['**/test-utils*'],
+              message:
+                'test-utils is for test files only, not production source.',
+            },
+          ],
         },
       ],
     },
