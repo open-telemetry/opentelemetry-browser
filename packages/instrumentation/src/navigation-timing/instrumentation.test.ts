@@ -4,7 +4,6 @@
  */
 
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { setupTestLogExporter } from '@opentelemetry/test-utils';
 import {
   afterEach,
   beforeAll,
@@ -14,6 +13,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { setupTestLogExporter } from '#instrumentation-test-utils';
 import { NavigationTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_NAVIGATION_CONNECT_END,
