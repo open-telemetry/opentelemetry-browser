@@ -45,7 +45,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
   private _includeRawAttribution: boolean;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
-    super('@opentelemetry/instrumentation-web-vitals', '0.1.0', config);
+    super('@opentelemetry/browser-instrumentation/web-vitals', '0.1.0', config);
     this._applyCustomLogRecordData = config.applyCustomLogRecordData;
     this._includeRawAttribution = config.includeRawAttribution ?? false;
   }

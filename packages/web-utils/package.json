@@ -2,22 +2,6 @@
   "name": "@opentelemetry/web-utils",
   "private": true,
   "version": "0.1.0",
-  "description": "Utility package with web-specific helpers",
-  "keywords": [
-    "opentelemetry",
-    "browser",
-    "web",
-    "web-utils"
-  ],
-  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
-  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
-  "license": "Apache-2.0",
-  "author": "OpenTelemetry Authors",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
-    "directory": "packages/web-utils"
-  },
   "type": "module",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -33,8 +17,5 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
-  },
-  "publishConfig": {
-    "access": "public"
   }
 }
