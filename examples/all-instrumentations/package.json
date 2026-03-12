@@ -13,6 +13,6 @@
     "@opentelemetry/api-logs": "^0.213.0",
     "@opentelemetry/sdk-logs": "^0.213.0",
     "@opentelemetry/instrumentation": "^0.213.0",
-    "@opentelemetry/browser-instrumentation": "*"
+    "@opentelemetry/browser-instrumentation": "^0.1.0"
   }
 }
