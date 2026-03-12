@@ -7,7 +7,8 @@
  * 2. Web API baseline (eslint-plugin-baseline-js on compiled output)
  * 3. Package exports & integrity (sourcemaps, publint)
  * 4. Bundle size
- * 5. Module integrity (ESM-only, no require())
+ * 5. No node_modules in dist
+ * 6. Module integrity (ESM-only, no require())
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -254,9 +255,28 @@ function checkBundleSize(units) {
   return allPassed;
 }
 
+function checkNoNodeModulesInDist() {
+  logSection('5. No node_modules in dist');
+  let allPassed = true;
+
+  for (const pkg of getPackagesWithDist()) {
+    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
+    const nodeModulesPath = path.join(distPath, 'node_modules');
+
+    if (fs.existsSync(nodeModulesPath)) {
+      log(`  ✗ ${pkg}: dist/node_modules exists`, COLORS.red);
+      allPassed = false;
+    } else {
+      log(`  ✓ ${pkg}: no node_modules in dist`, COLORS.green);
+    }
+  }
+
+  return allPassed;
+}
+
 // Validates ESM files don't use require() (causes runtime errors)
 function validateModuleIntegrity(units) {
-  logSection('5. Module Integrity');
+  logSection('6. Module Integrity');
 
   const requirePattern = /\brequire\s*\(/;
   let allPassed = true;
@@ -305,6 +325,7 @@ function main() {
     { name: 'Web API baseline', passed: checkBaselineAPIs() },
     { name: 'Package exports', passed: checkPackageExports(units) },
     { name: 'Bundle size', passed: checkBundleSize(units) },
+    { name: 'No node_modules in dist', passed: checkNoNodeModulesInDist() },
     { name: 'Module integrity', passed: validateModuleIntegrity(units) },
   ];
 
