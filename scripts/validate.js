@@ -41,12 +41,51 @@ function logSection(title) {
   );
 }
 
+function getJsFiles(dir) {
+  const results = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...getJsFiles(fullPath));
+    } else if (entry.name.endsWith('.js')) {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
 function getPackagesWithDist() {
   const packages = fs.readdirSync(PACKAGES_DIR);
   return packages.filter((pkg) => {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
     return fs.existsSync(distPath);
   });
+}
+
+function getDistUnits() {
+  const units = [];
+  for (const pkg of getPackagesWithDist()) {
+    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
+    const subdirs = fs
+      .readdirSync(distPath, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    const hasTopLevelJs = fs
+      .readdirSync(distPath)
+      .some((f) => f.endsWith('.js'));
+
+    if (subdirs.length > 0 && !hasTopLevelJs) {
+      for (const sub of subdirs) {
+        units.push({
+          label: `${pkg}/${sub}`,
+          distPath: path.join(distPath, sub),
+        });
+      }
+    } else {
+      units.push({ label: pkg, distPath });
+    }
+  }
+  return units;
 }
 
 // Verifies source only uses ES2022 APIs via tsc
@@ -93,35 +132,47 @@ function checkBaselineAPIs() {
   return true;
 }
 
-function validateSourcemaps(pkgName) {
-  const distPath = path.join(PACKAGES_DIR, pkgName, 'dist');
-  const jsFiles = fs.readdirSync(distPath).filter((f) => f.endsWith('.js'));
+function validateSourcemaps(distPath) {
+  const jsFilePaths = getJsFiles(distPath);
+  let mapCount = 0;
 
-  for (const jsFile of jsFiles) {
-    const mapFile = `${jsFile}.map`;
-    const mapPath = path.join(distPath, mapFile);
+  for (const jsFilePath of jsFilePaths) {
+    const mapPath = `${jsFilePath}.map`;
+    const relPath = path.relative(distPath, jsFilePath);
 
     if (!fs.existsSync(mapPath)) {
-      continue; // Some files may not have sourcemaps
+      continue;
     }
+
+    mapCount++;
 
     try {
       const map = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
       if (!map.sources?.length) {
-        log(`    ✗ ${mapFile} has no sources`, COLORS.red);
+        log(`    ✗ ${relPath}.map has no sources`, COLORS.red);
         return false;
       }
     } catch (error) {
-      log(`    ✗ Invalid sourcemap ${mapFile}: ${error.message}`, COLORS.red);
+      log(
+        `    ✗ Invalid sourcemap ${relPath}.map: ${error.message}`,
+        COLORS.red,
+      );
       return false;
     }
 
-    // Check sourcemap reference in JS file
-    const jsContent = fs.readFileSync(path.join(distPath, jsFile), 'utf-8');
+    const jsContent = fs.readFileSync(jsFilePath, 'utf-8');
     if (!jsContent.includes('sourceMappingURL=')) {
-      log(`    ✗ ${jsFile} missing sourcemap reference`, COLORS.red);
+      log(`    ✗ ${relPath} missing sourcemap reference`, COLORS.red);
       return false;
     }
+  }
+
+  if (jsFilePaths.length > 0 && mapCount === 0) {
+    log(
+      `    ✗ No sourcemaps found for ${jsFilePaths.length} JS files`,
+      COLORS.red,
+    );
+    return false;
   }
 
   return true;
@@ -130,14 +181,13 @@ function validateSourcemaps(pkgName) {
 function checkPackageExports() {
   logSection('3. Package Exports & Integrity');
 
-  const packages = getPackagesWithDist();
+  const units = getDistUnits();
   let allPassed = true;
 
-  for (const pkg of packages) {
-    log(`  ${pkg}:`, COLORS.blue);
+  for (const { label, distPath } of units) {
+    log(`  ${label}:`, COLORS.blue);
 
-    // Validate sourcemaps
-    if (!validateSourcemaps(pkg)) {
+    if (!validateSourcemaps(distPath)) {
       allPassed = false;
       continue;
     }
@@ -146,16 +196,17 @@ function checkPackageExports() {
 
   // Run publint on each package
   log(`\n  Running publint...`, COLORS.blue);
-  for (const pkg of packages) {
+  for (const pkg of getPackagesWithDist()) {
     const pkgDir = path.join(PACKAGES_DIR, pkg);
     try {
       execSync('npx publint', { cwd: pkgDir, stdio: 'pipe' });
       log(`    ✓ ${pkg}`, COLORS.green);
     } catch (error) {
-      log(`    ⚠ ${pkg} (warnings)`, COLORS.yellow);
+      log(`    ✗ ${pkg}`, COLORS.red);
       if (error.stdout) {
         log(`      ${error.stdout.toString().trim()}`, COLORS.dim);
       }
+      allPassed = false;
     }
   }
 
@@ -168,33 +219,32 @@ function checkPackageExports() {
 function checkBundleSize() {
   logSection('4. Bundle Size');
 
-  const packages = getPackagesWithDist();
+  const units = getDistUnits();
+  const MIN_SIZE_KB = 1;
   const MAX_SIZE_KB = 6;
   let allPassed = true;
 
-  for (const pkg of packages) {
-    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
-    const jsFiles = fs
-      .readdirSync(distPath)
-      .filter((f) => f.endsWith('.js') && !f.endsWith('.map'));
+  for (const { label, distPath } of units) {
+    const jsFilePaths = getJsFiles(distPath);
 
     let totalRaw = 0;
     let totalGzip = 0;
 
-    for (const jsFile of jsFiles) {
-      const content = fs.readFileSync(path.join(distPath, jsFile));
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath);
       totalRaw += content.length;
       totalGzip += zlib.gzipSync(content).length;
     }
 
+    const rawKB = totalRaw / 1024;
     const gzipKB = totalGzip / 1024;
-    const passed = gzipKB <= MAX_SIZE_KB;
+    const passed = rawKB >= MIN_SIZE_KB && gzipKB <= MAX_SIZE_KB;
     if (!passed) {
       allPassed = false;
     }
 
     log(
-      `  ${passed ? '✓' : '✗'} ${pkg}: ${(totalRaw / 1024).toFixed(2)} KB (${gzipKB.toFixed(2)} KB gzipped)`,
+      `  ${passed ? '✓' : '✗'} ${label}: ${rawKB.toFixed(2)} KB (${gzipKB.toFixed(2)} KB gzipped)`,
       passed ? COLORS.green : COLORS.red,
     );
   }
@@ -206,12 +256,10 @@ function checkBundleSize() {
 function validateModuleIntegrity() {
   logSection('5. Module Integrity');
 
-  const packages = getPackagesWithDist();
+  const units = getDistUnits();
   let allPassed = true;
 
-  for (const pkg of packages) {
-    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
-
+  for (const { label, distPath } of units) {
     const result = spawnSync(
       'grep',
       ['-rE', '\\brequire\\s*\\(', distPath, '--include=*.js'],
@@ -222,14 +270,13 @@ function validateModuleIntegrity() {
     );
 
     if (result.status === 0) {
-      // Found matches - this is bad
-      log(`  ✗ ${pkg}: Found require() in ESM files`, COLORS.red);
+      log(`  ✗ ${label}: Found require() in ESM files`, COLORS.red);
       if (result.stdout) {
         log(`    ${result.stdout.trim().slice(0, 200)}`, COLORS.dim);
       }
       allPassed = false;
     } else {
-      log(`  ✓ ${pkg}: No require() in ESM files`, COLORS.green);
+      log(`  ✓ ${label}: No require() in ESM files`, COLORS.green);
     }
   }
 

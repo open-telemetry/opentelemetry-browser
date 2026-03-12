@@ -6,7 +6,7 @@ export default [
   ...baseConfig,
   // Compiled output - catches non-baseline APIs from dependencies
   {
-    files: ['packages/*/dist/**/*.js'],
+    files: ['packages/**/dist/**/*.js'],
     ignores: ['**/*.d.ts'],
     plugins: {
       'baseline-js': baselinePlugin,
@@ -16,6 +16,8 @@ export default [
         'error',
         {
           available: 'widely',
+          includeWebApis: { preset: 'auto' },
+          includeJsBuiltins: { preset: 'auto' },
         },
       ],
     },
