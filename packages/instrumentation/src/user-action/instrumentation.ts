@@ -31,7 +31,11 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
   private declare _onClickHandler?: (event: MouseEvent) => void;
 
   constructor(config: UserActionInstrumentationConfig = {}) {
-    super('@opentelemetry/instrumentation-user-action', '0.1.0', config);
+    super(
+      '@opentelemetry/browser-instrumentation/user-action',
+      '0.1.0',
+      config,
+    );
   }
 
   protected override init() {

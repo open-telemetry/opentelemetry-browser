@@ -56,7 +56,11 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   };
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
-    super('@opentelemetry/instrumentation-navigation-timing', '0.1.0', config);
+    super(
+      '@opentelemetry/browser-instrumentation/navigation-timing',
+      '0.1.0',
+      config,
+    );
   }
 
   protected override init() {
