@@ -53,6 +53,18 @@ export default [
           allowedHeaderPatterns: [licensePattern],
         },
       ],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '#instrumentation-test-utils',
+              message:
+                '#instrumentation-test-utils is for test files only, not production source.',
+            },
+          ],
+        },
+      ],
     },
   },
 ];
