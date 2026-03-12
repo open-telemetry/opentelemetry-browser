@@ -5,4 +5,7 @@ export default defineConfig({
   ...baseConfig,
   entry: ['src/*/index.ts'],
   dts: true,
+  deps: {
+    alwaysBundle: ['@opentelemetry/web-utils'],
+  },
 });
