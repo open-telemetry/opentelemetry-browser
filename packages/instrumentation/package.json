@@ -21,6 +21,9 @@
     "directory": "packages/instrumentation"
   },
   "type": "module",
+  "imports": {
+    "#instrumentation-utils": "./src/utils/index.ts"
+  },
   "exports": {
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
@@ -46,8 +49,7 @@
     "@opentelemetry/api": "^1.9.0"
   },
   "devDependencies": {
-    "@opentelemetry/test-utils": "*",
-    "@opentelemetry/web-utils": "*"
+    "@opentelemetry/test-utils": "*"
   },
   "publishConfig": {
     "access": "public"
