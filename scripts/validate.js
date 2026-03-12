@@ -66,13 +66,11 @@ function getDistUnits() {
   const units = [];
   for (const pkg of getPackagesWithDist()) {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
-    const subdirs = fs
-      .readdirSync(distPath, { withFileTypes: true })
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name);
-    const hasTopLevelJs = fs
-      .readdirSync(distPath)
-      .some((f) => f.endsWith('.js'));
+    const entries = fs.readdirSync(distPath, { withFileTypes: true });
+    const subdirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    const hasTopLevelJs = entries.some(
+      (e) => e.isFile() && e.name.endsWith('.js'),
+    );
 
     if (subdirs.length > 0 && !hasTopLevelJs) {
       for (const sub of subdirs) {
@@ -178,10 +176,8 @@ function validateSourcemaps(distPath) {
   return true;
 }
 
-function checkPackageExports() {
+function checkPackageExports(units) {
   logSection('3. Package Exports & Integrity');
-
-  const units = getDistUnits();
   let allPassed = true;
 
   for (const { label, distPath } of units) {
@@ -203,8 +199,16 @@ function checkPackageExports() {
       log(`    ✓ ${pkg}`, COLORS.green);
     } catch (error) {
       log(`    ✗ ${pkg}`, COLORS.red);
-      if (error.stdout) {
-        log(`      ${error.stdout.toString().trim()}`, COLORS.dim);
+      const stdout = error.stdout?.toString().trim();
+      const stderr = error.stderr?.toString().trim();
+      if (stdout) {
+        log(`      ${stdout}`, COLORS.dim);
+      }
+      if (stderr) {
+        log(`      ${stderr}`, COLORS.dim);
+      }
+      if (!stdout && !stderr) {
+        log(`      ${error.message}`, COLORS.dim);
       }
       allPassed = false;
     }
@@ -216,10 +220,8 @@ function checkPackageExports() {
   return allPassed;
 }
 
-function checkBundleSize() {
+function checkBundleSize(units) {
   logSection('4. Bundle Size');
-
-  const units = getDistUnits();
   const MIN_SIZE_KB = 1;
   const MAX_SIZE_KB = 4;
   let allPassed = true;
@@ -253,27 +255,26 @@ function checkBundleSize() {
 }
 
 // Validates ESM files don't use require() (causes runtime errors)
-function validateModuleIntegrity() {
+function validateModuleIntegrity(units) {
   logSection('5. Module Integrity');
 
-  const units = getDistUnits();
+  const requirePattern = /\brequire\s*\(/;
   let allPassed = true;
 
   for (const { label, distPath } of units) {
-    const result = spawnSync(
-      'grep',
-      ['-rE', '\\brequire\\s*\\(', distPath, '--include=*.js'],
-      {
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      },
-    );
+    const jsFilePaths = getJsFiles(distPath);
+    const matches = [];
 
-    if (result.status === 0) {
-      log(`  ✗ ${label}: Found require() in ESM files`, COLORS.red);
-      if (result.stdout) {
-        log(`    ${result.stdout.trim().slice(0, 200)}`, COLORS.dim);
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath, 'utf-8');
+      if (requirePattern.test(content)) {
+        matches.push(path.relative(distPath, jsFilePath));
       }
+    }
+
+    if (matches.length > 0) {
+      log(`  ✗ ${label}: Found require() in ESM files`, COLORS.red);
+      log(`    ${matches.join(', ')}`, COLORS.dim);
       allPassed = false;
     } else {
       log(`  ✓ ${label}: No require() in ESM files`, COLORS.green);
@@ -297,12 +298,14 @@ function main() {
 
   log(`Found ${packages.length} packages with dist/`, COLORS.dim);
 
+  const units = getDistUnits();
+
   const results = [
     { name: 'API compliance', passed: checkAPICompliance() },
     { name: 'Web API baseline', passed: checkBaselineAPIs() },
-    { name: 'Package exports', passed: checkPackageExports() },
-    { name: 'Bundle size', passed: checkBundleSize() },
-    { name: 'Module integrity', passed: validateModuleIntegrity() },
+    { name: 'Package exports', passed: checkPackageExports(units) },
+    { name: 'Bundle size', passed: checkBundleSize(units) },
+    { name: 'Module integrity', passed: validateModuleIntegrity(units) },
   ];
 
   logSection('Validation Summary');
