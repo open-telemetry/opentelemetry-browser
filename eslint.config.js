@@ -14,8 +14,22 @@ const licensePattern =
 
 export default [
   {
-    files: ['packages/*/src/**/*.{js,ts,mjs}'],
-    ignores: ['**/*.test.ts', '**/*.spec.ts'],
+    ignores: [
+      // ignore files
+      '**/*.spec.ts',
+      '**/*.test.ts',
+      // ignore folders to speed up crawling
+      '**/.turbo/**',
+      '**/dist/**',
+      '.claude/**',
+      '.github/**',
+      'docs/**',
+      'examples/**',
+      'turbo/**',
+    ],
+  },
+  {
+    files: ['packages/**/src/**/*.{*js,*ts}'],
     languageOptions: {
       parser: tseslint.parser,
       // enables type-aware linting to detect instance method usage
