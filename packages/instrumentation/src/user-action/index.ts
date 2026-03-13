@@ -4,3 +4,4 @@
  */
 
 export { UserActionInstrumentation } from './instrumentation.ts';
+export type { UserActionInstrumentationConfig } from './types.ts';
