@@ -5,6 +5,7 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_NAVIGATION_CONNECT_END,
   ATTR_NAVIGATION_CONNECT_START,
@@ -58,7 +59,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super(
       '@opentelemetry/browser-instrumentation/navigation-timing',
-      '0.1.0',
+      version,
       config,
     );
   }

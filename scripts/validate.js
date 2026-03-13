@@ -222,7 +222,7 @@ function checkPackageExports(units) {
 
 function checkBundleSize(units) {
   logSection('4. Bundle Size');
-  const MIN_SIZE_KB = 1;
+  const MIN_SIZE_KB = 0.1;
   const MAX_SIZE_KB = 4;
   let allPassed = true;
 

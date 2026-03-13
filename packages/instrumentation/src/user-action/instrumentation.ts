@@ -6,6 +6,7 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { getElementCSSSelector } from '@opentelemetry/web-utils';
+import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_CSS_SELECTOR,
   ATTR_MOUSE_EVENT_BUTTON,
@@ -33,7 +34,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
   constructor(config: UserActionInstrumentationConfig = {}) {
     super(
       '@opentelemetry/browser-instrumentation/user-action',
-      '0.1.0',
+      version,
       config,
     );
   }
