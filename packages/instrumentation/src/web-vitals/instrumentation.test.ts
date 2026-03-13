@@ -4,7 +4,6 @@
  */
 
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { setupTestLogExporter } from '@opentelemetry/test-utils';
 import {
   afterEach,
   beforeAll,
@@ -15,6 +14,7 @@ import {
   vi,
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
+import { setupTestLogExporter } from '#instrumentation-test-utils';
 import { WebVitalsInstrumentation } from './instrumentation.ts';
 import {
   ATTR_WEB_VITAL_DELTA,

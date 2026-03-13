@@ -7,7 +7,8 @@
  * 2. Web API baseline (eslint-plugin-baseline-js on compiled output)
  * 3. Package exports & integrity (sourcemaps, publint)
  * 4. Bundle size
- * 5. Module integrity (ESM-only, no require())
+ * 5. No node_modules in dist
+ * 6. Module integrity (ESM-only, no require())
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -67,12 +68,16 @@ function getDistUnits() {
   for (const pkg of getPackagesWithDist()) {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
     const entries = fs.readdirSync(distPath, { withFileTypes: true });
-    const subdirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
-    const hasTopLevelJs = entries.some(
-      (e) => e.isFile() && e.name.endsWith('.js'),
-    );
+    const subdirs = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter((name) =>
+        fs
+          .readdirSync(path.join(distPath, name))
+          .some((f) => f.endsWith('.js')),
+      );
 
-    if (subdirs.length > 0 && !hasTopLevelJs) {
+    if (subdirs.length > 0) {
       for (const sub of subdirs) {
         units.push({
           label: `${pkg}/${sub}`,
@@ -254,9 +259,28 @@ function checkBundleSize(units) {
   return allPassed;
 }
 
+function checkNoNodeModulesInDist() {
+  logSection('5. No node_modules in dist');
+  let allPassed = true;
+
+  for (const pkg of getPackagesWithDist()) {
+    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
+    const nodeModulesPath = path.join(distPath, 'node_modules');
+
+    if (fs.existsSync(nodeModulesPath)) {
+      log(`  ✗ ${pkg}: dist/node_modules exists`, COLORS.red);
+      allPassed = false;
+    } else {
+      log(`  ✓ ${pkg}: no node_modules in dist`, COLORS.green);
+    }
+  }
+
+  return allPassed;
+}
+
 // Validates ESM files don't use require() (causes runtime errors)
 function validateModuleIntegrity(units) {
-  logSection('5. Module Integrity');
+  logSection('6. Module Integrity');
 
   const requirePattern = /\brequire\s*\(/;
   let allPassed = true;
@@ -287,6 +311,38 @@ function validateModuleIntegrity(units) {
   return allPassed;
 }
 
+function checkNoUnresolvedSubpathImports(units) {
+  logSection('7. No Unresolved Subpath Imports');
+
+  const hashImportPattern = /(?:from|import)\s*['"]#[^'"]+['"]/;
+  let allPassed = true;
+
+  for (const { label, distPath } of units) {
+    const jsFilePaths = getJsFiles(distPath);
+    const matches = [];
+
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath, 'utf-8');
+      if (hashImportPattern.test(content)) {
+        matches.push(path.relative(distPath, jsFilePath));
+      }
+    }
+
+    if (matches.length > 0) {
+      log(`  ✗ ${label}: Found unresolved # imports in dist`, COLORS.red);
+      log(`    ${matches.join(', ')}`, COLORS.dim);
+      allPassed = false;
+    } else {
+      log(`  ✓ ${label}: No unresolved # imports`, COLORS.green);
+    }
+  }
+
+  if (allPassed) {
+    log('\n✓ No unresolved subpath imports', COLORS.green);
+  }
+  return allPassed;
+}
+
 function main() {
   logSection('OpenTelemetry Browser Validation');
 
@@ -305,7 +361,12 @@ function main() {
     { name: 'Web API baseline', passed: checkBaselineAPIs() },
     { name: 'Package exports', passed: checkPackageExports(units) },
     { name: 'Bundle size', passed: checkBundleSize(units) },
+    { name: 'No node_modules in dist', passed: checkNoNodeModulesInDist() },
     { name: 'Module integrity', passed: validateModuleIntegrity(units) },
+    {
+      name: 'No unresolved subpath imports',
+      passed: checkNoUnresolvedSubpathImports(units),
+    },
   ];
 
   logSection('Validation Summary');

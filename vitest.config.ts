@@ -1,16 +1,7 @@
-import path from 'node:path';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  resolve: {
-    alias: {
-      '@opentelemetry/test-utils': path.resolve(
-        __dirname,
-        './packages/test-utils/src',
-      ),
-    },
-  },
   test: {
     environment: 'jsdom',
     globals: true,

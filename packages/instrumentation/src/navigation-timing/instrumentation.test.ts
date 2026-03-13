@@ -4,7 +4,6 @@
  */
 
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { setupTestLogExporter } from '@opentelemetry/test-utils';
 import {
   afterEach,
   beforeAll,
@@ -14,6 +13,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { setupTestLogExporter } from '#instrumentation-test-utils';
 import { NavigationTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -218,6 +218,7 @@ describe('NavigationTimingInstrumentation', () => {
   });
 
   it('should use correct backoff delays and cleanup timers', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
     setReadyState('complete');
 
@@ -239,8 +240,11 @@ describe('NavigationTimingInstrumentation', () => {
         expect.any(Function),
         delays[i],
       );
-      setTimeoutSpy.mock.lastCall?.[0]?.();
+      vi.runOnlyPendingTimers();
     }
+
+    setTimeoutSpy.mockRestore();
+    vi.useRealTimers();
   });
 
   it('should emit partial values on pagehide if the page unloads before load completes', () => {
