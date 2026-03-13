@@ -2,11 +2,12 @@
 
 ## About
 
-This repository is intended to be the central home for the OpenTelemetry Browser SDK.
+This repository is the home of OpenTelemetry Browser instrumentation packages and the future home of the OpenTelemetry Browser SDK.
 
-Note: At present, web instrumentation packages are maintained in the JavaScript SDK repository or the JavaScript Contrib repository:
-- [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js)
-- [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib)
+Note: At present, browser instrumentation packages are maintained in this repository, the JavaScript SDK repository and the JavaScript Contrib repository:
+- [packages/instrumentation](https://github.com/open-telemetry/opentelemetry-browser/tree/main/packages/instrumentation)
+- [@opentelemetry/opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js)
+- [@opentelemetry/opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib)
 
 See the [Packages](#packages) section below for a list of browser-related packages.
 
@@ -26,14 +27,14 @@ npm install @opentelemetry/sdk-trace-web \
 ### Basic example
 
 ```js
-import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { resourceFromAttributes, detectResources } from '@opentelemetry/resources';
-import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
+import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
+import { resourceFromAttributes, detectResources } from '@opentelemetry/resources';
+import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 // configure resources
 let resource = resourceFromAttributes({
@@ -92,20 +93,24 @@ The following tables list browser-related packages, where they live today, and t
 
 ### Prerequisites
 
-This project requires **Node.js >= 22.12.0** and **npm 11.6.0** (npm > 11.6.0 has a bug with missing optional dependencies).
+Contributing to this project requires **Node.js >= 24** and **npm ^11.9.0**
 
 ```bash
-npm install -g npm@11.6.0
+npm install -g npm@11
 ```
 
 ### Maintainers
 
-- TODO
+- [David Luna](https://github.com/david-luna), Elastic
+- [Jared Freeze](https://github.com/overbalance), Embrace
+- [Joaquín Díaz](https://github.com/joaquin-diaz), Embrace
+- [Martin Kuba](https://github.com/martinkuba), Grafana Labs
+- [Wolfgang Therrien](https://github.com/wolfgangcodes), Honeycomb
 
 For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 
 ### Approvers
 
-- TODO
+- [Benoît Zugmeyer](https://github.com/BenoitZugmeyer), DataDog
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
