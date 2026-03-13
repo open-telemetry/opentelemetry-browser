@@ -64,8 +64,13 @@
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.10.1",
+  "packageManager": "npm@11.9.0",
   "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.9.0",
+      "onFail": "error"
+    },
     "runtime": {
       "name": "node",
       "version": ">=24"
