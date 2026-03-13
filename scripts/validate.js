@@ -68,12 +68,16 @@ function getDistUnits() {
   for (const pkg of getPackagesWithDist()) {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
     const entries = fs.readdirSync(distPath, { withFileTypes: true });
-    const subdirs = entries.filter((e) => e.isDirectory()).map((e) => e.name);
-    const hasTopLevelJs = entries.some(
-      (e) => e.isFile() && e.name.endsWith('.js'),
-    );
+    const subdirs = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter((name) =>
+        fs
+          .readdirSync(path.join(distPath, name))
+          .some((f) => f.endsWith('.js')),
+      );
 
-    if (subdirs.length > 0 && !hasTopLevelJs) {
+    if (subdirs.length > 0) {
       for (const sub of subdirs) {
         units.push({
           label: `${pkg}/${sub}`,
