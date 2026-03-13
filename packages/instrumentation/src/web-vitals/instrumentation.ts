@@ -16,6 +16,7 @@ import type {
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
+import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
@@ -45,7 +46,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
   private _includeRawAttribution: boolean;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
-    super('@opentelemetry/browser-instrumentation/web-vitals', '0.1.0', config);
+    super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
     this._applyCustomLogRecordData = config.applyCustomLogRecordData;
     this._includeRawAttribution = config.includeRawAttribution ?? false;
   }
