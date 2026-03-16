@@ -19,8 +19,16 @@ jobs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       browser-instrumentation-release_created: ${{ steps.release.outputs['packages/instrumentation--release_created'] }}
     steps:
+      - uses: actions/create-github-app-token@df432ceedc7162793a195dd1713ff69aefc7379e # v2.0.6
+        id: app-token
+        with:
+          app-id: ${{ vars.OTELBOT_BROWSER_APP_ID }}
+          private-key: ${{ secrets.OTELBOT_BROWSER_PRIVATE_KEY }}
+
       - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         id: release
+        with:
+          token: ${{ steps.app-token.outputs.token }}
 
   npm-publish:
     needs: release-please
