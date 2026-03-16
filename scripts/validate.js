@@ -7,7 +7,8 @@
  * 2. Web API baseline (eslint-plugin-baseline-js on compiled output)
  * 3. Package exports & integrity (sourcemaps, publint)
  * 4. Bundle size
- * 5. Module integrity (ESM-only, no require())
+ * 5. No node_modules in dist
+ * 6. Module integrity (ESM-only, no require())
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -41,12 +42,53 @@ function logSection(title) {
   );
 }
 
+function getJsFiles(dir) {
+  const results = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...getJsFiles(fullPath));
+    } else if (entry.name.endsWith('.js')) {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
 function getPackagesWithDist() {
   const packages = fs.readdirSync(PACKAGES_DIR);
   return packages.filter((pkg) => {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
     return fs.existsSync(distPath);
   });
+}
+
+function getDistUnits() {
+  const units = [];
+  for (const pkg of getPackagesWithDist()) {
+    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
+    const entries = fs.readdirSync(distPath, { withFileTypes: true });
+    const subdirs = entries
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .filter((name) =>
+        fs
+          .readdirSync(path.join(distPath, name))
+          .some((f) => f.endsWith('.js')),
+      );
+
+    if (subdirs.length > 0) {
+      for (const sub of subdirs) {
+        units.push({
+          label: `${pkg}/${sub}`,
+          distPath: path.join(distPath, sub),
+        });
+      }
+    } else {
+      units.push({ label: pkg, distPath });
+    }
+  }
+  return units;
 }
 
 // Verifies source only uses ES2022 APIs via tsc
@@ -93,51 +135,60 @@ function checkBaselineAPIs() {
   return true;
 }
 
-function validateSourcemaps(pkgName) {
-  const distPath = path.join(PACKAGES_DIR, pkgName, 'dist');
-  const jsFiles = fs.readdirSync(distPath).filter((f) => f.endsWith('.js'));
+function validateSourcemaps(distPath) {
+  const jsFilePaths = getJsFiles(distPath);
+  let mapCount = 0;
 
-  for (const jsFile of jsFiles) {
-    const mapFile = `${jsFile}.map`;
-    const mapPath = path.join(distPath, mapFile);
+  for (const jsFilePath of jsFilePaths) {
+    const mapPath = `${jsFilePath}.map`;
+    const relPath = path.relative(distPath, jsFilePath);
 
     if (!fs.existsSync(mapPath)) {
-      continue; // Some files may not have sourcemaps
+      continue;
     }
+
+    mapCount++;
 
     try {
       const map = JSON.parse(fs.readFileSync(mapPath, 'utf-8'));
       if (!map.sources?.length) {
-        log(`    ✗ ${mapFile} has no sources`, COLORS.red);
+        log(`    ✗ ${relPath}.map has no sources`, COLORS.red);
         return false;
       }
     } catch (error) {
-      log(`    ✗ Invalid sourcemap ${mapFile}: ${error.message}`, COLORS.red);
+      log(
+        `    ✗ Invalid sourcemap ${relPath}.map: ${error.message}`,
+        COLORS.red,
+      );
       return false;
     }
 
-    // Check sourcemap reference in JS file
-    const jsContent = fs.readFileSync(path.join(distPath, jsFile), 'utf-8');
+    const jsContent = fs.readFileSync(jsFilePath, 'utf-8');
     if (!jsContent.includes('sourceMappingURL=')) {
-      log(`    ✗ ${jsFile} missing sourcemap reference`, COLORS.red);
+      log(`    ✗ ${relPath} missing sourcemap reference`, COLORS.red);
       return false;
     }
+  }
+
+  if (jsFilePaths.length > 0 && mapCount === 0) {
+    log(
+      `    ✗ No sourcemaps found for ${jsFilePaths.length} JS files`,
+      COLORS.red,
+    );
+    return false;
   }
 
   return true;
 }
 
-function checkPackageExports() {
+function checkPackageExports(units) {
   logSection('3. Package Exports & Integrity');
-
-  const packages = getPackagesWithDist();
   let allPassed = true;
 
-  for (const pkg of packages) {
-    log(`  ${pkg}:`, COLORS.blue);
+  for (const { label, distPath } of units) {
+    log(`  ${label}:`, COLORS.blue);
 
-    // Validate sourcemaps
-    if (!validateSourcemaps(pkg)) {
+    if (!validateSourcemaps(distPath)) {
       allPassed = false;
       continue;
     }
@@ -146,16 +197,25 @@ function checkPackageExports() {
 
   // Run publint on each package
   log(`\n  Running publint...`, COLORS.blue);
-  for (const pkg of packages) {
+  for (const pkg of getPackagesWithDist()) {
     const pkgDir = path.join(PACKAGES_DIR, pkg);
     try {
       execSync('npx publint', { cwd: pkgDir, stdio: 'pipe' });
       log(`    ✓ ${pkg}`, COLORS.green);
     } catch (error) {
-      log(`    ⚠ ${pkg} (warnings)`, COLORS.yellow);
-      if (error.stdout) {
-        log(`      ${error.stdout.toString().trim()}`, COLORS.dim);
+      log(`    ✗ ${pkg}`, COLORS.red);
+      const stdout = error.stdout?.toString().trim();
+      const stderr = error.stderr?.toString().trim();
+      if (stdout) {
+        log(`      ${stdout}`, COLORS.dim);
       }
+      if (stderr) {
+        log(`      ${stderr}`, COLORS.dim);
+      }
+      if (!stdout && !stderr) {
+        log(`      ${error.message}`, COLORS.dim);
+      }
+      allPassed = false;
     }
   }
 
@@ -165,36 +225,33 @@ function checkPackageExports() {
   return allPassed;
 }
 
-function checkBundleSize() {
+function checkBundleSize(units) {
   logSection('4. Bundle Size');
-
-  const packages = getPackagesWithDist();
-  const MAX_SIZE_KB = 6;
+  const MIN_SIZE_KB = 0.1;
+  const MAX_SIZE_KB = 4;
   let allPassed = true;
 
-  for (const pkg of packages) {
-    const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
-    const jsFiles = fs
-      .readdirSync(distPath)
-      .filter((f) => f.endsWith('.js') && !f.endsWith('.map'));
+  for (const { label, distPath } of units) {
+    const jsFilePaths = getJsFiles(distPath);
 
     let totalRaw = 0;
     let totalGzip = 0;
 
-    for (const jsFile of jsFiles) {
-      const content = fs.readFileSync(path.join(distPath, jsFile));
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath);
       totalRaw += content.length;
       totalGzip += zlib.gzipSync(content).length;
     }
 
+    const rawKB = totalRaw / 1024;
     const gzipKB = totalGzip / 1024;
-    const passed = gzipKB <= MAX_SIZE_KB;
+    const passed = rawKB >= MIN_SIZE_KB && gzipKB <= MAX_SIZE_KB;
     if (!passed) {
       allPassed = false;
     }
 
     log(
-      `  ${passed ? '✓' : '✗'} ${pkg}: ${(totalRaw / 1024).toFixed(2)} KB (${gzipKB.toFixed(2)} KB gzipped)`,
+      `  ${passed ? '✓' : '✗'} ${label}: ${rawKB.toFixed(2)} KB (${gzipKB.toFixed(2)} KB gzipped)`,
       passed ? COLORS.green : COLORS.red,
     );
   }
@@ -202,39 +259,86 @@ function checkBundleSize() {
   return allPassed;
 }
 
-// Validates ESM files don't use require() (causes runtime errors)
-function validateModuleIntegrity() {
-  logSection('5. Module Integrity');
-
-  const packages = getPackagesWithDist();
+function checkNoNodeModulesInDist() {
+  logSection('5. No node_modules in dist');
   let allPassed = true;
 
-  for (const pkg of packages) {
+  for (const pkg of getPackagesWithDist()) {
     const distPath = path.join(PACKAGES_DIR, pkg, 'dist');
+    const nodeModulesPath = path.join(distPath, 'node_modules');
 
-    const result = spawnSync(
-      'grep',
-      ['-rE', '\\brequire\\s*\\(', distPath, '--include=*.js'],
-      {
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      },
-    );
-
-    if (result.status === 0) {
-      // Found matches - this is bad
-      log(`  ✗ ${pkg}: Found require() in ESM files`, COLORS.red);
-      if (result.stdout) {
-        log(`    ${result.stdout.trim().slice(0, 200)}`, COLORS.dim);
-      }
+    if (fs.existsSync(nodeModulesPath)) {
+      log(`  ✗ ${pkg}: dist/node_modules exists`, COLORS.red);
       allPassed = false;
     } else {
-      log(`  ✓ ${pkg}: No require() in ESM files`, COLORS.green);
+      log(`  ✓ ${pkg}: no node_modules in dist`, COLORS.green);
+    }
+  }
+
+  return allPassed;
+}
+
+// Validates ESM files don't use require() (causes runtime errors)
+function validateModuleIntegrity(units) {
+  logSection('6. Module Integrity');
+
+  const requirePattern = /\brequire\s*\(/;
+  let allPassed = true;
+
+  for (const { label, distPath } of units) {
+    const jsFilePaths = getJsFiles(distPath);
+    const matches = [];
+
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath, 'utf-8');
+      if (requirePattern.test(content)) {
+        matches.push(path.relative(distPath, jsFilePath));
+      }
+    }
+
+    if (matches.length > 0) {
+      log(`  ✗ ${label}: Found require() in ESM files`, COLORS.red);
+      log(`    ${matches.join(', ')}`, COLORS.dim);
+      allPassed = false;
+    } else {
+      log(`  ✓ ${label}: No require() in ESM files`, COLORS.green);
     }
   }
 
   if (allPassed) {
     log('\n✓ Module integrity validated', COLORS.green);
+  }
+  return allPassed;
+}
+
+function checkNoUnresolvedSubpathImports(units) {
+  logSection('7. No Unresolved Subpath Imports');
+
+  const hashImportPattern = /(?:from|import)\s*['"]#[^'"]+['"]/;
+  let allPassed = true;
+
+  for (const { label, distPath } of units) {
+    const jsFilePaths = getJsFiles(distPath);
+    const matches = [];
+
+    for (const jsFilePath of jsFilePaths) {
+      const content = fs.readFileSync(jsFilePath, 'utf-8');
+      if (hashImportPattern.test(content)) {
+        matches.push(path.relative(distPath, jsFilePath));
+      }
+    }
+
+    if (matches.length > 0) {
+      log(`  ✗ ${label}: Found unresolved # imports in dist`, COLORS.red);
+      log(`    ${matches.join(', ')}`, COLORS.dim);
+      allPassed = false;
+    } else {
+      log(`  ✓ ${label}: No unresolved # imports`, COLORS.green);
+    }
+  }
+
+  if (allPassed) {
+    log('\n✓ No unresolved subpath imports', COLORS.green);
   }
   return allPassed;
 }
@@ -250,12 +354,19 @@ function main() {
 
   log(`Found ${packages.length} packages with dist/`, COLORS.dim);
 
+  const units = getDistUnits();
+
   const results = [
     { name: 'API compliance', passed: checkAPICompliance() },
     { name: 'Web API baseline', passed: checkBaselineAPIs() },
-    { name: 'Package exports', passed: checkPackageExports() },
-    { name: 'Bundle size', passed: checkBundleSize() },
-    { name: 'Module integrity', passed: validateModuleIntegrity() },
+    { name: 'Package exports', passed: checkPackageExports(units) },
+    { name: 'Bundle size', passed: checkBundleSize(units) },
+    { name: 'No node_modules in dist', passed: checkNoNodeModulesInDist() },
+    { name: 'Module integrity', passed: validateModuleIntegrity(units) },
+    {
+      name: 'No unresolved subpath imports',
+      passed: checkNoUnresolvedSubpathImports(units),
+    },
   ];
 
   logSection('Validation Summary');

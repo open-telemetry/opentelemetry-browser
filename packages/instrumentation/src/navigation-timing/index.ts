@@ -4,3 +4,4 @@
  */
 
 export { NavigationTimingInstrumentation } from './instrumentation.ts';
+export type { NavigationTimingInstrumentationConfig } from './types.ts';

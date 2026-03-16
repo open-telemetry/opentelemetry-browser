@@ -23,8 +23,8 @@
     "build": "turbo run build",
     "check": "npm run check:tsc && npm run check:eslint",
     "check:tsc": "turbo run check-types",
-    "check:eslint": "eslint",
-    "check:eslint:dist": "eslint --config eslint.dist.config.js packages/*/dist/",
+    "check:eslint": "eslint 'packages/**/src/**/*.{*js,*ts}'",
+    "check:eslint:dist": "eslint --config eslint.dist.config.js 'packages/**/dist/**/*.js'",
     "lint": "npm run lint:biome && npm run check",
     "lint:biome": "biome check --write",
     "lint:ci": "biome ci && npm run check",
@@ -36,25 +36,23 @@
   "devDependencies": {
     "@arethetypeswrong/core": "0.18.2",
     "@biomejs/biome": "2.4.6",
-    "@commitlint/cli": "20.4.3",
-    "@commitlint/config-conventional": "20.4.3",
-    "@opentelemetry/instrumentation": "^0.213.0",
-    "@opentelemetry/sdk-logs": "^0.213.0",
-    "@turbo/gen": "2.8.14",
+    "@commitlint/cli": "20.4.4",
+    "@commitlint/config-conventional": "20.4.4",
+    "@turbo/gen": "2.8.16",
     "@types/jsdom": "28.0.0",
-    "@vitest/browser-playwright": "4.0.18",
-    "@vitest/coverage-v8": "4.0.18",
-    "eslint": "10.0.2",
+    "@vitest/browser-playwright": "4.1.0",
+    "@vitest/coverage-v8": "4.1.0",
+    "eslint": "10.0.3",
     "eslint-plugin-baseline-js": "0.6.1",
     "eslint-plugin-yet-another-license-header": "0.2.0",
     "jsdom": "28.1.0",
-    "lefthook": "2.1.2",
+    "lefthook": "2.1.4",
     "publint": "0.3.18",
-    "tsdown": "0.21.0",
-    "turbo": "2.8.14",
-    "typescript-eslint": "8.56.1",
-    "vite": "8.0.0-beta.16",
-    "vitest": "4.0.18"
+    "tsdown": "0.21.2",
+    "turbo": "2.8.16",
+    "typescript-eslint": "8.57.0",
+    "vite": "8.0.0",
+    "vitest": "4.1.0"
   },
   "peerDependencies": {
     "typescript": "5.9.3"
@@ -66,9 +64,16 @@
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.10.1",
-  "engines": {
-    "node": "^22.12.0 || >=24",
-    "npm": "^11.6.0"
+  "packageManager": "npm@11.9.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.9.0",
+      "onFail": "error"
+    },
+    "runtime": {
+      "name": "node",
+      "version": ">=24"
+    }
   }
 }

@@ -3,4 +3,4 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export { setupTestLogExporter } from './logTestUtils.ts';
+export { setupTestLogExporter } from './logs.ts';

@@ -14,8 +14,22 @@ const licensePattern =
 
 export default [
   {
-    files: ['packages/*/src/**/*.{js,ts,mjs}'],
-    ignores: ['**/*.test.ts', '**/*.spec.ts'],
+    ignores: [
+      // ignore files
+      '**/*.spec.ts',
+      '**/*.test.ts',
+      // ignore folders to speed up crawling
+      '**/.turbo/**',
+      '**/dist/**',
+      '.claude/**',
+      '.github/**',
+      'docs/**',
+      'examples/**',
+      'turbo/**',
+    ],
+  },
+  {
+    files: ['packages/**/src/**/*.{*js,*ts}'],
     languageOptions: {
       parser: tseslint.parser,
       // enables type-aware linting to detect instance method usage
@@ -37,6 +51,25 @@ export default [
         {
           header: defaultLicense,
           allowedHeaderPatterns: [licensePattern],
+        },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '#instrumentation-test-utils',
+              message:
+                '#instrumentation-test-utils is for test files only, not production source.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/test-utils*'],
+              message:
+                'test-utils is for test files only, not production source.',
+            },
+          ],
         },
       ],
     },
