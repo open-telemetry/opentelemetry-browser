@@ -127,6 +127,35 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
   });
 
+  it('should emit on construction when enabled by default and page is still loading', () => {
+    setReadyState('loading');
+
+    let entry = {
+      name: 'https://example.test/',
+      entryType: 'navigation',
+      startTime: 0,
+      duration: 1,
+      type: 'navigate',
+      loadEventEnd: 0,
+    };
+
+    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+
+    const inst = new NavigationTimingInstrumentation();
+    expect(getNavigationTimingLogs().length).toBe(0);
+
+    entry = { ...entry, loadEventEnd: 456 };
+    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+    setReadyState('complete');
+    window.dispatchEvent(new Event('load'));
+
+    const logs = getNavigationTimingLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
+
+    inst.disable();
+  });
+
   it('should wait for load when the document is loading and entry is incomplete', () => {
     setReadyState('loading');
 
