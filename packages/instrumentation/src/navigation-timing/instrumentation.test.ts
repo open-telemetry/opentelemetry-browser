@@ -55,11 +55,9 @@ describe('NavigationTimingInstrumentation', () => {
   });
 
   beforeEach(() => {
-    getEntriesByTypeSpy = vi
-      .spyOn(performance, 'getEntriesByType')
-      .mockReturnValueOnce([]);
+    getEntriesByTypeSpy = vi.spyOn(performance, 'getEntriesByType');
 
-    instrumentation = new NavigationTimingInstrumentation();
+    instrumentation = new NavigationTimingInstrumentation({ enabled: false });
   });
 
   afterEach(() => {
