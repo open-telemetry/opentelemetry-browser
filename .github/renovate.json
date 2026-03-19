@@ -25,7 +25,8 @@
     {
       "description": "OpenTelemetry",
       "matchDepNames": ["@opentelemetry/**"],
-      "groupName": "opentelemetry"
+      "groupName": "opentelemetry",
+      "rangeStrategy": "replace"
     }
   ]
 }
