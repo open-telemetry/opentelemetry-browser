@@ -143,20 +143,31 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     // If the document is already complete but navigation timings are not finalized yet,
     // schedule a deferred re-check with linear backoff to allow the browser to finish
     // populating the entry.
-    if (
-      this._completeDelayTimeoutId !== undefined ||
-      this._retryCount > MAX_RETRIES
-    ) {
+    if (this._completeDelayTimeoutId !== undefined) {
       return;
-    } else {
-      const delay = this._calculateBackoffDelay();
-      this._retryCount++;
-
-      this._completeDelayTimeoutId = window.setTimeout(() => {
-        this._completeDelayTimeoutId = undefined;
-        this._tryEmitOrSchedule();
-      }, delay);
     }
+    if (this._retryCount > MAX_RETRIES) {
+      if (this._lastEntry) {
+        this._diag.warn(
+          'Navigation timing: retries exhausted, emitting incomplete entry',
+        );
+        this._emitAndCleanup(this._lastEntry);
+      } else {
+        this._diag.warn(
+          'Navigation timing: retries exhausted with no entry available',
+        );
+        this._unsubscribeAll();
+      }
+      return;
+    }
+
+    const delay = this._calculateBackoffDelay();
+    this._retryCount++;
+
+    this._completeDelayTimeoutId = window.setTimeout(() => {
+      this._completeDelayTimeoutId = undefined;
+      this._tryEmitOrSchedule();
+    }, delay);
   }
 
   private _handleUnload(): void {
@@ -165,13 +176,12 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     }
 
     const entry = this._getLatestNavigationEntry() ?? this._lastEntry;
-    if (!entry) {
+    if (entry) {
+      this._emitAndCleanup(entry);
+    } else {
+      this._diag.warn('Navigation timing: no entry available at unload');
       this._unsubscribeAll();
-      return;
     }
-
-    // Emit even if partial (e.g. loadEventEnd === 0).
-    this._emitAndCleanup(entry);
   }
 
   private _emitAndCleanup(entry: PerformanceNavigationTiming): void {

@@ -220,7 +220,7 @@ describe('NavigationTimingInstrumentation', () => {
     vi.useRealTimers();
   });
 
-  it('should stop retrying after max attempts', () => {
+  it('should emit incomplete entry after max retry attempts', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     setReadyState('complete');
 
@@ -236,11 +236,33 @@ describe('NavigationTimingInstrumentation', () => {
     getEntriesByTypeSpy.mockReturnValue([entry]);
     instrumentation.enable();
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
+      vi.runOnlyPendingTimers();
+    }
+
+    expect(getNavigationTimingLogs().length).toBe(1);
+    expect(
+      getNavigationTimingLogs()[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END],
+    ).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it('should not emit and stop retrying when retries exhaust with no entry', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    setReadyState('complete');
+
+    getEntriesByTypeSpy.mockReturnValue([]);
+    instrumentation.enable();
+
+    // MAX_RETRIES + 1 timer firings to exhaust retries
+    for (let i = 0; i < 6; i++) {
       vi.runOnlyPendingTimers();
     }
 
     expect(getNavigationTimingLogs().length).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+
     vi.useRealTimers();
   });
 
@@ -296,6 +318,35 @@ describe('NavigationTimingInstrumentation', () => {
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(0);
+  });
+
+  it('should not emit twice (pagehide then load)', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    setReadyState('loading');
+
+    const entry = {
+      name: 'https://example.test/',
+      entryType: 'navigation',
+      startTime: 0,
+      duration: 1,
+      type: 'navigate',
+      loadEventEnd: 0,
+    };
+
+    getEntriesByTypeSpy.mockReturnValue([entry]);
+    instrumentation.enable();
+
+    window.dispatchEvent(new Event('pagehide'));
+    expect(getNavigationTimingLogs().length).toBe(1);
+
+    const completeEntry = { ...entry, loadEventEnd: 456 };
+    getEntriesByTypeSpy.mockReturnValue([completeEntry]);
+    setReadyState('complete');
+    window.dispatchEvent(new Event('load'));
+    expect(getNavigationTimingLogs().length).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
+
+    vi.useRealTimers();
   });
 
   it('should not emit twice (load then pagehide)', () => {
