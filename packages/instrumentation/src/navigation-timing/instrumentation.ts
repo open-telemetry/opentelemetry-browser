@@ -43,18 +43,16 @@ const MAX_RETRIES = 5;
  */
 export class NavigationTimingInstrumentation extends InstrumentationBase<NavigationTimingInstrumentationConfig> {
   private _lastEntry?: PerformanceNavigationTiming;
-  private _didEmit = false;
   private _completeDelayTimeoutId?: number;
   private _retryCount = 0;
-  private _isEnabled = false;
+  private _didEmit = false;
 
-  private _onLoad = () => {
-    this._tryEmitOrSchedule();
-  };
-
-  private _onPageHide = () => {
-    this._handleUnload();
-  };
+  // Use `declare` to prevent JS class field initializers from running after
+  // super(), which would reset values set by the enable() call that
+  // InstrumentationBase makes during its constructor.
+  private declare _isEnabled: boolean;
+  private declare _onLoad: () => void;
+  private declare _onPageHide: () => void;
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super(
@@ -73,6 +71,8 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       return;
     }
     this._isEnabled = true;
+    this._onLoad = () => this._tryEmitOrSchedule();
+    this._onPageHide = () => this._handleUnload();
 
     // Try emitting immediately (e.g. when enabled after load),
     // otherwise schedule for `load` or fall back to unload.
@@ -231,7 +231,11 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       this._completeDelayTimeoutId = undefined;
     }
 
-    window.removeEventListener('load', this._onLoad);
-    window.removeEventListener('pagehide', this._onPageHide);
+    if (this._onLoad) {
+      window.removeEventListener('load', this._onLoad);
+    }
+    if (this._onPageHide) {
+      window.removeEventListener('pagehide', this._onPageHide);
+    }
   }
 }
