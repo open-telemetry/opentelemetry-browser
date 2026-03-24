@@ -3,12 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
+import { setupTestLogExporter } from '@opentelemetry/test-utils';
 import {
-  InMemoryLogRecordExporter,
-  LoggerProvider,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
+import * as shimModule from './idle-callback-shim.ts';
 import { ResourceTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_RESOURCE_DURATION,
@@ -17,25 +23,18 @@ import {
   RESOURCE_TIMING_EVENT_NAME,
 } from './semconv.ts';
 
-function withTestLogger(
-  inst: ResourceTimingInstrumentation,
-  provider: LoggerProvider,
-): void {
-  Object.defineProperty(inst, 'logger', {
-    value: provider.getLogger('test'),
-    configurable: true,
-  });
-}
-
+// supportsIdleCallback is a module-level constant (false in jsdom). The shim
+// always uses the setTimeout fallback in tests. We spy on requestIdleCallbackShim
+// to capture the scheduled callback and invoke it with a controlled deadline.
 function triggerIdleCallback(timeRemaining = 10, didTimeout = false): void {
-  const callback = vi.mocked(window.requestIdleCallback).mock.lastCall?.[0];
+  const callback = vi.mocked(shimModule.requestIdleCallbackShim).mock
+    .lastCall?.[0];
   callback?.({ timeRemaining: () => timeRemaining, didTimeout });
 }
 
 describe('ResourceTimingInstrumentation', () => {
   let instrumentation: ResourceTimingInstrumentation;
-  let exporter: InMemoryLogRecordExporter;
-  let provider: LoggerProvider;
+  let inMemoryExporter: InMemoryLogRecordExporter;
   let mockObserver: {
     observe: ReturnType<typeof vi.fn>;
     disconnect: ReturnType<typeof vi.fn>;
@@ -49,11 +48,13 @@ describe('ResourceTimingInstrumentation', () => {
     removeEventListener: ReturnType<typeof vi.fn>;
   };
 
+  beforeAll(() => {
+    inMemoryExporter = setupTestLogExporter();
+  });
+
   beforeEach(() => {
-    exporter = new InMemoryLogRecordExporter();
-    provider = new LoggerProvider({
-      processors: [new SimpleLogRecordProcessor(exporter)],
-    });
+    vi.spyOn(shimModule, 'requestIdleCallbackShim');
+    vi.spyOn(shimModule, 'cancelIdleCallbackShim');
 
     mockObserver = {
       observe: vi.fn(),
@@ -79,8 +80,8 @@ describe('ResourceTimingInstrumentation', () => {
 
     vi.stubGlobal('window', {
       PerformanceObserver: PerformanceObserverMock,
-      requestIdleCallback: vi.fn((cb) => setTimeout(cb, 0)),
-      cancelIdleCallback: vi.fn(clearTimeout),
+      setTimeout: vi.fn(() => 1),
+      clearTimeout: vi.fn(),
       addEventListener: vi.fn(),
     });
 
@@ -89,6 +90,7 @@ describe('ResourceTimingInstrumentation', () => {
 
   afterEach(() => {
     instrumentation?.disable();
+    inMemoryExporter.reset();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -106,8 +108,8 @@ describe('ResourceTimingInstrumentation', () => {
         addEventListener: vi.fn((event, handler, options) => {
           listeners.set(event, { handler, options });
         }),
-        requestIdleCallback: vi.fn(),
-        cancelIdleCallback: vi.fn(),
+        setTimeout: vi.fn(() => 1),
+        clearTimeout: vi.fn(),
       });
 
       instrumentation = new ResourceTimingInstrumentation();
@@ -124,7 +126,6 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should flush pending entries on disable', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const mockEntries = [
@@ -139,7 +140,7 @@ describe('ResourceTimingInstrumentation', () => {
 
       instrumentation.disable();
 
-      const records = exporter.getFinishedLogRecords();
+      const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(2);
       expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
         'https://example.com/entry1.js',
@@ -161,7 +162,7 @@ describe('ResourceTimingInstrumentation', () => {
         mockObserver as unknown as PerformanceObserver,
       );
 
-      expect(window.requestIdleCallback).toHaveBeenCalledWith(
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledWith(
         expect.any(Function),
         { timeout: 1000 },
       );
@@ -179,7 +180,7 @@ describe('ResourceTimingInstrumentation', () => {
         mockObserver as unknown as PerformanceObserver,
       );
 
-      expect(window.requestIdleCallback).toHaveBeenCalledWith(
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledWith(
         expect.any(Function),
         { timeout: 500 },
       );
@@ -190,7 +191,6 @@ describe('ResourceTimingInstrumentation', () => {
         maxProcessingTime: 0,
         batchSize: 100,
       });
-      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const entries = [
@@ -208,7 +208,7 @@ describe('ResourceTimingInstrumentation', () => {
       triggerIdleCallback(0);
 
       // No entries should be emitted since the time budget was 0
-      const records = exporter.getFinishedLogRecords();
+      const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(0);
     });
   });
@@ -216,7 +216,6 @@ describe('ResourceTimingInstrumentation', () => {
   describe('Data Emission', () => {
     it('should emit log records with correct attributes', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const mockEntry = createMockResourceEntry({
@@ -232,7 +231,7 @@ describe('ResourceTimingInstrumentation', () => {
 
       triggerIdleCallback(10);
 
-      const records = exporter.getFinishedLogRecords();
+      const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(1);
       expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
         'https://example.com/script.js',
@@ -253,7 +252,6 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const mockEntry = createMockResourceEntry();
@@ -268,7 +266,7 @@ describe('ResourceTimingInstrumentation', () => {
         handler();
       }
 
-      const records = exporter.getFinishedLogRecords();
+      const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(1);
     });
   });
@@ -276,7 +274,7 @@ describe('ResourceTimingInstrumentation', () => {
   describe('Browser Compatibility', () => {
     it('should handle missing PerformanceObserver gracefully', () => {
       vi.stubGlobal('window', {
-        requestIdleCallback: vi.fn(),
+        setTimeout: vi.fn(() => 1),
         addEventListener: vi.fn(),
       });
       vi.stubGlobal('PerformanceObserver', undefined);
@@ -291,7 +289,6 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         maxQueueSize: 2,
       });
-      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const entries = [
@@ -305,7 +302,7 @@ describe('ResourceTimingInstrumentation', () => {
         mockObserver as unknown as PerformanceObserver,
       );
 
-      const records = exporter.getFinishedLogRecords();
+      const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(2);
       expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('1');
       expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
@@ -315,7 +312,6 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         batchSize: 2,
       });
-      withTestLogger(instrumentation, provider);
       instrumentation.enable();
 
       const entries = [
@@ -331,12 +327,12 @@ describe('ResourceTimingInstrumentation', () => {
 
       triggerIdleCallback(1000);
 
-      const records = exporter.getFinishedLogRecords();
+      const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(2);
       expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('1');
       expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
 
-      expect(window.requestIdleCallback).toHaveBeenCalledTimes(2);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
     });
   });
 });
