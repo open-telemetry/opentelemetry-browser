@@ -16,18 +16,30 @@ describe('idle-callback-shim', () => {
   });
 
   describe('when requestIdleCallback is available', () => {
-    beforeEach(() => {
+    // supportsIdleCallback is a module-level constant evaluated at import time.
+    // In jsdom it is false because requestIdleCallback is not available.
+    // vi.resetModules() + dynamic import re-evaluates the constant after the
+    // stub is in place, allowing us to test the native code path.
+    let requestIdleCallbackShimNative: typeof requestIdleCallbackShim;
+    let cancelIdleCallbackShimNative: typeof cancelIdleCallbackShim;
+
+    beforeEach(async () => {
       vi.stubGlobal('window', {
         requestIdleCallback: vi.fn(() => 42),
         cancelIdleCallback: vi.fn(),
         setTimeout: vi.fn(),
         clearTimeout: vi.fn(),
       });
+      vi.resetModules();
+      ({
+        requestIdleCallbackShim: requestIdleCallbackShimNative,
+        cancelIdleCallbackShim: cancelIdleCallbackShimNative,
+      } = await import('./idle-callback-shim.ts'));
     });
 
     it('should delegate to native requestIdleCallback', () => {
       const callback = vi.fn();
-      const handle = requestIdleCallbackShim(callback, { timeout: 1000 });
+      const handle = requestIdleCallbackShimNative(callback, { timeout: 1000 });
 
       expect(window.requestIdleCallback).toHaveBeenCalledWith(callback, {
         timeout: 1000,
@@ -38,7 +50,7 @@ describe('idle-callback-shim', () => {
 
     it('should delegate cancel to native cancelIdleCallback', () => {
       const handle = { id: 42, native: true as const };
-      cancelIdleCallbackShim(handle);
+      cancelIdleCallbackShimNative(handle);
 
       expect(window.cancelIdleCallback).toHaveBeenCalledWith(42);
     });
