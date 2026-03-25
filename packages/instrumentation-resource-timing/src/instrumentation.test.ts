@@ -213,6 +213,79 @@ describe('ResourceTimingInstrumentation', () => {
       );
     });
 
+    it('should clamp batchSize: 0 to 1 so entries are still processed', () => {
+      instrumentation = new ResourceTimingInstrumentation({ batchSize: 0 });
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry();
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
+    });
+
+    it('should clamp maxQueueSize: 0 to 1 so flush still triggers', () => {
+      instrumentation = new ResourceTimingInstrumentation({ maxQueueSize: 0 });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+      ];
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      // First entry fills the queue (size 1), flush fires synchronously
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
+    });
+
+    it('should clamp forceProcessingAfter: -1 to 0', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        forceProcessingAfter: -1,
+      });
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry();
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledWith(
+        expect.any(Function),
+        { timeout: 0 },
+      );
+    });
+
+    it('should clamp maxProcessingTime: -1 to 0 and reschedule remaining entries', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        maxProcessingTime: -1,
+        batchSize: 100,
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+      ];
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      // Time budget is 0, nothing emitted but entries rescheduled
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+    });
+
     it('should respect maxProcessingTime and limit entries processed per chunk', () => {
       instrumentation = new ResourceTimingInstrumentation({
         maxProcessingTime: 0,

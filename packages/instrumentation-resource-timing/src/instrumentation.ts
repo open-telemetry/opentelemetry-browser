@@ -40,6 +40,11 @@ const DEFAULT_FORCE_PROCESSING_AFTER = 1000;
 const DEFAULT_MAX_PROCESSING_TIME = 50;
 const DEFAULT_MAX_QUEUE_SIZE = 1000;
 
+const MIN_BATCH_SIZE = 1;
+const MIN_FORCE_PROCESSING_AFTER = 0;
+const MIN_PROCESSING_TIME = 0;
+const MIN_QUEUE_SIZE = 1;
+
 /**
  * OpenTelemetry instrumentation for resource timing for browser applications.
  *
@@ -125,8 +130,10 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           return;
         }
 
-        const maxQueueSize =
-          this._config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
+        const maxQueueSize = Math.max(
+          this._config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE,
+          MIN_QUEUE_SIZE,
+        );
         const entries = list.getEntries() as PerformanceResourceTiming[];
 
         for (const entry of entries) {
@@ -155,8 +162,10 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       return;
     }
 
-    const timeout =
-      this._config.forceProcessingAfter ?? DEFAULT_FORCE_PROCESSING_AFTER;
+    const timeout = Math.max(
+      this._config.forceProcessingAfter ?? DEFAULT_FORCE_PROCESSING_AFTER,
+      MIN_FORCE_PROCESSING_AFTER,
+    );
     this._idleHandle = requestIdleCallbackShim(
       (deadline) => this._processChunk(deadline),
       { timeout },
@@ -169,9 +178,14 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       return;
     }
 
-    const maxTime =
-      this._config.maxProcessingTime ?? DEFAULT_MAX_PROCESSING_TIME;
-    const batchSize = this._config.batchSize ?? DEFAULT_BATCH_SIZE;
+    const maxTime = Math.max(
+      this._config.maxProcessingTime ?? DEFAULT_MAX_PROCESSING_TIME,
+      MIN_PROCESSING_TIME,
+    );
+    const batchSize = Math.max(
+      this._config.batchSize ?? DEFAULT_BATCH_SIZE,
+      MIN_BATCH_SIZE,
+    );
     const startTime = performance.now();
 
     try {
