@@ -4,7 +4,6 @@
  */
 
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { setupTestLogExporter } from '#resource-timing-test-utils';
 import {
   afterEach,
   beforeAll,
@@ -14,6 +13,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { setupTestLogExporter } from '#resource-timing-test-utils';
 import * as shimModule from './idle-callback-shim.ts';
 import { ResourceTimingInstrumentation } from './instrumentation.ts';
 import {
