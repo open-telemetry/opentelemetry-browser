@@ -53,6 +53,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   private _pendingEntries: PerformanceResourceTiming[] = [];
   private _idleHandle?: IdleCallbackHandle;
   private _isEnabled = false;
+  private _loadHandler?: () => void;
   private _visibilityChangeHandler?: () => void;
 
   constructor(config: ResourceTimingInstrumentationConfig = {}) {
@@ -72,9 +73,8 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     if (document.readyState === 'complete') {
       this._setupObserver();
     } else {
-      window.addEventListener('load', () => this._setupObserver(), {
-        once: true,
-      });
+      this._loadHandler = () => this._setupObserver();
+      window.addEventListener('load', this._loadHandler, { once: true });
     }
 
     this._visibilityChangeHandler = () => {
@@ -93,6 +93,10 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     this._flush();
     this._observer?.disconnect();
     this._observer = undefined;
+    if (this._loadHandler) {
+      window.removeEventListener('load', this._loadHandler);
+      this._loadHandler = undefined;
+    }
     if (this._visibilityChangeHandler) {
       document.removeEventListener(
         'visibilitychange',
