@@ -188,24 +188,27 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     );
     const startTime = performance.now();
 
+    let cursor = 0;
     try {
       for (let i = 0; i < batchSize; i++) {
-        if (this._pendingEntries.length === 0) {
+        const entry = this._pendingEntries[cursor];
+        if (entry === undefined) {
           break;
         }
 
         const elapsed = performance.now() - startTime;
+        // timeRemaining() is not Baseline widely available (no Safari support),
+        // compatibility is handled by idle-callback-shim.ts.
         // eslint-disable-next-line baseline-js/use-baseline
         if (elapsed >= maxTime || deadline.timeRemaining() < 1) {
           break;
         }
 
-        const entry = this._pendingEntries.shift();
-        if (entry) {
-          this._emitResource(entry);
-        }
+        cursor++;
+        this._emitResource(entry);
       }
     } finally {
+      this._pendingEntries.splice(0, cursor);
       if (this._pendingEntries.length > 0) {
         this._scheduleProcessing();
       }
