@@ -335,6 +335,34 @@ describe('ResourceTimingInstrumentation', () => {
       expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
     });
 
+    it('should reschedule remaining entries if _emitResource throws', () => {
+      instrumentation = new ResourceTimingInstrumentation({ batchSize: 1 });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+      ];
+
+      // Simulate _emitResource throwing (bypassing its own try/catch)
+      vi.spyOn(
+        instrumentation as unknown as { _emitResource: () => void },
+        '_emitResource',
+      ).mockImplementationOnce(() => {
+        throw new Error('unexpected emit failure');
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      expect(() => triggerIdleCallback(1000)).toThrow('unexpected emit failure');
+
+      // finally block should have called _scheduleProcessing for the remaining entry
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+    });
+
     it('should respect batchSize', () => {
       instrumentation = new ResourceTimingInstrumentation({
         batchSize: 2,
