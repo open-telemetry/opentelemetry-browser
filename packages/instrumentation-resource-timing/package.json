@@ -38,8 +38,11 @@
     "@opentelemetry/api-logs": "^0.211.0",
     "@opentelemetry/instrumentation": "^0.211.0"
   },
+  "imports": {
+    "#resource-timing-test-utils": "./src/test-utils/index.ts"
+  },
   "devDependencies": {
-    "@opentelemetry/test-utils": "*"
+    "@opentelemetry/sdk-logs": "^0.213.0"
   },
   "publishConfig": {
     "access": "public"
