@@ -132,7 +132,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       this._observer = observer;
       observer.observe({ type: 'resource', buffered: true });
     } catch {
-      // Graceful degradation
+      this._diag.warn(
+        'PerformanceObserver not supported, resource timings will not be collected',
+      );
     }
   }
 
