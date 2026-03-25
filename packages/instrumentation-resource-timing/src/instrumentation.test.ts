@@ -4,7 +4,7 @@
  */
 
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { setupTestLogExporter } from '@opentelemetry/test-utils';
+import { setupTestLogExporter } from '#resource-timing-test-utils';
 import {
   afterEach,
   beforeAll,
