@@ -108,6 +108,7 @@ describe('ResourceTimingInstrumentation', () => {
         addEventListener: vi.fn((event, handler, options) => {
           listeners.set(event, { handler, options });
         }),
+        removeEventListener: vi.fn(),
         setTimeout: vi.fn(() => 1),
         clearTimeout: vi.fn(),
       });
@@ -122,6 +123,32 @@ describe('ResourceTimingInstrumentation', () => {
       loadListener?.handler();
 
       expect(PerformanceObserverMock).toHaveBeenCalled();
+    });
+
+    it('should remove load listener when disabled before load fires', () => {
+      const removeEventListener = vi.fn();
+      vi.stubGlobal('document', {
+        readyState: 'loading',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      });
+      vi.stubGlobal('window', {
+        PerformanceObserver: PerformanceObserverMock,
+        addEventListener: vi.fn(),
+        removeEventListener,
+        setTimeout: vi.fn(() => 1),
+        clearTimeout: vi.fn(),
+      });
+
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+      instrumentation.disable();
+
+      expect(removeEventListener).toHaveBeenCalledWith(
+        'load',
+        expect.any(Function),
+      );
+      expect(PerformanceObserverMock).not.toHaveBeenCalled();
     });
 
     it('should flush pending entries on disable', () => {
