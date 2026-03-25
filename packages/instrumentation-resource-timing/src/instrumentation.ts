@@ -166,25 +166,27 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     const batchSize = this._config.batchSize ?? DEFAULT_BATCH_SIZE;
     const startTime = performance.now();
 
-    for (let i = 0; i < batchSize; i++) {
-      if (this._pendingEntries.length === 0) {
-        break;
-      }
+    try {
+      for (let i = 0; i < batchSize; i++) {
+        if (this._pendingEntries.length === 0) {
+          break;
+        }
 
-      const elapsed = performance.now() - startTime;
-      // eslint-disable-next-line baseline-js/use-baseline
-      if (elapsed >= maxTime || deadline.timeRemaining() < 1) {
-        break;
-      }
+        const elapsed = performance.now() - startTime;
+        // eslint-disable-next-line baseline-js/use-baseline
+        if (elapsed >= maxTime || deadline.timeRemaining() < 1) {
+          break;
+        }
 
-      const entry = this._pendingEntries.shift();
-      if (entry) {
-        this._emitResource(entry);
+        const entry = this._pendingEntries.shift();
+        if (entry) {
+          this._emitResource(entry);
+        }
       }
-    }
-
-    if (this._pendingEntries.length > 0) {
-      this._scheduleProcessing();
+    } finally {
+      if (this._pendingEntries.length > 0) {
+        this._scheduleProcessing();
+      }
     }
   }
 
