@@ -68,6 +68,14 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     if (this._isEnabled) {
       return;
     }
+
+    if (!('PerformanceObserver' in window)) {
+      this._diag.debug(
+        'PerformanceObserver is not supported, resource timings will not be collected',
+      );
+      return;
+    }
+
     this._isEnabled = true;
 
     if (document.readyState === 'complete') {
@@ -107,7 +115,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   private _setupObserver(): void {
-    if (!this._isEnabled || !('PerformanceObserver' in window)) {
+    if (!this._isEnabled) {
       return;
     }
 

@@ -299,7 +299,7 @@ describe('ResourceTimingInstrumentation', () => {
   });
 
   describe('Browser Compatibility', () => {
-    it('should handle missing PerformanceObserver gracefully', () => {
+    it('should bail early and log debug when PerformanceObserver is unsupported', () => {
       vi.stubGlobal('window', {
         setTimeout: vi.fn(() => 1),
         addEventListener: vi.fn(),
@@ -308,6 +308,12 @@ describe('ResourceTimingInstrumentation', () => {
 
       instrumentation = new ResourceTimingInstrumentation();
       expect(() => instrumentation.enable()).not.toThrow();
+
+      // No observer should be constructed
+      expect(PerformanceObserverMock).not.toHaveBeenCalled();
+      // No window/document listeners should be registered
+      expect(mockDocument.addEventListener).not.toHaveBeenCalled();
+      expect(shimModule.requestIdleCallbackShim).not.toHaveBeenCalled();
     });
   });
 
