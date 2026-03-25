@@ -240,11 +240,8 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           [ATTR_RESOURCE_REDIRECT_END]: entry.redirectEnd,
           [ATTR_RESOURCE_WORKER_START]: entry.workerStart,
           [ATTR_RESOURCE_NEXT_HOP_PROTOCOL]: entry.nextHopProtocol,
-          [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: (
-            entry as PerformanceResourceTiming & {
-              renderBlockingStatus?: string;
-            }
-          ).renderBlockingStatus,
+          // @ts-expect-error renderBlockingStatus is only available in Chromium as of March 2026
+          [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: entry.renderBlockingStatus,
         },
       });
     } catch (error) {
