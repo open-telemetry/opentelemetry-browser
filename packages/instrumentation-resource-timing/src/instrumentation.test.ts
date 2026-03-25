@@ -299,7 +299,7 @@ describe('ResourceTimingInstrumentation', () => {
   });
 
   describe('Browser Compatibility', () => {
-    it('should bail early and log debug when PerformanceObserver is unsupported', () => {
+    it('should bail early PerformanceObserver is unsupported', () => {
       vi.stubGlobal('window', {
         setTimeout: vi.fn(() => 1),
         addEventListener: vi.fn(),
@@ -363,7 +363,9 @@ describe('ResourceTimingInstrumentation', () => {
         mockObserver as unknown as PerformanceObserver,
       );
 
-      expect(() => triggerIdleCallback(1000)).toThrow('unexpected emit failure');
+      expect(() => triggerIdleCallback(1000)).toThrow(
+        'unexpected emit failure',
+      );
 
       // finally block should have called _scheduleProcessing for the remaining entry
       expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
