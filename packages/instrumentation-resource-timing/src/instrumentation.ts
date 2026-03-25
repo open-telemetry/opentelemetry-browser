@@ -189,36 +189,43 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   private _emitResource(entry: PerformanceResourceTiming): void {
-    this.logger.emit({
-      eventName: RESOURCE_TIMING_EVENT_NAME,
-      severityNumber: SeverityNumber.INFO,
-      attributes: {
-        [ATTR_RESOURCE_URL]: entry.name,
-        [ATTR_RESOURCE_INITIATOR_TYPE]: entry.initiatorType,
-        [ATTR_RESOURCE_DURATION]: entry.duration,
-        [ATTR_RESOURCE_FETCH_START]: entry.fetchStart,
-        [ATTR_RESOURCE_DOMAIN_LOOKUP_START]: entry.domainLookupStart,
-        [ATTR_RESOURCE_DOMAIN_LOOKUP_END]: entry.domainLookupEnd,
-        [ATTR_RESOURCE_CONNECT_START]: entry.connectStart,
-        [ATTR_RESOURCE_CONNECT_END]: entry.connectEnd,
-        [ATTR_RESOURCE_SECURE_CONNECTION_START]: entry.secureConnectionStart,
-        [ATTR_RESOURCE_REQUEST_START]: entry.requestStart,
-        [ATTR_RESOURCE_RESPONSE_START]: entry.responseStart,
-        [ATTR_RESOURCE_RESPONSE_END]: entry.responseEnd,
-        [ATTR_RESOURCE_TRANSFER_SIZE]: entry.transferSize,
-        [ATTR_RESOURCE_ENCODED_BODY_SIZE]: entry.encodedBodySize,
-        [ATTR_RESOURCE_DECODED_BODY_SIZE]: entry.decodedBodySize,
-        [ATTR_RESOURCE_REDIRECT_START]: entry.redirectStart,
-        [ATTR_RESOURCE_REDIRECT_END]: entry.redirectEnd,
-        [ATTR_RESOURCE_WORKER_START]: entry.workerStart,
-        [ATTR_RESOURCE_NEXT_HOP_PROTOCOL]: entry.nextHopProtocol,
-        [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: (
-          entry as PerformanceResourceTiming & {
-            renderBlockingStatus?: string;
-          }
-        ).renderBlockingStatus,
-      },
-    });
+    try {
+      this.logger.emit({
+        eventName: RESOURCE_TIMING_EVENT_NAME,
+        severityNumber: SeverityNumber.INFO,
+        attributes: {
+          [ATTR_RESOURCE_URL]: entry.name,
+          [ATTR_RESOURCE_INITIATOR_TYPE]: entry.initiatorType,
+          [ATTR_RESOURCE_DURATION]: entry.duration,
+          [ATTR_RESOURCE_FETCH_START]: entry.fetchStart,
+          [ATTR_RESOURCE_DOMAIN_LOOKUP_START]: entry.domainLookupStart,
+          [ATTR_RESOURCE_DOMAIN_LOOKUP_END]: entry.domainLookupEnd,
+          [ATTR_RESOURCE_CONNECT_START]: entry.connectStart,
+          [ATTR_RESOURCE_CONNECT_END]: entry.connectEnd,
+          [ATTR_RESOURCE_SECURE_CONNECTION_START]: entry.secureConnectionStart,
+          [ATTR_RESOURCE_REQUEST_START]: entry.requestStart,
+          [ATTR_RESOURCE_RESPONSE_START]: entry.responseStart,
+          [ATTR_RESOURCE_RESPONSE_END]: entry.responseEnd,
+          [ATTR_RESOURCE_TRANSFER_SIZE]: entry.transferSize,
+          [ATTR_RESOURCE_ENCODED_BODY_SIZE]: entry.encodedBodySize,
+          [ATTR_RESOURCE_DECODED_BODY_SIZE]: entry.decodedBodySize,
+          [ATTR_RESOURCE_REDIRECT_START]: entry.redirectStart,
+          [ATTR_RESOURCE_REDIRECT_END]: entry.redirectEnd,
+          [ATTR_RESOURCE_WORKER_START]: entry.workerStart,
+          [ATTR_RESOURCE_NEXT_HOP_PROTOCOL]: entry.nextHopProtocol,
+          [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: (
+            entry as PerformanceResourceTiming & {
+              renderBlockingStatus?: string;
+            }
+          ).renderBlockingStatus,
+        },
+      });
+    } catch (error) {
+      this._diag.error(
+        `Failed to emit resource timing entry for "${entry.name}"`,
+        error,
+      );
+    }
   }
 
   private _flush(): void {
