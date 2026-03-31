@@ -21,6 +21,6 @@ export interface GlobalConfig {
 }
 
 export interface SignalSdk<SignalConfig> {
-  start(config: GlobalConfig & SignalConfig): void;
+  start(config?: GlobalConfig & SignalConfig): void;
   shutdown(): Promise<void>;
 }

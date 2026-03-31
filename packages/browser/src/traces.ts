@@ -28,26 +28,26 @@ export interface TracesSdkConfig {
 export class TracesSdk implements SignalSdk<TracesSdkConfig> {
   private _tracerProvider: WebTracerProvider | undefined;
 
-  start(config: GlobalConfig & TracesSdkConfig) {
+  start(config?: GlobalConfig & TracesSdkConfig) {
     const tracesEndpoint = getExportUrl(
-      config.otlpTracesEndpoint,
-      config.otlpEndpoint,
+      config?.otlpTracesEndpoint,
+      config?.otlpEndpoint,
       '/v1/traces',
     );
 
     const spanProcessor = new BatchSpanProcessor(
       new OTLPTraceExporter({
         url: tracesEndpoint,
-        headers: config.otlpTracesHeaders ?? config.otlpHeaders,
+        headers: config?.otlpTracesHeaders ?? config?.otlpHeaders,
       }),
     );
 
     this._tracerProvider = new WebTracerProvider({
       // sampler: new TraceIdRatioBasedSampler(
-      //   typeof config.sampleRate === "number" ? config.sampleRate : 1,
+      //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
       // ),
-      resource: config.resource,
-      spanLimits: config.spanLimits,
+      resource: config?.resource,
+      spanLimits: config?.spanLimits,
       spanProcessors: [spanProcessor],
     });
     // TODO: allow context manager and propagatros???

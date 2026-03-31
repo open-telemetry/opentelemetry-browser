@@ -21,20 +21,20 @@ export interface MetricsSdkConfig {
 export class MetricsSdk implements SignalSdk<MetricsSdkConfig> {
   private _meterProvider: MeterProvider | undefined;
 
-  start(config: GlobalConfig & MetricsSdkConfig) {
+  start(config?: GlobalConfig & MetricsSdkConfig) {
     const metricsEndpoint = getExportUrl(
-      config.otlpMetricsEndpoint,
-      config.otlpEndpoint,
+      config?.otlpMetricsEndpoint,
+      config?.otlpEndpoint,
       '/v1/metrics',
     );
     const metricsReader = new PeriodicExportingMetricReader({
       exporter: new OTLPMetricExporter({
         url: metricsEndpoint,
-        headers: config.otlpMetricsHeaders ?? config.otlpHeaders,
+        headers: config?.otlpMetricsHeaders ?? config?.otlpHeaders,
       }),
     });
     this._meterProvider = new MeterProvider({
-      resource: config.resource,
+      resource: config?.resource,
       readers: [metricsReader],
     });
     metrics.setGlobalMeterProvider(this._meterProvider);

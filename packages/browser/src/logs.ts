@@ -25,22 +25,22 @@ export interface LogsSdkConfig {
 export class LogsSdk implements SignalSdk<LogsSdkConfig> {
   private _loggerProvider: LoggerProvider | undefined;
 
-  start(config: GlobalConfig & LogsSdkConfig) {
+  start(config?: GlobalConfig & LogsSdkConfig) {
     const logsEndpoint = getExportUrl(
-      config.otlpLogsEndpoint,
-      config.otlpEndpoint,
+      config?.otlpLogsEndpoint,
+      config?.otlpEndpoint,
       '/v1/logs',
     );
 
     const logsProcessor = new BatchLogRecordProcessor(
       new OTLPLogExporter({
         url: logsEndpoint,
-        headers: config.otlpLogsHeaders ?? config.otlpHeaders,
+        headers: config?.otlpLogsHeaders ?? config?.otlpHeaders,
       }),
     );
     this._loggerProvider = new LoggerProvider({
-      resource: config.resource,
-      logRecordLimits: config.logRecordLimits,
+      resource: config?.resource,
+      logRecordLimits: config?.logRecordLimits,
       processors: [logsProcessor],
     });
     logs.setGlobalLoggerProvider(this._loggerProvider);
