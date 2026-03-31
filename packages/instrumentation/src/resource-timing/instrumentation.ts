@@ -58,9 +58,13 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   private _observer?: PerformanceObserver;
   private _pendingEntries: PerformanceResourceTiming[] = [];
   private _idleHandle?: IdleCallbackHandle;
-  private _isEnabled = false;
-  private _loadHandler?: () => void;
-  private _visibilityChangeHandler?: () => void;
+
+  // Use `declare` to prevent JS class field initializers from running after
+  // super(), which would reset values set by the enable() call that
+  // InstrumentationBase makes during its constructor.
+  private declare _isEnabled: boolean;
+  private declare _loadHandler: (() => void) | undefined;
+  private declare _visibilityChangeHandler: (() => void) | undefined;
 
   constructor(config: ResourceTimingInstrumentationConfig = {}) {
     super(
