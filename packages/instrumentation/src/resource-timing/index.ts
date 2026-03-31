@@ -4,3 +4,4 @@
  */
 
 export { ResourceTimingInstrumentation } from './instrumentation.ts';
+export type { ResourceTimingInstrumentationConfig } from './types.ts';

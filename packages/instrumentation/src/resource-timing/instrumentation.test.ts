@@ -13,7 +13,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#resource-timing-test-utils';
+import { setupTestLogExporter } from '#instrumentation-test-utils';
 import * as shimModule from './idle-callback-shim.ts';
 import { ResourceTimingInstrumentation } from './instrumentation.ts';
 import {

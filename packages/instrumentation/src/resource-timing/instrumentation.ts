@@ -5,6 +5,7 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { version } from '../../package.json' with { type: 'json' };
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
   cancelIdleCallbackShim,
@@ -62,7 +63,11 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   private _visibilityChangeHandler?: () => void;
 
   constructor(config: ResourceTimingInstrumentationConfig = {}) {
-    super('@opentelemetry/instrumentation-resource-timing', '0.1.0', config);
+    super(
+      '@opentelemetry/browser-instrumentation/resource-timing',
+      version,
+      config,
+    );
   }
 
   protected override init() {
