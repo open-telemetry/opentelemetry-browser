@@ -19,4 +19,20 @@ export default [
       ],
     },
   },
+  // resource-timing intentionally uses requestIdleCallback (not widely available)
+  // with a Safari fallback shim — suppress the dist-level check for this package.
+  {
+    files: ['packages/instrumentation/dist/resource-timing/**/*.js'],
+    rules: {
+      'baseline-js/use-baseline': [
+        'error',
+        {
+          available: 'widely',
+          includeWebApis: { preset: 'auto' },
+          includeJsBuiltins: { preset: 'auto' },
+          ignoreFeatures: ['requestidlecallback'],
+        },
+      ],
+    },
+  },
 ];
