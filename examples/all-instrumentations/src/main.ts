@@ -2,6 +2,7 @@ import './style.css';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
+import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -22,6 +23,7 @@ logs.setGlobalLoggerProvider(loggerProvider);
 registerInstrumentations({
   instrumentations: [
     new NavigationTimingInstrumentation(),
+    new ResourceTimingInstrumentation(),
     new UserActionInstrumentation(),
     new WebVitalsInstrumentation({ includeRawAttribution: true }),
   ],
