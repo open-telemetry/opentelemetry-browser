@@ -14,7 +14,7 @@ import type { GlobalConfig, SignalSdk } from './types.ts';
 export class WebSdkBuilder<T = GlobalConfig> {
   private _signals: Array<SignalSdk<unknown>> = [];
 
-  withSignal<S>(signal: SignalSdk<S>): WebSdkBuilder<T & S> {
+  withSignalSdk<S>(signal: SignalSdk<S>): WebSdkBuilder<T & S> {
     this._signals.push(signal);
     return this as WebSdkBuilder<T & S>;
   }

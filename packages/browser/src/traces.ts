@@ -4,6 +4,7 @@
  */
 
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import type { SpanLimits } from '@opentelemetry/sdk-trace-base';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 
@@ -21,8 +22,7 @@ export interface TracesSdkConfig {
   otlpTracesEndpoint?: string;
   otlpTracesHeaders?: Record<string, string>;
   // Limits
-  spanAttrLengthLimit?: number;
-  spanAttrCountLimit?: number;
+  spanLimits?: SpanLimits;
 }
 
 export class TracesSdk implements SignalSdk<TracesSdkConfig> {
@@ -43,15 +43,11 @@ export class TracesSdk implements SignalSdk<TracesSdkConfig> {
     );
 
     this._tracerProvider = new WebTracerProvider({
-      // resource: config.resource,
       // sampler: new TraceIdRatioBasedSampler(
       //   typeof config.sampleRate === "number" ? config.sampleRate : 1,
       // ),
-      spanLimits: {
-        attributeCountLimit: config.spanAttrCountLimit || config.attrCountLimit,
-        attributeValueLengthLimit:
-          config.spanAttrLengthLimit || config.attrLenghtLimit,
-      },
+      resource: config.resource,
+      spanLimits: config.spanLimits,
       spanProcessors: [spanProcessor],
     });
     // TODO: allow context manager and propagatros???

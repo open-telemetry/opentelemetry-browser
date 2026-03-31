@@ -34,7 +34,7 @@ export class MetricsSdk implements SignalSdk<MetricsSdkConfig> {
       }),
     });
     this._meterProvider = new MeterProvider({
-      // resource: config.resource,
+      resource: config.resource,
       readers: [metricsReader],
     });
     metrics.setGlobalMeterProvider(this._meterProvider);

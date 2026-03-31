@@ -5,6 +5,7 @@
 
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
 import {
   BatchLogRecordProcessor,
   LoggerProvider,
@@ -18,8 +19,7 @@ export interface LogsSdkConfig {
   otlpLogsEndpoint?: string;
   otlpLogsHeaders?: Record<string, string>;
   // Limits
-  logRecordAttrLenghtLimit?: number;
-  logRecordAttrCountLimit?: number;
+  logRecordLimits?: LogRecordLimits;
 }
 
 export class LogsSdk implements SignalSdk<LogsSdkConfig> {
@@ -39,8 +39,8 @@ export class LogsSdk implements SignalSdk<LogsSdkConfig> {
       }),
     );
     this._loggerProvider = new LoggerProvider({
-      // TODO: should resource bubble to SDK config???
-      // resource: config.resource,
+      resource: config.resource,
+      logRecordLimits: config.logRecordLimits,
       processors: [logsProcessor],
     });
     logs.setGlobalLoggerProvider(this._loggerProvider);
