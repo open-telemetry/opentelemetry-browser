@@ -23,8 +23,20 @@ logs.setGlobalLoggerProvider(loggerProvider);
 registerInstrumentations({
   instrumentations: [
     new NavigationTimingInstrumentation(),
-    new ResourceTimingInstrumentation(),
+    new ResourceTimingInstrumentation({
+      initiatorTypes: ['xmlhttprequest', 'fetch'],
+    }),
     new UserActionInstrumentation(),
     new WebVitalsInstrumentation({ includeRawAttribution: true }),
   ],
+});
+
+document.getElementById('xhr-button')?.addEventListener('click', () => {
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', 'https://httpbin.org/get');
+  xhr.send();
+});
+
+document.getElementById('fetch-button')?.addEventListener('click', () => {
+  fetch('https://httpbin.org/get');
 });

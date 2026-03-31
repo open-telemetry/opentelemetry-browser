@@ -144,8 +144,16 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           MIN_QUEUE_SIZE,
         );
         const entries = list.getEntries() as PerformanceResourceTiming[];
+        const initiatorTypes = this._config.initiatorTypes;
 
         for (const entry of entries) {
+          if (
+            initiatorTypes !== undefined &&
+            !initiatorTypes.includes(entry.initiatorType)
+          ) {
+            continue;
+          }
+
           if (this._pendingEntries.length >= maxQueueSize) {
             this._flush();
           }

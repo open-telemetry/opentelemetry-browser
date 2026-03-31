@@ -33,4 +33,12 @@ export interface ResourceTimingInstrumentationConfig
    * Default: 1000
    */
   maxQueueSize?: number;
+
+  /**
+   * Filter which resource types to capture by their initiator type
+   * (e.g. 'xmlhttprequest', 'fetch', 'script', 'link', 'img', 'css', etc.).
+   * When set, only entries whose initiatorType matches one of the listed values
+   * are captured. When unset, all resource entries are captured.
+   */
+  initiatorTypes?: string[];
 }

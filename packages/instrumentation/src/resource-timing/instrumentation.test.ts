@@ -313,6 +313,75 @@ describe('ResourceTimingInstrumentation', () => {
     });
   });
 
+  describe('Filtering', () => {
+    it('should capture all entries when initiatorTypes is not set', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1', initiatorType: 'script' }),
+        createMockResourceEntry({ name: '2', initiatorType: 'fetch' }),
+        createMockResourceEntry({ name: '3', initiatorType: 'img' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(3);
+    });
+
+    it('should only capture entries matching initiatorTypes', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        initiatorTypes: ['fetch', 'xmlhttprequest'],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1', initiatorType: 'script' }),
+        createMockResourceEntry({ name: '2', initiatorType: 'fetch' }),
+        createMockResourceEntry({ name: '3', initiatorType: 'xmlhttprequest' }),
+        createMockResourceEntry({ name: '4', initiatorType: 'img' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(2);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('3');
+    });
+
+    it('should capture no entries when initiatorTypes is empty', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        initiatorTypes: [],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1', initiatorType: 'script' }),
+        createMockResourceEntry({ name: '2', initiatorType: 'fetch' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+    });
+  });
+
   describe('Data Emission', () => {
     it('should emit log records with correct attributes', () => {
       instrumentation = new ResourceTimingInstrumentation();
