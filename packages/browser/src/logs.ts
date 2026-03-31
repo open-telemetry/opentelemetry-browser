@@ -15,6 +15,11 @@ import type { GlobalConfig, SignalSdk } from './types.ts';
 import { getExportUrl } from './utils.ts';
 
 export interface LogsSdkConfig {
+  // Processor
+  blrpScheduleDelay?: number;
+  blrpExportTimeout?: number;
+  blrpMaxQueueSize?: number;
+  blrpMaxExportBatchSize?: number;
   // Export
   otlpLogsEndpoint?: string;
   otlpLogsHeaders?: Record<string, string>;
@@ -37,6 +42,12 @@ export class LogsSdk implements SignalSdk<LogsSdkConfig> {
         url: logsEndpoint,
         headers: config?.otlpLogsHeaders ?? config?.otlpHeaders,
       }),
+      {
+        scheduledDelayMillis: config?.blrpScheduleDelay,
+        exportTimeoutMillis: config?.blrpExportTimeout,
+        maxExportBatchSize: config?.blrpMaxExportBatchSize,
+        maxQueueSize: config?.blrpMaxQueueSize,
+      },
     );
     this._loggerProvider = new LoggerProvider({
       resource: config?.resource,
