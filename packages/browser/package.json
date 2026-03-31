@@ -1,0 +1,55 @@
+{
+  "name": "@opentelemetry/browser",
+  "version": "0.1.0",
+  "description": "OpenTelemetry browser main package.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "sdk"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/browser"
+  },
+  "type": "module",
+  "exports": {
+    "./logs": "./dist/logs.js",
+    "./metrics": "./dist/metrics.js",
+    "./traces": "./dist/traces.js",
+    "./sdk": "./dist/sdk.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "watch": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.213.0",
+    "@opentelemetry/core": "^2.6.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.214.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.214.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
+    "@opentelemetry/resources": "^2.6.0",
+    "@opentelemetry/sdk-metrics": "^2.6.1",
+    "@opentelemetry/sdk-trace-base": "^2.6.1",
+    "@opentelemetry/sdk-trace-web": "^2.6.1"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
