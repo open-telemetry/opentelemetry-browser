@@ -8,7 +8,7 @@
 // 5. Bind all action buttons
 
 import './app/style.css'
-import { readConfigFromForm, parseConfigFromQueryString } from './config.js'
+import { readConfigFromForm, parseConfigFromQueryString } from './utils/config.js'
 import {
   log, clearLog, setStatus, enableButtons,
   initConfigForm, initCustomAttributes,
