@@ -29,7 +29,7 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build --workspace=sandbox
+      - run: npx turbo run build --filter=sandbox
 
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:

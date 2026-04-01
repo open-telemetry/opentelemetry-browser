@@ -27,16 +27,12 @@ import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentatio
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals'
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch'
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request'
-
-import { UISpanExporter, UILogExporter } from './app/ui-exporters.js'
+import { createUISpanExporter, createUILogExporter } from './utils/ui-exporters.js'
 
 // ── initOtel ──────────────────────────────────────────────────────────────────
-// tracesUrl and logsUrl are used as-is — no path is appended.
-// customAttrs are merged into the Resource so they appear in resource.attributes
-// on every span and log record.
+// onSpan/onLog callbacks push entries into the React app's log state.
 
-export function initOtel(config, customAttrs = {}) {
-  // Custom attributes become resource attributes shared by all signals.
+export function initOtel(config, customAttrs = {}, { onSpan, onLog } = {}) {
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]:    config.serviceName,
     [ATTR_SERVICE_VERSION]: config.serviceVersion,
@@ -45,32 +41,34 @@ export function initOtel(config, customAttrs = {}) {
 
   // ── Traces ──────────────────────────────────────────────────────────────────
   const traceExporter = new OTLPTraceExporter({ url: config.tracesUrl, headers: {} })
-  const traceProvider = new WebTracerProvider({
-    resource,
-    spanProcessors: [
-      new BatchSpanProcessor(traceExporter, {
-        maxExportBatchSize:    10,
-        scheduledDelayMillis: 1_000,
-      }),
-      new SimpleSpanProcessor(new UISpanExporter()),
-      new SimpleSpanProcessor(new ConsoleSpanExporter()),
-    ],
-  })
+  const spanProcessors = [
+    new BatchSpanProcessor(traceExporter, {
+      maxExportBatchSize: 10,
+      scheduledDelayMillis: 1_000,
+    }),
+    new SimpleSpanProcessor(new ConsoleSpanExporter()),
+  ]
+  if (onSpan) {
+    spanProcessors.push(new SimpleSpanProcessor(createUISpanExporter(onSpan)))
+  }
+
+  const traceProvider = new WebTracerProvider({ resource, spanProcessors })
   traceProvider.register()
 
   // ── Logs ────────────────────────────────────────────────────────────────────
   const logExporter = new OTLPLogExporter({ url: config.logsUrl, headers: {} })
-  const logProvider = new LoggerProvider({
-    resource,
-    processors: [
-      new BatchLogRecordProcessor(logExporter, {
-        maxExportBatchSize:    10,
-        scheduledDelayMillis: 1_000,
-      }),
-      new SimpleLogRecordProcessor(new UILogExporter()),
-      new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
-    ],
-  })
+  const logProcessors = [
+    new BatchLogRecordProcessor(logExporter, {
+      maxExportBatchSize: 10,
+      scheduledDelayMillis: 1_000,
+    }),
+    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+  ]
+  if (onLog) {
+    logProcessors.push(new SimpleLogRecordProcessor(createUILogExporter(onLog)))
+  }
+
+  const logProvider = new LoggerProvider({ resource, processors: logProcessors })
   logs.setGlobalLoggerProvider(logProvider)
 
   // ── Auto-instrumentations ───────────────────────────────────────────────────

@@ -1,116 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OTel Browser Instrumentation Sandbox</title>
 </head>
 <body>
-
-<!-- Header -->
-<header>
-  <div>
-    <h1>OTel Browser Instrumentation Sandbox</h1>
-    <p>Instruments via <code>@opentelemetry/browser-instrumentation</code></p>
-  </div>
-  <div id="sdk-status">
-    <div class="dot loading" id="dot"></div>
-    <span id="sdk-label">Initialising SDK…</span>
-  </div>
-</header>
-
-<!-- Two-column layout -->
-<div class="two-col">
-
-  <!-- LEFT: SDK config form + actions -->
-  <div class="left-col">
-
-    <div class="card">
-      <div class="card-title">SDK Config</div>
-
-      <div class="ub-field">
-        <label class="ub-label" for="ub-sn">serviceName</label>
-        <input class="ub-input" id="ub-sn" type="text" placeholder="my-frontend-app" />
-      </div>
-      <div class="ub-field">
-        <label class="ub-label" for="ub-sv">serviceVersion</label>
-        <input class="ub-input" id="ub-sv" type="text" placeholder="1.0.0" />
-      </div>
-      <div class="ub-field">
-        <label class="ub-label" for="ub-traces-url">tracesUrl</label>
-        <input class="ub-input" id="ub-traces-url" type="text" placeholder="http://localhost:4318/v1/traces" />
-      </div>
-      <div class="ub-field">
-        <label class="ub-label" for="ub-logs-url">logsUrl</label>
-        <input class="ub-input" id="ub-logs-url" type="text" placeholder="http://localhost:4318/v1/logs" />
-      </div>
-
-      <!-- URL sync -->
-      <div class="ub-result" id="ub-result" title="Click to copy">
-        <span class="ub-url" id="ub-out">—</span>
-        <button class="copy-btn" id="copy-btn">Copy</button>
-      </div>
-      <p class="ub-hint">Updates as you type · click to copy · paste in address bar to reconfigure</p>
-
-      <!-- Custom attributes -->
-      <div class="attrs-section">
-        <div class="card-title">Custom Attributes</div>
-        <div id="custom-attrs-list"></div>
-        <button class="btn btn-add-attr" id="btn-add-attr">+ Add attribute</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Traces</div>
-      <div class="btn-grid" id="btn-grid">
-        <button class="btn ok"     id="btn-fetch-ok"  disabled>Fetch 200</button>
-        <button class="btn err"    id="btn-fetch-404" disabled>Fetch 404</button>
-        <button class="btn err"    id="btn-fetch-net" disabled>Network Error</button>
-        <button class="btn ok"     id="btn-xhr"       disabled>XHR Request</button>
-        <button class="btn err"    id="btn-jserr"     disabled>JS Error</button>
-        <button class="btn nav"    id="btn-nav"       disabled>Push History</button>
-        <button class="btn custom" id="btn-custom"    disabled>Custom Span</button>
-        <button class="btn custom" id="btn-nested"    disabled>Nested Spans</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Logs</div>
-      <div class="btn-grid" id="btn-grid-logs">
-        <button class="btn ok"  id="btn-log-info"  disabled>Log Info</button>
-        <button class="btn nav" id="btn-log-warn"  disabled>Log Warn</button>
-        <button class="btn err" id="btn-log-error" disabled>Log Error</button>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- RIGHT: equivalent SDK init snippet -->
-  <div class="card">
-    <div class="card-title">Equivalent SDK init</div>
-    <div class="code-block" id="code-snippet"></div>
-  </div>
-
-</div>
-
-<!-- Event Log -->
-<div id="log-wrap">
-  <div class="log-header">
-    <div class="log-title">
-      Event Log
-      <span id="log-count">(0)</span>
-    </div>
-    <button class="log-clear" id="btn-clear-log">Clear</button>
-  </div>
-  <div id="log-body">
-    <div class="le">
-      <span class="le-time">—</span>
-      <span>·</span>
-      <span class="le-msg muted">Waiting for events…</span>
-    </div>
-  </div>
-</div>
-
-<script type="module" src="./src/main.js"></script>
+  <div id="root"></div>
+  <script type="module" src="./src/main.jsx"></script>
 </body>
 </html>
