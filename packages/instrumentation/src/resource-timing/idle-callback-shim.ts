@@ -6,7 +6,7 @@
 const IDLE_DEADLINE_MS = 50;
 
 // requestIdleCallback is not yet Baseline (not supported in Safari).
-// We us it to intentionally feature-detect it here so we can shim it on unsupported browsers below.
+// Feature-detect here so we can shim it below for unsupported browsers.
 // eslint-disable-next-line baseline-js/use-baseline
 const supportsIdleCallback = typeof window.requestIdleCallback === 'function';
 
