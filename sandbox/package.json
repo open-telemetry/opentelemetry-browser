@@ -10,7 +10,7 @@
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/api-logs": "^0.214.0",
-    "@opentelemetry/browser-instrumentation": "0.2.0",
+    "@opentelemetry/browser-instrumentation": "file:../packages/instrumentation",
     "@opentelemetry/core": "^2.0.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.214.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
