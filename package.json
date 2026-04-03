@@ -57,6 +57,11 @@
   "peerDependencies": {
     "typescript": "6.0.2"
   },
+  "overrides": {
+    "typescript-eslint": {
+      "typescript": "^6"
+    }
+  },
   "workspaces": [
     "examples/*",
     "packages/*"
