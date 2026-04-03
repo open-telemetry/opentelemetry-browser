@@ -1,0 +1,24 @@
+{
+  "name": "examples-with-tracing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --open",
+    "build": "tsc && vite build",
+    "check-types": "tsc",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.214.0",
+    "@opentelemetry/sdk-logs": "^0.214.0",
+    "@opentelemetry/sdk-trace-web": "^2.6.1",
+    "@opentelemetry/instrumentation": "^0.214.0",
+    "@opentelemetry/instrumentation-fetch": "^0.214.0",
+    "@opentelemetry/instrumentation-xml-http-request": "^0.214.0",
+    "@opentelemetry/opentelemetry-browser-detector": "^0.214.0",
+    "@opentelemetry/resources": "^2.6.1",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
+    "@opentelemetry/browser-instrumentation": "file:../../packages/instrumentation"
+  }
+}
