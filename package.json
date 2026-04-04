@@ -19,7 +19,8 @@
     "prepare": "lefthook install -f",
     "generate": "turbo generate",
     "clean": "npx -y rimraf -g \"**/.turbo\" \"**/dist\" \"**/node_modules\"",
-    "dev": "turbo run watch dev --filter=examples-all-instrumentations...",
+    "dev": "turbo run watch dev --filter=sandbox...",
+    "dev:example": "turbo run watch dev --filter=examples-all-instrumentations...",
     "build": "turbo run build",
     "check": "npm run check:tsc && npm run check:eslint",
     "check:tsc": "turbo run check-types",
@@ -64,7 +65,8 @@
   },
   "workspaces": [
     "examples/*",
-    "packages/*"
+    "packages/*",
+    "sandbox"
   ],
   "commitlint": {
     "extends": "@commitlint/config-conventional"
