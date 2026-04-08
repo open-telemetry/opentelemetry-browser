@@ -5,61 +5,43 @@
 
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
 import {
   BatchLogRecordProcessor,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
 
-import type { GlobalConfig, SignalSdk } from './types.ts';
-import { getExportUrl } from './utils.ts';
+import type { LogsConfig, WebSdk } from './types.ts';
 
-export interface LogsSdkConfig {
-  // Processor
-  blrpScheduleDelay?: number;
-  blrpExportTimeout?: number;
-  blrpMaxQueueSize?: number;
-  blrpMaxExportBatchSize?: number;
-  // Export
-  otlpLogsEndpoint?: string;
-  otlpLogsHeaders?: Record<string, string>;
-  // Limits
-  logRecordLimits?: LogRecordLimits;
-}
+const DEFAULT_LOGS_OTLP_ENDOINT = 'http://localhost:4318/v1/logs';
 
-export class LogsSdk implements SignalSdk<LogsSdkConfig> {
-  private _loggerProvider: LoggerProvider | undefined;
+/**
+ * @param config The configuration for logs
+ * @returns {WebSdk}
+ */
+export function startLogsSdk(config?: LogsConfig): WebSdk {
+  const logsEndpoint = config?.otlpLogsEndpoint || DEFAULT_LOGS_OTLP_ENDOINT;
+  const logsProcessor = new BatchLogRecordProcessor(
+    new OTLPLogExporter({
+      url: logsEndpoint,
+      headers: config?.otlpLogsHeaders,
+    }),
+    {
+      scheduledDelayMillis: config?.blrpScheduleDelay,
+      exportTimeoutMillis: config?.blrpExportTimeout,
+      maxExportBatchSize: config?.blrpMaxExportBatchSize,
+      maxQueueSize: config?.blrpMaxQueueSize,
+    },
+  );
+  const loggerProvider = new LoggerProvider({
+    resource: config?.resource,
+    logRecordLimits: config?.logRecordLimits,
+    processors: [logsProcessor],
+  });
+  logs.setGlobalLoggerProvider(loggerProvider);
 
-  start(config?: GlobalConfig & LogsSdkConfig) {
-    const logsEndpoint = getExportUrl(
-      config?.otlpLogsEndpoint,
-      config?.otlpEndpoint,
-      '/v1/logs',
-    );
-
-    const logsProcessor = new BatchLogRecordProcessor(
-      new OTLPLogExporter({
-        url: logsEndpoint,
-        headers: config?.otlpLogsHeaders ?? config?.otlpHeaders,
-      }),
-      {
-        scheduledDelayMillis: config?.blrpScheduleDelay,
-        exportTimeoutMillis: config?.blrpExportTimeout,
-        maxExportBatchSize: config?.blrpMaxExportBatchSize,
-        maxQueueSize: config?.blrpMaxQueueSize,
-      },
-    );
-    this._loggerProvider = new LoggerProvider({
-      resource: config?.resource,
-      logRecordLimits: config?.logRecordLimits,
-      processors: [logsProcessor],
-    });
-    logs.setGlobalLoggerProvider(this._loggerProvider);
-  }
-  shutdown() {
-    if (this._loggerProvider) {
-      return this._loggerProvider.shutdown();
-    }
-    return Promise.resolve();
-  }
+  return {
+    shutdown() {
+      return loggerProvider.shutdown();
+    },
+  };
 }

@@ -8,11 +8,12 @@ import { logs } from '@opentelemetry/api-logs';
 import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LogsSdk } from './logs.ts';
+import { startLogsSdk } from './logs.ts';
+import type { WebSdk } from './types.ts';
 
 const BLRP_SCHEDULE_DELAY = 10;
 
-describe('LogsSdk', () => {
+describe('startLogsSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const setGlobalLoggerProviderSpy = vi
@@ -25,7 +26,7 @@ describe('LogsSdk', () => {
     .spyOn(logs, 'getLoggerProvider')
     .mockImplementation(() => loggerProvider);
   let loggerProvider: LoggerProvider;
-  let logsSdk: LogsSdk;
+  let logsSdk: WebSdk;
 
   // NOTE: we mock the registration of the logger provider because
   // the logs API only allow to register once. With the mock we can use
@@ -35,16 +36,16 @@ describe('LogsSdk', () => {
     getLoggerProviderSpy.mockRestore();
     fetchSpy.mockRestore();
   });
-  beforeEach(() => {
+  beforeEach(async () => {
     setGlobalLoggerProviderSpy.mockClear();
     getLoggerProviderSpy.mockClear();
     fetchSpy.mockClear();
+    await logsSdk?.shutdown();
   });
 
   it('should register a LoggerProvider with a BatchLogRecordProcessor', async () => {
     // Act
-    logsSdk = new LogsSdk();
-    logsSdk.start();
+    logsSdk = startLogsSdk();
 
     // Assert
     expect(setGlobalLoggerProviderSpy).callCount(1);
@@ -56,8 +57,7 @@ describe('LogsSdk', () => {
 
   it('should use the default configuration for exporters', async () => {
     // Act
-    logsSdk = new LogsSdk();
-    logsSdk.start({
+    logsSdk = startLogsSdk({
       // NOTE: we set a short delay to speed up tests and avoid test timeouts
       blrpScheduleDelay: BLRP_SCHEDULE_DELAY,
     });
@@ -77,37 +77,9 @@ describe('LogsSdk', () => {
     });
   });
 
-  it('should accept signal generic OTLP endpoint and headers', async () => {
-    // Act
-    logsSdk = new LogsSdk();
-    logsSdk.start({
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      blrpScheduleDelay: BLRP_SCHEDULE_DELAY,
-      otlpEndpoint: 'http://otlp-endpoint:4318',
-      otlpHeaders: { foo: 'bar' },
-    });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
-
-    // Assert
-    expect(setGlobalLoggerProviderSpy).callCount(1);
-    expect(fetchSpy).toHaveBeenCalledOnce();
-    expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://otlp-endpoint:4318/v1/logs',
-    );
-    expect(fetchSpy.mock.lastCall?.[1]).containSubset({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        foo: 'bar',
-      },
-    });
-  });
-
   it('should accept signal specific OTLP endpoint and headers', async () => {
     // Act
-    logsSdk = new LogsSdk();
-    logsSdk.start({
+    logsSdk = startLogsSdk({
       // NOTE: we set a short delay to speed up tests and avoid test timeouts
       blrpScheduleDelay: BLRP_SCHEDULE_DELAY,
       otlpLogsEndpoint: 'http://otlp-signal-endpoint:4318/v1/logs',

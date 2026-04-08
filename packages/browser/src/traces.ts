@@ -4,59 +4,38 @@
  */
 
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import type { SpanLimits } from '@opentelemetry/sdk-trace-base';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 
-import type { GlobalConfig, SignalSdk } from './types.ts';
-import { getExportUrl } from './utils.ts';
+import type { TracesConfig, WebSdk } from './types.ts';
 
-export interface TracesSdkConfig {
-  // Processor
-  // TODO: impklement handling these
-  bspScheduleDelay?: number;
-  bspExportTimeout?: number;
-  bspMaxQueueSize?: number;
-  bspMaxExportBatchSize?: number;
-  // Export
-  otlpTracesEndpoint?: string;
-  otlpTracesHeaders?: Record<string, string>;
-  // Limits
-  spanLimits?: SpanLimits;
-}
+const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/metrics';
 
-export class TracesSdk implements SignalSdk<TracesSdkConfig> {
-  private _tracerProvider: WebTracerProvider | undefined;
+export function startTracesSdk(config?: TracesConfig): WebSdk {
+  const tracesEndpoint =
+    config?.otlpTracesEndpoint || DEFAULT_TRACES_OTLP_ENDOINT;
 
-  start(config?: GlobalConfig & TracesSdkConfig) {
-    const tracesEndpoint = getExportUrl(
-      config?.otlpTracesEndpoint,
-      config?.otlpEndpoint,
-      '/v1/traces',
-    );
+  const spanProcessor = new BatchSpanProcessor(
+    new OTLPTraceExporter({
+      url: tracesEndpoint,
+      headers: config?.otlpTracesHeaders,
+    }),
+  );
 
-    const spanProcessor = new BatchSpanProcessor(
-      new OTLPTraceExporter({
-        url: tracesEndpoint,
-        headers: config?.otlpTracesHeaders ?? config?.otlpHeaders,
-      }),
-    );
+  const tracerProvider = new WebTracerProvider({
+    // sampler: new TraceIdRatioBasedSampler(
+    //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
+    // ),
+    resource: config?.resource,
+    spanLimits: config?.spanLimits,
+    spanProcessors: [spanProcessor],
+  });
+  // TODO: allow context manager and propagatros???
+  tracerProvider.register();
 
-    this._tracerProvider = new WebTracerProvider({
-      // sampler: new TraceIdRatioBasedSampler(
-      //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
-      // ),
-      resource: config?.resource,
-      spanLimits: config?.spanLimits,
-      spanProcessors: [spanProcessor],
-    });
-    // TODO: allow context manager and propagatros???
-    this._tracerProvider.register();
-  }
-  shutdown() {
-    if (this._tracerProvider) {
-      return this._tracerProvider.shutdown();
-    }
-    return Promise.resolve();
-  }
+  return {
+    shutdown() {
+      return tracerProvider.shutdown();
+    },
+  };
 }

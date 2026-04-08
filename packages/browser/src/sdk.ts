@@ -3,48 +3,84 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SDK_INFO } from '@opentelemetry/core';
-import {
-  defaultResource,
-  resourceFromAttributes,
-} from '@opentelemetry/resources';
+import { defaultResource } from '@opentelemetry/resources';
+import type {
+  GlobalConfig,
+  LogsConfig,
+  MetricsConfig,
+  TracesConfig,
+  WebSdk,
+  WebSdkFactory,
+} from './types.ts';
 
-import type { GlobalConfig, SignalSdk } from './types.ts';
+interface SdkFactories {
+  logs?: WebSdkFactory<LogsConfig>;
+  metrics?: WebSdkFactory<MetricsConfig>;
+  traces?: WebSdkFactory<TracesConfig>;
+}
 
-export class WebSdkBuilder<T = GlobalConfig> {
-  private _signals: Array<SignalSdk<unknown>> = [];
+type ConfigsFor<T> = Partial<{
+  [K in keyof T]: T[K] extends WebSdkFactory<infer C> ? C : never;
+}>;
 
-  withSignalSdk<S>(signal: SignalSdk<S>): WebSdkBuilder<T & S> {
-    this._signals.push(signal);
-    return this as WebSdkBuilder<T & S>;
-  }
-  build(config: T) {
-    // TODO: adjust some configuration before passing it to signals like
-    // - resource
-    // - ???
+const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
 
-    const signals = this._signals;
-    const conf = config as GlobalConfig;
+export function combineSdks<T extends SdkFactories>(
+  factories: T,
+): WebSdkFactory<ConfigsFor<T>> {
+  // The returned function will transform some of the global
+  // configuration options to signal specific ones if the SDK is available
+  return function startSdk(config?: ConfigsFor<T>) {
+    // Check the global config and set defaults
+    const globalConfig = (config || {}) as GlobalConfig;
+    globalConfig.otlpEndpoint ??= DEFAULT_OTLP_ENDOINT;
 
-    // Set resource
-    conf.resource = (conf.resource || defaultResource()).merge(
-      resourceFromAttributes({ ...SDK_INFO }),
-    );
-    if (typeof conf.serviceName === 'string') {
-      conf.resource = conf.resource.merge(
-        resourceFromAttributes({ 'service.name': conf.serviceName }),
-      );
+    // TODO: accept resource detectors?
+    globalConfig.resource ??= defaultResource();
+
+    const sdks: WebSdk[] = [];
+    const otlpUrl = new URL(globalConfig.otlpEndpoint);
+
+    // Start logs
+    if (factories.logs) {
+      const logsConfig = (config?.logs || {}) as LogsConfig;
+      if (!logsConfig.otlpLogsEndpoint) {
+        otlpUrl.pathname = 'v1/logs';
+        logsConfig.otlpLogsEndpoint = otlpUrl.href;
+      }
+      logsConfig.otlpLogsHeaders ??= globalConfig.otlpHeaders;
+      logsConfig.resource ??= globalConfig.resource;
+      sdks.push(factories.logs(logsConfig));
+    }
+
+    // Start metrics
+    if (factories.metrics) {
+      const metricsConfig = (config?.metrics || {}) as MetricsConfig;
+      if (!metricsConfig.otlpMetricsEndpoint) {
+        otlpUrl.pathname = 'v1/metrics';
+        metricsConfig.otlpMetricsEndpoint = otlpUrl.href;
+      }
+      metricsConfig.otlpMetricsHeaders ??= globalConfig.otlpHeaders;
+      metricsConfig.resource ??= globalConfig.resource;
+      sdks.push(factories.metrics(metricsConfig));
+    }
+
+    // Start traces
+    if (factories.traces) {
+      const tracesConfig = (config?.traces || {}) as TracesConfig;
+      if (!tracesConfig.otlpTracesEndpoint) {
+        otlpUrl.pathname = 'v1/traces';
+        tracesConfig.otlpTracesEndpoint = otlpUrl.href;
+      }
+      tracesConfig.otlpTracesHeaders ??= globalConfig.otlpHeaders;
+      tracesConfig.resource ??= globalConfig.resource;
+      sdks.push(factories.traces(tracesConfig));
     }
 
     return {
-      start() {
-        for (const s of signals) {
-          s.start(conf);
-        }
-      },
       shutdown() {
-        return Promise.all(signals.map((s) => s.shutdown()));
+        return Promise.all(sdks.map((s) => s.shutdown())).then(() => undefined);
       },
     };
-  }
+  };
 }

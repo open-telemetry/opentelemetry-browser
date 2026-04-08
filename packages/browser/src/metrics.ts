@@ -10,39 +10,28 @@ import {
   PeriodicExportingMetricReader,
 } from '@opentelemetry/sdk-metrics';
 
-import type { GlobalConfig, SignalSdk } from './types.ts';
-import { getExportUrl } from './utils.ts';
+import type { MetricsConfig, WebSdk } from './types.ts';
 
-export interface MetricsSdkConfig {
-  otlpMetricsEndpoint?: string;
-  otlpMetricsHeaders?: Record<string, string>;
-}
+const DEFAULT_METRICS_OTLP_ENDOINT = 'http://localhost:4318/v1/metrics';
 
-export class MetricsSdk implements SignalSdk<MetricsSdkConfig> {
-  private _meterProvider: MeterProvider | undefined;
+export function startMetricsSdk(config?: MetricsConfig): WebSdk {
+  const metricsEndpoint =
+    config?.otlpMetricsEndpoint || DEFAULT_METRICS_OTLP_ENDOINT;
+  const metricsReader = new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({
+      url: metricsEndpoint,
+      headers: config?.otlpMetricsHeaders,
+    }),
+  });
+  const meterProvider = new MeterProvider({
+    resource: config?.resource,
+    readers: [metricsReader],
+  });
+  metrics.setGlobalMeterProvider(meterProvider);
 
-  start(config?: GlobalConfig & MetricsSdkConfig) {
-    const metricsEndpoint = getExportUrl(
-      config?.otlpMetricsEndpoint,
-      config?.otlpEndpoint,
-      '/v1/metrics',
-    );
-    const metricsReader = new PeriodicExportingMetricReader({
-      exporter: new OTLPMetricExporter({
-        url: metricsEndpoint,
-        headers: config?.otlpMetricsHeaders ?? config?.otlpHeaders,
-      }),
-    });
-    this._meterProvider = new MeterProvider({
-      resource: config?.resource,
-      readers: [metricsReader],
-    });
-    metrics.setGlobalMeterProvider(this._meterProvider);
-  }
-  shutdown() {
-    if (this._meterProvider) {
-      return this._meterProvider.shutdown();
-    }
-    return Promise.resolve();
-  }
+  return {
+    shutdown() {
+      return meterProvider.shutdown();
+    },
+  };
 }
