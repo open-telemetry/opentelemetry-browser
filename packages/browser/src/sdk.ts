@@ -7,7 +7,6 @@ import { defaultResource } from '@opentelemetry/resources';
 import type {
   GlobalConfig,
   LogsConfig,
-  MetricsConfig,
   TracesConfig,
   WebSdk,
   WebSdkFactory,
@@ -15,7 +14,6 @@ import type {
 
 interface SdkFactories {
   logs?: WebSdkFactory<LogsConfig>;
-  metrics?: WebSdkFactory<MetricsConfig>;
   traces?: WebSdkFactory<TracesConfig>;
 }
 
@@ -51,18 +49,6 @@ export function combineSdks<T extends SdkFactories>(
       logsConfig.otlpLogsHeaders ??= globalConfig.otlpHeaders;
       logsConfig.resource ??= globalConfig.resource;
       sdks.push(factories.logs(logsConfig));
-    }
-
-    // Start metrics
-    if (factories.metrics) {
-      const metricsConfig = (config?.metrics || {}) as MetricsConfig;
-      if (!metricsConfig.otlpMetricsEndpoint) {
-        otlpUrl.pathname = 'v1/metrics';
-        metricsConfig.otlpMetricsEndpoint = otlpUrl.href;
-      }
-      metricsConfig.otlpMetricsHeaders ??= globalConfig.otlpHeaders;
-      metricsConfig.resource ??= globalConfig.resource;
-      sdks.push(factories.metrics(metricsConfig));
     }
 
     // Start traces

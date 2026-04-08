@@ -37,14 +37,6 @@ export interface LogsConfig {
   logRecordLimits?: LogRecordLimits;
 }
 
-export interface MetricsConfig {
-  // Resource & Entities related
-  resource?: Resource;
-  // Export
-  otlpMetricsEndpoint?: string;
-  otlpMetricsHeaders?: Record<string, string>;
-}
-
 export interface TracesConfig {
   // Resource & Entities related
   resource?: Resource;
