@@ -1,0 +1,689 @@
+{
+  "title": "Browser Telemetry Overview",
+  "uid": "browser-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Log Events / sec by Scope",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (scope_name) (rate({service_name=\"browser-demo\"}[5m]))",
+          "legendFormat": "{{scope_name}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Browser Log Count (from count connector)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (scope_name) (rate(browser_browser_log_count_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Span Call Rate (spanmetrics)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (span_name) (rate(browser_traces_span_metrics_calls_total[5m]))",
+          "legendFormat": "__auto",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Span Duration p50 / p95 / p99 (spanmetrics)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.50, sum(rate(browser_traces_span_metrics_duration_milliseconds_bucket[5m])) by (le))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum(rate(browser_traces_span_metrics_duration_milliseconds_bucket[5m])) by (le))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.99, sum(rate(browser_traces_span_metrics_duration_milliseconds_bucket[5m])) by (le))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "title": "FCP p75",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.75, sum by (le) (rate(browser_web_vital_milliseconds_bucket{browser_web_vital_name=\"fcp\"}[5m])))",
+          "legendFormat": "FCP p75",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "title": "LCP p75",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.75, sum by (le) (rate(browser_web_vital_milliseconds_bucket{browser_web_vital_name=\"lcp\"}[5m])))",
+          "legendFormat": "LCP p75",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "title": "TTFB p75",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.75, sum by (le) (rate(browser_web_vital_milliseconds_bucket{browser_web_vital_name=\"ttfb\"}[5m])))",
+          "legendFormat": "TTFB p75",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "title": "INP p75",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.75, sum by (le) (rate(browser_web_vital_milliseconds_bucket{browser_web_vital_name=\"inp\"}[5m])))",
+          "legendFormat": "INP p75",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "title": "CLS p75",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 3 } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.75, sum by (le) (rate(browser_web_vital_cls_bucket[5m])))",
+          "legendFormat": "CLS p75",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "title": "Web Vitals",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 32 },
+      "collapsed": true,
+      "panels": [
+        {
+          "id": 7,
+          "title": "Overall — Good",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 33 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "green", "value": 75 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"good\"}) / sum(browser_web_vital_milliseconds_count) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "title": "Overall — Needs Improvement",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 33 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 10 },
+                  { "color": "red", "value": 30 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"needs-improvement\"}) / sum(browser_web_vital_milliseconds_count) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 9,
+          "title": "Overall — Poor",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 33 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 15 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"poor\"}) / sum(browser_web_vital_milliseconds_count) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "title": "FCP — Good",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 39 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "green", "value": 75 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"good\",browser_web_vital_name=\"fcp\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"fcp\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 14,
+          "title": "FCP — Needs Improvement",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 39 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 10 },
+                  { "color": "red", "value": 30 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"needs-improvement\",browser_web_vital_name=\"fcp\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"fcp\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 15,
+          "title": "FCP — Poor",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 39 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 15 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"poor\",browser_web_vital_name=\"fcp\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"fcp\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 16,
+          "title": "LCP — Good",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 45 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "green", "value": 75 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"good\",browser_web_vital_name=\"lcp\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"lcp\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 17,
+          "title": "LCP — Needs Improvement",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 45 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 10 },
+                  { "color": "red", "value": 30 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"needs-improvement\",browser_web_vital_name=\"lcp\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"lcp\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "title": "LCP — Poor",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 45 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 15 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"poor\",browser_web_vital_name=\"lcp\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"lcp\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 19,
+          "title": "TTFB — Good",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 51 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "green", "value": 75 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"good\",browser_web_vital_name=\"ttfb\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"ttfb\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 22,
+          "title": "TTFB — Needs Improvement",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 51 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 10 },
+                  { "color": "red", "value": 30 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"needs-improvement\",browser_web_vital_name=\"ttfb\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"ttfb\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 23,
+          "title": "TTFB — Poor",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 51 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 5 },
+                  { "color": "red", "value": 15 }
+                ]
+              }
+            }
+          },
+          "options": {
+            "reduceOptions": { "calcs": ["lastNotNull"] },
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": { "type": "prometheus", "uid": "prometheus" },
+              "expr": "sum(browser_web_vital_milliseconds_count{browser_web_vital_rating=\"poor\",browser_web_vital_name=\"ttfb\"}) / sum(browser_web_vital_milliseconds_count{browser_web_vital_name=\"ttfb\"}) * 100",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
+    },
+
+    {
+      "id": 36,
+      "title": "HTTP Request Rate by Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 60 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (http_status_code) (rate(browser_traces_span_metrics_calls_total{http_host!=\"\"}[5m]))",
+          "legendFormat": "{{http_status_code}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "title": "HTTP Request Duration p95 by Host",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 60 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le, http_host) (rate(browser_traces_span_metrics_duration_milliseconds_bucket{http_host!=\"\"}[5m])))",
+          "legendFormat": "{{http_host}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "title": "HTTP Request Count by Host",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 68 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (http_host) (rate(browser_traces_span_metrics_calls_total{http_host!=\"\"}[5m]))",
+          "legendFormat": "{{http_host}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "title": "Clicks by Element",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 76 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum by (browser_css_selector) (rate({service_name=\"browser-demo\"} | browser_css_selector != \"\" [5m]))",
+          "legendFormat": "{{browser_css_selector}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Recent Browser Events",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 84 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=\"browser-demo\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "title": "Browser Errors",
+      "type": "logs",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 84 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "{service_name=\"browser-demo\"} | detected_level = `error`",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
