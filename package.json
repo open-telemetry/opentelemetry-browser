@@ -19,11 +19,12 @@
     "prepare": "lefthook install -f",
     "generate": "turbo generate",
     "clean": "npx -y rimraf -g \"**/.turbo\" \"**/dist\" \"**/node_modules\"",
+    "dev": "turbo run watch dev --filter=examples-all-instrumentations...",
     "build": "turbo run build",
     "check": "npm run check:tsc && npm run check:eslint",
     "check:tsc": "turbo run check-types",
-    "check:eslint": "eslint",
-    "check:eslint:dist": "eslint --config eslint.dist.config.js packages/*/dist/",
+    "check:eslint": "eslint 'packages/**/src/**/*.{*js,*ts}'",
+    "check:eslint:dist": "eslint --config eslint.dist.config.js 'packages/**/dist/**/*.js'",
     "lint": "npm run lint:biome && npm run check",
     "lint:biome": "biome check --write",
     "lint:ci": "biome ci && npm run check",
@@ -34,45 +35,50 @@
   },
   "devDependencies": {
     "@arethetypeswrong/core": "0.18.2",
-    "@biomejs/biome": "2.3.12",
-    "@commitlint/cli": "20.3.1",
-    "@commitlint/config-conventional": "20.3.1",
-    "@opentelemetry/api-logs": "0.211.0",
-    "@opentelemetry/sdk-logs": "0.211.0",
-    "@turbo/gen": "2.7.6",
-    "@types/jsdom": "27.0.0",
-    "@vitest/browser-playwright": "4.0.18",
-    "@vitest/coverage-v8": "4.0.18",
-    "eslint": "9.39.2",
-    "eslint-plugin-baseline-js": "0.4.2",
+    "@biomejs/biome": "2.4.11",
+    "@commitlint/cli": "20.5.0",
+    "@commitlint/config-conventional": "20.5.0",
+    "@turbo/gen": "2.9.5",
+    "@types/jsdom": "28.0.1",
+    "@vitest/browser-playwright": "4.1.4",
+    "@vitest/coverage-v8": "4.1.4",
+    "eslint": "10.2.0",
+    "eslint-plugin-baseline-js": "0.6.1",
     "eslint-plugin-yet-another-license-header": "0.2.0",
-    "jsdom": "27.4.0",
-    "lefthook": "2.0.15",
-    "publint": "0.3.17",
-    "tsdown": "0.20.1",
-    "turbo": "2.7.6",
-    "typescript-eslint": "8.53.1",
-    "vitest": "4.0.18"
+    "jsdom": "29.0.2",
+    "lefthook": "2.1.5",
+    "publint": "0.3.18",
+    "tsdown": "0.21.7",
+    "turbo": "2.9.5",
+    "typescript-eslint": "8.58.1",
+    "vite": "8.0.8",
+    "vitest": "4.1.4"
   },
   "peerDependencies": {
-    "typescript": "5.9.3"
+    "typescript": "6.0.2"
   },
-  "dependencies": {
-    "@opentelemetry/api": "1.9.0",
-    "@opentelemetry/api-logs": "0.211.0",
-    "@opentelemetry/core": "2.5.0",
-    "@opentelemetry/instrumentation": "0.211.0",
-    "@opentelemetry/sdk-logs": "0.211.0"
+  "overrides": {
+    "typescript-eslint": {
+      "typescript": "^6"
+    }
   },
   "workspaces": [
+    "examples/*",
     "packages/*"
   ],
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.6.4",
-  "engines": {
-    "node": ">=22.12.0",
-    "npm": ">=11.6.3"
+  "packageManager": "npm@11.9.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.9.0",
+      "onFail": "error"
+    },
+    "runtime": {
+      "name": "node",
+      "version": ">=24"
+    }
   }
 }

@@ -1,6 +1,7 @@
 node_modules
 
 # output
+__screenshots__
 dist
 *.tgz
 
@@ -15,5 +16,11 @@ dist
 # IntelliJ based IDEs
 .idea
 
+# VSCode
+.vscode
+
 # Finder (MacOS) folder config
 .DS_Store
+
+# AI agent rules
+AGENTS.md

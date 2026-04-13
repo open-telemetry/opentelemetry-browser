@@ -4,26 +4,29 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "schedule": ["before 8am on Monday"],
+  "rebaseWhen": "behind-base-branch",
+  "ignoreDeps": ["@types/node", "node", "npm"],
+  "labels": ["dependencies"],
+  "postUpdateOptions": ["npmDedupe"],
+  "rangeStrategy": "bump",
+  "separateMajorMinor": false,
   "packageRules": [
     {
-      "description": "npm > 11.6.0 has a bug with missing optional dependencies",
-      "matchPackageNames": ["npm"],
-      "enabled": false
+      "description": "GitHub Actions",
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions"
     },
     {
-      "groupName": "otel",
-      "schedule": ["before 8am on Monday"],
-      "matchPackageNames": ["/^@opentelemetry//"]
+      "description": "All dependencies",
+      "matchDepTypes": ["dependencies", "devDependencies"],
+      "groupName": "dependencies"
     },
     {
-      "groupName": "all patch versions",
-      "matchUpdateTypes": ["patch"],
-      "schedule": ["before 8am every weekday"]
-    },
-    {
-      "matchUpdateTypes": ["minor", "major"],
-      "schedule": ["before 8am on Monday"]
+      "description": "OpenTelemetry",
+      "matchDepNames": ["@opentelemetry/**"],
+      "groupName": "opentelemetry",
+      "rangeStrategy": "replace"
     }
-  ],
-  "labels": ["dependencies"]
+  ]
 }

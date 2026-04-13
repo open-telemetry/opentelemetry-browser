@@ -79,11 +79,11 @@
         "useBlockStatements": "error"
       },
       "suspicious": {
-        "recommended": true
+        "recommended": true,
+        "noImportCycles": "error"
       },
       "nursery": {
-        // experimental rule but working well
-        "noImportCycles": "error"
+        "recommended": true
       }
     }
   }

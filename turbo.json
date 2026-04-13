@@ -1,15 +1,26 @@
 {
   "$schema": "./node_modules/turbo/schema.json",
   "globalDependencies": ["*.json", "*.config.ts"],
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
+    "lint": {
+      "cache": false
+    },
     "check-types": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "dev": {
+      "dependsOn": ["^build"],
+      "persistent": true,
+      "cache": false
+    },
+    "watch": {
+      "dependsOn": ["^build"],
       "persistent": true,
       "cache": false
     },

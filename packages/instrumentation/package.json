@@ -1,0 +1,60 @@
+{
+  "name": "@opentelemetry/browser-instrumentation",
+  "version": "0.2.0",
+  "description": "OpenTelemetry browser instrumentations.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "instrumentation",
+    "navigation-timing",
+    "user-action",
+    "web-vitals",
+    "resource-timing"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/instrumentation"
+  },
+  "type": "module",
+  "imports": {
+    "#instrumentation-utils": "./src/utils/index.ts",
+    "#instrumentation-test-utils": "./src/test-utils/index.ts"
+  },
+  "exports": {
+    "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
+    "./experimental/user-action": "./dist/user-action/index.js",
+    "./experimental/web-vitals": "./dist/web-vitals/index.js",
+    "./experimental/resource-timing": "./dist/resource-timing/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "watch": "tsdown --watch --no-clean",
+    "check-types": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.214.0",
+    "@opentelemetry/instrumentation": "^0.214.0",
+    "web-vitals": "^5.2.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "devDependencies": {
+    "@opentelemetry/sdk-logs": "^0.214.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
