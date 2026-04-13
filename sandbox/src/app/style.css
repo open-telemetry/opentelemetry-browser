@@ -1,7 +1,7 @@
 /* ── Pico CSS overrides & sandbox-specific styles ──────────────────────────── */
 
 :root {
-  --mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+  --mono: "SF Mono", "Menlo", "Monaco", "Consolas", monospace;
   --pico-container-max-width: 900px;
   --pico-font-size: 14px;
 }
@@ -13,7 +13,9 @@ button {
   padding: 0.35rem 0.7rem;
 }
 
-input { --pico-font-size: 0.85rem; }
+input {
+  --pico-font-size: 0.85rem;
+}
 
 /* ── Layout ─────────────────────────────────────────────────────────────────── */
 
@@ -24,7 +26,9 @@ input { --pico-font-size: 0.85rem; }
 }
 
 @media (max-width: 720px) {
-  .two-col { grid-template-columns: 1fr; }
+  .two-col {
+    grid-template-columns: 1fr;
+  }
 }
 
 .left-col {
@@ -50,13 +54,25 @@ input { --pico-font-size: 0.85rem; }
   background: var(--pico-muted-color);
 }
 
-.status-dot.loading { background: orange; animation: blink 1s ease-in-out infinite; }
-.status-dot.ok      { background: green; }
-.status-dot.error   { background: red; }
+.status-dot.loading {
+  background: orange;
+  animation: blink 1s ease-in-out infinite;
+}
+.status-dot.ok {
+  background: green;
+}
+.status-dot.error {
+  background: red;
+}
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* ── Action button grid ─────────────────────────────────────────────────────── */
@@ -77,14 +93,20 @@ input { --pico-font-size: 0.85rem; }
   --pico-border-color: #f87171;
   --pico-color: #991b1b;
 }
-.btn-err:hover { --pico-background-color: #fca5a5; --pico-border-color: #ef4444; }
+.btn-err:hover {
+  --pico-background-color: #fca5a5;
+  --pico-border-color: #ef4444;
+}
 
 .btn-resource {
   --pico-background-color: #dbeafe;
   --pico-border-color: #60a5fa;
   --pico-color: #1e40af;
 }
-.btn-resource:hover { --pico-background-color: #bfdbfe; --pico-border-color: #3b82f6; }
+.btn-resource:hover {
+  --pico-background-color: #bfdbfe;
+  --pico-border-color: #3b82f6;
+}
 
 /* ── Custom attributes ──────────────────────────────────────────────────────── */
 
@@ -96,9 +118,13 @@ input { --pico-font-size: 0.85rem; }
   margin-bottom: 0.4rem;
 }
 
-.attr-row input { margin-bottom: 0; }
+.attr-row input {
+  margin-bottom: 0;
+}
 
-.btn-add-attr { margin-top: 0.5rem; }
+.btn-add-attr {
+  margin-top: 0.5rem;
+}
 
 /* ── Code snippet ───────────────────────────────────────────────────────────── */
 
@@ -114,10 +140,18 @@ input { --pico-font-size: 0.85rem; }
   white-space: pre;
 }
 
-.kw   { color: #cba6f7; }
-.fn   { color: #a6e3a1; }
-.str  { color: #a6e3a1; }
-.prop { color: #89dceb; }
+.kw {
+  color: #cba6f7;
+}
+.fn {
+  color: #a6e3a1;
+}
+.str {
+  color: #a6e3a1;
+}
+.prop {
+  color: #89dceb;
+}
 
 /* ── Event log ──────────────────────────────────────────────────────────────── */
 
@@ -137,14 +171,33 @@ input { --pico-font-size: 0.85rem; }
   line-height: 1.5;
 }
 
-.log-entry:last-child { border-bottom: none; }
+.log-entry:last-child {
+  border-bottom: none;
+}
 
-.log-time { color: var(--pico-muted-color); font-size: 0.7rem; }
+.log-time {
+  color: var(--pico-muted-color);
+  font-size: 0.7rem;
+}
 
-.log-msg-info    { color: var(--pico-primary); }
-.log-msg-success { color: green; }
-.log-msg-error   { color: red; }
-.log-msg-warn    { color: orange; }
-.log-msg-span    { color: #7c3aed; }
-.log-msg-nav     { color: var(--pico-primary); }
-.log-msg-muted   { color: var(--pico-muted-color); }
+.log-msg-info {
+  color: var(--pico-primary);
+}
+.log-msg-success {
+  color: green;
+}
+.log-msg-error {
+  color: red;
+}
+.log-msg-warn {
+  color: orange;
+}
+.log-msg-span {
+  color: #7c3aed;
+}
+.log-msg-nav {
+  color: var(--pico-primary);
+}
+.log-msg-muted {
+  color: var(--pico-muted-color);
+}

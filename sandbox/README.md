@@ -4,8 +4,6 @@ Interactive playground for testing OpenTelemetry browser instrumentations. Confi
 
 ## Run locally
 
-From the **repo root**:
-
 ```bash
 npm install
 npm run dev
