@@ -5,7 +5,6 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { setupTestLogExporter } from '@opentelemetry/test-utils';
 import {
   afterAll,
   afterEach,
@@ -15,6 +14,7 @@ import {
   expect,
   it,
 } from 'vitest';
+import { setupTestLogExporter } from '#instrumentation-test-utils';
 import { ConsoleInstrumentation } from './instrumentation.ts';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 
@@ -268,16 +268,31 @@ describe('ConsoleInstrumentation', () => {
       expect(logs[0]?.body).toBe('should be captured');
     });
 
-    it('should restore original console method behavior after disable', () => {
+    it('should keep console methods patched after disable (patch-once pattern)', () => {
       const wrappedLog = console.log;
 
       instrumentation.disable();
 
-      // After disable, console.log should be different (unwrapped)
-      expect(console.log).not.toBe(wrappedLog);
+      // After disable, console.log remains wrapped but is a no-op for emitting logs.
+      // This avoids unpatch-order issues when multiple instrumentations wrap the same API.
+      expect(console.log).toBe(wrappedLog);
 
       // enable instrumentation again
       instrumentation.enable();
+    });
+
+    it('should not wrap console methods multiple times when enable() is called repeatedly', () => {
+      inMemoryExporter.reset();
+
+      instrumentation.enable();
+      instrumentation.enable();
+      instrumentation.enable();
+
+      console.log('single log message');
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.body).toBe('single log message');
     });
   });
 });

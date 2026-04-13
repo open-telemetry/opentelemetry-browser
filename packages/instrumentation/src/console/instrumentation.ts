@@ -6,6 +6,7 @@
 import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { version } from '../../package.json' with { type: 'json' };
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 import type { ConsoleInstrumentationConfig, ConsoleMethod } from './types.ts';
 
@@ -49,8 +50,11 @@ function defaultMessageSerializer(args: unknown[]): string {
  * OpenTelemetry instrumentation that captures console calls and emits them as OpenTelemetry logs.
  */
 export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumentationConfig> {
+  private declare _isPatched: boolean;
+  private declare _active: boolean;
+
   constructor(config: ConsoleInstrumentationConfig = {}) {
-    super('@opentelemetry/instrumentation-console', '0.1.0', config);
+    super('@opentelemetry/browser-instrumentation/console', version, config);
   }
 
   protected override init() {
@@ -69,23 +73,24 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
     method: ConsoleMethod,
   ): (original: Console[ConsoleMethod]) => Console[ConsoleMethod] {
     const instrumentation = this;
-    const serializer = instrumentation._getMessageSerializer();
 
     return function patchConsoleMethod(original: Console[ConsoleMethod]) {
       return function (this: Console, ...args: unknown[]) {
-        const logContext = context.active();
-        const body = serializer(args);
+        if (instrumentation._active) {
+          const logContext = context.active();
+          const body = instrumentation._getMessageSerializer()(args);
 
-        instrumentation.logger.emit({
-          body,
-          eventName: CONSOLE_LOG_EVENT_NAME,
-          severityNumber: SEVERITY_MAP[method],
-          severityText: method,
-          context: logContext,
-          attributes: {
-            [ATTR_CONSOLE_METHOD]: method,
-          },
-        });
+          instrumentation.logger.emit({
+            body,
+            eventName: CONSOLE_LOG_EVENT_NAME,
+            severityNumber: SEVERITY_MAP[method],
+            severityText: method,
+            context: logContext,
+            attributes: {
+              [ATTR_CONSOLE_METHOD]: method,
+            },
+          });
+        }
 
         return original.apply(this, args);
       } as Console[ConsoleMethod];
@@ -93,6 +98,11 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
   }
 
   override enable(): void {
+    this._active = true;
+    if (this._isPatched) {
+      return;
+    }
+    this._isPatched = true;
     const methods = this._getLogMethods();
     for (const method of methods) {
       if (typeof console[method] === 'function') {
@@ -102,9 +112,6 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
   }
 
   override disable(): void {
-    const methods = this._getLogMethods();
-    for (const method of methods) {
-      this._unwrap(console, method);
-    }
+    this._active = false;
   }
 }
