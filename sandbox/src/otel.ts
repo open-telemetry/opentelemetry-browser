@@ -5,6 +5,7 @@ import { trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
+import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -105,6 +106,7 @@ export function initOtel(
   registerInstrumentations({
     instrumentations: [
       new NavigationTimingInstrumentation(),
+      new ResourceTimingInstrumentation(),
       new UserActionInstrumentation(),
       new WebVitalsInstrumentation({ includeRawAttribution: true }),
       new FetchInstrumentation({
