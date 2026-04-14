@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite --open",
     "build": "vite build",
+    "check-types": "tsc",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -25,5 +26,8 @@
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
 }

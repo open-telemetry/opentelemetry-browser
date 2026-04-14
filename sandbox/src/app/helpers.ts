@@ -1,9 +1,16 @@
-// helpers.js — shared utility functions for the sandbox UI
+// helpers.ts — shared utility functions for the sandbox UI
 
-import { DEFAULTS } from '../utils/config.js';
+import type { OtelConfig } from '../utils/config.ts';
+import { DEFAULTS } from '../utils/config.ts';
 
-export function attrsObject(customAttrs) {
-  const obj = {};
+export interface Attr {
+  id: number;
+  key: string;
+  val: string;
+}
+
+export function attrsObject(customAttrs: Attr[]): Record<string, string> {
+  const obj: Record<string, string> = {};
   for (const a of customAttrs) {
     if (a.key.trim()) {
       obj[a.key.trim()] = a.val.trim();
@@ -17,7 +24,7 @@ export function currentConfig({
   serviceVersion,
   tracesUrl,
   logsUrl,
-}) {
+}: OtelConfig): OtelConfig {
   return {
     serviceName: serviceName || DEFAULTS.serviceName,
     serviceVersion: serviceVersion || DEFAULTS.serviceVersion,
@@ -26,7 +33,7 @@ export function currentConfig({
   };
 }
 
-export function esc(s) {
+export function esc(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -34,7 +41,10 @@ export function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-export function buildSnippet(config, attrs) {
+export function buildSnippet(
+  config: OtelConfig,
+  attrs: Record<string, string>,
+): string {
   const entries = Object.entries(attrs);
   const attrsStr =
     entries.length === 0
@@ -59,7 +69,7 @@ export function buildSnippet(config, attrs) {
   );
 }
 
-export const LOG_ICONS = {
+export const LOG_ICONS: Record<string, string> = {
   info: 'i',
   success: '✓',
   error: '✗',

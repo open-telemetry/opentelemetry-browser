@@ -1,10 +1,14 @@
-// ui-exporters.js — Callback-based exporters that pipe OTel signals into the UI log.
+// ui-exporters.ts — Callback-based exporters that pipe OTel signals into the UI log.
 
 import { ExportResultCode } from '@opentelemetry/core';
+import type { ReadableLogRecord } from '@opentelemetry/sdk-logs';
+import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 
-export function createUISpanExporter(onSpan) {
+type LogCallback = (type: string, msg: string) => void;
+
+export function createUISpanExporter(onSpan: LogCallback): SpanExporter {
   return {
-    export(spans, cb) {
+    export(spans: ReadableSpan[], cb) {
       for (const span of spans) {
         const [secs, nanos] = span.duration;
         const ms = (secs * 1_000 + nanos / 1_000_000).toFixed(1);
@@ -23,9 +27,12 @@ export function createUISpanExporter(onSpan) {
   };
 }
 
-export function createUILogExporter(onLog) {
+export function createUILogExporter(onLog: LogCallback) {
   return {
-    export(records, cb) {
+    export(
+      records: ReadableLogRecord[],
+      cb: (result: { code: ExportResultCode }) => void,
+    ) {
       for (const r of records) {
         const sev = r.severityText ?? 'INFO';
         const body =

@@ -1,21 +1,23 @@
-// actions.js — handlers for each demo button
+// actions.ts — handlers for each demo button
 
+import type { Tracer } from '@opentelemetry/api';
 import { SpanStatusCode } from '@opentelemetry/api';
+import type { Logger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function createActions(tracer, logger) {
+export function createActions(tracer: Tracer, logger: Logger) {
   // ── Trace actions ───────────────────────────────────────────────────────────
 
   const fetchOk = async () => {
     const url = 'https://jsonplaceholder.typicode.com/posts/1';
     try {
       const r = await fetch(url);
-      const _d = await r.json();
-    } catch (_e) {
+      await r.json();
+    } catch {
       // instrumentation handles the span
     }
   };
@@ -24,7 +26,7 @@ export function createActions(tracer, logger) {
     const url = 'https://jsonplaceholder.typicode.com/posts/999999';
     try {
       await fetch(url);
-    } catch (_e) {
+    } catch {
       // instrumentation handles the span
     }
   };
@@ -33,7 +35,7 @@ export function createActions(tracer, logger) {
     const url = 'https://this-host-definitely-does-not-exist.invalid/api/data';
     try {
       await fetch(url);
-    } catch (_e) {
+    } catch {
       // instrumentation handles the span
     }
   };
@@ -48,10 +50,13 @@ export function createActions(tracer, logger) {
   const jsError = () => {
     const errorSpan = tracer.startSpan('js-error-event');
     try {
-      void null.undefinedProperty;
+      void (null as unknown as { undefinedProperty: string }).undefinedProperty;
     } catch (e) {
-      errorSpan.recordException(e);
-      errorSpan.setStatus({ code: SpanStatusCode.ERROR, message: e.message });
+      errorSpan.recordException(e as Error);
+      errorSpan.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: (e as Error).message,
+      });
     } finally {
       errorSpan.end();
     }
@@ -66,7 +71,8 @@ export function createActions(tracer, logger) {
       '/profile',
       '/search',
     ];
-    const to = routes[Math.floor(Math.random() * routes.length)];
+    const to = routes[Math.floor(Math.random() * routes.length)] ?? '/';
+
     history.pushState({ page: to }, '', `${to}?otelDemo=1`);
 
     const span = tracer.startSpan('navigation');
@@ -93,10 +99,10 @@ export function createActions(tracer, logger) {
     await sleep(40);
 
     const stepNames = ['validate', 'process', 'commit'];
-    for (let i = 0; i < stepNames.length; i++) {
+    for (const [i, name] of stepNames.entries()) {
       const step = tracer.startSpan(`workflow.step-${i + 1}`);
       step.setAttribute('step.index', i + 1);
-      step.setAttribute('step.name', stepNames[i]);
+      step.setAttribute('step.name', name);
       await sleep(50 + (i + 1) * 30);
       step.end();
     }

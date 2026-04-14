@@ -1,8 +1,10 @@
-// use-config.js — React hook managing SDK config form state, URL sync, and custom attributes
+// use-config.ts — React hook managing SDK config form state, URL sync, and custom attributes
 
+import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { parseConfigFromQueryString } from '../utils/config.js';
-import { attrsObject, currentConfig } from './helpers.js';
+import { parseConfigFromQueryString } from '../utils/config.ts';
+import type { Attr } from './helpers.ts';
+import { attrsObject, currentConfig } from './helpers.ts';
 
 let attrId = 0;
 
@@ -14,7 +16,7 @@ export function useConfig() {
   const [serviceVersion, setServiceVersion] = useState(initial.serviceVersion);
   const [tracesUrl, setTracesUrl] = useState(initial.tracesUrl);
   const [logsUrl, setLogsUrl] = useState(initial.logsUrl);
-  const [customAttrs, setCustomAttrs] = useState(() =>
+  const [customAttrs, setCustomAttrs] = useState<Attr[]>(() =>
     Object.entries(initial.customAttributes).map(([key, val]) => ({
       id: ++attrId,
       key,
@@ -51,14 +53,14 @@ export function useConfig() {
     setDirty(true);
   }
 
-  function updateField(setter) {
-    return (e) => {
+  function updateField(setter: (v: string) => void) {
+    return (e: ChangeEvent<HTMLInputElement>) => {
       setter(e.target.value);
       markDirty();
     };
   }
 
-  function updateAttr(i, field, value) {
+  function updateAttr(i: number, field: 'key' | 'val', value: string) {
     setCustomAttrs((prev) =>
       prev.map((a, j) => (j === i ? { ...a, [field]: value } : a)),
     );
@@ -70,7 +72,7 @@ export function useConfig() {
     markDirty();
   }
 
-  function removeAttr(i) {
+  function removeAttr(i: number) {
     setCustomAttrs((prev) => prev.filter((_, j) => j !== i));
     markDirty();
   }

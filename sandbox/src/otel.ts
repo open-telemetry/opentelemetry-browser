@@ -1,6 +1,8 @@
-// otel.js — SDK initialisation: traces + logs
+// otel.ts — SDK initialisation: traces + logs
 
+import type { Tracer } from '@opentelemetry/api';
 import { trace } from '@opentelemetry/api';
+import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -27,15 +29,32 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions';
+import type { OtelConfig } from './utils/config.ts';
 import {
   createUILogExporter,
   createUISpanExporter,
-} from './utils/ui-exporters.js';
+} from './utils/ui-exporters.ts';
+
+type LogCallback = (type: string, msg: string) => void;
+
+interface InitOtelOptions {
+  onSpan?: LogCallback;
+  onLog?: LogCallback;
+}
+
+interface OtelHandle {
+  tracer: Tracer;
+  logger: Logger;
+}
 
 // ── initOtel ──────────────────────────────────────────────────────────────────
 // onSpan/onLog callbacks push entries into the React app's log state.
 
-export function initOtel(config, customAttrs = {}, { onSpan, onLog } = {}) {
+export function initOtel(
+  config: OtelConfig,
+  customAttrs: Record<string, string> = {},
+  { onSpan, onLog }: InitOtelOptions = {},
+): OtelHandle {
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: config.serviceName,
     [ATTR_SERVICE_VERSION]: config.serviceVersion,

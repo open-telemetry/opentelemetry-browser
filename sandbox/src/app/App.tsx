@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { initOtel } from '../otel.js';
-import { createActions } from './actions.js';
-import { buildSnippet, LOG_ICONS } from './helpers.js';
-import { useConfig } from './use-config.js';
+import { initOtel } from '../otel.ts';
+import { createActions } from './actions.ts';
+import { buildSnippet, LOG_ICONS } from './helpers.ts';
+import { useConfig } from './use-config.ts';
+
+interface LogEntry {
+  id: number;
+  type: string;
+  msg: string;
+  time: string;
+}
 
 export function App() {
   const cfg = useConfig();
@@ -11,14 +18,14 @@ export function App() {
   const [status, setStatus] = useState('loading');
   const [statusMsg, setStatusMsg] = useState('Initialising SDK…');
   const [ready, setReady] = useState(false);
-  const [logs, setLogs] = useState([]);
-  const actionsRef = useRef(null);
-  const logBodyRef = useRef(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const actionsRef = useRef<ReturnType<typeof createActions> | null>(null);
+  const logBodyRef = useRef<HTMLDivElement>(null);
   const logIdRef = useRef(0);
-  const codeRef = useRef(null);
+  const codeRef = useRef<HTMLDivElement>(null);
 
   // ── Log helper ────────────────────────────────────────────────────────────
-  const addLog = useCallback((type, msg) => {
+  const addLog = useCallback((type: string, msg: string) => {
     const id = ++logIdRef.current;
     const time = new Date().toLocaleTimeString([], {
       hour: '2-digit',
@@ -93,7 +100,7 @@ export function App() {
   }, [snippet]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  function act(name) {
+  function act(name: keyof ReturnType<typeof createActions>) {
     actionsRef.current?.[name]?.();
   }
 
@@ -350,7 +357,7 @@ export function App() {
           {logs.map((entry) => (
             <div className="log-entry" key={entry.id}>
               <span className="log-time">{entry.time}</span>
-              <span>{LOG_ICONS[entry.type] || '·'}</span>
+              <span>{LOG_ICONS[entry.type] ?? '·'}</span>
               <span className={`log-msg-${entry.type}`}>{entry.msg}</span>
             </div>
           ))}
