@@ -18,7 +18,7 @@ export interface GlobalConfig {
   otlpEndpoint?: string;
   otlpHeaders?: Record<string, string>;
   // Limits
-  attrLenghtLimit?: number;
+  attrLengthLimit?: number;
   attrCountLimit?: number;
 }
 
