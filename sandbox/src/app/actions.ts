@@ -99,13 +99,16 @@ export function createActions(tracer: Tracer, logger: Logger) {
 
     await sleep(40);
 
+    const rootCtx = trace.setSpan(context.active(), root);
     const stepNames = ['validate', 'process', 'commit'];
     for (const [i, name] of stepNames.entries()) {
-      const step = tracer.startSpan(`workflow.step-${i + 1}`);
-      step.setAttribute('step.index', i + 1);
-      step.setAttribute('step.name', name);
-      await sleep(50 + (i + 1) * 30);
-      step.end();
+      await context.with(rootCtx, async () => {
+        const step = tracer.startSpan(`workflow.step-${i + 1}`);
+        step.setAttribute('step.index', i + 1);
+        step.setAttribute('step.name', name);
+        await sleep(50 + (i + 1) * 30);
+        step.end();
+      });
     }
 
     root.end();
