@@ -43,7 +43,7 @@ export function combineSdks<T extends SdkFactories>(
     if (factories.logs) {
       const logsConfig = (config?.logs || {}) as LogsConfig;
       if (!logsConfig.otlpLogsEndpoint) {
-        otlpUrl.pathname = 'v1/logs';
+        otlpUrl.pathname = '/v1/logs';
         logsConfig.otlpLogsEndpoint = otlpUrl.href;
       }
       logsConfig.otlpLogsHeaders ??= globalConfig.otlpHeaders;
