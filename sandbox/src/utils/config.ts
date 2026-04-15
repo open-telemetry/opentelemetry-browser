@@ -41,8 +41,8 @@ function parseJson(
     ) {
       return parsed as Record<string, string>;
     }
-  } catch {
-    /* ignore */
+  } catch (e) {
+    console.error(e);
   }
   return fallback;
 }
