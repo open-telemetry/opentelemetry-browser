@@ -176,22 +176,26 @@ export const ATTR_HTTP_RESPONSE_SIZE = 'http.response.size';
 export const ATTR_RESOURCE_TRANSFER_SIZE = ATTR_HTTP_RESPONSE_SIZE;
 
 /**
- * Encoded body size in bytes (compressed).
+ * Encoded body size in bytes (compressed / as transferred over the network).
  * Maps to: PerformanceResourceTiming.encodedBodySize
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_HTTP_RESPONSE_BODY_SIZE = 'http.response.body.size';
-export const ATTR_RESOURCE_ENCODED_BODY_SIZE = ATTR_HTTP_RESPONSE_BODY_SIZE;
+export const ATTR_HTTP_RESPONSE_BODY_ENCODED_SIZE =
+  'http.response.body.encoded_size';
+export const ATTR_RESOURCE_ENCODED_BODY_SIZE =
+  ATTR_HTTP_RESPONSE_BODY_ENCODED_SIZE;
 
 /**
- * Decoded body size in bytes (uncompressed).
+ * Decoded body size in bytes (uncompressed / after content decoding).
  * Maps to: PerformanceResourceTiming.decodedBodySize
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_DECODED_BODY_SIZE =
+export const ATTR_HTTP_RESPONSE_BODY_DECODED_SIZE =
   'http.response.body.decoded_size';
+export const ATTR_RESOURCE_DECODED_BODY_SIZE =
+  ATTR_HTTP_RESPONSE_BODY_DECODED_SIZE;
 
 // ---------------------------------------------------------------------------
 // Resource metadata attributes
