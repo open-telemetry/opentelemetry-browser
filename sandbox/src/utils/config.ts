@@ -59,19 +59,3 @@ export function parseConfigFromQueryString(): ParsedConfig {
   };
 }
 
-/** Read current config from the form fields (used at SDK init time). */
-function field(id: string): string {
-  return (
-    (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? ''
-  );
-}
-
-export function readConfigFromForm(): ParsedConfig {
-  return {
-    serviceName: field('ub-sn') || DEFAULTS.serviceName,
-    serviceVersion: field('ub-sv') || DEFAULTS.serviceVersion,
-    tracesUrl: field('ub-traces-url') || DEFAULTS.tracesUrl,
-    logsUrl: field('ub-logs-url') || DEFAULTS.logsUrl,
-    customAttributes: {}, // populated separately via readCustomAttributes()
-  };
-}
