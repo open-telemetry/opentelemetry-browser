@@ -65,7 +65,7 @@ export function combineSdks<T extends SdkFactories>(
 
     return {
       shutdown() {
-        return Promise.all(sdks.map((s) => s.shutdown())).then(() => undefined);
+        return Promise.allSettled(sdks.map((s) => s.shutdown())).then(() => undefined);
       },
     };
   };
