@@ -58,4 +58,3 @@ export function parseConfigFromQueryString(): ParsedConfig {
     customAttributes: parseJson(qs.get('attrs'), {}),
   };
 }
-

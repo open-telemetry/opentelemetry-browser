@@ -1,7 +1,7 @@
 // actions.ts — handlers for each demo button
 
 import type { Tracer } from '@opentelemetry/api';
-import { SpanStatusCode } from '@opentelemetry/api';
+import { context, SpanStatusCode, trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 
@@ -50,8 +50,8 @@ export function createActions(tracer: Tracer, logger: Logger) {
   const jsError = () => {
     const errorSpan = tracer.startSpan('js-error-event');
     try {
-    // @ts-expect-error generating an error on purpose
-    void {}.undefinedProperty;
+      // @ts-expect-error generating an error on purpose
+      void {}.undefinedProperty;
     } catch (e) {
       errorSpan.recordException(e as Error);
       errorSpan.setStatus({

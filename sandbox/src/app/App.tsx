@@ -1,8 +1,78 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { initOtel } from '../otel.ts';
+import type { OtelConfig } from '../utils/config.ts';
 import { createActions } from './actions.ts';
-import { buildSnippet, LOG_ICONS } from './helpers.ts';
+import { LOG_ICONS } from './helpers.ts';
 import { useConfig } from './use-config.ts';
+
+function CodeSnippet({
+  config,
+  attrs,
+}: {
+  config: OtelConfig;
+  attrs: Record<string, string>;
+}) {
+  const entries = Object.entries(attrs);
+  return (
+    <div className="code-block">
+      <span className="kw">import</span>
+      {' { '}
+      <span className="fn">BrowserSDK</span>
+      {' } '}
+      <span className="kw">from</span>{' '}
+      <span className="str">'@opentelemetry/browser-instrumentation'</span>
+      {';\n\n'}
+      <span className="kw">const</span>
+      {' sdk = '}
+      <span className="kw">new</span> <span className="fn">BrowserSDK</span>
+      {'({\n'}
+      {'  '}
+      <span className="prop">serviceName</span>
+      {':    '}
+      <span className="str">{`'${config.serviceName}'`}</span>
+      {',\n'}
+      {'  '}
+      <span className="prop">serviceVersion</span>
+      {': '}
+      <span className="str">{`'${config.serviceVersion}'`}</span>
+      {',\n'}
+      {'  '}
+      <span className="prop">otlpExporterConfig</span>
+      {': {\n'}
+      {'    '}
+      <span className="prop">tracesUrl</span>
+      {': '}
+      <span className="str">{`'${config.tracesUrl}'`}</span>
+      {',\n'}
+      {'    '}
+      <span className="prop">logsUrl</span>
+      {'  : '}
+      <span className="str">{`'${config.logsUrl}'`}</span>
+      {',\n'}
+      {'  }'}
+      {entries.length > 0 && (
+        <>
+          {',\n  '}
+          <span className="prop">attributes</span>
+          {': {\n'}
+          {entries.map(([k, v]) => (
+            <span key={k}>
+              {'    '}
+              <span className="prop">{k}</span>
+              {': '}
+              <span className="str">{`'${v}'`}</span>
+              {',\n'}
+            </span>
+          ))}
+          {'  }'}
+        </>
+      )}
+      {',\n});\n\nsdk.'}
+      <span className="fn">start</span>
+      {'();'}
+    </div>
+  );
+}
 
 interface LogEntry {
   id: number;
@@ -22,7 +92,6 @@ export function App() {
   const actionsRef = useRef<ReturnType<typeof createActions> | null>(null);
   const logBodyRef = useRef<HTMLDivElement>(null);
   const logIdRef = useRef(0);
-  const codeRef = useRef<HTMLDivElement>(null);
 
   // ── Log helper ────────────────────────────────────────────────────────────
   const addLog = useCallback((type: string, msg: string) => {
@@ -90,14 +159,6 @@ export function App() {
       logBodyRef.current.scrollTop = logBodyRef.current.scrollHeight;
     }
   }, []);
-
-  // ── Syntax-highlighted code snippet (avoids dangerouslySetInnerHTML) ──────
-  const snippet = buildSnippet(cfg.config, cfg.attrs);
-  useEffect(() => {
-    if (codeRef.current) {
-      codeRef.current.innerHTML = snippet;
-    }
-  }, [snippet]);
 
   // ── Derived ───────────────────────────────────────────────────────────────
   function act(name: keyof ReturnType<typeof createActions>) {
@@ -327,7 +388,7 @@ export function App() {
           <header>
             <strong>Equivalent SDK init</strong>
           </header>
-          <div className="code-block" ref={codeRef} />
+          <CodeSnippet config={cfg.config} attrs={cfg.attrs} />
         </article>
       </div>
 
