@@ -9,7 +9,7 @@ import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 
 import type { TracesConfig, WebSdk } from './types.ts';
 
-const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/metrics';
+const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/traces';
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
   const tracesEndpoint =
