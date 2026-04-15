@@ -17,9 +17,24 @@ import { setupTestLogExporter } from '#instrumentation-test-utils';
 import * as shimModule from './idle-callback-shim.ts';
 import { ResourceTimingInstrumentation } from './instrumentation.ts';
 import {
+  ATTR_NETWORK_PROTOCOL_NAME,
+  ATTR_NETWORK_PROTOCOL_VERSION,
+  ATTR_RESOURCE_CONNECT_END,
+  ATTR_RESOURCE_CONNECT_START,
+  ATTR_RESOURCE_DOMAIN_LOOKUP_END,
+  ATTR_RESOURCE_DOMAIN_LOOKUP_START,
   ATTR_RESOURCE_DURATION,
+  ATTR_RESOURCE_FETCH_START,
+  ATTR_RESOURCE_REDIRECT_END,
+  ATTR_RESOURCE_REDIRECT_START,
+  ATTR_RESOURCE_RENDER_BLOCKING_STATUS,
+  ATTR_RESOURCE_REQUEST_START,
+  ATTR_RESOURCE_RESPONSE_END,
+  ATTR_RESOURCE_RESPONSE_START,
+  ATTR_RESOURCE_SECURE_CONNECTION_START,
   ATTR_RESOURCE_TRANSFER_SIZE,
   ATTR_RESOURCE_URL,
+  ATTR_RESOURCE_WORKER_START,
   RESOURCE_TIMING_EVENT_NAME,
 } from './semconv.ts';
 
@@ -31,6 +46,8 @@ function triggerIdleCallback(timeRemaining = 10, didTimeout = false): void {
     .lastCall?.[0];
   callback?.({ timeRemaining: () => timeRemaining, didTimeout });
 }
+
+const MOCK_TIME_ORIGIN = 1700000000000;
 
 describe('ResourceTimingInstrumentation', () => {
   let instrumentation: ResourceTimingInstrumentation;
@@ -86,6 +103,11 @@ describe('ResourceTimingInstrumentation', () => {
     });
 
     vi.stubGlobal('PerformanceObserver', PerformanceObserverMock);
+
+    vi.stubGlobal('performance', {
+      now: vi.fn(() => 0),
+      timeOrigin: MOCK_TIME_ORIGIN,
+    });
   });
 
   afterEach(() => {
@@ -383,7 +405,7 @@ describe('ResourceTimingInstrumentation', () => {
   });
 
   describe('Data Emission', () => {
-    it('should emit log records with correct attributes', () => {
+    it('should emit log records with correct event name and basic attributes', () => {
       instrumentation = new ResourceTimingInstrumentation();
       instrumentation.enable();
 
@@ -410,6 +432,200 @@ describe('ResourceTimingInstrumentation', () => {
       expect(
         (records[0] as unknown as { eventName: string } | undefined)?.eventName,
       ).toBe(RESOURCE_TIMING_EVENT_NAME);
+    });
+
+    it('should compute http.call.start_time as absolute timestamp (timeOrigin + fetchStart)', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        fetchStart: 100,
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_RESOURCE_FETCH_START]).toBe(
+        MOCK_TIME_ORIGIN + 100,
+      );
+    });
+
+    it('should compute timing attributes as deltas from fetchStart', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        fetchStart: 100,
+        domainLookupStart: 110,
+        domainLookupEnd: 120,
+        connectStart: 120,
+        connectEnd: 140,
+        requestStart: 140,
+        responseStart: 160,
+        responseEnd: 200,
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      const attrs = records[0]?.attributes;
+
+      // All timing values should be relative to fetchStart (100)
+      expect(attrs?.[ATTR_RESOURCE_DOMAIN_LOOKUP_START]).toBe(10); // 110 - 100
+      expect(attrs?.[ATTR_RESOURCE_DOMAIN_LOOKUP_END]).toBe(20); // 120 - 100
+      expect(attrs?.[ATTR_RESOURCE_CONNECT_START]).toBe(20); // 120 - 100
+      expect(attrs?.[ATTR_RESOURCE_CONNECT_END]).toBe(40); // 140 - 100
+      expect(attrs?.[ATTR_RESOURCE_REQUEST_START]).toBe(40); // 140 - 100
+      expect(attrs?.[ATTR_RESOURCE_RESPONSE_START]).toBe(60); // 160 - 100
+      expect(attrs?.[ATTR_RESOURCE_RESPONSE_END]).toBe(100); // 200 - 100
+    });
+
+    it('should omit timing attributes when browser API returns 0 (phase did not occur)', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        fetchStart: 100,
+        // These are 0 → phase did not occur → should be omitted
+        redirectStart: 0,
+        redirectEnd: 0,
+        secureConnectionStart: 0,
+        workerStart: 0,
+        // These are non-zero → should be present
+        domainLookupStart: 110,
+        domainLookupEnd: 120,
+        connectStart: 120,
+        connectEnd: 130,
+        requestStart: 130,
+        responseStart: 150,
+        responseEnd: 200,
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      const attrs = records[0]?.attributes;
+
+      // Omitted (value was 0)
+      expect(attrs?.[ATTR_RESOURCE_REDIRECT_START]).toBeUndefined();
+      expect(attrs?.[ATTR_RESOURCE_REDIRECT_END]).toBeUndefined();
+      expect(attrs?.[ATTR_RESOURCE_SECURE_CONNECTION_START]).toBeUndefined();
+      expect(attrs?.[ATTR_RESOURCE_WORKER_START]).toBeUndefined();
+
+      // Present (non-zero)
+      expect(attrs?.[ATTR_RESOURCE_DOMAIN_LOOKUP_START]).toBe(10);
+      expect(attrs?.[ATTR_RESOURCE_DOMAIN_LOOKUP_END]).toBe(20);
+      expect(attrs?.[ATTR_RESOURCE_CONNECT_START]).toBe(20);
+      expect(attrs?.[ATTR_RESOURCE_CONNECT_END]).toBe(30);
+      expect(attrs?.[ATTR_RESOURCE_REQUEST_START]).toBe(30);
+      expect(attrs?.[ATTR_RESOURCE_RESPONSE_START]).toBe(50);
+    });
+
+    it('should parse nextHopProtocol with slash into name and version', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        nextHopProtocol: 'http/1.1',
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_NETWORK_PROTOCOL_NAME]).toBe('http');
+      expect(records[0]?.attributes[ATTR_NETWORK_PROTOCOL_VERSION]).toBe('1.1');
+    });
+
+    it('should parse nextHopProtocol without slash as name only', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        nextHopProtocol: 'h2',
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_NETWORK_PROTOCOL_NAME]).toBe('h2');
+      expect(
+        records[0]?.attributes[ATTR_NETWORK_PROTOCOL_VERSION],
+      ).toBeUndefined();
+    });
+
+    it('should omit protocol attributes when nextHopProtocol is empty', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({
+        nextHopProtocol: '',
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(
+        records[0]?.attributes[ATTR_NETWORK_PROTOCOL_NAME],
+      ).toBeUndefined();
+      expect(
+        records[0]?.attributes[ATTR_NETWORK_PROTOCOL_VERSION],
+      ).toBeUndefined();
+    });
+
+    it('should include renderBlockingStatus when available', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const mockEntry = createMockResourceEntry({}, 'blocking');
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_RESOURCE_RENDER_BLOCKING_STATUS]).toBe(
+        'blocking',
+      );
     });
 
     it('should flush on visibility change', () => {
@@ -544,6 +760,7 @@ describe('ResourceTimingInstrumentation', () => {
 
 function createMockResourceEntry(
   overrides: Partial<PerformanceResourceTiming> = {},
+  renderBlockingStatus = 'non-blocking',
 ): PerformanceResourceTiming {
   return {
     name: 'https://example.com/resource.js',
@@ -552,7 +769,8 @@ function createMockResourceEntry(
     duration: 100,
     initiatorType: 'script',
     nextHopProtocol: 'h2',
-    renderBlockingStatus: 'non-blocking',
+    // renderBlockingStatus is Chromium-only, not in the TS type definition
+    renderBlockingStatus,
     responseStatus: 200,
     deliveryType: '',
     fetchStart: 0,
