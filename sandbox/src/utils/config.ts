@@ -33,7 +33,7 @@ function parseJson(
     return fallback;
   }
   try {
-    const parsed: unknown = JSON.parse(decodeURIComponent(raw));
+    const parsed = JSON.parse(decodeURIComponent(raw));
     if (
       typeof parsed === 'object' &&
       parsed !== null &&
