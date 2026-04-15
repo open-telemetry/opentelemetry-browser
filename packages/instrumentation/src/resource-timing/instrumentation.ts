@@ -30,6 +30,7 @@ import {
   ATTR_RESOURCE_RENDER_BLOCKING_STATUS,
   ATTR_RESOURCE_REQUEST_START,
   ATTR_RESOURCE_RESPONSE_END,
+  ATTR_RESOURCE_RESPONSE_STATUS,
   ATTR_RESOURCE_RESPONSE_START,
   ATTR_RESOURCE_SECURE_CONNECTION_START,
   ATTR_RESOURCE_TRANSFER_SIZE,
@@ -254,6 +255,11 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
         [ATTR_RESOURCE_ENCODED_BODY_SIZE]: entry.encodedBodySize,
         [ATTR_RESOURCE_DECODED_BODY_SIZE]: entry.decodedBodySize,
       };
+
+      // responseStatus is 0 for cross-origin resources without Timing-Allow-Origin
+      if (entry.responseStatus !== 0) {
+        attributes[ATTR_RESOURCE_RESPONSE_STATUS] = entry.responseStatus;
+      }
 
       // Timing phases: omit when browser API returns 0 (phase did not occur).
       // Non-zero values are converted to deltas from fetchStart.
