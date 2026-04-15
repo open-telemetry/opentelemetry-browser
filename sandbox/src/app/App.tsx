@@ -1,88 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { initOtel } from '../otel.ts';
-import type { OtelConfig } from '../utils/config.ts';
 import { createActions } from './actions.ts';
-import { LOG_ICONS } from './helpers.ts';
-import { useConfig } from './use-config.ts';
-
-function CodeSnippet({
-  config,
-  attrs,
-}: {
-  config: OtelConfig;
-  attrs: Record<string, string>;
-}) {
-  const entries = Object.entries(attrs);
-  return (
-    <div className="code-block">
-      <span className="kw">import</span>
-      {' { '}
-      <span className="fn">BrowserSDK</span>
-      {' } '}
-      <span className="kw">from</span>{' '}
-      <span className="str">'@opentelemetry/browser-instrumentation'</span>
-      {';\n\n'}
-      <span className="kw">const</span>
-      {' sdk = '}
-      <span className="kw">new</span> <span className="fn">BrowserSDK</span>
-      {'({\n'}
-      {'  '}
-      <span className="prop">serviceName</span>
-      {':    '}
-      <span className="str">{`'${config.serviceName}'`}</span>
-      {',\n'}
-      {'  '}
-      <span className="prop">serviceVersion</span>
-      {': '}
-      <span className="str">{`'${config.serviceVersion}'`}</span>
-      {',\n'}
-      {'  '}
-      <span className="prop">otlpExporterConfig</span>
-      {': {\n'}
-      {'    '}
-      <span className="prop">tracesUrl</span>
-      {': '}
-      <span className="str">{`'${config.tracesUrl}'`}</span>
-      {',\n'}
-      {'    '}
-      <span className="prop">logsUrl</span>
-      {'  : '}
-      <span className="str">{`'${config.logsUrl}'`}</span>
-      {',\n'}
-      {'  }'}
-      {entries.length > 0 && (
-        <>
-          {',\n  '}
-          <span className="prop">attributes</span>
-          {': {\n'}
-          {entries.map(([k, v]) => (
-            <span key={k}>
-              {'    '}
-              <span className="prop">{k}</span>
-              {': '}
-              <span className="str">{`'${v}'`}</span>
-              {',\n'}
-            </span>
-          ))}
-          {'  }'}
-        </>
-      )}
-      {',\n});\n\nsdk.'}
-      <span className="fn">start</span>
-      {'();'}
-    </div>
-  );
-}
-
-interface LogEntry {
-  id: number;
-  type: string;
-  msg: string;
-  time: string;
-}
+import { ActionsPanel } from './components/ActionsPanel.tsx';
+import { CodeSnippet } from './components/CodeSnippet.tsx';
+import type { LogEntry } from './components/EventLog.tsx';
+import { EventLog } from './components/EventLog.tsx';
+import { SandboxConfigForm } from './components/SandboxConfigForm.tsx';
+import { useSandboxConfig } from './hooks/use-sandbox-config.ts';
 
 export function App() {
-  const cfg = useConfig();
+  const cfg = useSandboxConfig();
 
   // ── SDK state ─────────────────────────────────────────────────────────────
   const [status, setStatus] = useState('loading');
@@ -90,7 +17,6 @@ export function App() {
   const [ready, setReady] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const actionsRef = useRef<ReturnType<typeof createActions> | null>(null);
-  const logBodyRef = useRef<HTMLDivElement>(null);
   const logIdRef = useRef(0);
 
   // ── Log helper ────────────────────────────────────────────────────────────
@@ -153,13 +79,6 @@ export function App() {
     cfg.initial.tracesUrl,
   ]);
 
-  // ── Auto-scroll log ───────────────────────────────────────────────────────
-  useEffect(() => {
-    if (logBodyRef.current) {
-      logBodyRef.current.scrollTop = logBodyRef.current.scrollHeight;
-    }
-  }, []);
-
   // ── Derived ───────────────────────────────────────────────────────────────
   function act(name: keyof ReturnType<typeof createActions>) {
     actionsRef.current?.[name]?.();
@@ -183,207 +102,11 @@ export function App() {
       </header>
 
       <div className="two-col">
-        {/* LEFT column */}
         <div className="left-col">
-          {/* SDK Config */}
-          <article>
-            <header>
-              <strong>SDK Config</strong>
-            </header>
-            <label>
-              serviceName
-              <input
-                type="text"
-                value={cfg.serviceName}
-                onChange={cfg.updateField(cfg.setServiceName)}
-                placeholder="my-frontend-app"
-              />
-            </label>
-            <label>
-              serviceVersion
-              <input
-                type="text"
-                value={cfg.serviceVersion}
-                onChange={cfg.updateField(cfg.setServiceVersion)}
-                placeholder="1.0.0"
-              />
-            </label>
-            <label>
-              tracesUrl
-              <input
-                type="text"
-                value={cfg.tracesUrl}
-                onChange={cfg.updateField(cfg.setTracesUrl)}
-                placeholder="http://localhost:4318/v1/traces"
-              />
-            </label>
-            <label>
-              logsUrl
-              <input
-                type="text"
-                value={cfg.logsUrl}
-                onChange={cfg.updateField(cfg.setLogsUrl)}
-                placeholder="http://localhost:4318/v1/logs"
-              />
-            </label>
-
-            {cfg.configDirty && (
-              <p>
-                <ins>Config changed — resource attributes are set at init.</ins>{' '}
-                <button
-                  type="button"
-                  className="outline"
-                  onClick={() => location.reload()}
-                >
-                  Reinit SDK
-                </button>
-              </p>
-            )}
-
-            <hr />
-            <strong>Custom Attributes</strong>
-            {cfg.customAttrs.map((attr, i) => (
-              <div className="attr-row" key={attr.id}>
-                <input
-                  type="text"
-                  value={attr.key}
-                  onChange={(e) => cfg.updateAttr(i, 'key', e.target.value)}
-                  placeholder="key"
-                />
-                <span>:</span>
-                <input
-                  type="text"
-                  value={attr.val}
-                  onChange={(e) => cfg.updateAttr(i, 'val', e.target.value)}
-                  placeholder="value"
-                />
-                <button
-                  type="button"
-                  className="outline secondary"
-                  onClick={() => cfg.removeAttr(i)}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="outline btn-add-attr"
-              style={{ marginLeft: '0.5rem' }}
-              onClick={cfg.addAttr}
-            >
-              + Add attribute
-            </button>
-          </article>
-
-          {/* Trace actions */}
-          <article>
-            <header>
-              <strong>Traces</strong>
-            </header>
-            <div className="btn-grid">
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('fetchOk')}
-                className="btn-resource"
-              >
-                ✅ Fetch 200
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('fetch404')}
-                className="btn-err"
-              >
-                🐛 Fetch 404
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('fetchNetErr')}
-                className="btn-err"
-              >
-                🔥 Net Error
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('xhr')}
-                className="btn-resource"
-              >
-                📡 XHR
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('jsError')}
-                className="btn-err"
-              >
-                💥 JS Error
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('navigation')}
-                className="btn-resource"
-              >
-                🚀 Navigate
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('customSpan')}
-                className="btn-resource"
-              >
-                ✨ Custom Span
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('nestedSpans')}
-                className="btn-resource"
-              >
-                🔀 Nested Spans
-              </button>
-            </div>
-          </article>
-
-          {/* Log actions */}
-          <article>
-            <header>
-              <strong>Logs</strong>
-            </header>
-            <div className="btn-grid">
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('logInfo')}
-                className="btn-resource"
-              >
-                💡 Info
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('logWarn')}
-                className="btn-resource"
-              >
-                🚧 Warn
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                onClick={() => act('logError')}
-                className="btn-err"
-              >
-                🚨 Error
-              </button>
-            </div>
-          </article>
+          <SandboxConfigForm cfg={cfg} />
+          <ActionsPanel ready={ready} act={act} />
         </div>
 
-        {/* RIGHT column: code snippet */}
         <article>
           <header>
             <strong>Equivalent SDK init</strong>
@@ -392,38 +115,7 @@ export function App() {
         </article>
       </div>
 
-      {/* Event Log */}
-      <article>
-        <header>
-          <strong>
-            Event Log <small>({logs.length})</small>
-          </strong>
-          <button
-            type="button"
-            className="outline"
-            style={{ marginLeft: '0.5rem' }}
-            onClick={() => setLogs([])}
-          >
-            Clear
-          </button>
-        </header>
-        <div className="log-body" ref={logBodyRef}>
-          {logs.length === 0 && (
-            <div className="log-entry">
-              <span className="log-time">—</span>
-              <span>·</span>
-              <span className="log-msg-muted">Waiting for events…</span>
-            </div>
-          )}
-          {logs.map((entry) => (
-            <div className="log-entry" key={entry.id}>
-              <span className="log-time">{entry.time}</span>
-              <span>{LOG_ICONS[entry.type] ?? '·'}</span>
-              <span className={`log-msg-${entry.type}`}>{entry.msg}</span>
-            </div>
-          ))}
-        </div>
-      </article>
+      <EventLog logs={logs} onClear={() => setLogs([])} />
     </main>
   );
 }

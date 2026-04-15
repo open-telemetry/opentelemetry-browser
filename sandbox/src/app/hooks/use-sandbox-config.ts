@@ -1,15 +1,35 @@
-// use-config.ts — React hook managing SDK config form state, URL sync, and custom attributes
+// use-sandbox-config.ts — React hook managing SDK config form state, URL sync, and custom attributes
 
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { parseConfigFromQueryString } from '../utils/config.ts';
-import type { Attr } from './helpers.ts';
-import { attrsObject, currentConfig } from './helpers.ts';
+import type { OtelConfigWithAttrs } from '../../utils/sdkConfigParser.ts';
+import { parseSDKConfigFromQueryString } from '../../utils/sdkConfigParser.ts';
+import type { Attr } from '../helpers.ts';
+import { attrsObject, currentConfig } from '../helpers.ts';
+import type { OtelConfig } from '../types/OtelConfig.type.ts';
 
 let attrId = 0;
 
-export function useConfig() {
-  const initial = useMemo(() => parseConfigFromQueryString(), []);
+export interface SandboxConfig extends OtelConfig {
+  customAttrs: Attr[];
+  configDirty: boolean;
+  initial: OtelConfigWithAttrs;
+  config: OtelConfig;
+  attrs: Record<string, string>;
+  updateField: (
+    setter: (v: string) => void,
+  ) => (e: ChangeEvent<HTMLInputElement>) => void;
+  updateAttr: (i: number, field: 'key' | 'val', value: string) => void;
+  addAttr: () => void;
+  removeAttr: (i: number) => void;
+  setServiceName: (v: string) => void;
+  setServiceVersion: (v: string) => void;
+  setTracesUrl: (v: string) => void;
+  setLogsUrl: (v: string) => void;
+}
+
+export function useSandboxConfig(): SandboxConfig {
+  const initial = useMemo(() => parseSDKConfigFromQueryString(), []);
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [serviceName, setServiceName] = useState(initial.serviceName);
@@ -87,11 +107,12 @@ export function useConfig() {
   const attrs = attrsObject(customAttrs);
 
   return {
-    // Raw values for controlled inputs
+    // Raw values for controlled inputs (satisfy OtelConfig)
     serviceName,
     serviceVersion,
     tracesUrl,
     logsUrl,
+
     customAttrs,
     configDirty,
 

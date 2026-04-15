@@ -30,7 +30,7 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions';
-import type { OtelConfig } from './utils/config.ts';
+import type { OtelConfig } from './app/types/OtelConfig.type.ts';
 import {
   createUILogExporter,
   createUISpanExporter,

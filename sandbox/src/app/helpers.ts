@@ -1,7 +1,7 @@
 // helpers.ts — shared utility functions for the sandbox UI
 
-import type { OtelConfig } from '../utils/config.ts';
-import { DEFAULTS } from '../utils/config.ts';
+import { DEFAULTS } from '../utils/sdkConfigParser.ts';
+import type { OtelConfig } from './types/OtelConfig.type.ts';
 
 export interface Attr {
   id: number;

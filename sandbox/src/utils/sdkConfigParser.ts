@@ -1,4 +1,4 @@
-// config.ts — SDK config defaults, QS parser, and form reader
+// sdkConfigParser.ts — SDK config defaults and QS parser
 //
 // Query string parameters:
 //   serviceName    → config.serviceName
@@ -7,14 +7,9 @@
 //   logsUrl        → config.logsUrl     (full OTLP logs endpoint)
 //   attrs          → config.customAttributes  (URL-encoded JSON)
 
-export interface OtelConfig {
-  serviceName: string;
-  serviceVersion: string;
-  tracesUrl: string;
-  logsUrl: string;
-}
+import type { OtelConfig } from '../app/types/OtelConfig.type.ts';
 
-export interface ParsedConfig extends OtelConfig {
+export interface OtelConfigWithAttrs extends OtelConfig {
   customAttributes: Record<string, string>;
 }
 
@@ -48,7 +43,7 @@ function parseJson(
 }
 
 /** Load config from the page URL query string. Falls back to defaults. */
-export function parseConfigFromQueryString(): ParsedConfig {
+export function parseSDKConfigFromQueryString(): OtelConfigWithAttrs {
   const qs = new URLSearchParams(location.search);
   return {
     serviceName: qs.get('serviceName') ?? DEFAULTS.serviceName,
