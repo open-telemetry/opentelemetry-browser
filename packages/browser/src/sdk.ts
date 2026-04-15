@@ -55,7 +55,7 @@ export function combineSdks<T extends SdkFactories>(
     if (factories.traces) {
       const tracesConfig = (config?.traces || {}) as TracesConfig;
       if (!tracesConfig.otlpTracesEndpoint) {
-        otlpUrl.pathname = 'v1/traces';
+        otlpUrl.pathname = '/v1/traces';
         tracesConfig.otlpTracesEndpoint = otlpUrl.href;
       }
       tracesConfig.otlpTracesHeaders ??= globalConfig.otlpHeaders;
