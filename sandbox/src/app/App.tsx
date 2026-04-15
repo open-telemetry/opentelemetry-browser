@@ -47,8 +47,8 @@ export function App() {
 
     try {
       const handle = initOtel(config, attrs, {
-        onSpan: (type, msg) => addLog(type, msg),
-        onLog: (type, msg) => addLog(type, msg),
+        onSpan: addLog,
+        onLog: addLog,
       });
 
       actionsRef.current = createActions(handle.tracer, handle.logger);
