@@ -17,6 +17,7 @@ import {
   ATTR_NETWORK_PROTOCOL_VERSION,
   ATTR_RESOURCE_CONNECT_END,
   ATTR_RESOURCE_CONNECT_START,
+  ATTR_RESOURCE_CONTENT_TYPE,
   ATTR_RESOURCE_DECODED_BODY_SIZE,
   ATTR_RESOURCE_DOMAIN_LOOKUP_END,
   ATTR_RESOURCE_DOMAIN_LOOKUP_START,
@@ -305,7 +306,13 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
         }
       }
 
-      // Chromium-only field
+      // contentType is not yet in all TS type definitions
+      const contentType = (entry as { contentType?: string }).contentType;
+      if (contentType) {
+        attributes[ATTR_RESOURCE_CONTENT_TYPE] = contentType;
+      }
+
+      // renderBlockingStatus is Chromium-only
       const renderBlockingStatus = (entry as { renderBlockingStatus?: string })
         .renderBlockingStatus;
       if (renderBlockingStatus) {

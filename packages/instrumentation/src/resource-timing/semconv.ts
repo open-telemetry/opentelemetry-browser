@@ -236,6 +236,16 @@ export const ATTR_NETWORK_PROTOCOL_VERSION = 'network.protocol.version';
 export const ATTR_RESOURCE_INITIATOR_TYPE = 'browser.resource.initiator_type';
 
 /**
+ * Content type of the response.
+ * Maps to: PerformanceResourceTiming.contentType
+ *
+ * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
+ */
+export const ATTR_HTTP_RESPONSE_HEADER_CONTENT_TYPE =
+  'http.response.header.content-type';
+export const ATTR_RESOURCE_CONTENT_TYPE = ATTR_HTTP_RESPONSE_HEADER_CONTENT_TYPE;
+
+/**
  * Render blocking status (blocking, non-blocking).
  * Browser-specific attribute. Chromium only as of March 2026.
  * Maps to: PerformanceResourceTiming.renderBlockingStatus
