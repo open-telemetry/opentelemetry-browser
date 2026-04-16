@@ -43,7 +43,7 @@ export function combineSdks<T extends SdkFactories>(
     if (factories.logs) {
       const logsConfig = (config?.logs || {}) as LogsConfig;
       if (!logsConfig.otlpLogsEndpoint) {
-        otlpUrl.pathname = 'v1/logs';
+        otlpUrl.pathname = '/v1/logs';
         logsConfig.otlpLogsEndpoint = otlpUrl.href;
       }
       logsConfig.otlpLogsHeaders ??= globalConfig.otlpHeaders;
@@ -55,7 +55,7 @@ export function combineSdks<T extends SdkFactories>(
     if (factories.traces) {
       const tracesConfig = (config?.traces || {}) as TracesConfig;
       if (!tracesConfig.otlpTracesEndpoint) {
-        otlpUrl.pathname = 'v1/traces';
+        otlpUrl.pathname = '/v1/traces';
         tracesConfig.otlpTracesEndpoint = otlpUrl.href;
       }
       tracesConfig.otlpTracesHeaders ??= globalConfig.otlpHeaders;
@@ -65,7 +65,7 @@ export function combineSdks<T extends SdkFactories>(
 
     return {
       shutdown() {
-        return Promise.all(sdks.map((s) => s.shutdown())).then(() => undefined);
+        return Promise.allSettled(sdks.map((s) => s.shutdown())).then(() => undefined);
       },
     };
   };
