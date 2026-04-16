@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DiagLogLevel } from '@opentelemetry/api';
+import type {
+  ContextManager,
+  DiagLogLevel,
+  TextMapPropagator,
+} from '@opentelemetry/api';
 import type { Resource } from '@opentelemetry/resources';
 import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
 import type { SpanLimits } from '@opentelemetry/sdk-trace-base';
@@ -38,6 +42,10 @@ export interface LogsConfig {
 }
 
 export interface TracesConfig {
+  // Context and Propagation
+  contextManager?: ContextManager;
+  textMapPropagator?: TextMapPropagator;
+
   // Resource & Entities related
   resource?: Resource;
   // Processor

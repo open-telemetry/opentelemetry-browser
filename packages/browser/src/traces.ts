@@ -4,8 +4,10 @@
  */
 
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
+import {
+  BasicTracerProvider,
+  BatchSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 
 import type { TracesConfig, WebSdk } from './types.ts';
 
@@ -22,7 +24,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     }),
   );
 
-  const tracerProvider = new WebTracerProvider({
+  const tracerProvider = new BasicTracerProvider({
     // sampler: new TraceIdRatioBasedSampler(
     //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
     // ),
@@ -30,8 +32,6 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     spanLimits: config?.spanLimits,
     spanProcessors: [spanProcessor],
   });
-  // TODO: allow context manager and propagatros???
-  tracerProvider.register();
 
   return {
     shutdown() {
