@@ -10,7 +10,7 @@ import type {
 } from '@opentelemetry/api';
 import type { Resource } from '@opentelemetry/resources';
 import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
-import type { SpanLimits } from '@opentelemetry/sdk-trace-base';
+import type { Sampler, SpanLimits } from '@opentelemetry/sdk-trace-base';
 
 export interface GlobalConfig {
   disabled?: boolean;
@@ -21,9 +21,17 @@ export interface GlobalConfig {
   // Export
   otlpEndpoint?: string;
   otlpHeaders?: Record<string, string>;
-  // Limits
+  // add other globals for queue/batch size
+
+  // Global Limits
   attrLengthLimit?: number;
   attrCountLimit?: number;
+
+  // Basic options that could translate to more complex ones
+  // in specific signals like
+  // 1. `sampleRate` becomes a TraceIdRatioBasedSampler for traces
+  //    and maybe somethign else for other signals??? (sampling logs?)
+  // sampleRate?: number;
 }
 
 export interface LogsConfig {
@@ -45,9 +53,10 @@ export interface TracesConfig {
   // Context and Propagation
   contextManager?: ContextManager;
   textMapPropagator?: TextMapPropagator;
-
   // Resource & Entities related
   resource?: Resource;
+  // Sampler
+  sampler?: Sampler;
   // Processor
   bspScheduleDelay?: number;
   bspExportTimeout?: number;

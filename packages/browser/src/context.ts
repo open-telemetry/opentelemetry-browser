@@ -7,7 +7,8 @@ import type { Context, ContextManager } from '@opentelemetry/api';
 import { ROOT_CONTEXT } from '@opentelemetry/api';
 
 /**
- * Returns a simple context manager which stack
+ * Returns a simple context manager which stacks the parent context
+ * when a function is being called.
  * @returns {ContextManager}
  */
 export function getDefaultContextManager(): ContextManager {

@@ -25,10 +25,10 @@ const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
 
 export function combineSdks<T extends SdkFactories>(
   factories: T,
-): WebSdkFactory<ConfigsFor<T>> {
+): WebSdkFactory<GlobalConfig & ConfigsFor<T>> {
   // The returned function will transform some of the global
   // configuration options to signal specific ones if the SDK is available
-  return function startSdk(config?: ConfigsFor<T>) {
+  return function startSdk(config?: GlobalConfig & ConfigsFor<T>) {
     // Check the global config and set defaults
     const globalConfig = (config || {}) as GlobalConfig;
     globalConfig.otlpEndpoint ??= DEFAULT_OTLP_ENDOINT;
@@ -65,7 +65,9 @@ export function combineSdks<T extends SdkFactories>(
 
     return {
       shutdown() {
-        return Promise.allSettled(sdks.map((s) => s.shutdown())).then(() => undefined);
+        return Promise.allSettled(sdks.map((s) => s.shutdown())).then(
+          () => undefined,
+        );
       },
     };
   };
