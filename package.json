@@ -55,11 +55,11 @@
     "vitest": "4.1.4"
   },
   "peerDependencies": {
-    "typescript": "6.0.2"
+    "typescript": "6.0.3"
   },
   "overrides": {
     "typescript-eslint": {
-      "typescript": "^6"
+      "typescript": "^6.0.3"
     }
   },
   "workspaces": [
