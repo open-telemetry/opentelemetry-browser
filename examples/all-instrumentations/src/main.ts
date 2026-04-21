@@ -23,20 +23,30 @@ logs.setGlobalLoggerProvider(loggerProvider);
 registerInstrumentations({
   instrumentations: [
     new NavigationTimingInstrumentation(),
-    new ResourceTimingInstrumentation({
-      initiatorTypes: ['xmlhttprequest', 'fetch'],
-    }),
+    new ResourceTimingInstrumentation(),
     new UserActionInstrumentation(),
     new WebVitalsInstrumentation({ includeRawAttribution: true }),
   ],
 });
 
+// Use /api proxy (same-origin) so the browser exposes full timing data.
+// Cross-origin requests hide DNS, connect, TLS, and size details unless
+// the server sends Timing-Allow-Origin.
+
 document.getElementById('xhr-button')?.addEventListener('click', () => {
   const xhr = new XMLHttpRequest();
-  xhr.open('GET', 'https://httpbin.org/get');
+  xhr.open('GET', '/api/get');
   xhr.send();
 });
 
 document.getElementById('fetch-button')?.addEventListener('click', () => {
-  fetch('https://httpbin.org/get');
+  fetch('/api/get');
+});
+
+document.getElementById('img-button')?.addEventListener('click', () => {
+  const img = document.createElement('img');
+  // httpbin /image/png returns a PNG; loaded via same-origin proxy
+  img.src = `/api/image/png?cachebust=${Date.now()}`;
+  img.style.display = 'none';
+  document.body.appendChild(img);
 });

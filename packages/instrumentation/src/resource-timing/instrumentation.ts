@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Attributes } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
@@ -12,8 +13,11 @@ import {
   requestIdleCallbackShim,
 } from './idle-callback-shim.ts';
 import {
+  ATTR_NETWORK_PROTOCOL_NAME,
+  ATTR_NETWORK_PROTOCOL_VERSION,
   ATTR_RESOURCE_CONNECT_END,
   ATTR_RESOURCE_CONNECT_START,
+  ATTR_RESOURCE_CONTENT_TYPE,
   ATTR_RESOURCE_DECODED_BODY_SIZE,
   ATTR_RESOURCE_DOMAIN_LOOKUP_END,
   ATTR_RESOURCE_DOMAIN_LOOKUP_START,
@@ -21,12 +25,12 @@ import {
   ATTR_RESOURCE_ENCODED_BODY_SIZE,
   ATTR_RESOURCE_FETCH_START,
   ATTR_RESOURCE_INITIATOR_TYPE,
-  ATTR_RESOURCE_NEXT_HOP_PROTOCOL,
   ATTR_RESOURCE_REDIRECT_END,
   ATTR_RESOURCE_REDIRECT_START,
   ATTR_RESOURCE_RENDER_BLOCKING_STATUS,
   ATTR_RESOURCE_REQUEST_START,
   ATTR_RESOURCE_RESPONSE_END,
+  ATTR_RESOURCE_RESPONSE_STATUS,
   ATTR_RESOURCE_RESPONSE_START,
   ATTR_RESOURCE_SECURE_CONNECTION_START,
   ATTR_RESOURCE_TRANSFER_SIZE,
@@ -53,6 +57,12 @@ const MIN_QUEUE_SIZE = 1;
  * and batches emissions to avoid overwhelming the main thread. It uses
  * requestIdleCallback when available (with fallback for Safari) to ensure
  * processing happens during idle periods.
+ *
+ * Timing attributes follow the unified HTTP client network timing conventions
+ * from https://github.com/open-telemetry/semantic-conventions/issues/3385:
+ * - http.call.start_time is an absolute timestamp (ms since epoch)
+ * - All other timing attributes are deltas from http.call.start_time
+ * - Browser API values of 0 (phase did not occur) are omitted
  */
 export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceTimingInstrumentationConfig> {
   private _observer?: PerformanceObserver;
@@ -234,32 +244,91 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _emitResource(entry: PerformanceResourceTiming): void {
     try {
+      const fetchStart = entry.fetchStart;
+      const attributes: Attributes = {
+        [ATTR_RESOURCE_URL]: entry.name,
+        [ATTR_RESOURCE_INITIATOR_TYPE]: entry.initiatorType,
+        [ATTR_RESOURCE_DURATION]: entry.duration,
+        [ATTR_RESOURCE_FETCH_START]: performance.timeOrigin + fetchStart,
+        [ATTR_RESOURCE_RESPONSE_END]: entry.responseEnd - fetchStart,
+        [ATTR_RESOURCE_TRANSFER_SIZE]: entry.transferSize,
+        [ATTR_RESOURCE_ENCODED_BODY_SIZE]: entry.encodedBodySize,
+        [ATTR_RESOURCE_DECODED_BODY_SIZE]: entry.decodedBodySize,
+      };
+
+      // responseStatus is 0 for cross-origin resources without Timing-Allow-Origin
+      if (entry.responseStatus !== 0) {
+        attributes[ATTR_RESOURCE_RESPONSE_STATUS] = entry.responseStatus;
+      }
+
+      // Timing phases: omit when browser API returns 0 (phase did not occur).
+      // Non-zero values are converted to deltas from fetchStart.
+      if (entry.redirectStart !== 0) {
+        attributes[ATTR_RESOURCE_REDIRECT_START] =
+          entry.redirectStart - fetchStart;
+      }
+      if (entry.redirectEnd !== 0) {
+        attributes[ATTR_RESOURCE_REDIRECT_END] = entry.redirectEnd - fetchStart;
+      }
+      if (entry.domainLookupStart !== 0) {
+        attributes[ATTR_RESOURCE_DOMAIN_LOOKUP_START] =
+          entry.domainLookupStart - fetchStart;
+      }
+      if (entry.domainLookupEnd !== 0) {
+        attributes[ATTR_RESOURCE_DOMAIN_LOOKUP_END] =
+          entry.domainLookupEnd - fetchStart;
+      }
+      if (entry.connectStart !== 0) {
+        attributes[ATTR_RESOURCE_CONNECT_START] =
+          entry.connectStart - fetchStart;
+      }
+      if (entry.connectEnd !== 0) {
+        attributes[ATTR_RESOURCE_CONNECT_END] = entry.connectEnd - fetchStart;
+      }
+      if (entry.secureConnectionStart !== 0) {
+        attributes[ATTR_RESOURCE_SECURE_CONNECTION_START] =
+          entry.secureConnectionStart - fetchStart;
+      }
+      if (entry.requestStart !== 0) {
+        attributes[ATTR_RESOURCE_REQUEST_START] =
+          entry.requestStart - fetchStart;
+      }
+      if (entry.responseStart !== 0) {
+        attributes[ATTR_RESOURCE_RESPONSE_START] =
+          entry.responseStart - fetchStart;
+      }
+      if (entry.workerStart !== 0) {
+        attributes[ATTR_RESOURCE_WORKER_START] = entry.workerStart - fetchStart;
+      }
+
+      // Protocol: parse nextHopProtocol into name and version
+      if (entry.nextHopProtocol) {
+        const { name, version: protocolVersion } = parseProtocol(
+          entry.nextHopProtocol,
+        );
+        attributes[ATTR_NETWORK_PROTOCOL_NAME] = name;
+        if (protocolVersion) {
+          attributes[ATTR_NETWORK_PROTOCOL_VERSION] = protocolVersion;
+        }
+      }
+
+      // contentType is not yet in all TS type definitions
+      const contentType = (entry as { contentType?: string }).contentType;
+      if (contentType) {
+        attributes[ATTR_RESOURCE_CONTENT_TYPE] = contentType;
+      }
+
+      // renderBlockingStatus is Chromium-only
+      const renderBlockingStatus = (entry as { renderBlockingStatus?: string })
+        .renderBlockingStatus;
+      if (renderBlockingStatus) {
+        attributes[ATTR_RESOURCE_RENDER_BLOCKING_STATUS] = renderBlockingStatus;
+      }
+
       this.logger.emit({
         eventName: RESOURCE_TIMING_EVENT_NAME,
         severityNumber: SeverityNumber.INFO,
-        attributes: {
-          [ATTR_RESOURCE_URL]: entry.name,
-          [ATTR_RESOURCE_INITIATOR_TYPE]: entry.initiatorType,
-          [ATTR_RESOURCE_DURATION]: entry.duration,
-          [ATTR_RESOURCE_FETCH_START]: entry.fetchStart,
-          [ATTR_RESOURCE_DOMAIN_LOOKUP_START]: entry.domainLookupStart,
-          [ATTR_RESOURCE_DOMAIN_LOOKUP_END]: entry.domainLookupEnd,
-          [ATTR_RESOURCE_CONNECT_START]: entry.connectStart,
-          [ATTR_RESOURCE_CONNECT_END]: entry.connectEnd,
-          [ATTR_RESOURCE_SECURE_CONNECTION_START]: entry.secureConnectionStart,
-          [ATTR_RESOURCE_REQUEST_START]: entry.requestStart,
-          [ATTR_RESOURCE_RESPONSE_START]: entry.responseStart,
-          [ATTR_RESOURCE_RESPONSE_END]: entry.responseEnd,
-          [ATTR_RESOURCE_TRANSFER_SIZE]: entry.transferSize,
-          [ATTR_RESOURCE_ENCODED_BODY_SIZE]: entry.encodedBodySize,
-          [ATTR_RESOURCE_DECODED_BODY_SIZE]: entry.decodedBodySize,
-          [ATTR_RESOURCE_REDIRECT_START]: entry.redirectStart,
-          [ATTR_RESOURCE_REDIRECT_END]: entry.redirectEnd,
-          [ATTR_RESOURCE_WORKER_START]: entry.workerStart,
-          [ATTR_RESOURCE_NEXT_HOP_PROTOCOL]: entry.nextHopProtocol,
-          // @ts-expect-error renderBlockingStatus is only available in Chromium as of March 2026
-          [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: entry.renderBlockingStatus,
-        },
+        attributes,
       });
     } catch (error) {
       this._diag.error(
@@ -284,4 +353,27 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       this._idleHandle = undefined;
     }
   }
+}
+
+/**
+ * Parse a nextHopProtocol string into protocol name and version.
+ *
+ * Examples:
+ *   "h2"      → { name: "h2" }
+ *   "h3"      → { name: "h3" }
+ *   "http/1.1" → { name: "http", version: "1.1" }
+ *   "http/1.0" → { name: "http", version: "1.0" }
+ */
+function parseProtocol(protocol: string): {
+  name: string;
+  version: string | undefined;
+} {
+  const slashIndex = protocol.indexOf('/');
+  if (slashIndex === -1) {
+    return { name: protocol, version: undefined };
+  }
+  return {
+    name: protocol.substring(0, slashIndex),
+    version: protocol.substring(slashIndex + 1),
+  };
 }
