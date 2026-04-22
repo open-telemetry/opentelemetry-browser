@@ -118,7 +118,9 @@ export class BrowserDocumentUrlInstrumentation
   override setLoggerProvider(loggerProvider: LoggerProvider): void {
     super.setLoggerProvider(loggerProvider);
 
-    const sharedState = (loggerProvider as unknown as LoggerProviderWithSharedState)._sharedState;
+    const sharedState = (
+      loggerProvider as unknown as LoggerProviderWithSharedState
+    )._sharedState;
     if (!sharedState) {
       this._diag.warn(
         'BrowserDocumentUrlInstrumentation: LoggerProvider does not expose ' +
