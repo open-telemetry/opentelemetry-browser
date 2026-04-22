@@ -27,6 +27,7 @@
     "#instrumentation-test-utils": "./src/test-utils/index.ts"
   },
   "exports": {
+    "./experimental/browser-document-url": "./dist/browser-document-url/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
