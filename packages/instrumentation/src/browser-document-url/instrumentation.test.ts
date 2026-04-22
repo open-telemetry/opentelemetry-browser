@@ -189,7 +189,13 @@ describe('BrowserDocumentUrlInstrumentation', () => {
 
       // Inject inst manually into the global provider's processor list.
       // This mimics what happens when it's passed to the provider config.
-      const sharedState = (logs.getLoggerProvider() as { _sharedState?: { registeredLogRecordProcessors: typeof instrumentation[] } })._sharedState;
+      const sharedState = (
+        logs.getLoggerProvider() as {
+          _sharedState?: {
+            registeredLogRecordProcessors: (typeof instrumentation)[];
+          };
+        }
+      )._sharedState;
       sharedState?.registeredLogRecordProcessors.push(inst);
 
       const unregister = registerInstrumentations({
@@ -213,12 +219,16 @@ describe('BrowserDocumentUrlInstrumentation', () => {
       logger.emit({ body: 'after deregister' });
       const records2 = exporter.getFinishedLogRecords();
       expect(records2.length).toBe(1);
-      expect(records2[0]?.attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBeUndefined();
+      expect(
+        records2[0]?.attributes[ATTR_BROWSER_DOCUMENT_URL_FULL],
+      ).toBeUndefined();
 
       // Cleanup: remove inst from the provider's processor list.
       if (sharedState) {
         const idx = sharedState.registeredLogRecordProcessors.indexOf(inst);
-        if (idx !== -1) sharedState.registeredLogRecordProcessors.splice(idx, 1);
+        if (idx !== -1) {
+          sharedState.registeredLogRecordProcessors.splice(idx, 1);
+        }
       }
     });
   });
