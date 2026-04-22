@@ -13,10 +13,22 @@ import type { BrowserDocumentUrlInstrumentationConfig } from './types.ts';
 
 /**
  * Duck-typed interface for TracerProviders that support adding span processors
- * at runtime (e.g. `BasicTracerProvider` / `WebTracerProvider` from the SDK).
+ * at runtime (SDK v1.x `BasicTracerProvider` had a public `addSpanProcessor`
+ * method; v2.x removed it).
  */
-interface TracerProviderWithSpanProcessor {
+interface TracerProviderV1 {
   addSpanProcessor?(processor: SpanProcessorLike): void;
+}
+
+/**
+ * Duck-typed interface for SDK v2.x `BasicTracerProvider`, which stores
+ * processors inside `_activeSpanProcessor` (a `MultiSpanProcessor` whose
+ * `_spanProcessors` array is iterated on every `onStart` call).
+ */
+interface TracerProviderV2 {
+  _activeSpanProcessor?: {
+    _spanProcessors?: SpanProcessorLike[];
+  };
 }
 
 /**
@@ -140,9 +152,12 @@ export class BrowserDocumentUrlInstrumentation
    * Called by `registerInstrumentations()` with the active tracer provider.
    *
    * Unwraps `ProxyTracerProvider` (which `@opentelemetry/api` uses as the
-   * global provider) to reach the real SDK provider, then calls
-   * `addSpanProcessor(this)` via duck-typing if the method is available (e.g.
-   * on `WebTracerProvider` / `BasicTracerProvider`).
+   * global provider) to reach the real SDK provider, then injects `this` as a
+   * span processor using whichever hook is available:
+   *
+   * - SDK v1.x: `addSpanProcessor()` (public method, removed in v2).
+   * - SDK v2.x: push directly into `_activeSpanProcessor._spanProcessors`,
+   *   the array that `MultiSpanProcessor.onStart` iterates at call time.
    */
   override setTracerProvider(tracerProvider: TracerProvider): void {
     super.setTracerProvider(tracerProvider);
@@ -154,15 +169,25 @@ export class BrowserDocumentUrlInstrumentation
       realProvider = asProxy.getDelegate();
     }
 
-    const asRegistrar = realProvider as TracerProviderWithSpanProcessor;
-    if (typeof asRegistrar.addSpanProcessor === 'function') {
-      asRegistrar.addSpanProcessor(this);
-    } else {
-      this._diag.debug(
-        'BrowserDocumentUrlInstrumentation: TracerProvider does not support ' +
-          'addSpanProcessor — span attribute will not be set automatically.',
-      );
+    // SDK v1.x path
+    const asV1 = realProvider as TracerProviderV1;
+    if (typeof asV1.addSpanProcessor === 'function') {
+      asV1.addSpanProcessor(this);
+      return;
     }
+
+    // SDK v2.x path — inject into MultiSpanProcessor's processor list
+    const asV2 = realProvider as TracerProviderV2;
+    const spanProcessors = asV2._activeSpanProcessor?._spanProcessors;
+    if (spanProcessors && !spanProcessors.includes(this)) {
+      spanProcessors.push(this);
+      return;
+    }
+
+    this._diag.debug(
+      'BrowserDocumentUrlInstrumentation: TracerProvider does not support ' +
+        'span processor injection — span attribute will not be set automatically.',
+    );
   }
 
   // -------------------------------------------------------------------------
