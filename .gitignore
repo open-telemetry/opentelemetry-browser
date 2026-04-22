@@ -4,6 +4,7 @@ node_modules
 __screenshots__
 dist
 *.tgz
+.vitest-attachments
 
 # dotenv environment variable files
 .env

@@ -1,0 +1,23 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import type { TextMapPropagator } from '@opentelemetry/api';
+import {
+  CompositePropagator,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core';
+
+/**
+ * Returns the default propagator which is a composition of:
+ * - W3CTraceContextPropagator
+ * -W3CBaggagePropagator
+ * @returns {TextMapPropagator}
+ */
+export function getDefaultPropagator(): TextMapPropagator {
+  return new CompositePropagator({
+    propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
+  });
+}
