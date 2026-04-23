@@ -2,8 +2,8 @@
 
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import type { OtelConfigWithAttrs } from '../../utils/sdkConfigParser.ts';
-import { parseSDKConfigFromQueryString } from '../../utils/sdkConfigParser.ts';
+import type { OtelConfigWithAttrs } from '../../utils/sdk-config-parser.ts';
+import { parseSDKConfigFromQueryString } from '../../utils/sdk-config-parser.ts';
 import type { Attr } from '../helpers.ts';
 import { attrsObject, currentConfig } from '../helpers.ts';
 import type { OtelConfig } from '../types/OtelConfig.type.ts';

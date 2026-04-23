@@ -1,4 +1,4 @@
-// sdkConfigParser.ts — SDK config defaults and QS parser
+// sdk-config-parser.ts — SDK config defaults and QS parser
 //
 // Query string parameters:
 //   serviceName    → config.serviceName
