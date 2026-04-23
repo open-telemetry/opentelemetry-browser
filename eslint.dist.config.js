@@ -35,4 +35,20 @@ export default [
       ],
     },
   },
+  // navigation intentionally uses the Navigation API (not widely available)
+  // behind an opt-in config flag, with a history-patching fallback.
+  {
+    files: ['packages/instrumentation/dist/navigation/**/*.js'],
+    rules: {
+      'baseline-js/use-baseline': [
+        'error',
+        {
+          available: 'widely',
+          includeWebApis: { preset: 'auto' },
+          includeJsBuiltins: { preset: 'auto' },
+          ignoreFeatures: ['navigation'],
+        },
+      ],
+    },
+  },
 ];

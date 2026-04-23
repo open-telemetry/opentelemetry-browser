@@ -39,10 +39,7 @@ describe('isHashChange', () => {
 
   it('should return false when URLs have different origins', () => {
     expect(
-      isHashChange(
-        'https://example.com/page#s1',
-        'https://other.com/page#s2',
-      ),
+      isHashChange('https://example.com/page#s1', 'https://other.com/page#s2'),
     ).toBe(false);
   });
 
@@ -101,7 +98,10 @@ describe('isHashChange', () => {
   describe('edge cases', () => {
     it('should handle empty hash correctly', () => {
       expect(
-        isHashChange('https://example.com/page#', 'https://example.com/page#s1'),
+        isHashChange(
+          'https://example.com/page#',
+          'https://example.com/page#s1',
+        ),
       ).toBe(true);
     });
 

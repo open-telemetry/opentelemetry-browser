@@ -66,11 +66,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   private declare _onCurrentEntryChange?: (event: NavigationApiEvent) => void;
 
   constructor(config: NavigationInstrumentationConfig = {}) {
-    super(
-      '@opentelemetry/browser-instrumentation/navigation',
-      version,
-      config,
-    );
+    super('@opentelemetry/browser-instrumentation/navigation', version, config);
     this._lastUrl = location.href;
   }
 
@@ -144,9 +140,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
     if (!cfg.useNavigationApiIfAvailable) {
       return undefined;
     }
-    const nav = (window as unknown as { navigation?: NavigationApi })
-      .navigation;
-    return nav;
+    return (window as unknown as { navigation?: NavigationApi }).navigation;
   }
 
   private _onHardNavigation(): void {

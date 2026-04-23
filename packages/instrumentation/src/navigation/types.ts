@@ -6,13 +6,9 @@
 import type { LogRecord } from '@opentelemetry/api-logs';
 import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
-export interface ApplyCustomLogRecordDataFunction {
-  (logRecord: LogRecord): void;
-}
+export type ApplyCustomLogRecordDataFunction = (logRecord: LogRecord) => void;
 
-export interface SanitizeUrlFunction {
-  (url: string): string;
-}
+export type SanitizeUrlFunction = (url: string) => string;
 
 export type NavigationType = 'push' | 'replace' | 'reload' | 'traverse';
 
