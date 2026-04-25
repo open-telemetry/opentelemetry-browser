@@ -76,7 +76,10 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
 
     return function patchConsoleMethod(original: Console[ConsoleMethod]) {
       return function (this: Console, ...args: unknown[]) {
-        if (instrumentation._active) {
+        if (
+          instrumentation._active &&
+          instrumentation._getLogMethods().includes(method)
+        ) {
           const logContext = context.active();
           const body = instrumentation._getMessageSerializer()(args);
 
@@ -103,8 +106,7 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
       return;
     }
     this._isPatched = true;
-    const methods = this._getLogMethods();
-    for (const method of methods) {
+    for (const method of DEFAULT_LOG_METHODS) {
       if (typeof console[method] === 'function') {
         this._wrap(console, method, this._patchConsoleMethod(method));
       }

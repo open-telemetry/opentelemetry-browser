@@ -154,6 +154,30 @@ describe('ConsoleInstrumentation', () => {
       const logs = inMemoryExporter.getFinishedLogRecords();
       expect(logs.length).toBe(0);
     });
+
+    it('should respect logMethods updates via setConfig at runtime', () => {
+      instrumentation.setConfig({ logMethods: ['error'] });
+
+      console.log('log message');
+      console.warn('warn message');
+      console.error('error message');
+
+      let logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.severityText).toBe('error');
+
+      inMemoryExporter.reset();
+      instrumentation.setConfig({ logMethods: ['log', 'warn'] });
+
+      console.log('log message');
+      console.warn('warn message');
+      console.error('error message');
+
+      logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(2);
+      expect(logs[0]?.severityText).toBe('log');
+      expect(logs[1]?.severityText).toBe('warn');
+    });
   });
 
   describe('default serialization', () => {
