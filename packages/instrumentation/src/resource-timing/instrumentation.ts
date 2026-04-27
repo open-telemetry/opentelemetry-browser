@@ -4,6 +4,7 @@
  */
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
+import { isUrlIgnored } from '@opentelemetry/core';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
@@ -151,6 +152,10 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
             initiatorTypes !== undefined &&
             !initiatorTypes.includes(entry.initiatorType)
           ) {
+            continue;
+          }
+
+          if (isUrlIgnored(entry.name, this._config.ignoreUrls)) {
             continue;
           }
 
