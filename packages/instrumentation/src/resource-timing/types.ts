@@ -41,4 +41,10 @@ export interface ResourceTimingInstrumentationConfig
    * are captured. When unset, all resource entries are captured.
    */
   initiatorTypes?: string[];
+
+  /**
+   * URLs to ignore. Entries whose URL matches any of the patterns will not be
+   * captured. Strings are matched exactly; RegExps are tested against the full URL.
+   */
+  ignoreUrls?: Array<string | RegExp>;
 }
