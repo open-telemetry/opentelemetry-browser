@@ -380,6 +380,104 @@ describe('ResourceTimingInstrumentation', () => {
 
       expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
     });
+
+    it('should ignore entries whose URL matches an ignoreUrls string', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        ignoreUrls: ['https://example.com/ignored.js'],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: 'https://example.com/ignored.js' }),
+        createMockResourceEntry({ name: 'https://example.com/kept.js' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/kept.js',
+      );
+    });
+
+    it('should ignore entries whose URL matches an ignoreUrls RegExp', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        ignoreUrls: [/analytics/],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: 'https://example.com/analytics.js' }),
+        createMockResourceEntry({
+          name: 'https://example.com/analytics/track',
+        }),
+        createMockResourceEntry({ name: 'https://example.com/app.js' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/app.js',
+      );
+    });
+
+    it('should capture all entries when ignoreUrls is empty', () => {
+      instrumentation = new ResourceTimingInstrumentation({ ignoreUrls: [] });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: 'https://example.com/a.js' }),
+        createMockResourceEntry({ name: 'https://example.com/b.js' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(2);
+    });
+
+    it('should support multiple ignoreUrls patterns (string and RegExp)', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        ignoreUrls: ['https://example.com/exact.js', /tracking/],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: 'https://example.com/exact.js' }),
+        createMockResourceEntry({ name: 'https://example.com/tracking.js' }),
+        createMockResourceEntry({ name: 'https://example.com/kept.js' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/kept.js',
+      );
+    });
   });
 
   describe('Data Emission', () => {
