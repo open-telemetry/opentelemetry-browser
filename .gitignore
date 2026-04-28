@@ -5,8 +5,13 @@ __screenshots__
 dist
 *.tgz
 
+# logs
+*.log
+
 # dotenv environment variable files
 .env
+.env.local
+.env.*.local
 
 # caches
 *.tsbuildinfo

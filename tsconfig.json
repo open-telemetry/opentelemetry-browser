@@ -26,6 +26,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": true,
+    "noUncheckedSideEffectImports": true,
 
     // @turbo/gen -> node-plop brings incompatible @types/glob and @types/inquirer
     "skipLibCheck": true
