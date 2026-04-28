@@ -122,12 +122,20 @@ processors:
       - context: log
         statements:
           - set(attributes["scope.name"], instrumentation_scope.name)
+  # Loki's OTLP ingest does not map the top-level OTLP `event_name` field to a
+  # stream label or structured metadata. Mirror it into a log attribute so it
+  # surfaces as the `event_name` label in Loki.
+  transform/event_name_to_attr:
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["event.name"], event_name) where event_name != nil and event_name != ""
 
 service:
   pipelines:
     logs:
       receivers: [otlp]
-      processors: [transform/copy_scope, batch]
+      processors: [transform/copy_scope, transform/event_name_to_attr, batch]
       exporters: [otlphttp/loki, count, signaltometrics]
     traces:
       receivers: [otlp]
