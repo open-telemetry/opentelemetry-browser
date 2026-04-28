@@ -13,6 +13,7 @@ npm install @opentelemetry/browser-instrumentation
 
 ## Instrumentations
 
+- [Navigation](#navigation) — automatic instrumentation for browser navigations (initial load and SPA route changes)
 - [Navigation Timing](#navigation-timing) — automatic instrumentation for navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
@@ -28,6 +29,7 @@ import {
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -42,6 +44,7 @@ logs.setGlobalLoggerProvider(logProvider);
 
 registerInstrumentations({
   instrumentations: [
+    new NavigationInstrumentation(),
     new NavigationTimingInstrumentation(),
     new ResourceTimingInstrumentation(),
     new UserActionInstrumentation(),
@@ -49,6 +52,62 @@ registerInstrumentations({
   ],
 });
 ```
+
+---
+
+### Navigation
+
+```typescript
+import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
+```
+
+Emits a `browser.navigation` event for the initial page load (hard navigation) and for subsequent in-page navigations (soft navigations), including `history.pushState`, `history.replaceState`, `popstate`, and hash changes. When enabled via config, the [Navigation API](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API) is used in preference to patching `history`.
+
+#### Configuration
+
+```typescript
+import {
+  NavigationInstrumentation,
+  defaultSanitizeUrl,
+} from '@opentelemetry/browser-instrumentation/experimental/navigation';
+
+new NavigationInstrumentation({
+  // Use window.navigation (Navigation API) when available instead of
+  // patching history.pushState / history.replaceState. Default: false.
+  useNavigationApiIfAvailable: true,
+
+  // Rewrite the captured URL before it is emitted. Useful for stripping
+  // path segments, query parameters, or tokens that should not be exported.
+  sanitizeUrl: (url) => defaultSanitizeUrl(url),
+
+  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  applyCustomLogRecordData: (logRecord) => {
+    logRecord.attributes = {
+      ...logRecord.attributes,
+      'app.route.id': '...',
+    };
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. |
+| `sanitizeUrl` | `(url: string) => string` | — | Called before the URL is written to `url.full`. |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+`defaultSanitizeUrl` is exported for composition — it redacts `user:password@` credentials and a set of common sensitive query parameters (`api_key`, `token`, `password`, etc.).
+
+#### Captured Attributes
+
+Each `browser.navigation` event includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `url.full` | The destination URL (after `sanitizeUrl` if configured). |
+| `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads. |
+| `browser.navigation.hash_change` | `true` when the navigation only adds or changes the URL fragment. |
+| `browser.navigation.type` | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
 
 ---
 
