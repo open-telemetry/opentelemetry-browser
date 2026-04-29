@@ -45,6 +45,8 @@ export interface ResourceTimingInstrumentationConfig
   /**
    * URLs to ignore. Entries whose URL matches any of the patterns will not be
    * captured. Strings are matched exactly; RegExps are tested against the full URL.
+   * Avoid RegExps with the `g` or `y` flag — their stateful `lastIndex` causes
+   * alternating match results across repeated calls.
    */
-  ignoreUrls?: Array<string | RegExp>;
+  ignoreUrls?: (string | RegExp)[];
 }

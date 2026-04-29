@@ -478,6 +478,58 @@ describe('ResourceTimingInstrumentation', () => {
         'https://example.com/kept.js',
       );
     });
+
+    it('should not ignore entries whose URL only contains a string pattern (strings match exactly, not as substrings)', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        ignoreUrls: ['analytics'],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: 'https://example.com/analytics.js' }),
+        createMockResourceEntry({ name: 'https://analytics.example.com/track' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      // Neither URL equals the string 'analytics' exactly, so both are captured
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(2);
+    });
+
+    it('should apply ignoreUrls and initiatorTypes filters together', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        initiatorTypes: ['fetch', 'script'],
+        ignoreUrls: [/analytics/],
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: 'https://example.com/app.js', initiatorType: 'script' }),
+        createMockResourceEntry({ name: 'https://example.com/analytics.js', initiatorType: 'script' }),
+        createMockResourceEntry({ name: 'https://example.com/api/data', initiatorType: 'fetch' }),
+        createMockResourceEntry({ name: 'https://example.com/img.png', initiatorType: 'img' }),
+        createMockResourceEntry({ name: 'https://analytics.example.com/track', initiatorType: 'fetch' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(1000);
+
+      // app.js passes both filters; analytics.js blocked by ignoreUrls;
+      // api/data passes both; img.png blocked by initiatorTypes; track blocked by ignoreUrls
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(2);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('https://example.com/app.js');
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('https://example.com/api/data');
+    });
   });
 
   describe('Data Emission', () => {
