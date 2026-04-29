@@ -14,7 +14,7 @@
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const RESOURCE_TIMING_EVENT_NAME = 'browser.resource.timing';
+export const RESOURCE_TIMING_EVENT_NAME = 'browser.resource_timing';
 
 // Resource timing attributes
 
@@ -23,28 +23,29 @@ export const RESOURCE_TIMING_EVENT_NAME = 'browser.resource.timing';
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_URL = 'browser.resource.url';
+export const ATTR_RESOURCE_URL = 'url.full';
 
 /**
  * The type of resource (script, stylesheet, img, xmlhttprequest, fetch, etc.)
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_INITIATOR_TYPE = 'browser.resource.initiator_type';
+export const ATTR_RESOURCE_INITIATOR_TYPE =
+  'browser.resource_timing.initiator_type';
 
 /**
  * Total duration of the resource load (in milliseconds)
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_DURATION = 'browser.resource.duration';
+export const ATTR_RESOURCE_DURATION = 'browser.resource_timing.duration';
 
 /**
  * Start time of the resource fetch (relative to navigation start)
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_FETCH_START = 'browser.resource.fetch_start';
+export const ATTR_RESOURCE_FETCH_START = 'browser.resource_timing.fetch_start';
 
 /**
  * Domain lookup start time
@@ -52,7 +53,7 @@ export const ATTR_RESOURCE_FETCH_START = 'browser.resource.fetch_start';
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_DOMAIN_LOOKUP_START =
-  'browser.resource.domain_lookup_start';
+  'browser.resource_timing.domain_lookup_start';
 
 /**
  * Domain lookup end time
@@ -60,21 +61,22 @@ export const ATTR_RESOURCE_DOMAIN_LOOKUP_START =
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_DOMAIN_LOOKUP_END =
-  'browser.resource.domain_lookup_end';
+  'browser.resource_timing.domain_lookup_end';
 
 /**
  * Connection start time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_CONNECT_START = 'browser.resource.connect_start';
+export const ATTR_RESOURCE_CONNECT_START =
+  'browser.resource_timing.connect_start';
 
 /**
  * Connection end time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_CONNECT_END = 'browser.resource.connect_end';
+export const ATTR_RESOURCE_CONNECT_END = 'browser.resource_timing.connect_end';
 
 /**
  * Secure connection start time (HTTPS)
@@ -82,35 +84,39 @@ export const ATTR_RESOURCE_CONNECT_END = 'browser.resource.connect_end';
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_SECURE_CONNECTION_START =
-  'browser.resource.secure_connection_start';
+  'browser.resource_timing.secure_connection_start';
 
 /**
  * Request start time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_REQUEST_START = 'browser.resource.request_start';
+export const ATTR_RESOURCE_REQUEST_START =
+  'browser.resource_timing.request_start';
 
 /**
  * Response start time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_RESPONSE_START = 'browser.resource.response_start';
+export const ATTR_RESOURCE_RESPONSE_START =
+  'browser.resource_timing.response_start';
 
 /**
  * Response end time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_RESPONSE_END = 'browser.resource.response_end';
+export const ATTR_RESOURCE_RESPONSE_END =
+  'browser.resource_timing.response_end';
 
 /**
  * Transfer size in bytes (including headers)
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_TRANSFER_SIZE = 'browser.resource.transfer_size';
+export const ATTR_RESOURCE_TRANSFER_SIZE =
+  'browser.resource_timing.transfer_size';
 
 /**
  * Encoded body size in bytes (compressed)
@@ -118,7 +124,7 @@ export const ATTR_RESOURCE_TRANSFER_SIZE = 'browser.resource.transfer_size';
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_ENCODED_BODY_SIZE =
-  'browser.resource.encoded_body_size';
+  'browser.resource_timing.encoded_body_size';
 
 /**
  * Decoded body size in bytes (uncompressed)
@@ -126,28 +132,31 @@ export const ATTR_RESOURCE_ENCODED_BODY_SIZE =
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_DECODED_BODY_SIZE =
-  'browser.resource.decoded_body_size';
+  'browser.resource_timing.decoded_body_size';
 
 /**
  * Redirect start time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_REDIRECT_START = 'browser.resource.redirect_start';
+export const ATTR_RESOURCE_REDIRECT_START =
+  'browser.resource_timing.redirect_start';
 
 /**
  * Redirect end time
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_REDIRECT_END = 'browser.resource.redirect_end';
+export const ATTR_RESOURCE_REDIRECT_END =
+  'browser.resource_timing.redirect_end';
 
 /**
  * Worker start time (for Service Worker interception)
  *
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
-export const ATTR_RESOURCE_WORKER_START = 'browser.resource.worker_start';
+export const ATTR_RESOURCE_WORKER_START =
+  'browser.resource_timing.worker_start';
 
 /**
  * Next hop protocol (h2, h3, http/1.1, etc.)
@@ -155,7 +164,7 @@ export const ATTR_RESOURCE_WORKER_START = 'browser.resource.worker_start';
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_NEXT_HOP_PROTOCOL =
-  'browser.resource.next_hop_protocol';
+  'browser.resource_timing.next_hop_protocol';
 
 /**
  * Render blocking status (blocking, non-blocking)
@@ -163,4 +172,4 @@ export const ATTR_RESOURCE_NEXT_HOP_PROTOCOL =
  * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
  */
 export const ATTR_RESOURCE_RENDER_BLOCKING_STATUS =
-  'browser.resource.render_blocking_status';
+  'browser.resource_timing.render_blocking_status';

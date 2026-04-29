@@ -2,92 +2,97 @@
 
 ## About
 
-This repository is the home of OpenTelemetry Browser instrumentation packages and the future home of the OpenTelemetry Browser SDK.
+This repository is the home of OpenTelemetry Browser instrumentations and the future home of the OpenTelemetry Browser SDK.
 
-Note: At present, browser instrumentation packages are maintained in this repository, the JavaScript SDK repository and the JavaScript Contrib repository:
-- [packages/instrumentation](https://github.com/open-telemetry/opentelemetry-browser/tree/main/packages/instrumentation)
-- [@opentelemetry/opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js)
-- [@opentelemetry/opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib)
+This repo provides **event-based instrumentations** that emit events (structured log records) for browser performance and user interactions. These complement the existing **span-based instrumentations** maintained in the [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) repositories.
 
-See the [Packages](#packages) section below for a list of browser-related packages.
+See the [Browser Packages](#browser-packages) section below for a full list of browser-related packages across all repositories.
 
 ## Quick Start
 
 ### Installation
 
 ```bash
-npm install @opentelemetry/sdk-trace-web \
-  @opentelemetry/opentelemetry-browser-detector \
-  @opentelemetry/instrumentation \
-  @opentelemetry/exporter-trace-otlp-http \
-  @opentelemetry/instrumentation-fetch \
-  @opentelemetry/instrumentation-xml-http-request
+npm install @opentelemetry/browser-instrumentation \
+  @opentelemetry/api \
+  @opentelemetry/api-logs \
+  @opentelemetry/sdk-logs \
+  @opentelemetry/instrumentation
 ```
 
 ### Basic example
 
-```js
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+```typescript
+import { logs } from '@opentelemetry/api-logs';
+import {
+  ConsoleLogRecordExporter,
+  LoggerProvider,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
-import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
-import { resourceFromAttributes, detectResources } from '@opentelemetry/resources';
-import { BatchSpanProcessor, WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
+import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
+import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
+import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 
-// configure resources
-let resource = resourceFromAttributes({
-  [ATTR_SERVICE_NAME]: 'my-app',
+const logProvider = new LoggerProvider({
+  processors: [
+    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+  ],
 });
-let detectedResources = await detectResources({detectors:[browserDetector]});
-resource = resource.merge(detectedResources);
+logs.setGlobalLoggerProvider(logProvider);
 
-// configure exporter
-const exporter = new OTLPTraceExporter({
-  url: '<opentelemetry-collector-url>'
-});
-
-// initialize trace provider
-const provider = new WebTracerProvider({
-  resource,
-  spanProcessors: [new BatchSpanProcessor(exporter)]
-});
-provider.register();
-
-// Registering instrumentations
 registerInstrumentations({
   instrumentations: [
-    new FetchInstrumentation(),
-    new XMLHttpRequestInstrumentation()
+    new NavigationTimingInstrumentation(),
+    new UserActionInstrumentation(),
+    new WebVitalsInstrumentation(),
   ],
 });
 ```
 
-## Packages
+For detailed configuration options, see the [instrumentation package README](./packages/instrumentation/README.md).
 
-The following tables list browser-related packages, where they live today, and their intent.
+### More examples
 
-### SDK and Utilities
+For a more complete setup combining event-based instrumentations from this repository with span-based instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib), see the [examples](./examples/) directory.
 
-| Package | Location | Intent | Status |
+## Browser Packages
+
+The following tables list browser-related packages across all OpenTelemetry JS repositories.
+
+### Packages in this repository
+
+| Package | Description | Status |
+| --- | --- | --- |
+| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Event-based browser instrumentations (navigation timing, user actions, web vitals). | experimental |
+
+### Event-based instrumentations (other repositories)
+
+| Package | Location | Description | Status |
 | --- | --- | --- | --- |
-| opentelemetry-sdk-trace-web | [opentelemetry-js/packages/opentelemetry-sdk-trace-web](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-web) | Browser tracing SDK (WebTracerProvider, web tracing setup). | stable |
-| opentelemetry-browser-detector | [opentelemetry-js/experimental/packages/opentelemetry-browser-detector](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-browser-detector) | Resource detector for browser environment attributes. | experimental |
-| web-common | [opentelemetry-js/experimental/packages/web-common](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/web-common) | Shared utilities for browser/web instrumentations. | experimental |
-| opentelemetry-context-zone | [opentelemetry-js/packages/opentelemetry-context-zone](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-context-zone) | Zone.js-based context manager for maintaining trace context in browsers. | stable |
-| auto-instrumentations-web | [opentelemetry-js-contrib/packages/auto-instrumentations-web](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/auto-instrumentations-web) | Bundle that auto-enables common web instrumentations. | experimental |
+| instrumentation-browser-navigation | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-browser-navigation) | Capture browser navigation events (SPA route changes). | experimental |
+| instrumentation-web-exception | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-web-exception) | Capture unhandled exceptions and promise rejections. | experimental |
 
-### Instrumentations
+### Span-based instrumentations (other repositories)
 
-| Package | Location | Intent | Status |
+| Package | Location | Description | Status |
 | --- | --- | --- | --- |
-| opentelemetry-instrumentation-fetch | [opentelemetry-js/experimental/packages/opentelemetry-instrumentation-fetch](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-fetch) | Instrumentation for the Fetch API. | experimental |
-| opentelemetry-instrumentation-xml-http-request | [opentelemetry-js/experimental/packages/opentelemetry-instrumentation-xml-http-request](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-xml-http-request) | Instrumentation for XMLHttpRequest. | experimental |
-| instrumentation-document-load | [opentelemetry-js-contrib/packages/instrumentation-document-load](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-document-load) | Capture document load/navigation timing spans. | experimental |
-| instrumentation-long-task | [opentelemetry-js-contrib/packages/instrumentation-long-task](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-long-task) | Capture Long Tasks API entries as spans. | experimental |
-| instrumentation-user-interaction | [opentelemetry-js-contrib/packages/instrumentation-user-interaction](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-user-interaction) | Trace user interactions (e.g., clicks). | experimental |
-| plugin-react-load | [opentelemetry-js-contrib/packages/plugin-react-load](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/plugin-react-load) | Instrument React application load/mount performance. | experimental |
+| opentelemetry-instrumentation-fetch | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-fetch) | Instrumentation for the Fetch API. | experimental |
+| opentelemetry-instrumentation-xml-http-request | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-xml-http-request) | Instrumentation for XMLHttpRequest. | experimental |
+| instrumentation-document-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-document-load) | Capture document load/navigation timing spans. | experimental |
+| instrumentation-long-task | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-long-task) | Capture Long Tasks API entries as spans. | experimental |
+| instrumentation-user-interaction | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-user-interaction) | Trace user interactions (e.g., clicks). | experimental |
+| plugin-react-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/plugin-react-load) | Instrument React application load/mount performance. | experimental |
+
+### SDK and Utilities (other repositories)
+
+| Package | Location | Description | Status |
+| --- | --- | --- | --- |
+| opentelemetry-sdk-trace-web | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-web) | Browser tracing SDK (WebTracerProvider, web tracing setup). | stable |
+| opentelemetry-browser-detector | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-browser-detector) | Resource detector for browser environment attributes. | experimental |
+| web-common | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/web-common) | Shared utilities for browser/web instrumentations. | experimental |
+| opentelemetry-context-zone | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-context-zone) | Zone.js-based context manager for maintaining trace context in browsers. | stable |
+| auto-instrumentations-web | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/auto-instrumentations-web) | Bundle that auto-enables common web instrumentations. | experimental |
 
 ## Contributing
 

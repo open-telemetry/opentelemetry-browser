@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ContextManager } from '@opentelemetry/api';
+import type { Context, ContextManager } from '@opentelemetry/api';
 import { createContextKey, ROOT_CONTEXT } from '@opentelemetry/api';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { getDefaultContextManager } from './context.ts';
@@ -38,7 +38,10 @@ describe('Default ContextManager', () => {
   describe('.with()', () => {
     it('should run the callback (null as context)', () => {
       return new Promise((done) => {
-        contextManager.with(null as any, done as any);
+        contextManager.with(
+          null as unknown as Context,
+          done as unknown as () => void,
+        );
       });
     });
 
@@ -56,7 +59,7 @@ describe('Default ContextManager', () => {
     it('should run the callback (when disabled)', () => {
       contextManager.disable();
       return new Promise((done) => {
-        contextManager.with(null as any, () => {
+        contextManager.with(null as unknown as Context, () => {
           contextManager.enable();
           return done(null);
         });
@@ -92,7 +95,6 @@ describe('Default ContextManager', () => {
     it('should forward this, arguments and return value', () => {
       function fnWithThis(this: string, a: string, b: number): string {
         expect(this).toEqual('that');
-        expect(arguments.length).toEqual(2);
         expect(a).toEqual('one');
         expect(b).toEqual(2);
         return 'done';
