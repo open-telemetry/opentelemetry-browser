@@ -487,7 +487,9 @@ describe('ResourceTimingInstrumentation', () => {
 
       const entries = [
         createMockResourceEntry({ name: 'https://example.com/analytics.js' }),
-        createMockResourceEntry({ name: 'https://analytics.example.com/track' }),
+        createMockResourceEntry({
+          name: 'https://analytics.example.com/track',
+        }),
       ];
 
       observerCallback(
@@ -509,11 +511,26 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation.enable();
 
       const entries = [
-        createMockResourceEntry({ name: 'https://example.com/app.js', initiatorType: 'script' }),
-        createMockResourceEntry({ name: 'https://example.com/analytics.js', initiatorType: 'script' }),
-        createMockResourceEntry({ name: 'https://example.com/api/data', initiatorType: 'fetch' }),
-        createMockResourceEntry({ name: 'https://example.com/img.png', initiatorType: 'img' }),
-        createMockResourceEntry({ name: 'https://analytics.example.com/track', initiatorType: 'fetch' }),
+        createMockResourceEntry({
+          name: 'https://example.com/app.js',
+          initiatorType: 'script',
+        }),
+        createMockResourceEntry({
+          name: 'https://example.com/analytics.js',
+          initiatorType: 'script',
+        }),
+        createMockResourceEntry({
+          name: 'https://example.com/api/data',
+          initiatorType: 'fetch',
+        }),
+        createMockResourceEntry({
+          name: 'https://example.com/img.png',
+          initiatorType: 'img',
+        }),
+        createMockResourceEntry({
+          name: 'https://analytics.example.com/track',
+          initiatorType: 'fetch',
+        }),
       ];
 
       observerCallback(
@@ -527,8 +544,12 @@ describe('ResourceTimingInstrumentation', () => {
       // api/data passes both; img.png blocked by initiatorTypes; track blocked by ignoreUrls
       const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(2);
-      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('https://example.com/app.js');
-      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('https://example.com/api/data');
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/app.js',
+      );
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/api/data',
+      );
     });
   });
 
