@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.3.0...browser-instrumentation-v0.4.0) (2026-04-30)
+
+
+### Features
+
+* add `@opentelemetry/instrumentation-console` package for capturing console calls as OpenTelemetry logs ([#98](https://github.com/open-telemetry/opentelemetry-browser/issues/98)) ([aa4e658](https://github.com/open-telemetry/opentelemetry-browser/commit/aa4e658f3674ad71bae639b1d07785434e96a1dc))
+* **instrumentation:** port browser-navigation into consolidated package ([#242](https://github.com/open-telemetry/opentelemetry-browser/issues/242)) ([778faa3](https://github.com/open-telemetry/opentelemetry-browser/commit/778faa3f5a71790e3c3efda7f0dfe28043d47ed6))
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#256](https://github.com/open-telemetry/opentelemetry-browser/issues/256)) ([3fe3cb0](https://github.com/open-telemetry/opentelemetry-browser/commit/3fe3cb01136deb5f4ddda1f0a3119b7c8e409e73))
+* **deps:** update opentelemetry ([#257](https://github.com/open-telemetry/opentelemetry-browser/issues/257)) ([0a64327](https://github.com/open-telemetry/opentelemetry-browser/commit/0a643273488e05a94b424bf9917a89f29fdc3476))
+
 ## [0.3.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.2.0...browser-instrumentation-v0.3.0) (2026-04-24)
 
 
