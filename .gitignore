@@ -6,8 +6,13 @@ dist
 *.tgz
 .vitest-attachments
 
+# logs
+*.log
+
 # dotenv environment variable files
 .env
+.env.local
+.env.*.local
 
 # caches
 *.tsbuildinfo
