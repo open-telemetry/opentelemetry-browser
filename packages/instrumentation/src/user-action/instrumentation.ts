@@ -5,7 +5,7 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
-import { getElementCSSSelector } from '#instrumentation-utils';
+import { getElementCSSSelector } from '#browser-utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_CSS_SELECTOR,

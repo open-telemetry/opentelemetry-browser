@@ -13,7 +13,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#instrumentation-test-utils';
+import { setupTestLogExporter } from '#browser-test-utils';
 import { NavigationInstrumentation } from './instrumentation.ts';
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,

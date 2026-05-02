@@ -25,8 +25,8 @@
   },
   "type": "module",
   "imports": {
-    "#instrumentation-utils": "./src/utils/index.ts",
-    "#instrumentation-test-utils": "./src/test-utils/index.ts"
+    "#browser-utils": "./src/browser-utils/index.ts",
+    "#browser-test-utils": "./src/browser-utils/testing.ts"
   },
   "exports": {
     "./experimental/navigation": "./dist/navigation/index.js",
