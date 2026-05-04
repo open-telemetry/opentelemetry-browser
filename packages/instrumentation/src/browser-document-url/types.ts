@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
 /**
- * BrowserDocumentUrlInstrumentation Configuration
+ * Configuration for BrowserDocumentUrl processors.
  */
-export interface BrowserDocumentUrlInstrumentationConfig
-  extends InstrumentationConfig {
-  // Configuration options will be added here
+export interface BrowserDocumentUrlProcessorConfig {
+  /** Whether the processor is active. Defaults to true. */
+  enabled?: boolean;
 }

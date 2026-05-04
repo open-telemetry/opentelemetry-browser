@@ -4,29 +4,27 @@
  */
 
 import { logs } from '@opentelemetry/api-logs';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { setupTestLogExporter } from '#instrumentation-test-utils';
-import { BrowserDocumentUrlInstrumentation } from './instrumentation.ts';
+import {
+  BrowserDocumentUrlLogProcessor,
+  BrowserDocumentUrlSpanProcessor,
+} from './instrumentation.ts';
 import { ATTR_BROWSER_DOCUMENT_URL_FULL } from './semconv.ts';
 
-describe('BrowserDocumentUrlInstrumentation', () => {
+describe('BrowserDocumentUrlLogProcessor', () => {
   /**
-   * A single, shared instrumentation instance lives in the global logger
-   * provider's processor list for the lifetime of this test file. Individual
-   * tests enable or disable it to exercise behavior.
-   *
-   * Using a single setupTestLogExporter call is required because
-   * `logs.setGlobalLoggerProvider` is a one-time operation per jsdom
-   * environment — subsequent calls are no-ops.
+   * A single shared processor instance is passed to setupTestLogExporter once
+   * per jsdom environment because logs.setGlobalLoggerProvider is a one-time
+   * operation. Individual tests enable or disable it to exercise behavior.
    */
   let exporter: InMemoryLogRecordExporter;
-  let instrumentation: BrowserDocumentUrlInstrumentation;
+  let processor: BrowserDocumentUrlLogProcessor;
 
   beforeAll(() => {
-    instrumentation = new BrowserDocumentUrlInstrumentation({ enabled: false });
-    exporter = setupTestLogExporter([instrumentation]);
+    processor = new BrowserDocumentUrlLogProcessor({ enabled: false });
+    exporter = setupTestLogExporter([processor]);
   });
 
   beforeEach(() => {
@@ -34,21 +32,21 @@ describe('BrowserDocumentUrlInstrumentation', () => {
   });
 
   afterEach(() => {
-    instrumentation.disable();
+    processor.disable();
   });
 
-  it('should create an instance of BrowserDocumentUrlInstrumentation', () => {
-    expect(instrumentation).toBeInstanceOf(BrowserDocumentUrlInstrumentation);
+  it('should create an instance', () => {
+    expect(processor).toBeInstanceOf(BrowserDocumentUrlLogProcessor);
   });
 
   it('should enable and disable without errors', () => {
     expect(() => {
-      instrumentation.enable();
-      instrumentation.disable();
+      processor.enable();
+      processor.disable();
     }).not.toThrow();
   });
 
-  describe('as a LogRecordProcessor (onEmit — unit level)', () => {
+  describe('onEmit (unit level)', () => {
     const makeMockRecord = () => {
       const attrs: Record<string, unknown> = {};
       return {
@@ -63,47 +61,44 @@ describe('BrowserDocumentUrlInstrumentation', () => {
     };
 
     it('should set browser.document.url.full when enabled', () => {
-      instrumentation.enable();
+      processor.enable();
 
       const { record, attrs } = makeMockRecord();
-      instrumentation.onEmit(record);
+      processor.onEmit(record);
 
       expect(attrs[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBe(location.href);
     });
 
     it('should NOT set the attribute when disabled', () => {
-      // disabled by default
-
       const { record, attrs } = makeMockRecord();
-      instrumentation.onEmit(record);
+      processor.onEmit(record);
 
       expect(attrs[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBeUndefined();
     });
 
     it('should use location.href as the attribute value', () => {
-      instrumentation.enable();
+      processor.enable();
 
       const { record, attrs } = makeMockRecord();
-      instrumentation.onEmit(record);
+      processor.onEmit(record);
 
       expect(attrs[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBe(location.href);
     });
 
     it('should resolve forceFlush immediately', async () => {
-      await expect(instrumentation.forceFlush()).resolves.toBeUndefined();
+      await expect(processor.forceFlush()).resolves.toBeUndefined();
     });
 
     it('should resolve shutdown immediately', async () => {
-      await expect(instrumentation.shutdown()).resolves.toBeUndefined();
+      await expect(processor.shutdown()).resolves.toBeUndefined();
     });
   });
 
-  describe('as a LogRecordProcessor (pipeline — integration)', () => {
-    it('should set browser.document.url.full on log records emitted through the global logger when enabled', () => {
-      instrumentation.enable();
+  describe('pipeline integration', () => {
+    it('should set browser.document.url.full on log records when enabled', () => {
+      processor.enable();
 
-      const logger = logs.getLogger('test');
-      logger.emit({ body: 'test event', eventName: 'test.event' });
+      logs.getLogger('test').emit({ body: 'test event', eventName: 'test.event' });
 
       const records = exporter.getFinishedLogRecords();
       expect(records.length).toBe(1);
@@ -112,11 +107,8 @@ describe('BrowserDocumentUrlInstrumentation', () => {
       );
     });
 
-    it('should NOT set the attribute on log records when disabled', () => {
-      // disabled by default
-
-      const logger = logs.getLogger('test');
-      logger.emit({ body: 'test event', eventName: 'test.event' });
+    it('should NOT set the attribute when disabled', () => {
+      logs.getLogger('test').emit({ body: 'test event', eventName: 'test.event' });
 
       const records = exporter.getFinishedLogRecords();
       expect(records.length).toBe(1);
@@ -126,12 +118,12 @@ describe('BrowserDocumentUrlInstrumentation', () => {
     });
 
     it('should stop setting the attribute after disable()', () => {
-      instrumentation.enable();
+      processor.enable();
 
       const logger = logs.getLogger('test');
       logger.emit({ body: 'first event' });
 
-      instrumentation.disable();
+      processor.disable();
       logger.emit({ body: 'second event' });
 
       const records = exporter.getFinishedLogRecords();
@@ -145,7 +137,7 @@ describe('BrowserDocumentUrlInstrumentation', () => {
     });
 
     it('should set the attribute on records from all loggers', () => {
-      instrumentation.enable();
+      processor.enable();
 
       logs.getLogger('scope-a').emit({ body: 'from a' });
       logs.getLogger('scope-b').emit({ body: 'from b' });
@@ -159,114 +151,66 @@ describe('BrowserDocumentUrlInstrumentation', () => {
       }
     });
   });
+});
 
-  describe('auto-injection via registerInstrumentations', () => {
-    it('should not double-register when also passed as an explicit processor', () => {
-      // The instrumentation is already in the processor list (from beforeAll).
-      // registerInstrumentations calls setLoggerProvider, which should detect
-      // it is already registered via the `includes` guard.
-      const unregister = registerInstrumentations({
-        instrumentations: [instrumentation],
-      });
+describe('BrowserDocumentUrlSpanProcessor', () => {
+  const makeMockSpan = () => {
+    const attributes: Record<string, unknown> = {};
+    return {
+      span: {
+        setAttribute(key: string, value: unknown) {
+          attributes[key] = value;
+          return this;
+        },
+      } as never,
+      attributes,
+    };
+  };
 
-      instrumentation.enable();
-
-      const logger = logs.getLogger('test');
-      logger.emit({ body: 'single-stamp' });
-
-      const records = exporter.getFinishedLogRecords();
-      expect(records.length).toBe(1);
-      expect(records[0]?.attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBe(
-        location.href,
-      );
-
-      // Verify enable/disable state is controlled by registerInstrumentations
-      unregister();
-    });
-
-    it('should enable on register and disable on deregister', () => {
-      const inst = new BrowserDocumentUrlInstrumentation({ enabled: false });
-
-      // Inject inst manually into the global provider's processor list.
-      // This mimics what happens when it's passed to the provider config.
-      const sharedState = (
-        logs.getLoggerProvider() as {
-          _sharedState?: {
-            registeredLogRecordProcessors: (typeof instrumentation)[];
-          };
-        }
-      )._sharedState;
-      sharedState?.registeredLogRecordProcessors.push(inst);
-
-      const unregister = registerInstrumentations({
-        instrumentations: [inst],
-      });
-
-      // After register, instrumentation should be enabled.
-      const logger = logs.getLogger('test');
-      logger.emit({ body: 'after register' });
-
-      const records = exporter.getFinishedLogRecords();
-      expect(records.length).toBe(1);
-      expect(records[0]?.attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBe(
-        location.href,
-      );
-
-      exporter.reset();
-      unregister();
-
-      // After deregister, instrumentation is disabled.
-      logger.emit({ body: 'after deregister' });
-      const records2 = exporter.getFinishedLogRecords();
-      expect(records2.length).toBe(1);
-      expect(
-        records2[0]?.attributes[ATTR_BROWSER_DOCUMENT_URL_FULL],
-      ).toBeUndefined();
-
-      // Cleanup: remove inst from the provider's processor list.
-      if (sharedState) {
-        const idx = sharedState.registeredLogRecordProcessors.indexOf(inst);
-        if (idx !== -1) {
-          sharedState.registeredLogRecordProcessors.splice(idx, 1);
-        }
-      }
-    });
+  it('should create an instance', () => {
+    expect(new BrowserDocumentUrlSpanProcessor()).toBeInstanceOf(
+      BrowserDocumentUrlSpanProcessor,
+    );
   });
 
-  describe('as a SpanProcessor', () => {
-    const makeMockSpan = () => {
-      const attributes: Record<string, unknown> = {};
-      return {
-        span: {
-          setAttribute(key: string, value: unknown) {
-            attributes[key] = value;
-            return this;
-          },
-        } as never,
-        attributes,
-      };
-    };
+  it('should enable and disable without errors', () => {
+    const processor = new BrowserDocumentUrlSpanProcessor();
+    expect(() => {
+      processor.enable();
+      processor.disable();
+    }).not.toThrow();
+  });
 
-    it('should set browser.document.url.full on spans via onStart when enabled', () => {
-      instrumentation.enable();
+  it('should set browser.document.url.full on spans via onStart when enabled', () => {
+    const processor = new BrowserDocumentUrlSpanProcessor();
 
-      const { span, attributes } = makeMockSpan();
-      instrumentation.onStart(span, {} as never);
+    const { span, attributes } = makeMockSpan();
+    processor.onStart(span, {} as never);
 
-      expect(attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBe(location.href);
-    });
+    expect(attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBe(location.href);
+  });
 
-    it('should NOT set the attribute on spans when disabled', () => {
-      // disabled by default
+  it('should NOT set the attribute when disabled', () => {
+    const processor = new BrowserDocumentUrlSpanProcessor({ enabled: false });
 
-      const { span, attributes } = makeMockSpan();
-      instrumentation.onStart(span, {} as never);
+    const { span, attributes } = makeMockSpan();
+    processor.onStart(span, {} as never);
 
-      expect(attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBeUndefined();
-    });
+    expect(attributes[ATTR_BROWSER_DOCUMENT_URL_FULL]).toBeUndefined();
+  });
 
-    it('should not throw on onEnd', () => {
-      expect(() => instrumentation.onEnd({})).not.toThrow();
-    });
+  it('should not throw on onEnd', () => {
+    const processor = new BrowserDocumentUrlSpanProcessor();
+    expect(() => processor.onEnd({} as never)).not.toThrow();
+  });
+
+  it('should resolve forceFlush immediately', async () => {
+    const processor = new BrowserDocumentUrlSpanProcessor();
+    await expect(processor.forceFlush()).resolves.toBeUndefined();
+  });
+
+  it('should resolve shutdown immediately', async () => {
+    const processor = new BrowserDocumentUrlSpanProcessor();
+    await expect(processor.shutdown()).resolves.toBeUndefined();
   });
 });

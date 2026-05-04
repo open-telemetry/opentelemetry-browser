@@ -57,7 +57,8 @@
     "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "0.216.0"
+    "@opentelemetry/sdk-logs": "0.216.0",
+    "@opentelemetry/sdk-trace-base": "2.7.0"
   },
   "publishConfig": {
     "access": "public"
