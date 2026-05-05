@@ -239,11 +239,11 @@ new ConsoleInstrumentation({
 });
 ```
 
-#### Captured Attributes
+Each `browser.console` event includes the following attributes:
 
-Each console event includes the original arguments passed to the console method and the method name (`log`, `warn`, `error`, `info`, or `debug`).
-
----
+| Attribute | Description | Example |
+|-----------|-------------|---------|
+| `browser.console.method` | The console method that was called | `error`, `warn`, `log`, `info`, `debug` |
 
 ## Useful links
 
