@@ -13,7 +13,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#browser-test-utils';
+import { setupTestLogExporter } from '#utils/test';
 import { NavigationTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_NAVIGATION_CONNECT_END,
