@@ -234,7 +234,7 @@ Provides automatic instrumentation for browser console API calls. By default cap
 
 ```typescript
 new ConsoleInstrumentation({
-  // Specify which console methods to capture (default: all five)
+  // Specify which console methods to capture (default: log, warn, error, info, debug)
   logMethods: ['error', 'warn'],
 });
 ```
