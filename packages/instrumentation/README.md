@@ -238,7 +238,7 @@ new ConsoleInstrumentation({
   logMethods: ['error', 'warn'],
 });
 ```
-
+####Captured Attributes
 Each `browser.console` event includes the following attributes:
 
 | Attribute | Description | Example |
