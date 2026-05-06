@@ -5,21 +5,84 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
+  createDocumentEntity,
+  createSessionEntity,
+  DocumentTracker,
+  EntityAwareLoggerProvider,
+} from '@opentelemetry/browser-sdk/experimental/entities';
+import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { resourceFromAttributes } from '@opentelemetry/resources';
+import {
+  BatchLogRecordProcessor,
   ConsoleLogRecordExporter,
-  LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
+import {
+  createDefaultSessionIdGenerator,
+  createLocalStorageSessionStore,
+  createSessionManager,
+} from '@opentelemetry/web-common';
+
+type SessionManager = ReturnType<typeof createSessionManager>;
+
+const SESSION_STORAGE_KEY = 'opentelemetry-session';
 
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.VERBOSE);
 
-const loggerProvider = new LoggerProvider({
-  processors: [new SimpleLogRecordProcessor(new ConsoleLogRecordExporter())],
+const baseResource = resourceFromAttributes({
+  'service.name': 'examples-all-instrumentations',
+  'service.version': '0.0.0',
+});
+
+const loggerProvider = new EntityAwareLoggerProvider({
+  resource: baseResource,
+  processors: [
+    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new BatchLogRecordProcessor(
+      new OTLPLogExporter({ url: 'http://localhost:4318/v1/logs' }),
+    ),
+  ],
 });
 
 logs.setGlobalLoggerProvider(loggerProvider);
 
+// ── Session entity (via @opentelemetry/web-common SessionManager) ──────────
+const buildSessionManager = (): SessionManager =>
+  createSessionManager({
+    sessionIdGenerator: createDefaultSessionIdGenerator(),
+    sessionStore: createLocalStorageSessionStore(),
+    maxDuration: 7200,
+    inactivityTimeout: 1800,
+  });
+
+let sessionManager = buildSessionManager();
+
+const installSessionObserver = () => {
+  sessionManager.addObserver({
+    onSessionStarted: (session) => {
+      loggerProvider.setEntity(createSessionEntity(session.id));
+      updateStatus();
+    },
+    onSessionEnded: () => {
+      // No-op: the session entity is replaced by onSessionStarted on rotation.
+    },
+  });
+};
+installSessionObserver();
+void sessionManager.start();
+
+// ── Document entity ─────────────────────────────────────────────────────────
+const documentTracker = new DocumentTracker();
+documentTracker.addObserver((href) => {
+  loggerProvider.setEntity(createDocumentEntity(href));
+  updateStatus();
+});
+documentTracker.start();
+loggerProvider.setEntity(createDocumentEntity(documentTracker.getHref()));
+
+// ── Auto-instrumentations ───────────────────────────────────────────────────
 registerInstrumentations({
   instrumentations: [
     new NavigationTimingInstrumentation(),
@@ -31,6 +94,16 @@ registerInstrumentations({
   ],
 });
 
+// ── UI wiring ───────────────────────────────────────────────────────────────
+const status = document.getElementById('status');
+const updateStatus = () => {
+  if (!status) {
+    return;
+  }
+  status.textContent = `session.id=${sessionManager.getSessionId() ?? '<none>'} · browser.document.url.full=${documentTracker.getHref()}`;
+};
+updateStatus();
+
 document.getElementById('xhr-button')?.addEventListener('click', () => {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', 'https://httpbin.org/get');
@@ -38,5 +111,22 @@ document.getElementById('xhr-button')?.addEventListener('click', () => {
 });
 
 document.getElementById('fetch-button')?.addEventListener('click', () => {
-  fetch('https://httpbin.org/get');
+  void fetch('https://httpbin.org/get');
 });
+
+document
+  .getElementById('push-history-button')
+  ?.addEventListener('click', () => {
+    const next = `${window.location.pathname}?n=${Math.floor(Math.random() * 1000)}`;
+    history.pushState({}, '', next);
+  });
+
+document
+  .getElementById('rotate-session-button')
+  ?.addEventListener('click', () => {
+    sessionManager.shutdown();
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    sessionManager = buildSessionManager();
+    installSessionObserver();
+    void sessionManager.start();
+  });

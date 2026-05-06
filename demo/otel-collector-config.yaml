@@ -6,6 +6,7 @@ receivers:
         cors:
           allowed_origins:
             - "https://mquentin.github.io"
+            - "http://localhost:5173"
           allowed_headers:
             - "*"
 
