@@ -12,7 +12,8 @@
     "user-action",
     "web-vitals",
     "resource-timing",
-    "navigation"
+    "navigation",
+    "errors"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -29,6 +30,7 @@
     "#utils/test": "./src/utils/test/index.ts"
   },
   "exports": {
+    "./experimental/errors": "./dist/errors/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",
     "./experimental/console": "./dist/console/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
@@ -50,6 +52,7 @@
   "dependencies": {
     "@opentelemetry/api-logs": "^0.216.0",
     "@opentelemetry/instrumentation": "^0.216.0",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
     "web-vitals": "^5.2.0"
   },
   "peerDependencies": {

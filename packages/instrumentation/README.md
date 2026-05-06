@@ -19,6 +19,7 @@ npm install @opentelemetry/browser-instrumentation
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
 - [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
+- [Exception](#exception) — automatic instrumentation for unhandled errors and promise rejections
 
 ## Usage
 
@@ -30,6 +31,7 @@ import {
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { ExceptionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
@@ -45,6 +47,7 @@ logs.setGlobalLoggerProvider(logProvider);
 
 registerInstrumentations({
   instrumentations: [
+    new ExceptionInstrumentation(),
     new NavigationInstrumentation(),
     new NavigationTimingInstrumentation(),
     new ResourceTimingInstrumentation(),
@@ -244,6 +247,44 @@ Each `browser.console` event includes the following attributes:
 | Attribute | Description | Example |
 |-----------|-------------|---------|
 | `browser.console.method` | The console method that was called | `error`, `warn`, `log`, `info`, `debug` |
+
+---
+
+### Exception
+
+```typescript
+import { ExceptionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+```
+
+Emits an `exception` event for every uncaught error (`window` `error` event) and unhandled promise rejection (`window` `unhandledrejection` event).
+
+#### Configuration
+
+```typescript
+new ExceptionInstrumentation({
+  // Return extra attributes to attach to the emitted log record.
+  applyCustomAttributes: (error) => ({
+    'app.error.severity':
+      error instanceof Error && error.name === 'ValidationError'
+        ? 'warning'
+        : 'error',
+  }),
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | — | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+#### Captured Attributes
+
+Each `exception` event includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `exception.type` | The error's `name` (omitted when the thrown value is a string). |
+| `exception.message` | The error's `message`, or the thrown string itself. |
+| `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string). |
 
 ## Useful links
 
