@@ -29,10 +29,7 @@
   "scripts": {
     "build": "tsdown",
     "watch": "tsdown --watch --no-clean",
-    "check-types": "tsc",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest --coverage"
+    "check-types": "tsc"
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.214.0",
