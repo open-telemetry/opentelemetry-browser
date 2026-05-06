@@ -18,6 +18,7 @@ npm install @opentelemetry/browser-instrumentation
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
+- [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
 
 ## Usage
 
@@ -220,6 +221,29 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
+
+### Console
+
+```typescript
+import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/console';
+```
+
+Provides automatic instrumentation for browser console API calls. By default captures `log`, `warn`, `error`, `info`, and `debug` methods.
+
+#### Configuration
+
+```typescript
+new ConsoleInstrumentation({
+  // Specify which console methods to capture (default: log, warn, error, info, debug)
+  logMethods: ['error', 'warn'],
+});
+```
+#### Captured Attributes
+Each `browser.console` event includes the following attributes:
+
+| Attribute | Description | Example |
+|-----------|-------------|---------|
+| `browser.console.method` | The console method that was called | `error`, `warn`, `log`, `info`, `debug` |
 
 ## Useful links
 
