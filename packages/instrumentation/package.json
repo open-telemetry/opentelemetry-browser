@@ -50,8 +50,8 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@opentelemetry/api-logs": "^0.216.0",
-    "@opentelemetry/instrumentation": "^0.216.0",
+    "@opentelemetry/api-logs": "^0.217.0",
+    "@opentelemetry/instrumentation": "^0.217.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
     "web-vitals": "^5.2.0"
   },
@@ -59,7 +59,7 @@
     "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "0.216.0"
+    "@opentelemetry/sdk-logs": "0.217.0"
   },
   "publishConfig": {
     "access": "public"
