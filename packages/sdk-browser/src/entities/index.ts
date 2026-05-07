@@ -17,5 +17,7 @@ export type { DocumentObserver } from './DocumentTracker.ts';
 export { DocumentTracker } from './DocumentTracker.ts';
 export type { Entity } from './Entity.ts';
 export { EntityAwareLoggerProvider } from './EntityAwareLoggerProvider.ts';
+export type { BrowserSdk, InitializeSdkConfig } from './initializeSdk.ts';
+export { initializeSdk } from './initializeSdk.ts';
 export { mergeEntitiesIntoResource } from './mergeEntitiesIntoResource.ts';
 export { trackDocument } from './trackDocument.ts';
