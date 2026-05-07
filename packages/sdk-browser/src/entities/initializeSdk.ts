@@ -63,8 +63,20 @@ export function initializeSdk(config: InitializeSdkConfig): BrowserSdk {
   });
   logs.setGlobalLoggerProvider(loggerProvider);
 
-  let sessionManager: SessionManager = buildSessionManager();
-  installSessionObserver(sessionManager, loggerProvider);
+  let sessionManager: SessionManager = createSessionManager({
+    sessionIdGenerator: createDefaultSessionIdGenerator(),
+    sessionStore: createLocalStorageSessionStore(),
+    maxDuration: 7200,
+    inactivityTimeout: 1800,
+  });
+  sessionManager.addObserver({
+    onSessionStarted: (session) => {
+      loggerProvider.setEntity(createSessionEntity(session.id));
+    },
+    onSessionEnded: () => {
+      // No-op: onSessionStarted re-binds the entity on rotation.
+    },
+  });
   void sessionManager.start();
 
   const documentTracker = trackDocument(loggerProvider);
@@ -78,8 +90,20 @@ export function initializeSdk(config: InitializeSdkConfig): BrowserSdk {
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(SESSION_STORAGE_KEY);
       }
-      sessionManager = buildSessionManager();
-      installSessionObserver(sessionManager, loggerProvider);
+      sessionManager = createSessionManager({
+        sessionIdGenerator: createDefaultSessionIdGenerator(),
+        sessionStore: createLocalStorageSessionStore(),
+        maxDuration: 7200,
+        inactivityTimeout: 1800,
+      });
+      sessionManager.addObserver({
+        onSessionStarted: (session) => {
+          loggerProvider.setEntity(createSessionEntity(session.id));
+        },
+        onSessionEnded: () => {
+          // No-op: onSessionStarted re-binds the entity on rotation.
+        },
+      });
       void sessionManager.start();
     },
     shutdown: async () => {
@@ -88,27 +112,4 @@ export function initializeSdk(config: InitializeSdkConfig): BrowserSdk {
       await loggerProvider.shutdown();
     },
   };
-}
-
-function buildSessionManager(): SessionManager {
-  return createSessionManager({
-    sessionIdGenerator: createDefaultSessionIdGenerator(),
-    sessionStore: createLocalStorageSessionStore(),
-    maxDuration: 7200,
-    inactivityTimeout: 1800,
-  });
-}
-
-function installSessionObserver(
-  manager: SessionManager,
-  provider: EntityAwareLoggerProvider,
-): void {
-  manager.addObserver({
-    onSessionStarted: (session) => {
-      provider.setEntity(createSessionEntity(session.id));
-    },
-    onSessionEnded: () => {
-      // No-op: onSessionStarted re-binds the entity on rotation.
-    },
-  });
 }
