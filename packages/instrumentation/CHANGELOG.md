@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.4.0...browser-instrumentation-v0.5.0) (2026-05-07)
+
+
+### Features
+
+* **instrumentation:** port instrumentation-web-exception into consolidated package ([#267](https://github.com/open-telemetry/opentelemetry-browser/issues/267)) ([c1ceee5](https://github.com/open-telemetry/opentelemetry-browser/commit/c1ceee5b44c77197d499ee7d4569e2d3e13a7551))
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry to ^0.217.0 ([#271](https://github.com/open-telemetry/opentelemetry-browser/issues/271)) ([0297b51](https://github.com/open-telemetry/opentelemetry-browser/commit/0297b51f2bdebc11aac9cbe1c34f9006a32985cf))
+
 ## [0.4.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.3.0...browser-instrumentation-v0.4.0) (2026-04-30)
 
 
