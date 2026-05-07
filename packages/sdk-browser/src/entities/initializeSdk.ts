@@ -11,10 +11,10 @@ import {
   createLocalStorageSessionStore,
   createSessionManager,
 } from '@opentelemetry/web-common';
+import { createDocumentEntity } from './createDocumentEntity.ts';
 import { createSessionEntity } from './createSessionEntity.ts';
-import type { DocumentTracker } from './DocumentTracker.ts';
+import { DocumentTracker } from './DocumentTracker.ts';
 import { EntityAwareLoggerProvider } from './EntityAwareLoggerProvider.ts';
-import { trackDocument } from './trackDocument.ts';
 
 const SESSION_STORAGE_KEY = 'opentelemetry-session';
 
@@ -79,7 +79,12 @@ export function initializeSdk(config: InitializeSdkConfig): BrowserSdk {
   });
   void sessionManager.start();
 
-  const documentTracker = trackDocument(loggerProvider);
+  const documentTracker = new DocumentTracker();
+  documentTracker.addObserver((href) => {
+    loggerProvider.setEntity(createDocumentEntity(href));
+  });
+  documentTracker.start();
+  loggerProvider.setEntity(createDocumentEntity(documentTracker.getHref()));
 
   return {
     loggerProvider,
