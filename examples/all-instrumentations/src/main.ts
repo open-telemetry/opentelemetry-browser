@@ -6,10 +6,9 @@ import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrument
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import {
-  createDocumentEntity,
   createSessionEntity,
-  DocumentTracker,
   EntityAwareLoggerProvider,
+  trackDocument,
 } from '@opentelemetry/browser-sdk/experimental/entities';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -74,13 +73,8 @@ installSessionObserver();
 void sessionManager.start();
 
 // ── Document entity ─────────────────────────────────────────────────────────
-const documentTracker = new DocumentTracker();
-documentTracker.addObserver((href) => {
-  loggerProvider.setEntity(createDocumentEntity(href));
-  updateStatus();
-});
-documentTracker.start();
-loggerProvider.setEntity(createDocumentEntity(documentTracker.getHref()));
+const documentTracker = trackDocument(loggerProvider);
+documentTracker.addObserver(() => updateStatus());
 
 // ── Auto-instrumentations ───────────────────────────────────────────────────
 registerInstrumentations({
