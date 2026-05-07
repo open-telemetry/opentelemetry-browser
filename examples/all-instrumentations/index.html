@@ -9,10 +9,17 @@
   <body>
     <open-telemetry>
       <h1>OpenTelemetry Browser Instrumentations</h1>
-      <p>Open the browser console to see instrumentation output.</p>
+      <p>
+        Open the browser console to see instrumentation output. Logs include
+        <code>session.id</code>
+        and <code>browser.document.url.full</code> as resource attributes.
+      </p>
       <button id="test-button" type="button">Test Click</button>
       <button id="xhr-button" type="button">Send XHR</button>
       <button id="fetch-button" type="button">Send Fetch</button>
+      <button id="push-history-button" type="button">Push History</button>
+      <button id="rotate-session-button" type="button">Rotate Session</button>
+      <p id="status"></p>
     </open-telemetry>
   </body>
 </html>

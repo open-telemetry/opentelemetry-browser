@@ -1,0 +1,47 @@
+{
+  "name": "@opentelemetry/browser-sdk",
+  "version": "0.0.0",
+  "description": "Prototype browser SDK utilities — entity-aware providers and trackers.",
+  "keywords": [
+    "opentelemetry",
+    "browser",
+    "web",
+    "sdk",
+    "entity",
+    "session"
+  ],
+  "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
+  "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
+  "license": "Apache-2.0",
+  "author": "OpenTelemetry Authors",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
+    "directory": "packages/sdk-browser"
+  },
+  "type": "module",
+  "exports": {
+    "./experimental/entities": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "watch": "tsdown --watch --no-clean",
+    "check-types": "tsc"
+  },
+  "dependencies": {
+    "@opentelemetry/api-logs": "^0.214.0",
+    "@opentelemetry/resources": "^2.6.0",
+    "@opentelemetry/sdk-logs": "^0.214.0",
+    "@opentelemetry/web-common": "^0.214.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.9.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "private": true
+}
