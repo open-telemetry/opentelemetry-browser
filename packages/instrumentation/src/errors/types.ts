@@ -11,9 +11,9 @@ export type ApplyCustomAttributesFunction = (
 ) => Attributes;
 
 /**
- * ExceptionInstrumentation Configuration
+ * ErrorsInstrumentation Configuration
  */
-export interface ExceptionInstrumentationConfig extends InstrumentationConfig {
+export interface ErrorsInstrumentationConfig extends InstrumentationConfig {
   /**
    * Optional callback invoked for each captured error or unhandled rejection.
    * Returned attributes are merged onto the emitted log record (after the

@@ -19,7 +19,7 @@ npm install @opentelemetry/browser-instrumentation
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
 - [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
-- [Exception](#exception) — automatic instrumentation for unhandled errors and promise rejections
+- [Errors](#errors) — automatic instrumentation for unhandled errors and promise rejections
 
 ## Usage
 
@@ -31,7 +31,7 @@ import {
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { ExceptionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
@@ -47,7 +47,7 @@ logs.setGlobalLoggerProvider(logProvider);
 
 registerInstrumentations({
   instrumentations: [
-    new ExceptionInstrumentation(),
+    new ErrorsInstrumentation(),
     new NavigationInstrumentation(),
     new NavigationTimingInstrumentation(),
     new ResourceTimingInstrumentation(),
@@ -250,18 +250,18 @@ Each `browser.console` event includes the following attributes:
 
 ---
 
-### Exception
+### Errors
 
 ```typescript
-import { ExceptionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 ```
 
-Emits an `exception` event for every uncaught error (`window` `error` event) and unhandled promise rejection (`window` `unhandledrejection` event).
+Emits an `exception` event for every uncaught error (`window.addEventListener('error', ...)`) and unhandled promise rejection (`window.addEventListener('unhandledrejection', ...)`).
 
 #### Configuration
 
 ```typescript
-new ExceptionInstrumentation({
+new ErrorsInstrumentation({
   // Return extra attributes to attach to the emitted log record.
   applyCustomAttributes: (error) => ({
     'app.error.severity':

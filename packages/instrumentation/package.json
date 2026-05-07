@@ -8,12 +8,12 @@
     "web",
     "instrumentation",
     "console",
-    "navigation-timing",
-    "user-action",
-    "web-vitals",
-    "resource-timing",
+    "errors",
     "navigation",
-    "errors"
+    "navigation-timing",
+    "resource-timing",
+    "user-action",
+    "web-vitals"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -30,13 +30,13 @@
     "#utils/test": "./src/utils/test/index.ts"
   },
   "exports": {
+    "./experimental/console": "./dist/console/index.js",
     "./experimental/errors": "./dist/errors/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",
-    "./experimental/console": "./dist/console/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
+    "./experimental/resource-timing": "./dist/resource-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
-    "./experimental/web-vitals": "./dist/web-vitals/index.js",
-    "./experimental/resource-timing": "./dist/resource-timing/index.js"
+    "./experimental/web-vitals": "./dist/web-vitals/index.js"
   },
   "files": [
     "dist"

@@ -19,7 +19,7 @@ import {
   vi,
 } from 'vitest';
 import { setupTestLogExporter } from '#utils/test';
-import { ExceptionInstrumentation } from './instrumentation.ts';
+import { ErrorsInstrumentation } from './instrumentation.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
 const STRING_ERROR = 'Some error string.';
@@ -58,9 +58,9 @@ const dispatchUnhandledRejection = (reason: Error | string) => {
   window.dispatchEvent(event);
 };
 
-describe('ExceptionInstrumentation', () => {
+describe('ErrorsInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
-  let instrumentation: ExceptionInstrumentation | undefined;
+  let instrumentation: ErrorsInstrumentation | undefined;
 
   beforeAll(() => {
     inMemoryExporter = setupTestLogExporter();
@@ -76,19 +76,19 @@ describe('ExceptionInstrumentation', () => {
     inMemoryExporter.reset();
   });
 
-  const getExceptionLogs = () =>
+  const getErrorLogs = () =>
     inMemoryExporter
       .getFinishedLogRecords()
       .filter((log) => log.eventName === EXCEPTION_EVENT_NAME);
 
   describe('lifecycle', () => {
     it('should create an instance', () => {
-      instrumentation = new ExceptionInstrumentation({ enabled: false });
-      expect(instrumentation).toBeInstanceOf(ExceptionInstrumentation);
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      expect(instrumentation).toBeInstanceOf(ErrorsInstrumentation);
     });
 
     it('should enable and disable without errors', () => {
-      instrumentation = new ExceptionInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
       expect(() => {
         instrumentation?.enable();
         instrumentation?.disable();
@@ -96,17 +96,17 @@ describe('ExceptionInstrumentation', () => {
     });
 
     it('should not emit after disable', () => {
-      instrumentation = new ExceptionInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
       instrumentation.enable();
       instrumentation.disable();
 
       dispatchErrorEvent(new Error('after disable'));
 
-      expect(getExceptionLogs()).toHaveLength(0);
+      expect(getErrorLogs()).toHaveLength(0);
     });
 
     it('should not double-subscribe when enabling twice', () => {
-      instrumentation = new ExceptionInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
       const addSpy = vi.spyOn(window, 'addEventListener');
 
       instrumentation.enable();
@@ -125,14 +125,14 @@ describe('ExceptionInstrumentation', () => {
 
   describe('error events', () => {
     beforeEach(() => {
-      instrumentation = new ExceptionInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
       instrumentation.enable();
     });
 
     it('should emit an exception event when an Error is thrown', () => {
       dispatchErrorEvent(new ValidationError('Something happened!'));
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.eventName).toBe(EXCEPTION_EVENT_NAME);
     });
@@ -148,7 +148,7 @@ describe('ExceptionInstrumentation', () => {
 
       dispatchErrorEvent(error);
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBe('ValidationError');
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
@@ -160,7 +160,7 @@ describe('ExceptionInstrumentation', () => {
     it('should handle a string error', () => {
       dispatchErrorEvent(STRING_ERROR);
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(STRING_ERROR);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
@@ -170,13 +170,13 @@ describe('ExceptionInstrumentation', () => {
     it('should not emit when the error is missing', () => {
       dispatchErrorEvent();
 
-      expect(getExceptionLogs()).toHaveLength(0);
+      expect(getErrorLogs()).toHaveLength(0);
     });
   });
 
   describe('unhandled rejection events', () => {
     beforeEach(() => {
-      instrumentation = new ExceptionInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
       instrumentation.enable();
     });
 
@@ -184,7 +184,7 @@ describe('ExceptionInstrumentation', () => {
       const error = new ValidationError('Rejected!');
       dispatchUnhandledRejection(error);
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBe('ValidationError');
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('Rejected!');
@@ -193,7 +193,7 @@ describe('ExceptionInstrumentation', () => {
     it('should emit an exception event when a promise is rejected with a string', () => {
       dispatchUnhandledRejection(STRING_ERROR);
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(STRING_ERROR);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
@@ -202,7 +202,7 @@ describe('ExceptionInstrumentation', () => {
 
   describe('applyCustomAttributes', () => {
     it('should merge custom attributes for Error objects', () => {
-      instrumentation = new ExceptionInstrumentation({
+      instrumentation = new ErrorsInstrumentation({
         enabled: false,
         applyCustomAttributes: (error) => ({
           'app.custom.exception':
@@ -215,7 +215,7 @@ describe('ExceptionInstrumentation', () => {
 
       dispatchErrorEvent(new ValidationError('Something happened!'));
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes['app.custom.exception']).toBe(
         'SOMETHING HAPPENED!',
@@ -224,7 +224,7 @@ describe('ExceptionInstrumentation', () => {
     });
 
     it('should merge custom attributes for string errors', () => {
-      instrumentation = new ExceptionInstrumentation({
+      instrumentation = new ErrorsInstrumentation({
         enabled: false,
         applyCustomAttributes: (error) => ({
           'app.custom.exception':
@@ -237,7 +237,7 @@ describe('ExceptionInstrumentation', () => {
 
       dispatchErrorEvent(STRING_ERROR);
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(STRING_ERROR);
       expect(logs[0]?.attributes['app.custom.exception']).toBe(
@@ -246,7 +246,7 @@ describe('ExceptionInstrumentation', () => {
     });
 
     it('should still emit standard attributes when the hook throws', () => {
-      instrumentation = new ExceptionInstrumentation({
+      instrumentation = new ErrorsInstrumentation({
         enabled: false,
         applyCustomAttributes: () => {
           throw new Error('hook boom');
@@ -258,7 +258,7 @@ describe('ExceptionInstrumentation', () => {
         dispatchErrorEvent(new ValidationError('Something happened!')),
       ).not.toThrow();
 
-      const logs = getExceptionLogs();
+      const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBe('ValidationError');
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(

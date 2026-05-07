@@ -16,11 +16,11 @@ import {
   ATTR_EXCEPTION_TYPE,
 } from '@opentelemetry/semantic-conventions';
 import { version } from '../../package.json' with { type: 'json' };
-import type { ExceptionInstrumentationConfig } from './types.ts';
+import type { ErrorsInstrumentationConfig } from './types.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
 
-export class ExceptionInstrumentation extends InstrumentationBase<ExceptionInstrumentationConfig> {
+export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumentationConfig> {
   // Use `declare` to prevent JS class field initializers from running after
   // super(), which would reset values set by the enable() call that
   // InstrumentationBase makes during its constructor.
@@ -29,7 +29,7 @@ export class ExceptionInstrumentation extends InstrumentationBase<ExceptionInstr
     event: ErrorEvent | PromiseRejectionEvent,
   ) => void;
 
-  constructor(config: ExceptionInstrumentationConfig = {}) {
+  constructor(config: ErrorsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/errors', version, config);
   }
 

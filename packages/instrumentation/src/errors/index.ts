@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export { ExceptionInstrumentation } from './instrumentation.ts';
+export { ErrorsInstrumentation } from './instrumentation.ts';
 export type {
   ApplyCustomAttributesFunction,
-  ExceptionInstrumentationConfig,
+  ErrorsInstrumentationConfig,
 } from './types.ts';
