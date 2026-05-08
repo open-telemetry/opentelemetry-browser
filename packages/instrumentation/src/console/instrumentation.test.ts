@@ -14,7 +14,7 @@ import {
   expect,
   it,
 } from 'vitest';
-import { setupTestLogExporter } from '#instrumentation-test-utils';
+import { setupTestLogExporter } from '#utils/test';
 import { ConsoleInstrumentation } from './instrumentation.ts';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 

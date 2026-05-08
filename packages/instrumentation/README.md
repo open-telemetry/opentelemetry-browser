@@ -18,6 +18,8 @@ npm install @opentelemetry/browser-instrumentation
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
+- [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
+- [Errors](#errors) — automatic instrumentation for unhandled errors and promise rejections
 
 ## Usage
 
@@ -29,6 +31,7 @@ import {
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
@@ -44,6 +47,7 @@ logs.setGlobalLoggerProvider(logProvider);
 
 registerInstrumentations({
   instrumentations: [
+    new ErrorsInstrumentation(),
     new NavigationInstrumentation(),
     new NavigationTimingInstrumentation(),
     new ResourceTimingInstrumentation(),
@@ -220,6 +224,67 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
+
+### Console
+
+```typescript
+import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/console';
+```
+
+Provides automatic instrumentation for browser console API calls. By default captures `log`, `warn`, `error`, `info`, and `debug` methods.
+
+#### Configuration
+
+```typescript
+new ConsoleInstrumentation({
+  // Specify which console methods to capture (default: log, warn, error, info, debug)
+  logMethods: ['error', 'warn'],
+});
+```
+#### Captured Attributes
+Each `browser.console` event includes the following attributes:
+
+| Attribute | Description | Example |
+|-----------|-------------|---------|
+| `browser.console.method` | The console method that was called | `error`, `warn`, `log`, `info`, `debug` |
+
+---
+
+### Errors
+
+```typescript
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+```
+
+Emits an `exception` event for every uncaught error (`window.addEventListener('error', ...)`) and unhandled promise rejection (`window.addEventListener('unhandledrejection', ...)`).
+
+#### Configuration
+
+```typescript
+new ErrorsInstrumentation({
+  // Return extra attributes to attach to the emitted log record.
+  applyCustomAttributes: (error) => ({
+    'app.error.severity':
+      error instanceof Error && error.name === 'ValidationError'
+        ? 'warning'
+        : 'error',
+  }),
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | — | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+#### Captured Attributes
+
+Each `exception` event includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `exception.type` | The error's `name` (omitted when the thrown value is a string). |
+| `exception.message` | The error's `message`, or the thrown string itself. |
+| `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string). |
 
 ## Useful links
 

@@ -31,8 +31,10 @@ import {
 } from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
+import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/console';
 
 const logProvider = new LoggerProvider({
   processors: [
@@ -44,8 +46,10 @@ logs.setGlobalLoggerProvider(logProvider);
 registerInstrumentations({
   instrumentations: [
     new NavigationTimingInstrumentation(),
+    new ResourceTimingInstrumentation(),
     new UserActionInstrumentation(),
     new WebVitalsInstrumentation(),
+    new ConsoleInstrumentation(),
   ],
 });
 ```
@@ -64,7 +68,7 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 | Package | Description | Status |
 | --- | --- | --- |
-| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Event-based browser instrumentations (navigation timing, user actions, web vitals). | experimental |
+| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Event-based browser instrumentations (navigation timing, resource timing, user actions, web vitals, console). | experimental |
 
 ### Event-based instrumentations (other repositories)
 
