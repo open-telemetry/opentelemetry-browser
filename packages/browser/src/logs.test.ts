@@ -58,8 +58,10 @@ describe('startLogsSdk', () => {
   it('should use the default configuration for exporters', async () => {
     // Act
     logsSdk = startLogsSdk({
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      blrpScheduleDelay: BLRP_SCHEDULE_DELAY,
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
     });
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
@@ -80,10 +82,14 @@ describe('startLogsSdk', () => {
   it('should accept signal specific OTLP endpoint and headers', async () => {
     // Act
     logsSdk = startLogsSdk({
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      blrpScheduleDelay: BLRP_SCHEDULE_DELAY,
-      otlpLogsEndpoint: 'http://otlp-signal-endpoint:4318/v1/logs',
-      otlpLogsHeaders: { bar: 'baz' },
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318/v1/logs',
+        headers: { bar: 'baz' },
+      },
     });
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));

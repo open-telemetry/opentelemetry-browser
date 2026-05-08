@@ -19,18 +19,24 @@ const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
  * @returns {WebSdk}
  */
 export function startLogsSdk(config?: LogsConfig): WebSdk {
-  const logsEndpoint = config?.otlpLogsEndpoint || DEFAULT_LOGS_OTLP_ENDPOINT;
+  const logsEndpoint = config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
+
   const logsProcessor = new BatchLogRecordProcessor(
     new OTLPLogExporter({
       url: logsEndpoint,
-      headers: config?.otlpLogsHeaders,
+      headers: config?.exportConfig?.headers,
     }),
-    {
-      scheduledDelayMillis: config?.blrpScheduleDelay,
-      exportTimeoutMillis: config?.blrpExportTimeout,
-      maxExportBatchSize: config?.blrpMaxExportBatchSize,
-      maxQueueSize: config?.blrpMaxQueueSize,
-    },
+    Object.assign(
+      // defaults
+      {
+        scheduledDelayMillis: 1_000,
+        exportTimeoutMillis: 30_000,
+        maxExportBatchSize: 512,
+        maxQueueSize: 2048,
+      },
+      // user defined
+      config?.processorConfig,
+    ),
   );
   const loggerProvider = new LoggerProvider({
     resource: config?.resource,

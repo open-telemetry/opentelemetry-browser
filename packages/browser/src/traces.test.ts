@@ -60,8 +60,10 @@ describe('startTracesSdk', () => {
   it('should use the default configuration for exporters', async () => {
     // Act
     tracesSdk = startTracesSdk({
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      bspScheduleDelay: BSP_SCHEDULE_DELAY,
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
     });
 
     trace.getTracer('traces-sdk-test').startSpan('test').end();
@@ -83,10 +85,14 @@ describe('startTracesSdk', () => {
   it('should accept signal specific OTLP endpoint and headers', async () => {
     // Act
     tracesSdk = startTracesSdk({
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      bspScheduleDelay: BSP_SCHEDULE_DELAY,
-      otlpTracesEndpoint: 'http://otlp-signal-endpoint:4318/v1/traces',
-      otlpTracesHeaders: { bar: 'baz' },
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318/v1/traces',
+        headers: { bar: 'baz' },
+      },
     });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
     await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));

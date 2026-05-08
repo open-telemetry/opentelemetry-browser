@@ -31,22 +31,35 @@ export function combineSdks<T extends SdkFactories>(
   return function startSdk(config?: GlobalConfig & ConfigsFor<T>) {
     // Check the global config and set defaults
     const globalConfig = (config || {}) as GlobalConfig;
-    globalConfig.otlpEndpoint ??= DEFAULT_OTLP_ENDOINT;
+
+    // Export
+    globalConfig.exportConfig = Object.assign(
+      { endpoint: DEFAULT_OTLP_ENDOINT },
+      globalConfig.exportConfig,
+    );
 
     // TODO: accept resource detectors?
     globalConfig.resource ??= defaultResource();
 
     const sdks: WebSdk[] = [];
-    const otlpUrl = new URL(globalConfig.otlpEndpoint);
+    const endpointUrl = new URL(globalConfig.exportConfig!.url!);
 
     // Start logs
     if (factories.logs) {
       const logsConfig = (config?.logs || {}) as LogsConfig;
-      if (!logsConfig.otlpLogsEndpoint) {
-        otlpUrl.pathname = '/v1/logs';
-        logsConfig.otlpLogsEndpoint = otlpUrl.href;
+      const isGenericEndpoint = !logsConfig.exportConfig?.url;
+
+      // Merge export configs
+      logsConfig.exportConfig = Object.assign(
+        {},
+        globalConfig.exportConfig,
+        logsConfig.exportConfig,
+      );
+      // Set the path if endpoint comes from general config
+      if (isGenericEndpoint) {
+        endpointUrl.pathname = '/v1/logs';
+        logsConfig.exportConfig.url = endpointUrl.href;
       }
-      logsConfig.otlpLogsHeaders ??= globalConfig.otlpHeaders;
       logsConfig.resource ??= globalConfig.resource;
       sdks.push(factories.logs(logsConfig));
     }
@@ -54,11 +67,19 @@ export function combineSdks<T extends SdkFactories>(
     // Start traces
     if (factories.traces) {
       const tracesConfig = (config?.traces || {}) as TracesConfig;
-      if (!tracesConfig.otlpTracesEndpoint) {
-        otlpUrl.pathname = '/v1/traces';
-        tracesConfig.otlpTracesEndpoint = otlpUrl.href;
+      const isGenericEndpoint = !tracesConfig.exportConfig?.url;
+
+      // Merge export configs
+      tracesConfig.exportConfig = Object.assign(
+        {},
+        globalConfig.exportConfig,
+        tracesConfig.exportConfig,
+      );
+      // Set the path if endpoint comes from general config
+      if (isGenericEndpoint) {
+        endpointUrl.pathname = '/v1/traces';
+        tracesConfig.exportConfig.url = endpointUrl.href;
       }
-      tracesConfig.otlpTracesHeaders ??= globalConfig.otlpHeaders;
       tracesConfig.resource ??= globalConfig.resource;
       sdks.push(factories.traces(tracesConfig));
     }

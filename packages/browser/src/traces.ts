@@ -16,19 +16,24 @@ const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/traces';
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
   const tracesEndpoint =
-    config?.otlpTracesEndpoint || DEFAULT_TRACES_OTLP_ENDOINT;
+    config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDOINT;
 
   const spanProcessor = new BatchSpanProcessor(
     new OTLPTraceExporter({
       url: tracesEndpoint,
-      headers: config?.otlpTracesHeaders,
+      headers: config?.exportConfig?.headers,
     }),
-    {
-      scheduledDelayMillis: config?.bspScheduleDelay,
-      exportTimeoutMillis: config?.bspExportTimeout,
-      maxExportBatchSize: config?.bspMaxExportBatchSize,
-      maxQueueSize: config?.bspMaxQueueSize,
-    },
+    Object.assign(
+      // defaults
+      {
+        scheduledDelayMillis: 1_000,
+        exportTimeoutMillis: 30_000,
+        maxExportBatchSize: 512,
+        maxQueueSize: 2048,
+      },
+      // user defined
+      config?.processorConfig,
+    ),
   );
 
   const tracerProvider = new BasicTracerProvider({

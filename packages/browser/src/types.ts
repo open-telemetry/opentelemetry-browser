@@ -10,7 +10,29 @@ import type {
 } from '@opentelemetry/api';
 import type { Resource } from '@opentelemetry/resources';
 import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
-import type { Sampler, SpanLimits } from '@opentelemetry/sdk-trace-base';
+import type {
+  GeneralLimits,
+  Sampler,
+  SpanLimits,
+} from '@opentelemetry/sdk-trace-base';
+
+/**
+ * Export configuration. Can be used globally or per signal
+ */
+export interface ExportConfig {
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+/**
+ * Batch processor configuration. Can be used globally or per signal
+ */
+export interface ProcessorConfig {
+  scheduledDelayMillis?: number;
+  exportTimeoutMillis?: number;
+  maxQueueSize?: number;
+  maxExportBatchSize?: number;
+}
 
 export interface GlobalConfig {
   disabled?: boolean;
@@ -19,13 +41,11 @@ export interface GlobalConfig {
   serviceName?: string;
   resource?: Resource;
   // Export
-  otlpEndpoint?: string;
-  otlpHeaders?: Record<string, string>;
-  // add other globals for queue/batch size
+  exportConfig?: ExportConfig;
+  // add other globals for queue/batch size?
 
-  // Global Limits
-  attrLengthLimit?: number;
-  attrCountLimit?: number;
+  // General Limits
+  generalLimits: GeneralLimits;
 
   // Basic options that could translate to more complex ones
   // in specific signals like
@@ -33,18 +53,13 @@ export interface GlobalConfig {
   //    and maybe somethign else for other signals??? (sampling logs?)
   // sampleRate?: number;
 }
-
 export interface LogsConfig {
   // Resource & Entities related
   resource?: Resource;
   // Processor
-  blrpScheduleDelay?: number;
-  blrpExportTimeout?: number;
-  blrpMaxQueueSize?: number;
-  blrpMaxExportBatchSize?: number;
+  processorConfig?: ProcessorConfig;
   // Export
-  otlpLogsEndpoint?: string;
-  otlpLogsHeaders?: Record<string, string>;
+  exportConfig?: ExportConfig;
   // Limits
   logRecordLimits?: LogRecordLimits;
 }
@@ -58,13 +73,9 @@ export interface TracesConfig {
   // Sampler
   sampler?: Sampler;
   // Processor
-  bspScheduleDelay?: number;
-  bspExportTimeout?: number;
-  bspMaxQueueSize?: number;
-  bspMaxExportBatchSize?: number;
+  processorConfig?: ProcessorConfig;
   // Export
-  otlpTracesEndpoint?: string;
-  otlpTracesHeaders?: Record<string, string>;
+  exportConfig?: ExportConfig;
   // Limits
   spanLimits?: SpanLimits;
 }
