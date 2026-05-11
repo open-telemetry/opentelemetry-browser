@@ -7,7 +7,7 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { setupTestLogExporter } from '#instrumentation-test-utils';
+import { setupTestLogExporter } from '#utils/test';
 import { UserActionInstrumentation } from './instrumentation.ts';
 
 describe('UserActionInstrumentation', () => {

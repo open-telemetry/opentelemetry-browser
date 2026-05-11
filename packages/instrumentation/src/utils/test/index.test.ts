@@ -5,7 +5,7 @@
 
 import { logs } from '@opentelemetry/api-logs';
 import { describe, expect, it } from 'vitest';
-import { setupTestLogExporter } from './logs.ts';
+import { setupTestLogExporter } from './index.ts';
 
 describe('logTestUtils', () => {
   it('should collect logs in memory', () => {

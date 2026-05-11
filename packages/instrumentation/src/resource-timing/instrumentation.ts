@@ -181,9 +181,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     try {
       observer.observe({ type: 'resource', buffered: true });
     } catch (e) {
-      this._diag.error(
-        'Failed to start resource PerformanceObserver', e
-      );
+      this._diag.error('Failed to start resource PerformanceObserver', e);
       this._observer = undefined;
     }
   }

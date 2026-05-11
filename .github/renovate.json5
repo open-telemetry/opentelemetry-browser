@@ -6,6 +6,8 @@
   ],
   "schedule": ["before 8am on Monday"],
   "rebaseWhen": "behind-base-branch",
+  // Override :ignoreModulesAndTests (via config:base) which adds **/examples/** by default
+  "ignorePaths": ["**/node_modules/**", "**/vendor/**", "**/test/**", "**/tests/**", "**/__tests__/**", "**/fixtures/**"],
   "ignoreDeps": ["@types/node", "node", "npm"],
   "labels": ["dependencies"],
   "postUpdateOptions": ["npmDedupe"],
@@ -25,8 +27,7 @@
     {
       "description": "OpenTelemetry",
       "matchDepNames": ["@opentelemetry/**"],
-      "groupName": "opentelemetry",
-      "rangeStrategy": "replace"
+      "groupName": "opentelemetry"
     }
   ]
 }
