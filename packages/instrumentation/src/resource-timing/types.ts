@@ -44,8 +44,11 @@ export interface ResourceTimingInstrumentationConfig
 
   /**
    * URLs to ignore. Entries whose URL matches any of the patterns will not be
-   * captured. Strings are matched exactly; RegExps are matched against the full URL.
-   * Avoid RegExps with the `g` or `y` flag — their stateful `lastIndex` causes
+   * captured. Strings are compared with strict equality — matching is
+   * case-sensitive and the URL is not normalized, so a trailing slash, query
+   * string, or different casing will not match. Prefer RegExps for robust
+   * matching (e.g. `[/\/v1\/traces$/, /\/v1\/logs$/]`).
+   * Avoid RegExps with the `y` flag — its stateful `lastIndex` causes
    * alternating match results across repeated calls.
    */
   ignoreUrls?: (string | RegExp)[];

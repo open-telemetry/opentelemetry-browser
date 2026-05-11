@@ -154,7 +154,14 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           continue;
         }
 
-        if (isUrlIgnored(entry.name, this._config.ignoreUrls)) {
+        let ignored: boolean;
+        try {
+          ignored = isUrlIgnored(entry.name, this._config.ignoreUrls);
+        } catch (e) {
+          this._diag.error('Failed to check ignoreUrls for resource entry', e);
+          continue;
+        }
+        if (ignored) {
           continue;
         }
 
@@ -174,7 +181,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     try {
       observer.observe({ type: 'resource', buffered: true });
     } catch (e) {
-      this._diag.warn(
+      this._diag.error(
         'Failed to start resource PerformanceObserver', e
       );
       this._observer = undefined;
