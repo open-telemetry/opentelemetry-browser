@@ -13,7 +13,9 @@ import {
   it,
   vi,
 } from 'vitest';
+import { defaultSanitizeUrl } from '#utils';
 import { setupTestLogExporter } from '#utils/test';
+
 import { NavigationInstrumentation } from './instrumentation.ts';
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,
@@ -22,7 +24,6 @@ import {
   ATTR_URL_FULL,
   BROWSER_NAVIGATION_EVENT_NAME,
 } from './semconv.ts';
-import { defaultSanitizeUrl } from './utils.ts';
 
 describe('NavigationInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
