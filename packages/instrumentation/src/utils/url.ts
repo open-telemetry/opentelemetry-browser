@@ -54,3 +54,72 @@ export function defaultSanitizeUrl(url: string): string {
     return sanitized;
   }
 }
+
+/**
+ * The URLLike interface represents an URL and HTMLAnchorElement compatible fields.
+ */
+type KeysOfType<T extends object, V> = {
+  [K in keyof T]-?: T[K] extends V ? K : never;
+}[keyof T];
+type UrlKeys = KeysOfType<URL, string>;
+export type URLLike = Pick<URL, UrlKeys>;
+
+const ANCHOR_ELEMENT = document.createElement('a');
+/**
+ * Parses url using URL constructor or fallback to anchor element.
+ * @param url
+ */
+export function parseUrl(url: string): URLLike {
+  if (typeof URL === 'function') {
+    return new URL(
+      url,
+      typeof document !== 'undefined'
+        ? document.baseURI
+        : typeof location !== 'undefined' // Some JS runtimes (e.g. Deno) don't define this
+          ? location.href
+          : undefined,
+    );
+  }
+  ANCHOR_ELEMENT.href = url;
+  return ANCHOR_ELEMENT;
+}
+
+/**
+ * Tells if the given URL matches any of the string|RegExp provided in the list
+ * @param url
+ * @param urlsToMatch
+ */
+export function matchesUrl(
+  url: string,
+  urlsToMatch?: Array<string | RegExp>,
+): boolean {
+  if (!urlsToMatch) {
+    return false;
+  }
+
+  for (const urlToMatch of urlsToMatch) {
+    if (typeof urlToMatch === 'string') {
+      return url === urlToMatch;
+    } else {
+      return !!url.match(urlToMatch);
+    }
+  }
+  return false;
+}
+
+const HTTP_PORT_FROM_PROTOCOL: { [key: string]: string } = {
+  'https:': '443',
+  'http:': '80',
+};
+/**
+ * Extracts the server port fromt the given URL object
+ */
+export function serverPortFromUrl(url: URLLike): number | undefined {
+  const serverPort = Number(url.port || HTTP_PORT_FROM_PROTOCOL[url.protocol]);
+  // Guard with `if (serverPort)` because `Number('') === 0`.
+  if (serverPort && !Number.isNaN(serverPort)) {
+    return serverPort;
+  } else {
+    return undefined;
+  }
+}
