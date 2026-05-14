@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { URLLike } from './url.ts';
-import { matchesUrl, parseUrl } from './url.ts';
+import { matchesUrl, parseUrl, serverPortFromUrl } from './url.ts';
 
 describe('parseUrl', () => {
   const urlFields: Array<keyof URLLike> = [
@@ -87,5 +87,33 @@ describe('matchesUrl', () => {
         expect(matchesUrl(urlToTest, urlsToMatch)).toBe(true);
       }
     });
+  });
+});
+
+describe('serverPortFromUrl', () => {
+  it('should return the default port based on the protocol', () => {
+    const secureUrl = parseUrl('https://opentelemetry.io/foo');
+    const insecureUrl = parseUrl('http://opentelemetry.io/foo');
+
+    expect(serverPortFromUrl(secureUrl)).toBe(443);
+    expect(serverPortFromUrl(insecureUrl)).toBe(80);
+  });
+
+  it('should return the port defined in the URL', () => {
+    const url = parseUrl('https://opentelemetry.io:8443/foo');
+
+    expect(serverPortFromUrl(url)).toBe(8443);
+  });
+
+  it('should return undefined if the port is not a number', () => {
+    const url = { port: 'foo' } as URLLike;
+
+    expect(serverPortFromUrl(url)).toBeUndefined();
+  });
+
+  it('should return undefined if the port is not defined and protocol is not known', () => {
+    const url = { port: '', protocol: 'bar' } as URLLike;
+
+    expect(serverPortFromUrl(url)).toBeUndefined();
   });
 });
