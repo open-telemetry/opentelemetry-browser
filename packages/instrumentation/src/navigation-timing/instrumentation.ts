@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
@@ -201,6 +202,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       return;
     }
 
+    const navigationContext = context.active();
     this.logger.emit({
       eventName: NAVIGATION_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
@@ -232,6 +234,8 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
         [ATTR_NAVIGATION_ENCODED_BODY_SIZE]: entry.encodedBodySize,
         [ATTR_NAVIGATION_DECODED_BODY_SIZE]: entry.decodedBodySize,
       },
+      context: navigationContext,
+      body: `navigation timing for ${entry.type}`,
     });
   }
 

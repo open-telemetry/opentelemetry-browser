@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { isUrlIgnored } from '@opentelemetry/core';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
@@ -246,6 +247,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _emitResource(entry: PerformanceResourceTiming): void {
     try {
+      const resourceContext = context.active();
       this.logger.emit({
         eventName: RESOURCE_TIMING_EVENT_NAME,
         severityNumber: SeverityNumber.INFO,
@@ -272,6 +274,8 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           // @ts-expect-error renderBlockingStatus is only available in Chromium as of March 2026
           [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: entry.renderBlockingStatus,
         },
+        context: resourceContext,
+        body: `resource timing for ${entry.name}`,
       });
     } catch (error) {
       this._diag.error(

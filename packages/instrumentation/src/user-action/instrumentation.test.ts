@@ -63,6 +63,7 @@ describe('UserActionInstrumentation', () => {
     expect(log?.attributes['browser.page.y']).toBe(150);
     expect(log?.attributes['browser.tag_name']).toBe('DIV');
     expect(log?.attributes['browser.css_selector']).toBe('html > body > div');
+    expect(log?.body).toBe('click (left) on html > body > div');
   });
 
   it('should emit a log when the element triggers a mousedown event with the right and middle click', () => {
@@ -78,10 +79,16 @@ describe('UserActionInstrumentation', () => {
     expect(middleClickLog?.attributes['browser.mouse_event.button']).toBe(
       'middle',
     );
+    expect(middleClickLog?.body).toMatch(
+      'click (middle)'
+    );
 
     const rightClickLog = logs[1];
     expect(rightClickLog?.attributes['browser.mouse_event.button']).toBe(
       'right',
+    );
+    expect(rightClickLog?.body).toMatch(
+      'click (right)'
     );
   });
 

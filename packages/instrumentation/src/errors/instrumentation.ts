@@ -4,6 +4,7 @@
  */
 
 import type { Attributes } from '@opentelemetry/api';
+import { context } from '@opentelemetry/api';
 import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import {
@@ -81,11 +82,14 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     }
 
     const customAttributes = this._applyCustomAttributes(error);
+    const errorContext = context.active();
 
     const logRecord: LogRecord = {
       eventName: EXCEPTION_EVENT_NAME,
       severityNumber: SeverityNumber.ERROR,
       attributes: { ...errorAttributes, ...customAttributes },
+      context: errorContext,
+      body: `unhandled: ${typeof error === 'string' ? error : errorAttributes[ATTR_EXCEPTION_TYPE]}`,
     };
 
     this.logger.emit(logRecord);
