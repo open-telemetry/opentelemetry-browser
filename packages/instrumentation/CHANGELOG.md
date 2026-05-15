@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.5.0...browser-instrumentation-v0.5.1) (2026-05-12)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @opentelemetry/core to ^2.7.1 ([#276](https://github.com/open-telemetry/opentelemetry-browser/issues/276)) ([0cd11cc](https://github.com/open-telemetry/opentelemetry-browser/commit/0cd11ccad08b39b11368e5be2f84145ad4d95313))
+* **resource-timing:** prevent feedback loop by adding ignoreUrls ([#248](https://github.com/open-telemetry/opentelemetry-browser/issues/248)) ([3265cd9](https://github.com/open-telemetry/opentelemetry-browser/commit/3265cd906fe27cc99afaf58fab55404ac6ec844e))
+
 ## [0.5.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.4.0...browser-instrumentation-v0.5.0) (2026-05-07)
 
 

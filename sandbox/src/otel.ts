@@ -106,15 +106,19 @@ export function initOtel(
   registerInstrumentations({
     instrumentations: [
       new NavigationTimingInstrumentation(),
-      new ResourceTimingInstrumentation(),
+      new ResourceTimingInstrumentation({
+        ignoreUrls: [config.tracesUrl, config.logsUrl],
+      }),
       new UserActionInstrumentation(),
       new WebVitalsInstrumentation({ includeRawAttribution: true }),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
         clearTimingResources: true,
+        ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
       new XMLHttpRequestInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
+        ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
     ],
   });
