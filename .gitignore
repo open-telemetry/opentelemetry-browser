@@ -29,3 +29,8 @@ dist
 
 # AI agent rules
 AGENTS.md
+.claude
+
+# Test output
+.vitest-attachments
+**/*/coverage

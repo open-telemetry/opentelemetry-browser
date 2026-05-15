@@ -1,0 +1,16 @@
+{
+  "name": "e2e-tests",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.217.0",
+    "@opentelemetry/browser-instrumentation": "file:../packages/instrumentation",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.217.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.217.0",
+    "@opentelemetry/instrumentation": "^0.217.0",
+    "@opentelemetry/sdk-logs": "^0.217.0",
+    "@opentelemetry/sdk-trace-web": "^2.7.1",
+    "msw": "^2.14.6"
+  }
+}

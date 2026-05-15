@@ -32,6 +32,7 @@
   "exports": {
     "./experimental/console": "./dist/console/index.js",
     "./experimental/errors": "./dist/errors/index.js",
+    "./experimental/fetch": "./dist/fetch/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
@@ -59,7 +60,8 @@
     "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "0.217.0"
+    "@opentelemetry/sdk-logs": "0.217.0",
+    "@opentelemetry/sdk-trace-base": "^2.7.1"
   },
   "publishConfig": {
     "access": "public"

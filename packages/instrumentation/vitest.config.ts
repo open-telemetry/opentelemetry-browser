@@ -8,6 +8,9 @@ export default defineConfig({
         test: {
           name: 'unit',
           environment: 'jsdom',
+          environmentOptions: {
+            jsdom: { url: 'http://localhost/' },
+          },
           include: ['src/**/*.test.ts'],
           exclude: ['src/web-vitals/**'],
           browser: { enabled: false },
