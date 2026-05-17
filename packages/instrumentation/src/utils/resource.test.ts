@@ -4,8 +4,8 @@
  */
 
 import type { Context } from '@opentelemetry/api';
-import { describe, expect, it } from 'vitest';
-import { getContextForResource, setContextForResource } from './resource.ts';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { findContextForResource, setContextForResource } from './resource.ts';
 
 function createContext(val: string): Context {
   return {
@@ -19,127 +19,90 @@ function createContext(val: string): Context {
   };
 }
 
-describe('getContextForResource', () => {
+describe('findContextForResource', () => {
   describe('when no context is saved for resources', () => {
     it('should return undefined', () => {
-      const fetchStart = performance.now();
-      const responseEnd = fetchStart + 300;
-      expect(
-        getContextForResource({ name: 'test', fetchStart, responseEnd }),
-      ).toBeUndefined();
+      expect(findContextForResource(() => true)).toBeUndefined();
     });
   });
 
   describe('when context is saved for resources', () => {
-    const fetchStart = performance.now();
-    const responseEnd = fetchStart + 300;
+    const startTime = performance.now();
+    const endTime = startTime + 300;
 
-    // Set different resources with the same timing
-    setContextForResource(
-      { name: 'url1', fetchStart, responseEnd },
-      createContext('1'),
-    );
-    setContextForResource(
-      { name: 'url2', fetchStart, responseEnd },
-      createContext('2'),
-    );
-    // Set same resource again with different timings (100ms later)
-    setContextForResource(
-      {
-        name: 'url1',
-        fetchStart: fetchStart + 100,
-        responseEnd: responseEnd + 100,
-      },
-      createContext('3'),
-    );
+    beforeAll(() => {
+      // Set different resources with the same timing
+      setContextForResource(
+        { url: 'url1', startTime, endTime },
+        createContext('1'),
+      );
+      setContextForResource(
+        { url: 'url2', startTime, endTime },
+        createContext('2'),
+      );
+      // Set same resource again with different timings (100ms later)
+      setContextForResource(
+        {
+          url: 'url1',
+          startTime: startTime + 100,
+          endTime: endTime + 100,
+        },
+        createContext('3'),
+      );
+    });
 
-    it('should return undefined if no resource has the name', () => {
+    it('should return undefined if no resource satisfies the predicate', () => {
       expect(
-        getContextForResource({ name: 'unknown', fetchStart, responseEnd }),
+        findContextForResource((r) => r.url === 'unknown'),
       ).toBeUndefined();
     });
 
-    it('should return undefined if matches name but not times', () => {
-      // Starts sooner
-      expect(
-        getContextForResource({
-          name: 'url1',
-          fetchStart: fetchStart - 1,
-          responseEnd,
-        }),
-      ).toBeUndefined();
-      // Ends later
-      expect(
-        getContextForResource({
-          name: 'url1',
-          fetchStart,
-          responseEnd: responseEnd + 1,
-        }),
-      ).toBeUndefined();
-    });
+    it('should return the 1st entry matching the predicate', () => {
+      let ctx = findContextForResource((r) => r.url === 'url1');
+      expect(ctx).toBeDefined();
+      expect(ctx?.getValue(Symbol.for('test'))).toBe('1');
 
-    it('should return a context if there is a match', () => {
-      const ctx1 = getContextForResource({
-        name: 'url1',
-        fetchStart,
-        responseEnd,
-      });
-      expect(ctx1).toBeDefined();
-      expect(ctx1?.getValue(Symbol.for('test'))).toStrictEqual('1');
+      ctx = findContextForResource((r) => r.url === 'url2');
+      expect(ctx).toBeDefined();
+      expect(ctx?.getValue(Symbol.for('test'))).toBe('2');
 
-      const ctx2 = getContextForResource({
-        name: 'url2',
-        fetchStart,
-        responseEnd,
-      });
-      expect(ctx2).toBeDefined();
-      expect(ctx2?.getValue(Symbol.for('test'))).toStrictEqual('2');
-
-      const ctx3 = getContextForResource({
-        name: 'url1',
-        fetchStart: fetchStart + 100,
-        responseEnd: responseEnd + 100,
-      });
-      expect(ctx3).toBeDefined();
-      expect(ctx3?.getValue(Symbol.for('test'))).toStrictEqual('3');
+      ctx = findContextForResource(
+        (r) => r.url === 'url1' && r.startTime >= startTime + 50,
+      );
+      expect(ctx).toBeDefined();
+      expect(ctx?.getValue(Symbol.for('test'))).toBe('3');
     });
 
     it('should return undefined if all resources are expired', async () => {
       await new Promise((r) => setTimeout(r, 1000));
 
-      const ctx1 = getContextForResource({
-        name: 'url1',
-        fetchStart,
-        responseEnd,
-      });
-      expect(ctx1).toBeUndefined();
+      let ctx = findContextForResource((r) => r.url === 'url1');
+      expect(ctx).toBeUndefined();
 
-      const ctx2 = getContextForResource({
-        name: 'url2',
-        fetchStart,
-        responseEnd,
-      });
-      expect(ctx2).toBeUndefined();
+      ctx = findContextForResource((r) => r.url === 'url2');
+      expect(ctx).toBeUndefined();
 
-      const ctx3 = getContextForResource({
-        name: 'url1',
-        fetchStart: fetchStart + 100,
-        responseEnd: responseEnd + 100,
-      });
-      expect(ctx3).toBeUndefined();
+      ctx = findContextForResource(
+        (r) => r.url === 'url1' && r.startTime >= startTime + 50,
+      );
+      expect(ctx).toBeUndefined();
+
+      ctx = findContextForResource(() => true);
+      expect(ctx).toBeUndefined();
     });
 
     it('should keep the context for a specific TTL', async () => {
-      const res = { name: 'test', fetchStart, responseEnd };
+      const now = performance.now();
+      const res = { url: 'test', startTime: now, endTime: now };
       const ctx = createContext('t');
       setContextForResource(res, ctx, 300);
 
       await new Promise((r) => setTimeout(r, 100));
-      let ctx2 = getContextForResource(res);
+      let ctx2 = findContextForResource((r) => r.url === 'test');
       expect(ctx2).toBe(ctx);
 
       await new Promise((r) => setTimeout(r, 300));
-      ctx2 = getContextForResource(res);
+      ctx2 = findContextForResource((r) => r.url === 'test');
       expect(ctx2).toBeUndefined();
     });
   });

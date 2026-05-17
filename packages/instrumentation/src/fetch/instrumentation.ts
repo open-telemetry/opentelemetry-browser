@@ -245,7 +245,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         return context.with(
           trace.setSpan(context.active(), createdSpan),
           () => {
-            const name = url;
+            const fetchUrl = url;
             const fetchStart = performance.now();
             const fetchContext = context.active();
 
@@ -269,9 +269,9 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
               )
               .finally(() => {
                 // Set the context for other instrumentations (resource-timing) to pick it up
-                const responseEnd = performance.now();
+                const fetchEnd = performance.now();
                 setContextForResource(
-                  { name, fetchStart, responseEnd },
+                  { url: fetchUrl, startTime: fetchStart, endTime: fetchEnd },
                   fetchContext,
                 );
               });

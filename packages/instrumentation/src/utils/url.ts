@@ -99,9 +99,11 @@ export function matchesUrl(
 
   for (const urlToMatch of urlsToMatch) {
     if (typeof urlToMatch === 'string') {
-      return url === urlToMatch;
-    } else {
-      return !!url.match(urlToMatch);
+      if (url === urlToMatch) {
+        return true;
+      }
+    } else if (url.match(urlToMatch)) {
+      return true;
     }
   }
   return false;

@@ -5,11 +5,28 @@
 
 import type { Context } from '@opentelemetry/api';
 
-type ResourceWithContext = Pick<
-  PerformanceResourceTiming,
-  'name' | 'fetchStart' | 'responseEnd'
->;
+// type ResourceWithContext = Pick<
+//   PerformanceResourceTiming,
+//   'name' | 'fetchStart' | 'responseEnd'
+// >;
 
+/**
+ * In some situations a resource is fetched within the context
+ * of an active Span like document load or a fetch/XHR request.
+ * Since the resource timing API is executed in a differnet context
+ * and browsers do not have a AsyncContext propagation (yet) we will
+ * let the instrumentaiton to stash the context so it can be queried
+ * later to provide the right context to the log record
+ */
+interface ResourceWithContext {
+  url: string;
+  startTime: number; // relative to performance.timeOrigin
+  endTime: number; // relative to performance.timeOrigin
+}
+
+/**
+ * Contains the resources and their context
+ */
 const resourceContextMap = new Map<ResourceWithContext, Context>();
 
 /**
@@ -23,33 +40,21 @@ export function setContextForResource(
   if (resourceContextMap.has(res)) {
     // TODO: log/debug? override?
   } else {
+    console.log('set context');
     resourceContextMap.set(res, ctx);
     setTimeout(() => resourceContextMap.delete(res), ttl);
   }
 }
 
 /**
- * Returns a context for the a matching resource if it was saved previously within the TTL.
- * Undefined otherwise
+ * Returns the context of the 1st resource that satisfies the predicate function
  */
-export function getContextForResource(
-  res: ResourceWithContext,
+export function findContextForResource(
+  predicate: (r: ResourceWithContext) => boolean,
 ): Context | undefined {
-  let ctx: Context | undefined;
-  for (const [r, c] of resourceContextMap) {
-    if (
-      r.name === res.name &&
-      res.fetchStart >= r.fetchStart &&
-      res.responseEnd <= r.responseEnd
-    ) {
-      // TODO: is it possible that more than one matches?
-      ctx = c;
-    }
-
-    // Cleanup the resource if too old
-    if (performance.now() - r.responseEnd > 3000) {
-      resourceContextMap.delete(r);
+  for (const [res, ctx] of resourceContextMap) {
+    if (predicate(res)) {
+      return ctx;
     }
   }
-  return ctx;
 }
