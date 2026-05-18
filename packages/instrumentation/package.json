@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-instrumentation",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "OpenTelemetry browser instrumentations.",
   "keywords": [
     "opentelemetry",
