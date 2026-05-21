@@ -4,6 +4,7 @@
  */
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
+import { isUrlIgnored } from '@opentelemetry/core';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
@@ -133,44 +134,55 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       return;
     }
 
-    try {
-      const observer = new PerformanceObserver((list) => {
-        if (!this._isEnabled) {
-          return;
-        }
+    const observer = new PerformanceObserver((list) => {
+      if (!this._isEnabled) {
+        return;
+      }
 
-        const maxQueueSize = Math.max(
-          this._config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE,
-          MIN_QUEUE_SIZE,
-        );
-        const entries = list.getEntries() as PerformanceResourceTiming[];
-        const initiatorTypes = this._config.initiatorTypes;
-
-        for (const entry of entries) {
-          if (
-            initiatorTypes !== undefined &&
-            !initiatorTypes.includes(entry.initiatorType)
-          ) {
-            continue;
-          }
-
-          if (this._pendingEntries.length >= maxQueueSize) {
-            this._flush();
-          }
-          this._pendingEntries.push(entry);
-        }
-
-        if (this._pendingEntries.length > 0) {
-          this._scheduleProcessing();
-        }
-      });
-
-      this._observer = observer;
-      observer.observe({ type: 'resource', buffered: true });
-    } catch {
-      this._diag.warn(
-        'PerformanceObserver not supported, resource timings will not be collected',
+      const maxQueueSize = Math.max(
+        this._config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE,
+        MIN_QUEUE_SIZE,
       );
+      const entries = list.getEntries() as PerformanceResourceTiming[];
+      const initiatorTypes = this._config.initiatorTypes;
+
+      for (const entry of entries) {
+        if (
+          initiatorTypes !== undefined &&
+          !initiatorTypes.includes(entry.initiatorType)
+        ) {
+          continue;
+        }
+
+        let ignored: boolean;
+        try {
+          ignored = isUrlIgnored(entry.name, this._config.ignoreUrls);
+        } catch (e) {
+          this._diag.error('Failed to check ignoreUrls for resource entry', e);
+          continue;
+        }
+        if (ignored) {
+          continue;
+        }
+
+        if (this._pendingEntries.length >= maxQueueSize) {
+          this._flush();
+        }
+        this._pendingEntries.push(entry);
+      }
+
+      if (this._pendingEntries.length > 0) {
+        this._scheduleProcessing();
+      }
+    });
+
+    this._observer = observer;
+
+    try {
+      observer.observe({ type: 'resource', buffered: true });
+    } catch (e) {
+      this._diag.error('Failed to start resource PerformanceObserver', e);
+      this._observer = undefined;
     }
   }
 

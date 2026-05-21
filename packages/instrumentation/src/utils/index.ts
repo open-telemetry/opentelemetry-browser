@@ -5,3 +5,4 @@
 
 export { getElementCSSSelector } from './getElementCSSSelector.ts';
 export { getElementXPath } from './getElementXPath.ts';
+export { defaultSanitizeUrl } from './url.ts';
