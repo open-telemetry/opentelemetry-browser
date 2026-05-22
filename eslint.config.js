@@ -58,16 +58,16 @@ export default [
         {
           paths: [
             {
-              name: '#instrumentation-test-utils',
+              name: '#utils/test',
               message:
-                '#instrumentation-test-utils is for test files only, not production source.',
+                '#utils/test is for test files only, not production source.',
             },
           ],
           patterns: [
             {
-              group: ['**/test-utils*'],
+              group: ['**/test/**'],
               message:
-                'test-utils is for test files only, not production source.',
+                'test utilities are for test files only, not production source.',
             },
           ],
         },
