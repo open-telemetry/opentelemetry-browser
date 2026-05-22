@@ -5,7 +5,10 @@
 
 import type { Context, Span } from '@opentelemetry/api';
 import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
-import type { ReadableSpan, SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import type {
+  ReadableSpan,
+  SpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { ATTR_BROWSER_DOCUMENT_URL_FULL } from './semconv.ts';
 import type { BrowserDocumentUrlProcessorConfig } from './types.ts';
 

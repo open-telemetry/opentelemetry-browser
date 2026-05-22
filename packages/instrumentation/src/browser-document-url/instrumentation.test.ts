@@ -6,7 +6,7 @@
 import { logs } from '@opentelemetry/api-logs';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { setupTestLogExporter } from '#instrumentation-test-utils';
+import { setupTestLogExporter } from '#utils/test';
 import {
   BrowserDocumentUrlLogProcessor,
   BrowserDocumentUrlSpanProcessor,
@@ -98,7 +98,9 @@ describe('BrowserDocumentUrlLogProcessor', () => {
     it('should set browser.document.url.full on log records when enabled', () => {
       processor.enable();
 
-      logs.getLogger('test').emit({ body: 'test event', eventName: 'test.event' });
+      logs
+        .getLogger('test')
+        .emit({ body: 'test event', eventName: 'test.event' });
 
       const records = exporter.getFinishedLogRecords();
       expect(records.length).toBe(1);
@@ -108,7 +110,9 @@ describe('BrowserDocumentUrlLogProcessor', () => {
     });
 
     it('should NOT set the attribute when disabled', () => {
-      logs.getLogger('test').emit({ body: 'test event', eventName: 'test.event' });
+      logs
+        .getLogger('test')
+        .emit({ body: 'test event', eventName: 'test.event' });
 
       const records = exporter.getFinishedLogRecords();
       expect(records.length).toBe(1);
