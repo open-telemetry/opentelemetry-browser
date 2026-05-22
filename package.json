@@ -58,6 +58,11 @@
   "peerDependencies": {
     "typescript": "^6.0.3"
   },
+  "overrides": {
+    "@arethetypeswrong/core": {
+      "fflate": "0.8.2"
+    }
+  },
   "workspaces": [
     "examples/*",
     "packages/*",
