@@ -4,6 +4,8 @@
  */
 
 import { defaultResource } from '@opentelemetry/resources';
+import { startLogsSdk } from './logs.ts';
+import { startTracesSdk } from './traces.ts';
 import type {
   GlobalConfig,
   LogsConfig,
@@ -23,7 +25,11 @@ type ConfigsFor<T> = Partial<{
 
 const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
 
-export function combineSdks<T extends SdkFactories>(
+/**
+ * Combines different SDK factory functions into a single one
+ * which accepts a global configuration along
+ */
+function combineSdks<T extends SdkFactories>(
   factories: T,
 ): WebSdkFactory<GlobalConfig & ConfigsFor<T>> {
   // The returned function will transform some of the global
@@ -93,3 +99,13 @@ export function combineSdks<T extends SdkFactories>(
     };
   };
 }
+
+/**
+ * Combination of all singal SDKs into one. A shorthand for users to
+ * start with all signals allowing them to pass some global configuration
+ * options.
+ */
+export const startBrowserSdk = combineSdks({
+  logs: startLogsSdk,
+  traces: startTracesSdk,
+});

@@ -21,18 +21,15 @@ The package does not rely on a single heavy entry point. Use explicit subpaths:
 | ------------------------------- | -------------------------------------------- |
 | `@opentelemetry/browser/logs`   | `startLogsSdk` — logs pipeline + OTLP export |
 | `@opentelemetry/browser/traces` | `startTracesSdk` — traces + OTLP export      |
-| `@opentelemetry/browser/sdk`    | `combineSdks` — compose multiple starters    |
+| `@opentelemetry/browser/sdk`    | `startBrowserSdk` — both signals composed    |
 
 ## Core types
 
-- **`WebSdk`** — `{ shutdown(): Promise<void> }` — returned by every starter; call `shutdown()` when the app unloads or telemetry should stop.
-- **`WebSdkFactory<T>`** — `(config?: T) => WebSdk` — type of functions like `startLogsSdk` / `startTracesSdk` when passed into `combineSdks`.
-
 Configuration interfaces are defined in the implementation (`GlobalConfig`, `LogsConfig`, `TracesConfig`). Highlights:
 
-- **`GlobalConfig`** (for `combineSdks` only): shared OTLP base URL (`otlpEndpoint`, default `http://localhost:4318`), `otlpHeaders`, optional `resource`, plus fields reserved for future use (e.g. diagnostics, limits).
-- **`LogsConfig`**: `resource`, OTLP URL `otlpLogsEndpoint` (default `http://localhost:4318/v1/logs`), `otlpLogsHeaders`, batch processor tuning (`blrpScheduleDelay`, `blrpExportTimeout`, `blrpMaxQueueSize`, `blrpMaxExportBatchSize`), `logRecordLimits`.
-- **`TracesConfig`**: optional `contextManager` and `textMapPropagator` (see `@opentelemetry/api`), `resource`, `sampler`, `spanLimits`, OTLP URL `otlpTracesEndpoint` (default `http://localhost:4318/v1/traces`), `otlpTracesHeaders`, batch span processor tuning (`bspScheduleDelay`, `bspExportTimeout`, `bspMaxQueueSize`, `bspMaxExportBatchSize`).
+- **`GlobalConfig`** (for `startBrowserSdk` only): shared OTLP export configuration (base `url`, default `http://localhost:4318`), optional `resource`, plus fields reserved for future use (e.g. diagnostics, limits).
+- **`LogsConfig`**: `resource`, OTLP export configuration (`url`, default `http://localhost:4318/v1/logs`), batch processor tuning `logRecordLimits`.
+- **`TracesConfig`**: optional `contextManager` and `textMapPropagator` (see `@opentelemetry/api`), `resource`, `sampler`, `spanLimits`, OTLP export configuration (`url`, default `http://localhost:4318/v1/traces`), batch span processor tuning .
 
 ## Usage
 
@@ -42,7 +39,7 @@ Configuration interfaces are defined in the implementation (`GlobalConfig`, `Log
 import { startLogsSdk } from '@opentelemetry/browser/logs';
 
 const logsSdk = startLogsSdk({
-  // e.g. otlpLogsEndpoint, otlpLogsHeaders, resource, logRecordLimits, …
+  // e.g. exportConfig, resource, logRecordLimits, …
 });
 
 // when tearing down (e.g. page unload)
@@ -57,7 +54,7 @@ await logsSdk.shutdown();
 import { startTracesSdk } from '@opentelemetry/browser/traces';
 
 const tracesSdk = startTracesSdk({
-  // e.g. otlpTracesEndpoint, sampler, contextManager, textMapPropagator, …
+  // e.g. exportConfig, sampler, contextManager, textMapPropagator, …
 });
 
 await tracesSdk.shutdown();
@@ -67,26 +64,25 @@ await tracesSdk.shutdown();
 
 ### Multiple signals with shared settings
 
-Use **`combineSdks`** from `@opentelemetry/browser/sdk` to pass one merged config (global options plus nested `logs` / `traces` sections) and get a single `shutdown`:
+Use **`startBrowserSdk`** from `@opentelemetry/browser/sdk` to pass one merged config (global options plus nested `logs` / `traces` sections) and get a single `shutdown`:
 
 ```ts
-import { combineSdks } from '@opentelemetry/browser/sdk';
-import { startLogsSdk } from '@opentelemetry/browser/logs';
-import { startTracesSdk } from '@opentelemetry/browser/traces';
+import { startBrowserSdk } from '@opentelemetry/browser/sdk';
 
-const startMySdk = combineSdks({
-  logs: startLogsSdk,
-  traces: startTracesSdk,
-});
-
-const mySdk = startMySdk({
-  otlpEndpoint: 'https://otel.example.com:4318',
-  otlpHeaders: { Authorization: 'Bearer …' },
+const mySdk = startBrowserSdk({
+  exportConfg: {
+    url: 'https://otel.example.com:4318',
+    headers: { Authorization: 'Bearer …' },
+  },
   logs: {
-    otlpLogsHeaders: { 'x-logs': 'foo' },
+    exportConfig: {
+      headers: { 'x-logs': 'foo' },
+    },
   },
   traces: {
-    otlpTracesHeaders: { 'x-traces': 'bar' },
+    exportConfig: {
+      headers: { 'x-traces': 'bar' },
+    },
   },
 });
 
@@ -95,9 +91,9 @@ await mySdk.shutdown();
 
 Behavior notes:
 
-- If you omit signal-specific OTLP URLs, **`otlpEndpoint`** is used as a base and paths `/v1/logs` and `/v1/traces` are applied automatically.
-- **`otlpHeaders`** at the global level is applied to each signal unless overridden by `otlpLogsHeaders` / `otlpTracesHeaders`.
-- A default **`resource`** is applied when using `combineSdks` if you do not set `resource` globally or per signal.
+- If you omit signal-specific OTLP export configuration, the global export URL is used as a base and paths `/v1/logs` and `/v1/traces` are applied automatically.
+- **`headers`** at the global level is applied to each signal unless overridden by signal specific ones.
+- A default **`resource`** is applied when using `startBrowserSdk` if you do not set `resource` globally or per signal.
 
 ## After startup
 

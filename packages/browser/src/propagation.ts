@@ -5,19 +5,16 @@
 
 import type { TextMapPropagator } from '@opentelemetry/api';
 import {
-  CompositePropagator,
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
 
 /**
- * Returns the default propagator which is a composition of:
+ * Returns the default propagators:
  * - W3CTraceContextPropagator
- * -W3CBaggagePropagator
+ * - W3CBaggagePropagator
  * @returns {TextMapPropagator}
  */
-export function getDefaultPropagator(): TextMapPropagator {
-  return new CompositePropagator({
-    propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
-  });
+export function getDefaultPropagators(): TextMapPropagator[] {
+  return [new W3CTraceContextPropagator(), new W3CBaggagePropagator()];
 }

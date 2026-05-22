@@ -19,6 +19,7 @@
   },
   "type": "module",
   "exports": {
+    "./propagation": "./dist/propagation.js",
     "./logs": "./dist/logs.js",
     "./traces": "./dist/traces.js",
     "./sdk": "./dist/sdk.js"

@@ -34,16 +34,21 @@ export interface ProcessorConfig {
   maxExportBatchSize?: number;
 }
 
+/**
+ * The global configuration of the SDK. This type is enhanced
+ * by the `combineSdks` function by adding a key for each
+ * signal used (logs, traces). Do not add a "logs" or "traces" key
+ * here to avoid type collision.
+ */
 export interface GlobalConfig {
   disabled?: boolean;
   logLevel?: DiagLogLevel;
   // Resource & Entities related
   serviceName?: string;
+  serviceVersion?: string;
   resource?: Resource;
   // Export
   exportConfig?: ExportConfig;
-  // add other globals for queue/batch size?
-
   // General Limits
   generalLimits: GeneralLimits;
 
@@ -67,7 +72,7 @@ export interface LogsConfig {
 export interface TracesConfig {
   // Context and Propagation
   contextManager?: ContextManager;
-  textMapPropagator?: TextMapPropagator;
+  propagators?: TextMapPropagator[];
   // Resource & Entities related
   resource?: Resource;
   // Sampler

@@ -4,6 +4,7 @@
  */
 
 import { context, propagation, trace } from '@opentelemetry/api';
+import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import {
   BasicTracerProvider,
@@ -23,17 +24,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
       url: tracesEndpoint,
       headers: config?.exportConfig?.headers,
     }),
-    Object.assign(
-      // defaults
-      {
-        scheduledDelayMillis: 1_000,
-        exportTimeoutMillis: 30_000,
-        maxExportBatchSize: 512,
-        maxQueueSize: 2048,
-      },
-      // user defined
-      config?.processorConfig,
-    ),
+    config?.processorConfig,
   );
 
   const tracerProvider = new BasicTracerProvider({
@@ -46,8 +37,9 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   });
   trace.setGlobalTracerProvider(tracerProvider);
 
-  if (config?.textMapPropagator) {
-    propagation.setGlobalPropagator(config.textMapPropagator);
+  if (config?.propagators) {
+    const { propagators } = config;
+    propagation.setGlobalPropagator(new CompositePropagator({ propagators }));
   }
 
   if (config?.contextManager) {

@@ -26,17 +26,7 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
       url: logsEndpoint,
       headers: config?.exportConfig?.headers,
     }),
-    Object.assign(
-      // defaults
-      {
-        scheduledDelayMillis: 1_000,
-        exportTimeoutMillis: 30_000,
-        maxExportBatchSize: 512,
-        maxQueueSize: 2048,
-      },
-      // user defined
-      config?.processorConfig,
-    ),
+    config?.processorConfig,
   );
   const loggerProvider = new LoggerProvider({
     resource: config?.resource,
