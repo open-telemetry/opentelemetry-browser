@@ -10,12 +10,15 @@ import {
   BasicTracerProvider,
   BatchSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-
+import { setSdkLogger } from './diag.ts';
 import type { TracesConfig, WebSdk } from './types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/traces';
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
+  // Set the logger
+  setSdkLogger(config?.logLevel || 'INFO');
+
   const tracesEndpoint =
     config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDOINT;
 

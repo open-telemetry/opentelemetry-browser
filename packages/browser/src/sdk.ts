@@ -4,6 +4,7 @@
  */
 
 import { defaultResource } from '@opentelemetry/resources';
+import { setSdkLogger } from './diag.ts';
 import { startLogsSdk } from './logs.ts';
 import { startTracesSdk } from './traces.ts';
 import type {
@@ -25,6 +26,11 @@ type ConfigsFor<T> = Partial<{
 
 const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
 
+const DEFAULT_CONFIG: GlobalConfig = {
+  disabled: false,
+  logLevel: 'INFO',
+};
+
 /**
  * Combines different SDK factory functions into a single one
  * which accepts a global configuration along
@@ -36,7 +42,14 @@ function combineSdks<T extends SdkFactories>(
   // configuration options to signal specific ones if the SDK is available
   return function startSdk(config?: GlobalConfig & ConfigsFor<T>) {
     // Check the global config and set defaults
-    const globalConfig = (config || {}) as GlobalConfig;
+    const globalConfig = Object.assign(
+      {},
+      DEFAULT_CONFIG,
+      config,
+    ) as GlobalConfig;
+
+    // Set the logger
+    setSdkLogger(config?.logLevel || 'INFO');
 
     // Export
     globalConfig.exportConfig = Object.assign(

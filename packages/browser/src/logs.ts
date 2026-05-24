@@ -9,7 +9,7 @@ import {
   BatchLogRecordProcessor,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
-
+import { setSdkLogger } from './diag.ts';
 import type { LogsConfig, WebSdk } from './types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
@@ -19,8 +19,10 @@ const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
  * @returns {WebSdk}
  */
 export function startLogsSdk(config?: LogsConfig): WebSdk {
-  const logsEndpoint = config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
+  // Set the logger
+  setSdkLogger(config?.logLevel || 'INFO');
 
+  const logsEndpoint = config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
   const logsProcessor = new BatchLogRecordProcessor(
     new OTLPLogExporter({
       url: logsEndpoint,

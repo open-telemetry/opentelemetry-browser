@@ -42,7 +42,7 @@ export interface ProcessorConfig {
  */
 export interface GlobalConfig {
   disabled?: boolean;
-  logLevel?: DiagLogLevel;
+  logLevel?: keyof typeof DiagLogLevel;
   // Resource & Entities related
   serviceName?: string;
   serviceVersion?: string;
@@ -50,7 +50,7 @@ export interface GlobalConfig {
   // Export
   exportConfig?: ExportConfig;
   // General Limits
-  generalLimits: GeneralLimits;
+  generalLimits?: GeneralLimits;
 
   // Basic options that could translate to more complex ones
   // in specific signals like
@@ -59,6 +59,7 @@ export interface GlobalConfig {
   // sampleRate?: number;
 }
 export interface LogsConfig {
+  logLevel?: keyof typeof DiagLogLevel;
   // Resource & Entities related
   resource?: Resource;
   // Processor
@@ -70,6 +71,7 @@ export interface LogsConfig {
 }
 
 export interface TracesConfig {
+  logLevel?: keyof typeof DiagLogLevel;
   // Context and Propagation
   contextManager?: ContextManager;
   propagators?: TextMapPropagator[];
