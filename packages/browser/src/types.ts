@@ -34,6 +34,39 @@ export interface ProcessorConfig {
   maxExportBatchSize?: number;
 }
 
+
+/**
+ * TODO: each independent SDK should be able to be started independently
+ * and IMHO this means it's able to resolve things like the resource by itself.
+ * this menand global configurations leak to the sginal specific one
+ * if and only if it's used independently. 
+ * 
+ * So this should be possible
+ * 
+ * startLogsSdk({
+ *  serviceName: 'foo'
+ * })
+ * 
+ * But having the option globaly and
+ * specifically it leads to odd situiations like
+ * 
+ * startBrowserSdk({
+ *   serviceName: 'foo',
+ *   logs: {
+ *     serviceName: 'bar'
+ *   },
+ *   traces: {
+ *     serviceName: 'baz'
+ *   }
+ * })
+ * 
+ * the internal logic can handle this making one of them win over the others
+ * but the fact that is possible to call it this way makes the user wonder
+ * which one is the actual service name in the resource
+ * 
+ * Should/Could we remove some options when the SDKs are combined???
+ */
+
 /**
  * The global configuration of the SDK. This type is enhanced
  * by the `combineSdks` function by adding a key for each
