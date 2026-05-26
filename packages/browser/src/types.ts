@@ -82,7 +82,17 @@ export interface CommonConfig {
  * here to avoid type collision.
  */
 export type RootConfig = CommonConfig & {
-  // Export
+  /**
+   * Configuration for processors. If defined it will be applied to
+   * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless signal
+   * specific configuration is set for the signal.
+   */
+  processorConfig?: ProcessorConfig;
+  /**
+   * Configuration for exporters. If defined it will be applied to the
+   * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`
+   * unless signal specific configuration is set for the signal.
+   */
   exportConfig?: ExportConfig;
   // General Limits
   generalLimits?: GeneralLimits;
@@ -96,17 +106,11 @@ export type RootConfig = CommonConfig & {
 
 export type LogsConfig = CommonConfig & {
   /**
-   * Configuration for the LogRecord processor. Setting this
-   * config will enable a `BatchLogRecordProcessor` whith an exporter
-   * that has the default configuration or the one set in `exportConfig`
-   * option.
+   * Configuration for the LogRecord processor.
    */
   processorConfig?: ProcessorConfig;
   /**
-   * Configuration for the LogRecord exporter. Setting this
-   * config will enable a `BatchLogRecordProcessor` whith the default
-   * options for batch and queue size and export schedule and timeouts
-   * unless the `processorConfig` option is set.
+   * Configuration for the LogRecord exporter.
    */
   exportConfig?: ExportConfig;
   /**

@@ -81,6 +81,13 @@ function combineSdks<T extends SdkFactories>(
       const logsConfig = (config?.logs || {}) as LogsConfig;
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
+      // Merge processor configs
+      logsConfig.processorConfig = Object.assign(
+        {},
+        rootConfig.processorConfig,
+        logsConfig.processorConfig,
+      );
+
       // Merge export configs
       logsConfig.exportConfig = Object.assign(
         {},
@@ -100,6 +107,13 @@ function combineSdks<T extends SdkFactories>(
     if (factories.traces) {
       const tracesConfig = (config?.traces || {}) as TracesConfig;
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
+
+      // Merge processor configs
+      tracesConfig.processorConfig = Object.assign(
+        {},
+        rootConfig.processorConfig,
+        tracesConfig.processorConfig,
+      );
 
       // Merge export configs
       tracesConfig.exportConfig = Object.assign(
