@@ -7,6 +7,10 @@ import { context, propagation, trace } from '@opentelemetry/api';
 import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import {
+  defaultResource,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+import {
   BasicTracerProvider,
   BatchSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
@@ -30,11 +34,14 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     config?.processorConfig,
   );
 
+  const resource = defaultResource().merge(
+    resourceFromAttributes(config?.resourceAttributes || {}),
+  );
   const tracerProvider = new BasicTracerProvider({
     // sampler: new TraceIdRatioBasedSampler(
     //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
     // ),
-    resource: config?.resource,
+    resource,
     spanLimits: config?.spanLimits,
     spanProcessors: [spanProcessor],
   });

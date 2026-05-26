@@ -4,11 +4,11 @@
  */
 
 import type {
+  Attributes,
   ContextManager,
   DiagLogLevel,
   TextMapPropagator,
 } from '@opentelemetry/api';
-import type { Resource } from '@opentelemetry/resources';
 import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
 import type {
   GeneralLimits,
@@ -65,9 +65,9 @@ export interface CommonConfig {
    */
   serviceVersion?: string;
   /**
-   * The resource related to the telemetry being exported
+   * The resource attributes related to the telemetry being exported
    */
-  resource?: Resource;
+  resourceAttributes?: Attributes;
 }
 
 /**
@@ -82,6 +82,7 @@ export type RootConfig = CommonConfig & {
   exportConfig?: ExportConfig;
   // General Limits
   generalLimits?: GeneralLimits;
+  // TODO: to be discussed in Browser SIG
   // Basic options that could translate to more complex ones
   // in specific signals like
   // 1. `sampleRate` becomes a TraceIdRatioBasedSampler for traces
@@ -90,11 +91,23 @@ export type RootConfig = CommonConfig & {
 };
 
 export type LogsConfig = CommonConfig & {
-  // Processor
+  /**
+   * Configuration for the LogRecord processor. Setting this
+   * config will enable a `BatchLogRecordProcessor` whith an exporter
+   * that has the default configuration or the one set in `exportConfig`
+   * option.
+   */
   processorConfig?: ProcessorConfig;
-  // Export
+  /**
+   * Configuration for the LogRecord exporter. Setting this
+   * config will enable a `BatchLogRecordProcessor` whith the default
+   * options for batch and queue size and export schedule and timeouts
+   * unless the `processorConfig` option is set.
+   */
   exportConfig?: ExportConfig;
-  // Limits
+  /**
+   * Limits for each LogRecord.
+   */
   logRecordLimits?: LogRecordLimits;
 };
 
@@ -104,11 +117,23 @@ export type TracesConfig = CommonConfig & {
   propagators?: TextMapPropagator[];
   // Sampler
   sampler?: Sampler;
-  // Processor
+  /**
+   * Configuration for the Span processor. Setting this
+   * config will enable a `BatchSpanProcessor` whith an exporter
+   * that has the default configuration or the one set in `exportConfig`
+   * option.
+   */
   processorConfig?: ProcessorConfig;
-  // Export
+  /**
+   * Configuration for the Span exporter. Setting this
+   * config will enable a `BatchSpanProcessor` whith the default
+   * options for batch and queue size and export schedule and timeouts
+   * unless the `processorConfig` option is set.
+   */
   exportConfig?: ExportConfig;
-  // Limits
+  /**
+   * Limits for each Span.
+   */
   spanLimits?: SpanLimits;
 };
 

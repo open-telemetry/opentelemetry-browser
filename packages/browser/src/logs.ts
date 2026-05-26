@@ -6,6 +6,10 @@
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import {
+  defaultResource,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+import {
   BatchLogRecordProcessor,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
@@ -30,8 +34,12 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     }),
     config?.processorConfig,
   );
+
+  const resource = defaultResource().merge(
+    resourceFromAttributes(config?.resourceAttributes || {}),
+  );
   const loggerProvider = new LoggerProvider({
-    resource: config?.resource,
+    resource,
     logRecordLimits: config?.logRecordLimits,
     processors: [logsProcessor],
   });

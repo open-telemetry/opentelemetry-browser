@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { defaultResource } from '@opentelemetry/resources';
 import { setSdkLogger } from './diag.ts';
 import { startLogsSdk } from './logs.ts';
 import { startTracesSdk } from './traces.ts';
@@ -61,8 +60,18 @@ function combineSdks<T extends SdkFactories>(
       rootConfig.exportConfig,
     );
 
-    // TODO: accept resource detectors?
-    rootConfig.resource ??= defaultResource();
+    // TODO: questions (for the SIG?)
+    // - accept resource detectors?
+    // - how to avoid creating different resources (here and in signals)
+    //   - in the config? may be misleading for users seeing
+    //   - maybe using an internal module with set/get like diag
+    rootConfig.resourceAttributes ??= {};
+    if (rootConfig.serviceName) {
+      rootConfig.resourceAttributes['service.name'] = rootConfig.serviceName;
+    }
+    if (rootConfig.serviceVersion) {
+      rootConfig.resourceAttributes['service.name'] = rootConfig.serviceVersion;
+    }
 
     const sdks: WebSdk[] = [];
     const endpointUrl = new URL(rootConfig.exportConfig!.url!);
@@ -83,7 +92,7 @@ function combineSdks<T extends SdkFactories>(
         endpointUrl.pathname = '/v1/logs';
         logsConfig.exportConfig.url = endpointUrl.href;
       }
-      logsConfig.resource ??= rootConfig.resource;
+      logsConfig.resourceAttributes = rootConfig.resourceAttributes;
       sdks.push(factories.logs(logsConfig));
     }
 
@@ -103,7 +112,7 @@ function combineSdks<T extends SdkFactories>(
         endpointUrl.pathname = '/v1/traces';
         tracesConfig.exportConfig.url = endpointUrl.href;
       }
-      tracesConfig.resource ??= rootConfig.resource;
+      tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
       sdks.push(factories.traces(tracesConfig));
     }
 
