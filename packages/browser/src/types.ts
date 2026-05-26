@@ -20,7 +20,14 @@ import type {
  * Export configuration. Can be used globally or per signal
  */
 export interface ExportConfig {
+  /**
+   * URL to send the data. For signal specific exports you might need to
+   * specify the singnal path like `/v1/traces`
+   */
   url?: string;
+  /**
+   * Headers to be sent in each export request.
+   */
   headers?: Record<string, string>;
 }
 
@@ -35,65 +42,55 @@ export interface ProcessorConfig {
 }
 
 /**
- * TODO: each independent SDK should be able to be started independently
- * and IMHO this means it's able to resolve things like the resource by itself.
- * this menand global configurations leak to the sginal specific one
- * if and only if it's used independently.
- *
- * So this should be possible
- *
- * startLogsSdk({
- *  serviceName: 'foo'
- * })
- *
- * But having the option globaly and
- * specifically it leads to odd situiations like
- *
- * startBrowserSdk({
- *   serviceName: 'foo',
- *   logs: {
- *     serviceName: 'bar'
- *   },
- *   traces: {
- *     serviceName: 'baz'
- *   }
- * })
- *
- * the internal logic can handle this making one of them win over the others
- * but the fact that is possible to call it this way makes the user wonder
- * which one is the actual service name in the resource
- *
- * Should/Could we remove some options when the SDKs are combined???
+ * The common configuration properties regardles of the SDK being
+ * started. Any signal SDK should accept it and when SDKs are combined
+ * these properties belong to the root configuration and not to
+ * the sginal specific config.
  */
+export interface CommonConfig {
+  /**
+   * Set `disabled: true` to disable the SDK
+   */
+  disabled?: boolean;
+  /**
+   * Log level for SDK's internal logger
+   */
+  logLevel?: keyof typeof DiagLogLevel;
+  /**
+   * Sets the value of the `service.name` resource attribute
+   */
+  serviceName?: string;
+  /**
+   * Sets the value of the `service.version` resource attribute
+   */
+  serviceVersion?: string;
+  /**
+   * The resource related to the telemetry being exported
+   */
+  resource?: Resource;
+}
 
 /**
- * The global configuration of the SDK. This type is enhanced
+ * Root configuration options when SDKs are combined into a single
+ * one. This type is enhanced
  * by the `combineSdks` function by adding a key for each
  * signal used (logs, traces). Do not add a "logs" or "traces" key
  * here to avoid type collision.
  */
-export interface GlobalConfig {
-  disabled?: boolean;
-  logLevel?: keyof typeof DiagLogLevel;
-  // Resource & Entities related
-  serviceName?: string;
-  serviceVersion?: string;
-  resource?: Resource;
+export type RootConfig = CommonConfig & {
   // Export
   exportConfig?: ExportConfig;
   // General Limits
   generalLimits?: GeneralLimits;
-
   // Basic options that could translate to more complex ones
   // in specific signals like
   // 1. `sampleRate` becomes a TraceIdRatioBasedSampler for traces
   //    and maybe somethign else for other signals??? (sampling logs?)
   // sampleRate?: number;
 }
-export interface LogsConfig {
-  logLevel?: keyof typeof DiagLogLevel;
-  // Resource & Entities related
-  resource?: Resource;
+
+
+export type LogsConfig = CommonConfig & {
   // Processor
   processorConfig?: ProcessorConfig;
   // Export
@@ -102,20 +99,17 @@ export interface LogsConfig {
   logRecordLimits?: LogRecordLimits;
 }
 
-export interface TracesConfig {
-  logLevel?: keyof typeof DiagLogLevel;
+export type TracesConfig = CommonConfig & {
   // Context and Propagation
   contextManager?: ContextManager;
   propagators?: TextMapPropagator[];
-  // Resource & Entities related
-  resource?: Resource;
   // Sampler
   sampler?: Sampler;
   // Processor
   processorConfig?: ProcessorConfig;
   // Export
   exportConfig?: ExportConfig;
-  // Limits
+  // Limits 
   spanLimits?: SpanLimits;
 }
 

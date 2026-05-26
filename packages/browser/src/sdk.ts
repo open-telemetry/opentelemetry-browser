@@ -8,8 +8,9 @@ import { setSdkLogger } from './diag.ts';
 import { startLogsSdk } from './logs.ts';
 import { startTracesSdk } from './traces.ts';
 import type {
-  GlobalConfig,
+  CommonConfig,
   LogsConfig,
+  RootConfig,
   TracesConfig,
   WebSdk,
   WebSdkFactory,
@@ -20,13 +21,19 @@ interface SdkFactories {
   traces?: WebSdkFactory<TracesConfig>;
 }
 
-type ConfigsFor<T> = Partial<{
-  [K in keyof T]: T[K] extends WebSdkFactory<infer C> ? C : never;
+/**
+ * Utility funcitons to extract the configurations from the factory
+ * functions and remove the common properties (which will be already
+ * available at the config root)
+ */
+type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
+type ExtractConfigs<T> = Partial<{
+  [K in keyof T]: T[K] extends WebSdkFactory<infer C> ? RemoveCommonProps<C> : never;
 }>;
 
-const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
 
-const DEFAULT_CONFIG: GlobalConfig = {
+const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
+const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
 };
@@ -37,31 +44,31 @@ const DEFAULT_CONFIG: GlobalConfig = {
  */
 function combineSdks<T extends SdkFactories>(
   factories: T,
-): WebSdkFactory<GlobalConfig & ConfigsFor<T>> {
+): WebSdkFactory<RootConfig & ExtractConfigs<T>> {
   // The returned function will transform some of the global
   // configuration options to signal specific ones if the SDK is available
-  return function startSdk(config?: GlobalConfig & ConfigsFor<T>) {
+  return function startSdk(config?: RootConfig & ExtractConfigs<T>) {
     // Check the global config and set defaults
-    const globalConfig = Object.assign(
+    const rootConfig = Object.assign(
       {},
       DEFAULT_CONFIG,
       config,
-    ) as GlobalConfig;
+    ) as RootConfig;
 
     // Set the logger
     setSdkLogger(config?.logLevel || 'INFO');
 
     // Export
-    globalConfig.exportConfig = Object.assign(
+    rootConfig.exportConfig = Object.assign(
       { endpoint: DEFAULT_OTLP_ENDOINT },
-      globalConfig.exportConfig,
+      rootConfig.exportConfig,
     );
 
     // TODO: accept resource detectors?
-    globalConfig.resource ??= defaultResource();
+    rootConfig.resource ??= defaultResource();
 
     const sdks: WebSdk[] = [];
-    const endpointUrl = new URL(globalConfig.exportConfig!.url!);
+    const endpointUrl = new URL(rootConfig.exportConfig!.url!);
 
     // Start logs
     if (factories.logs) {
@@ -71,7 +78,7 @@ function combineSdks<T extends SdkFactories>(
       // Merge export configs
       logsConfig.exportConfig = Object.assign(
         {},
-        globalConfig.exportConfig,
+        rootConfig.exportConfig,
         logsConfig.exportConfig,
       );
       // Set the path if endpoint comes from general config
@@ -79,7 +86,7 @@ function combineSdks<T extends SdkFactories>(
         endpointUrl.pathname = '/v1/logs';
         logsConfig.exportConfig.url = endpointUrl.href;
       }
-      logsConfig.resource ??= globalConfig.resource;
+      logsConfig.resource ??= rootConfig.resource;
       sdks.push(factories.logs(logsConfig));
     }
 
@@ -91,7 +98,7 @@ function combineSdks<T extends SdkFactories>(
       // Merge export configs
       tracesConfig.exportConfig = Object.assign(
         {},
-        globalConfig.exportConfig,
+        rootConfig.exportConfig,
         tracesConfig.exportConfig,
       );
       // Set the path if endpoint comes from general config
@@ -99,7 +106,7 @@ function combineSdks<T extends SdkFactories>(
         endpointUrl.pathname = '/v1/traces';
         tracesConfig.exportConfig.url = endpointUrl.href;
       }
-      tracesConfig.resource ??= globalConfig.resource;
+      tracesConfig.resource ??= rootConfig.resource;
       sdks.push(factories.traces(tracesConfig));
     }
 
