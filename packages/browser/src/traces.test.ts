@@ -25,7 +25,7 @@ describe('startTracesSdk', () => {
       tracerProvider = p;
       return true;
     });
-  const getLoggerProviderSpy = vi
+  const getTracerProviderSpy = vi
     .spyOn(trace, 'getTracerProvider')
     .mockImplementation(() => tracerProvider);
   let tracerProvider: TracerProvider;
@@ -36,12 +36,12 @@ describe('startTracesSdk', () => {
   // a dedicated provider for the test
   afterAll(() => {
     setGlobalTracerProviderSpy.mockRestore();
-    getLoggerProviderSpy.mockRestore();
+    getTracerProviderSpy.mockRestore();
     fetchSpy.mockRestore();
   });
   beforeEach(async () => {
     setGlobalTracerProviderSpy.mockClear();
-    getLoggerProviderSpy.mockClear();
+    getTracerProviderSpy.mockClear();
     fetchSpy.mockClear();
     await tracesSdk?.shutdown();
   });
@@ -52,10 +52,9 @@ describe('startTracesSdk', () => {
 
     // Assert
     expect(setGlobalTracerProviderSpy).callCount(1);
-    const key = '_activeSpanProcessor';
-    const subkey = '_spanProcessors';
-    // @ts-expect-error -- accessing private properties
-    const processors = trace.getTracerProvider()[key][subkey];
+    const processors = (trace.getTracerProvider() as any)[
+      '_activeSpanProcessor'
+    ]['_spanProcessors'];
     expect(processors.length).toBe(1);
     expect(processors[0]).toBeInstanceOf(BatchSpanProcessor);
   });

@@ -69,7 +69,7 @@ function combineSdks<T extends SdkFactories>(
 
     // Export
     rootConfig.exportConfig = Object.assign(
-      { endpoint: DEFAULT_OTLP_ENDOINT },
+      { url: DEFAULT_OTLP_ENDOINT },
       rootConfig.exportConfig,
     );
 

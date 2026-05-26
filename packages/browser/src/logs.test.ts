@@ -52,8 +52,9 @@ describe('startLogsSdk', () => {
 
     // Assert
     expect(setGlobalLoggerProviderSpy).callCount(1);
-    // @ts-expect-error -- accessing private properties
-    const processors = logs.getLoggerProvider()['_sharedState']['processors'];
+    const processors = (logs.getLoggerProvider() as any)['_sharedState'][
+      'processors'
+    ];
     expect(processors.length).toBe(1);
     expect(processors[0]).toBeInstanceOf(BatchLogRecordProcessor);
   });
