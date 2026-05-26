@@ -35,8 +35,15 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     config?.processorConfig,
   );
 
+  const resourceAttributes = config?.resourceAttributes ?? {};
+  if (config?.serviceName) {
+    resourceAttributes['service.name'] = config.serviceName;
+  }
+  if (config?.serviceVersion) {
+    resourceAttributes['service.name'] = config.serviceVersion;
+  }
   const resource = defaultResource().merge(
-    resourceFromAttributes(config?.resourceAttributes || {}),
+    resourceFromAttributes(resourceAttributes),
   );
   const loggerProvider = new LoggerProvider({
     resource,
