@@ -9,11 +9,15 @@ import type {
   DiagLogLevel,
   TextMapPropagator,
 } from '@opentelemetry/api';
-import type { LogRecordLimits } from '@opentelemetry/sdk-logs';
+import type {
+  LogRecordLimits,
+  LogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import type {
   GeneralLimits,
   Sampler,
   SpanLimits,
+  SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 
 /**
@@ -109,6 +113,12 @@ export type LogsConfig = CommonConfig & {
    * Limits for each LogRecord.
    */
   logRecordLimits?: LogRecordLimits;
+  /**
+   * List of LogRecordProcessor for the logger provider. Setting this will make the SDK
+   * ignore `processorConfig` and `exportConfig` since no `BatchLogRecordProcessor` will
+   * be created.
+   */
+  processors?: LogRecordProcessor[];
 };
 
 export type TracesConfig = CommonConfig & {
@@ -135,6 +145,12 @@ export type TracesConfig = CommonConfig & {
    * Limits for each Span.
    */
   spanLimits?: SpanLimits;
+  /**
+   * List of SpanProcessor for the tracer provider. Setting this will make the SDK
+   * ignore `processorConfig` and `exportConfig` since no `BatchSpanProcessor` will
+   * be created.
+   */
+  processors?: SpanProcessor[];
 };
 
 export interface WebSdk {

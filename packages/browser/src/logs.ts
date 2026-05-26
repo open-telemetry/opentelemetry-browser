@@ -9,6 +9,7 @@ import {
   defaultResource,
   resourceFromAttributes,
 } from '@opentelemetry/resources';
+import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   BatchLogRecordProcessor,
   LoggerProvider,
@@ -26,15 +27,7 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   // Set the logger
   setSdkLogger(config?.logLevel || 'INFO');
 
-  const logsEndpoint = config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
-  const logsProcessor = new BatchLogRecordProcessor(
-    new OTLPLogExporter({
-      url: logsEndpoint,
-      headers: config?.exportConfig?.headers,
-    }),
-    config?.processorConfig,
-  );
-
+  // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};
   if (config?.serviceName) {
     resourceAttributes['service.name'] = config.serviceName;
@@ -45,10 +38,32 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   const resource = defaultResource().merge(
     resourceFromAttributes(resourceAttributes),
   );
+
+  // Resolve the list of log record processors.
+  // - if provided by the user use them
+  // - otherwise create a `BatchLogRecordProcessor`
+  const processors: LogRecordProcessor[] = [];
+
+  if (config?.processors) {
+    processors.push(...config.processors);
+  } else {
+    const logsEndpoint =
+      config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
+    processors.push(
+      new BatchLogRecordProcessor(
+        new OTLPLogExporter({
+          url: logsEndpoint,
+          headers: config?.exportConfig?.headers,
+        }),
+        config?.processorConfig,
+      ),
+    );
+  }
+
   const loggerProvider = new LoggerProvider({
     resource,
     logRecordLimits: config?.logRecordLimits,
-    processors: [logsProcessor],
+    processors,
   });
   logs.setGlobalLoggerProvider(loggerProvider);
 

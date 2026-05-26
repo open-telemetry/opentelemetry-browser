@@ -5,7 +5,10 @@
 
 import type { LoggerProvider } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
-import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import {
+  BatchLogRecordProcessor,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { startLogsSdk } from './logs.ts';
@@ -109,7 +112,7 @@ describe('startLogsSdk', () => {
     });
   });
 
-  it('resource - should accept resource attributes', async () => {
+  it('should append the resource attributes in exports', async () => {
     // Act
     logsSdk = startLogsSdk({
       processorConfig: {
@@ -144,7 +147,7 @@ describe('startLogsSdk', () => {
     ]);
   });
 
-  it('resource - serviceName & serviceVersion should override resource attributes', async () => {
+  it('should give precedence to serviceName & serviceVersion over resource attributes', async () => {
     // Act
     logsSdk = startLogsSdk({
       processorConfig: {
@@ -182,5 +185,27 @@ describe('startLogsSdk', () => {
       { key: 'telemetry.sdk.language', value: { stringValue: 'webjs' } },
       { key: 'telemetry.sdk.name', value: { stringValue: 'opentelemetry' } },
     ]);
+  });
+
+  it('should accept Span processors from the user', async () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    logsSdk = startLogsSdk({
+      processors: [
+        new SimpleLogRecordProcessor({
+          export: () => (exportCalled = true),
+          shutdown: () => Promise.resolve(),
+          forceFlush: () => Promise.resolve(),
+        }),
+      ],
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+
+    // Assert
+    expect(setGlobalLoggerProviderSpy).callCount(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(true);
   });
 });

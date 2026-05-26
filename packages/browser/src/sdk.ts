@@ -52,13 +52,7 @@ function combineSdks<T extends SdkFactories>(
     const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
     // Set the logger
-    setSdkLogger(config?.logLevel || 'INFO');
-
-    // Export
-    rootConfig.exportConfig = Object.assign(
-      { endpoint: DEFAULT_OTLP_ENDOINT },
-      rootConfig.exportConfig,
-    );
+    setSdkLogger(rootConfig?.logLevel || 'INFO');
 
     // TODO: questions (for the SIG?)
     // - accept resource detectors?
@@ -72,6 +66,12 @@ function combineSdks<T extends SdkFactories>(
     if (rootConfig.serviceVersion) {
       rootConfig.resourceAttributes['service.name'] = rootConfig.serviceVersion;
     }
+
+    // Export
+    rootConfig.exportConfig = Object.assign(
+      { endpoint: DEFAULT_OTLP_ENDOINT },
+      rootConfig.exportConfig,
+    );
 
     const sdks: WebSdk[] = [];
     const endpointUrl = new URL(rootConfig.exportConfig!.url!);

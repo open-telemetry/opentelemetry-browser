@@ -5,7 +5,10 @@
 
 import type { TracerProvider } from '@opentelemetry/api';
 import { trace } from '@opentelemetry/api';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import {
+  BatchSpanProcessor,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { startTracesSdk } from './traces.ts';
@@ -112,7 +115,7 @@ describe('startTracesSdk', () => {
     });
   });
 
-  it('resource - should accept resource attributes', async () => {
+  it('should append the resource attributes in exports', async () => {
     // Act
     tracesSdk = startTracesSdk({
       processorConfig: {
@@ -147,7 +150,7 @@ describe('startTracesSdk', () => {
     ]);
   });
 
-  it('resource - serviceName & serviceVersion should override resource attributes', async () => {
+  it('should give precedence to serviceName & serviceVersion over resource attributes', async () => {
     // Act
     tracesSdk = startTracesSdk({
       processorConfig: {
@@ -185,5 +188,26 @@ describe('startTracesSdk', () => {
       { key: 'telemetry.sdk.language', value: { stringValue: 'webjs' } },
       { key: 'telemetry.sdk.name', value: { stringValue: 'opentelemetry' } },
     ]);
+  });
+
+  it('should accept Span processors from the user', async () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    tracesSdk = startTracesSdk({
+      processors: [
+        new SimpleSpanProcessor({
+          export: () => (exportCalled = true),
+          shutdown: () => Promise.resolve(),
+        }),
+      ],
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    // Assert
+    expect(setGlobalTracerProviderSpy).callCount(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(true);
   });
 });
