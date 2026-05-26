@@ -87,8 +87,7 @@ export type RootConfig = CommonConfig & {
   // 1. `sampleRate` becomes a TraceIdRatioBasedSampler for traces
   //    and maybe somethign else for other signals??? (sampling logs?)
   // sampleRate?: number;
-}
-
+};
 
 export type LogsConfig = CommonConfig & {
   // Processor
@@ -97,7 +96,7 @@ export type LogsConfig = CommonConfig & {
   exportConfig?: ExportConfig;
   // Limits
   logRecordLimits?: LogRecordLimits;
-}
+};
 
 export type TracesConfig = CommonConfig & {
   // Context and Propagation
@@ -109,9 +108,9 @@ export type TracesConfig = CommonConfig & {
   processorConfig?: ProcessorConfig;
   // Export
   exportConfig?: ExportConfig;
-  // Limits 
+  // Limits
   spanLimits?: SpanLimits;
-}
+};
 
 export interface WebSdk {
   shutdown(): Promise<void>;

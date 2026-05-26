@@ -28,9 +28,10 @@ interface SdkFactories {
  */
 type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
 type ExtractConfigs<T> = Partial<{
-  [K in keyof T]: T[K] extends WebSdkFactory<infer C> ? RemoveCommonProps<C> : never;
+  [K in keyof T]: T[K] extends WebSdkFactory<infer C>
+    ? RemoveCommonProps<C>
+    : never;
 }>;
-
 
 const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
@@ -49,11 +50,7 @@ function combineSdks<T extends SdkFactories>(
   // configuration options to signal specific ones if the SDK is available
   return function startSdk(config?: RootConfig & ExtractConfigs<T>) {
     // Check the global config and set defaults
-    const rootConfig = Object.assign(
-      {},
-      DEFAULT_CONFIG,
-      config,
-    ) as RootConfig;
+    const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
     // Set the logger
     setSdkLogger(config?.logLevel || 'INFO');
