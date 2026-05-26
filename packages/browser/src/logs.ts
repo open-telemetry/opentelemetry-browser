@@ -40,7 +40,7 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     resourceAttributes['service.name'] = config.serviceName;
   }
   if (config?.serviceVersion) {
-    resourceAttributes['service.name'] = config.serviceVersion;
+    resourceAttributes['service.version'] = config.serviceVersion;
   }
   const resource = defaultResource().merge(
     resourceFromAttributes(resourceAttributes),

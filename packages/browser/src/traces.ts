@@ -39,7 +39,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     resourceAttributes['service.name'] = config.serviceName;
   }
   if (config?.serviceVersion) {
-    resourceAttributes['service.name'] = config.serviceVersion;
+    resourceAttributes['service.version'] = config.serviceVersion;
   }
   const resource = defaultResource().merge(
     resourceFromAttributes(resourceAttributes),

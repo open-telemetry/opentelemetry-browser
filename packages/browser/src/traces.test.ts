@@ -111,4 +111,79 @@ describe('startTracesSdk', () => {
       },
     });
   });
+
+  it('resource - should accept resource attributes', async () => {
+    // Act
+    tracesSdk = startTracesSdk({
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+      resourceAttributes: {
+        'resource.attr1': 'value 1',
+        'resource.attr2': 'value 2',
+      },
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(setGlobalTracerProviderSpy).callCount(1);
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.lastCall?.[0]).toEqual(
+      'http://localhost:4318/v1/traces',
+    );
+    const fetchInit = fetchSpy.mock.lastCall?.[1];
+    const decoder = new TextDecoder();
+    const payload = JSON.parse(decoder.decode(fetchInit?.body as Uint8Array));
+    const exportAttributes = payload.resourceSpans[0].resource.attributes;
+
+    expect(exportAttributes).containSubset([
+      { key: 'resource.attr1', value: { stringValue: 'value 1' } },
+      { key: 'resource.attr2', value: { stringValue: 'value 2' } },
+      { key: 'service.name', value: { stringValue: 'unknown_service' } },
+      { key: 'telemetry.sdk.language', value: { stringValue: 'webjs' } },
+      { key: 'telemetry.sdk.name', value: { stringValue: 'opentelemetry' } },
+    ]);
+  });
+
+  it('resource - serviceName & serviceVersion should override resource attributes', async () => {
+    // Act
+    tracesSdk = startTracesSdk({
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+      serviceName: 'test-service',
+      serviceVersion: '1.0.0',
+      resourceAttributes: {
+        'resource.attr1': 'value 1',
+        'resource.attr2': 'value 2',
+        'service.name': 'bad-name-service',
+        'service.version': '0.0.1',
+      },
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(setGlobalTracerProviderSpy).callCount(1);
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.lastCall?.[0]).toEqual(
+      'http://localhost:4318/v1/traces',
+    );
+    const fetchInit = fetchSpy.mock.lastCall?.[1];
+    const decoder = new TextDecoder();
+    const payload = JSON.parse(decoder.decode(fetchInit?.body as Uint8Array));
+    const exportAttributes = payload.resourceSpans[0].resource.attributes;
+
+    expect(exportAttributes).containSubset([
+      { key: 'resource.attr1', value: { stringValue: 'value 1' } },
+      { key: 'resource.attr2', value: { stringValue: 'value 2' } },
+      { key: 'service.name', value: { stringValue: 'test-service' } },
+      { key: 'service.version', value: { stringValue: '1.0.0' } },
+      { key: 'telemetry.sdk.language', value: { stringValue: 'webjs' } },
+      { key: 'telemetry.sdk.name', value: { stringValue: 'opentelemetry' } },
+    ]);
+  });
 });
