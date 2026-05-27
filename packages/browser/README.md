@@ -1,109 +1,332 @@
-# @opentelemetry/browser
+# OpenTelemetry SDK for Browsers
 
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
-Browser-oriented helpers to start OpenTelemetry **logs** and **traces** with OTLP HTTP export. Configuration is split by signal so you import only what you use, which helps bundlers tree-shake unused code. A small **`combineSdks`** helper merges multiple signal starters into one `start`/`shutdown` object with shared global options (endpoint, headers, resource).
+**Note: This is an experimental package under active development. New releases may include breaking changes.**
 
-## Installation
+This package provides the required components to start a OpenTelemetry SDK for Browser including
+logs and traces. Metrics are out of the scope for now
+<!-- TODO: add referecnce to the discussion about metrics for browser  -->
+
+## Quick Start
+
+**Note: This documentation assumes you have a bundler in your tool chain that can handle ESM modules.**
+
+To get started you need to install `@opentelemetry/browser` and any appropriate instrumentation for the
+events or tasks performed by your application.
+
+### Installation
 
 ```bash
-npm install @opentelemetry/browser @opentelemetry/api
+# Install the package
+npm install @opentelemetry/browser
+
+# Install the instrumentations
+npm install @opentelemetry/instrumentation-browser \ # add OTEL instrumentations for browser
+    @opentelemetry/instrumentation-fetch # or any other instrumentation outside this repo
 ```
 
-`@opentelemetry/api` is a **peer dependency** (v1.9+). Install it alongside this package.
+`@opentelemetry/api` is a **peer dependency** (v1.9+). Install it in your application if you intend
+to do manual instrumentation of your web application.
 
-## Package layout (subpath exports)
 
-The package does not rely on a single heavy entry point. Use explicit subpaths:
+### Initialize the SDK
 
-| Subpath                         | Purpose                                      |
-| ------------------------------- | -------------------------------------------- |
-| `@opentelemetry/browser/logs`   | `startLogsSdk` — logs pipeline + OTLP export |
-| `@opentelemetry/browser/traces` | `startTracesSdk` — traces + OTLP export      |
-| `@opentelemetry/browser/sdk`    | `startBrowserSdk` — both signals composed    |
+The Browser SDK should be loaded and started as soon as possible for better measurements
+and to avoid any other library to patch or modify browser APIs used by the SDK and the instrumentations.
+Loading the SDK after some library has pacthed Browser's API may affect the behavior of the internal
+components, like exporters, and instrumentations in unexpected ways.
 
-## Core types
+This example shows how to setup the SDK exporting logs and traces to a specific OTLP endpoint URL with
+a couple of customized headers.
 
-Configuration interfaces are defined in the implementation (`GlobalConfig`, `LogsConfig`, `TracesConfig`). Highlights:
-
-- **`GlobalConfig`** (for `startBrowserSdk` only): shared OTLP export configuration (base `url`, default `http://localhost:4318`), optional `resource`, plus fields reserved for future use (e.g. diagnostics, limits).
-- **`LogsConfig`**: `resource`, OTLP export configuration (`url`, default `http://localhost:4318/v1/logs`), batch processor tuning `logRecordLimits`.
-- **`TracesConfig`**: optional `contextManager` and `textMapPropagator` (see `@opentelemetry/api`), `resource`, `sampler`, `spanLimits`, OTLP export configuration (`url`, default `http://localhost:4318/v1/traces`), batch span processor tuning .
-
-## Usage
-
-### Logs only
-
-```ts
-import { startLogsSdk } from '@opentelemetry/browser/logs';
-
-const logsSdk = startLogsSdk({
-  // e.g. exportConfig, resource, logRecordLimits, …
-});
-
-// when tearing down (e.g. page unload)
-await logsSdk.shutdown();
-```
-
-`startLogsSdk` registers a global logger provider (`@opentelemetry/api-logs`) with a batch processor and OTLP HTTP exporter.
-
-### Traces only
-
-```ts
-import { startTracesSdk } from '@opentelemetry/browser/traces';
-
-const tracesSdk = startTracesSdk({
-  // e.g. exportConfig, sampler, contextManager, textMapPropagator, …
-});
-
-await tracesSdk.shutdown();
-```
-
-`startTracesSdk` registers a global tracer provider and optional context manager / propagator when provided.
-
-### Multiple signals with shared settings
-
-Use **`startBrowserSdk`** from `@opentelemetry/browser/sdk` to pass one merged config (global options plus nested `logs` / `traces` sections) and get a single `shutdown`:
-
-```ts
+```javascript
 import { startBrowserSdk } from '@opentelemetry/browser/sdk';
 
-const mySdk = startBrowserSdk({
-  exportConfg: {
-    url: 'https://otel.example.com:4318',
-    headers: { Authorization: 'Bearer …' },
+// Start the SDK 
+const sdk = startBrowserSdk({
+  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
+  disabled: false,
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'DEBUG',
+  // Optional - name of the service being instrumented. Default value is 'unknown_service'
+  serviceName: 'my-service',
+  // Optional - version of the service. Default value is undefined
+  serviceVersion: '1.0',
+  // Optional - attributes to append to the resource. Default value is undefined
+  resourceAttributes: {
+    'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
   },
+  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318', headers: {} }
+  exportConfig: {
+    url: 'https://collector.mycompany.com',
+    headers: { foo: 'bar' }
+  },
+  // Optional - logs signal configuration. Default empty empty. See below for more options
   logs: {
-    exportConfig: {
-      headers: { 'x-logs': 'foo' },
-    },
+    logRecordLimits: { attributeCountLimit: 128 },
   },
+  // Optional - traces signal configuration. Default empty empty. See below for more options
   traces: {
-    exportConfig: {
-      headers: { 'x-traces': 'bar' },
-    },
+    spanLimits: { attributeCountLimit: 128 },
   },
 });
 
-await mySdk.shutdown();
+// You can also use the `shutdown` method to gracefuly shut down the SDK and stop collection and
+// data export.
+sdk.shutdown().then(
+  () => console.log("SDK shut down successfully"),
+  (err) => console.log("Error shutting down SDK", err)
+);
 ```
 
-Behavior notes:
+You can include the code in a separate file or in the main entry point of your application. Your bundler
+should pull the dependencies and set the final code in the build/dist folder. The first option is recomended
+because you can ensure the SDK is loaded first in you HTML before any lib or framework touches the `Window`
+object.
 
-- If you omit signal-specific OTLP export configuration, the global export URL is used as a base and paths `/v1/logs` and `/v1/traces` are applied automatically.
-- **`headers`** at the global level is applied to each signal unless overridden by signal specific ones.
-- A default **`resource`** is applied when using `startBrowserSdk` if you do not set `resource` globally or per signal.
+### Initialize the SDK for a specific Signal
 
-## After startup
+The previous example configures logs and traces signals. Although this is conveinent there might be scenarios
+when you don't need a specific signal and don't want to pay the toll of sending unused code to your clients. As
+an example if none of the selected instrumentations send traces there is no need to setu the traces SDK.
 
-Use the standard OpenTelemetry APIs for your signals, for example `@opentelemetry/api` for traces and `@opentelemetry/api-logs` for logs, now that global providers are registered.
+For that purpose `@opentelemetry/browser` provides functions to start signal specific SDKs (logs, traces)
+independently. Each signal SDK function has its own subpath point so bundlers can easyly tree shake the
+code related to other signals.
+
+| Subpath                         | Purpose                                                        |
+| ------------------------------- | -------------------------------------------------------------- |
+| `@opentelemetry/browser/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
+| `@opentelemetry/browser/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
+
+
+#### Initialize logs SDK
+
+This example shows how to setup the logs SDK exporting to a specific OTLP endpoint URL with
+a couple of customized headers.
+
+```javascript
+import { startLogsSdk } from '@opentelemetry/browser/logs';
+
+// Start the SDK 
+const logsSdk = startLogsSdk({
+  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
+  disabled: false,
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'DEBUG',
+  // Optional - name of the service being instrumented. Default value is 'unknown_service'
+  serviceName: 'my-service',
+  // Optional - version of the service. Default value is undefined
+  serviceVersion: '1.0',
+  // Optional - attributes to append to the resource. Default value is undefined
+  resourceAttributes: {
+    'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
+  },
+  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318/v1/logs', headers: {} }
+  // Note: this config expects the full URL. Signal path is not added.
+  exportConfig: {
+    url: 'https://collector.mycompany.com/v1/logs',
+    headers: { foo: 'bar' }
+  },
+  // Optional - record limits. Default is undefined.
+  logRecordLimits: { attributeCountLimit: 128 },
+  // See the configuration section below for additional configuration options
+});
+
+// You can also use the `shutdown` method to gracefuly shut down the logs SDK and stop collection and
+// data export.
+logsSdk.shutdown().then(
+  () => console.log("SDK shut down successfully"),
+  (err) => console.log("Error shutting down SDK", err)
+);
+```
+
+
+#### Initialize traces SDK
+
+This example shows how to setup the traces SDK exporting to a specific OTLP endpoint URL with
+a couple of customized headers.
+
+```javascript
+import { startTracesSdk } from '@opentelemetry/browser/traces';
+
+// Start the SDK 
+const tracesSdk = startTracesSdk({
+  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
+  disabled: false,
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'DEBUG',
+  // Optional - name of the service being instrumented. Default value is 'unknown_service'
+  serviceName: 'my-service',
+  // Optional - version of the service. Default value is undefined
+  serviceVersion: '1.0',
+  // Optional - attributes to append to the resource. Default value is undefined
+  resourceAttributes: {
+    'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
+  },
+  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318/v1/traces', headers: {} }
+  // Note: this config expects the full URL. Signal path is not added.
+  exportConfig: {
+    url: 'https://collector.mycompany.com/v1/traces',
+    headers: { foo: 'bar' }
+  },
+  // Optional - span limits. Default is undefined.
+  spanLimits: { attributeCountLimit: 128 },
+  // See the configuration section below for additional configuration options
+});
+
+// You can also use the `shutdown` method to gracefuly shut down the logs SDK and stop collection and
+// data export.
+tracesSdk.shutdown().then(
+  () => console.log("SDK shut down successfully"),
+  (err) => console.log("Error shutting down SDK", err)
+);
+```
+
+## Configuration
+
+### Common configuration
+
+The following configuration options are common to each independent SDK. When usgin `startBrowserSdk` which
+combines all singals these options are accepted and the top level of the configuration and they don't need to
+be in singal specific configuration. See the example below.
+
+```javascript
+// Signal SDK accepts some configs
+startLogsSdk({ serviceName: 'my-serivce' });
+
+// When startnig all at once...
+startBrowserSdk({
+  // this option goes on top (so it's aplied for all signals)
+  serviceName: 'my-serivce',
+  logs: {
+    // there is no need to specify `serviceName` here
+  },
+})
+```
+
+#### disabled
+
+Set `disabled: true` to disable the SDK.
+
+#### logLevel
+
+Log level for SDK's internal logger. Default value is 'INFO'.
+
+#### serviceName
+
+Sets the value of the [service.name](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/service.md#service-name) resource attribute.
+
+#### serviceVersion
+
+Sets the value of the [service.version](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/registry/attributes/service.md#service-version) resource attribute.
+
+#### resourceAttributes
+
+Key-value pairs to be used as resource attributes.
+
+### Logs configuration
+
+#### processorConfig
+
+Object containing configuraiton options for the batch processing of log records. These options are:
+
+- `scheduledDelayMillis`: Delay interval (in milliseconds) between two consecutive exports.
+- `exportTimeoutMillis`: Maximum allowed time (in milliseconds) to export data.
+- `maxQueueSize`: Maximum queue size.
+- `maxExportBatchSize`: Maximum batch size.
+
+Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
+the option is defined at the top level and within the `logs` signal configuration the later wins.
+
+#### exportConfig
+
+Object containing configuraiton options for the HTTP log record exporter. These options are:
+
+- `url`: Target to which the exporter is going to send logs.
+- `headers`: Key-value pairs to be used as headers associated with HTTP requests.
+
+Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
+the option is defined at the top level and within the `logs` signal configuration the later wins.
+
+#### logRecordLimits
+
+Object containing configuraiton options log record limits. These options are:
+
+- `attributeValueLengthLimit`: Maximum allowed attribute value size.
+- `attributeCountLimit`: Maximum allowed attribute count.
+
+#### processors
+
+List of LogRecordProcessor for the logger provider. Setting this will make the SDK ignore `processorConfig`
+and `exportConfig` since no `BatchLogRecordProcessor` will be created.
+
+### Traces configuration
+
+#### processorConfig
+
+Object containign configuraiton options for the batch processing of spans. These options are:
+
+- `scheduledDelayMillis`: Delay interval (in milliseconds) between two consecutive exports.
+- `exportTimeoutMillis`: Maximum allowed time (in milliseconds) to export data.
+- `maxQueueSize`: Maximum queue size.
+- `maxExportBatchSize`: Maximum batch size.
+
+Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
+the option is defined at the top level and within the `traces` signal configuration the later wins.
+
+#### exportConfig
+
+Object containing configuraiton options for the HTTP span exporter. These options are:
+
+- `url`: Target to which the exporter is going to send traces.
+- `headers`: Key-value pairs to be used as headers associated with HTTP requests.
+
+Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
+the option is defined at the top level and within the `traces` signal configuration the later wins.
+
+#### spanLimits
+
+Object containing configuraiton options span limits. These options are:
+
+- `attributeValueLengthLimit`: Maximum allowed attribute value size.
+- `attributeCountLimit`: Maximum allowed attribute count.
+- `linkCountLimit`: Maximum allowed link count.
+- `eventCountLimit`: Maximum allowed event count.
+- `attributePerEventCountLimit`: Maximum allowed attribute count per span event.
+- `attributePerLinkCountLimit`: Maximum allowed attribute count per span link.
+
+#### processors
+
+List of SpanProcessor for the tracer provider. Setting this will make the SDK ignore `processorConfig`
+and `exportConfig` since no `BatchSpanProcessor` will be created.
+
+#### contextManager
+
+Manager to use to propagate context across different call stacks.
+
+#### propagators
+
+Propagators to use to carry information to oather services (like backend services).
+
+#### sampler
+
+Sampler to be used by traces to resolve if the Spans should be recorded or not.
+
+## Useful links
+
+- For more information on OpenTelemetry, visit: <https://opentelemetry.io/>
+- For more about OpenTelemetry JavaScript: <https://github.com/open-telemetry/opentelemetry-js>
+- For more about OpenTelemetry for Browser: <https://github.com/open-telemetry/opentelemetry-browser>
+- For help or feedback on this project, join us in [GitHub Discussions][discussions-url]
 
 ## License
 
 Apache 2.0 — see [LICENSE][license-url].
 
-[discussions-url]: https://github.com/open-telemetry/opentelemetry-browser/discussions/landing
+[discussions-url]: https://github.com/open-telemetry/opentelemetry-browser/discussions
 [license-url]: https://github.com/open-telemetry/opentelemetry-browser/blob/main/LICENSE
 [license-image]: https://img.shields.io/badge/license-Apache_2.0-green.svg?style=flat
 [npm-url]: https://www.npmjs.com/package/@opentelemetry/browser
