@@ -90,10 +90,10 @@ object.
 
 The previous example configures logs and traces signals. Although this is conveinent there might be scenarios
 when you don't need a specific signal and don't want to pay the toll of sending unused code to your clients. As
-an example if none of the selected instrumentations send traces there is no need to setu the traces SDK.
+an example if none of the selected instrumentations send traces there is no need to setup the traces SDK.
 
 For that purpose `@opentelemetry/browser` provides functions to start signal specific SDKs (logs, traces)
-independently. Each signal SDK function has its own subpath point so bundlers can easyly tree shake the
+independently. Each signal SDK function has its own subpath point so bundlers can easily tree shake the
 code related to other signals.
 
 | Subpath                         | Purpose                                                        |
@@ -177,7 +177,7 @@ const tracesSdk = startTracesSdk({
   // See the configuration section below for additional configuration options
 });
 
-// You can also use the `shutdown` method to gracefuly shut down the logs SDK and stop collection and
+// You can also use the `shutdown` method to gracefuly shut down the traces SDK and stop collection and
 // data export.
 tracesSdk.shutdown().then(
   () => console.log("SDK shut down successfully"),
@@ -190,8 +190,8 @@ tracesSdk.shutdown().then(
 ### Common configuration
 
 The following configuration options are common to each independent SDK. When usgin `startBrowserSdk` which
-combines all singals these options are accepted and the top level of the configuration and they don't need to
-be in singal specific configuration. See the example below.
+combines all signals these options are accepted and the top level of the configuration and they don't need to
+be in signal specific configuration. See the example below.
 
 ```javascript
 // Signal SDK accepts some configs
