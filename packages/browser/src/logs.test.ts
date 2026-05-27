@@ -52,6 +52,7 @@ describe('startLogsSdk', () => {
 
     // Assert
     expect(setGlobalLoggerProviderSpy).callCount(1);
+    // biome-ignore lint/suspicious/noExplicitAny: accessing private props
     const processors = (logs.getLoggerProvider() as any)['_sharedState'][
       'processors'
     ];
@@ -198,7 +199,6 @@ describe('startLogsSdk', () => {
         new SimpleLogRecordProcessor({
           export: () => (exportCalled = true),
           shutdown: () => Promise.resolve(),
-          forceFlush: () => Promise.resolve(),
         }),
       ],
     });

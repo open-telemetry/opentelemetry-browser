@@ -52,6 +52,7 @@ describe('startTracesSdk', () => {
 
     // Assert
     expect(setGlobalTracerProviderSpy).callCount(1);
+    // biome-ignore lint/suspicious/noExplicitAny: accessing private props
     const processors = (trace.getTracerProvider() as any)[
       '_activeSpanProcessor'
     ]['_spanProcessors'];

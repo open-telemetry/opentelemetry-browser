@@ -66,12 +66,14 @@ describe('startBrowserSdk', () => {
 
     // Assert
     expect(setGlobalLoggerProviderSpy).callCount(1);
+    // biome-ignore lint/suspicious/noExplicitAny: accessing private props
     const logProcessors = (logs.getLoggerProvider() as any)['_sharedState'][
       'processors'
     ];
     expect(logProcessors.length).toBe(1);
     expect(logProcessors[0]).toBeInstanceOf(BatchLogRecordProcessor);
     expect(setGlobalTracerProviderSpy).callCount(1);
+    // biome-ignore lint/suspicious/noExplicitAny: accessing private props
     const spanProcessors = (trace.getTracerProvider() as any)[
       '_activeSpanProcessor'
     ]['_spanProcessors'];

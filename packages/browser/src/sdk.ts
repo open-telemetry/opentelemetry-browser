@@ -74,7 +74,9 @@ function combineSdks<T extends SdkFactories>(
     );
 
     const sdks: WebSdk[] = [];
-    const endpointUrl = new URL(rootConfig.exportConfig!.url!);
+    const endpointUrl = new URL(
+      rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDOINT,
+    );
 
     // Start logs
     if (factories.logs) {
