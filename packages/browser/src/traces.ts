@@ -22,7 +22,7 @@ const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/traces';
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
   // Set the logger
-  setSdkLogger(config?.logLevel || 'INFO');
+  setSdkLogger(config?.logLevel);
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};

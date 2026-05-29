@@ -52,7 +52,7 @@ function combineSdks<T extends SdkFactories>(
     const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
     // Set the logger
-    setSdkLogger(rootConfig?.logLevel || 'INFO');
+    setSdkLogger(rootConfig?.logLevel);
 
     // TODO: questions (for the SIG?)
     // - accept resource detectors?

@@ -10,7 +10,7 @@ import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
  * the operation will be a noop
  */
 let loggerSet = false;
-export function setSdkLogger(level: keyof typeof DiagLogLevel) {
+export function setSdkLogger(level: keyof typeof DiagLogLevel = 'INFO') {
   if (loggerSet) {
     diag.debug('Logger for SDKs already set.');
     return;

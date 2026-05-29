@@ -25,7 +25,7 @@ const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
  */
 export function startLogsSdk(config?: LogsConfig): WebSdk {
   // Set the logger
-  setSdkLogger(config?.logLevel || 'INFO');
+  setSdkLogger(config?.logLevel);
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};
