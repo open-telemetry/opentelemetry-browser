@@ -21,7 +21,7 @@ interface SdkFactories {
 }
 
 /**
- * Utility funcitons to extract the configurations from the factory
+ * Utility functions to extract the configurations from the factory
  * functions and remove the common properties (which will be already
  * available at the config root)
  */
