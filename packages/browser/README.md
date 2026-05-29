@@ -197,7 +197,7 @@ be in signal specific configuration. See the example below.
 // Signal SDK accepts some configs
 startLogsSdk({ serviceName: 'my-serivce' });
 
-// When startnig all at once...
+// When starting all at once...
 startBrowserSdk({
   // this option goes on top (so it's aplied for all signals)
   serviceName: 'my-serivce',
@@ -231,7 +231,7 @@ Key-value pairs to be used as resource attributes.
 
 #### processorConfig
 
-Object containing configuraiton options for the batch processing of log records. These options are:
+Object containing configuration options for the batch processing of log records. These options are:
 
 - `scheduledDelayMillis`: Delay interval (in milliseconds) between two consecutive exports.
 - `exportTimeoutMillis`: Maximum allowed time (in milliseconds) to export data.
