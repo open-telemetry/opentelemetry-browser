@@ -39,7 +39,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   // Resolve the list of span processors.
   // - if provided by the user use them
   // - otherwise create a `BatchSpanProcessor`
-  const spanProcessors: SpanProcessor[] = config?.processors || [];
+  const spanProcessors: SpanProcessor[] = [];
 
   if (config?.processors) {
     spanProcessors.push(...config.processors);

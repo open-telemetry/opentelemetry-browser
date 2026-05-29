@@ -68,10 +68,10 @@ function combineSdks<T extends SdkFactories>(
     }
 
     // Export
-    rootConfig.exportConfig = Object.assign(
-      { url: DEFAULT_OTLP_ENDOINT },
-      rootConfig.exportConfig,
-    );
+    rootConfig.exportConfig = {
+      url: DEFAULT_OTLP_ENDOINT,
+      ...rootConfig.exportConfig,
+    };
 
     const sdks: WebSdk[] = [];
     const endpointUrl = new URL(

@@ -26,11 +26,17 @@ import type {
 export interface ExportConfig {
   /**
    * URL to send the data. For signal specific exports you might need to
-   * specify the singnal path like `/v1/traces`
+   * specify the singnal path like `/v1/traces`. Default values depend on where
+   * this config is defined:
+   * - globally: the default is http://localhost:4318
+   * - logs: the default is http://localhost:4318/v1/logs
+   * - traces: the default is http://localhost:4318/v1/traces
    */
   url?: string;
   /**
    * Headers to be sent in each export request.
+   *
+   * @defaultValue undefined
    */
   headers?: Record<string, string>;
 }
@@ -39,9 +45,30 @@ export interface ExportConfig {
  * Batch processor configuration. Can be used globally or per signal
  */
 export interface ProcessorConfig {
+  /**
+   * Delay interval (in milliseconds) between two consecutive exports.
+   * Default values depend on where this config is defined:
+   * - logs: 1000
+   * - traces: 5000
+   */
   scheduledDelayMillis?: number;
+  /**
+   * Maximum allowed time (in milliseconds) to export data.
+   *
+   * @defaultValue 30000
+   */
   exportTimeoutMillis?: number;
+  /**
+   * Maximum queue size.
+   *
+   * @defaultValue 2048
+   */
   maxQueueSize?: number;
+  /**
+   * Maximum batch size.
+   *
+   * @defaultValue 512
+   */
   maxExportBatchSize?: number;
 }
 
@@ -54,22 +81,32 @@ export interface ProcessorConfig {
 export interface CommonConfig {
   /**
    * Set `disabled: true` to disable the SDK
+   *
+   * @defaultValue undefined
    */
   disabled?: boolean;
   /**
    * Log level for SDK's internal logger
+   *
+   * @defaultValue DiagLogLevel.INFO
    */
   logLevel?: keyof typeof DiagLogLevel;
   /**
    * Sets the value of the `service.name` resource attribute
+   *
+   * @defaultValue "unknown_service"
    */
   serviceName?: string;
   /**
    * Sets the value of the `service.version` resource attribute
+   *
+   * @defaultValue undefined
    */
   serviceVersion?: string;
   /**
    * The resource attributes related to the telemetry being exported
+   *
+   * @defaultValue undefined
    */
   resourceAttributes?: Attributes;
 }
@@ -127,9 +164,24 @@ export type LogsConfig = CommonConfig & {
 
 export type TracesConfig = CommonConfig & {
   // Context and Propagation
+  /**
+   * Manager use to carry context accross function boundaries
+   *
+   * @defaultValue undefined
+   */
   contextManager?: ContextManager;
+  /**
+   * List of propagators to use when `propagation.inject` and `propagation.extract`
+   * is called (by instrumentations or user code).
+   *
+   * @defaultValue undefined
+   */
   propagators?: TextMapPropagator[];
-  // Sampler
+  /**
+   * Sampler to be used by tracer to decide if a Span os sampled or not.
+   *
+   * @defaultValue undefined
+   */
   sampler?: Sampler;
   /**
    * Configuration for the Span processor. Setting this
@@ -153,6 +205,8 @@ export type TracesConfig = CommonConfig & {
    * List of SpanProcessor for the tracer provider. Setting this will make the SDK
    * ignore `processorConfig` and `exportConfig` since no `BatchSpanProcessor` will
    * be created.
+   *
+   * @defaultValue undefined
    */
   processors?: SpanProcessor[];
 };
