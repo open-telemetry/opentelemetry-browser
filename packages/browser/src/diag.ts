@@ -22,8 +22,8 @@ export function setSdkLogger(level: keyof typeof DiagLogLevel = 'INFO') {
     typeof DiagLogLevel[level] === 'number'
       ? DiagLogLevel[level]
       : DiagLogLevel.INFO;
-  // NOTE: for now we're using the DiagConsoleLogger form the API
-  // but we may want to have something that serializes params in a specific format
+  // NOTE: for now we're using the DiagConsoleLogger from the API but we may
+  // want to have something that serializes params in a specific format
   diag.setLogger(new DiagConsoleLogger(), { logLevel });
   loggerSet = true;
 }
