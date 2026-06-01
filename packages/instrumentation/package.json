@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-instrumentation",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "OpenTelemetry browser instrumentations.",
   "keywords": [
     "opentelemetry",
@@ -54,7 +54,7 @@
     "@opentelemetry/core": "^2.7.1",
     "@opentelemetry/instrumentation": "^0.218.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
-    "web-vitals": "^5.2.0"
+    "web-vitals": "^5.3.0"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.1"
