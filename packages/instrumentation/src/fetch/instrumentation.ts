@@ -160,7 +160,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
           instrumentation._endSpan(span, {
             status: error.status || 0,
             statusText: error.message,
-            url,
           });
         }
 
@@ -172,7 +171,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             instrumentation._endSpan(span, {
               status: response.status,
               statusText: response.statusText,
-              url,
             });
           }
         }
@@ -221,7 +219,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             );
             instrumentation._endSpan(span, {
               status: 0,
-              url,
             });
           }
           return response;
@@ -236,7 +233,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             instrumentation._diag.error('Failed to end span on fetch error', e);
             instrumentation._endSpan(span, {
               status: error.status || 0,
-              url,
             });
           }
           throw error;

@@ -12,7 +12,6 @@ import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 export interface FetchResponse {
   status: number;
   statusText?: string;
-  url: string;
 }
 
 /**
