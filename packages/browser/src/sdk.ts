@@ -83,19 +83,14 @@ function combineSdks<T extends SdkFactories>(
       const logsConfig = (config?.logs || {}) as LogsConfig;
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
-      // Merge processor configs
-      logsConfig.processorConfig = Object.assign(
-        {},
-        rootConfig.processorConfig,
-        logsConfig.processorConfig,
-      );
+      // Check for root configs if processor or exporter are not defined
+      if (!logsConfig.processorConfig) {
+        logsConfig.processorConfig = rootConfig.processorConfig || {};
+      }
+      if (!logsConfig.exportConfig) {
+        logsConfig.exportConfig = rootConfig.exportConfig || {};
+      }
 
-      // Merge export configs
-      logsConfig.exportConfig = Object.assign(
-        {},
-        rootConfig.exportConfig,
-        logsConfig.exportConfig,
-      );
       // Set the path if endpoint comes from general config
       if (isGenericEndpoint) {
         endpointUrl.pathname = '/v1/logs';
@@ -110,19 +105,14 @@ function combineSdks<T extends SdkFactories>(
       const tracesConfig = (config?.traces || {}) as TracesConfig;
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
-      // Merge processor configs
-      tracesConfig.processorConfig = Object.assign(
-        {},
-        rootConfig.processorConfig,
-        tracesConfig.processorConfig,
-      );
+      // Check for root configs if processor or exporter are not defined
+      if (!tracesConfig.processorConfig) {
+        tracesConfig.processorConfig = rootConfig.processorConfig || {};
+      }
+      if (!tracesConfig.exportConfig) {
+        tracesConfig.exportConfig = rootConfig.exportConfig || {};
+      }
 
-      // Merge export configs
-      tracesConfig.exportConfig = Object.assign(
-        {},
-        rootConfig.exportConfig,
-        tracesConfig.exportConfig,
-      );
       // Set the path if endpoint comes from general config
       if (isGenericEndpoint) {
         endpointUrl.pathname = '/v1/traces';
