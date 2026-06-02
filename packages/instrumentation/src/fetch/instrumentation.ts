@@ -257,10 +257,8 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
                 options instanceof Request ? [options] : [url, options],
               )
               .then(
-                // @ts-expect-error
-                onSuccess.bind(this, createdSpan),
-                // @ts-expect-error
-                onError.bind(this, createdSpan),
+                onSuccess.bind(globalThis, createdSpan),
+                onError.bind(globalThis, createdSpan),
               )
               .finally(() => {
                 // Set the context for other instrumentations (resource-timing) to pick it up
