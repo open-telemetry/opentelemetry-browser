@@ -253,8 +253,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
             return original
               .apply(
-                // @ts-expect-error
-                this,
+                globalThis,
                 options instanceof Request ? [options] : [url, options],
               )
               .then(
