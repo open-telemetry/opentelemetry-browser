@@ -43,34 +43,37 @@ function isDocument(value: unknown): value is Document {
  * @param body
  * @returns promise that resolves to the content length of the body
  */
-export function getFetchBodyLength(...args: Parameters<typeof fetch>) {
+export async function getFetchBodyLength(
+  ...args: Parameters<typeof fetch>
+): Promise<number | undefined> {
   if (args[0] instanceof URL || typeof args[0] === 'string') {
     const requestInit = args[1];
     if (!requestInit?.body) {
-      return Promise.resolve();
+      return undefined;
     }
     if (requestInit.body instanceof ReadableStream) {
       const { body, length } = _getBodyNonDestructively(requestInit.body);
       requestInit.body = body;
 
-      return length;
+      return await length;
     } else {
-      return Promise.resolve(getXHRBodyLength(requestInit.body));
+      return getXHRBodyLength(requestInit.body);
     }
   } else {
     const info = args[0];
     if (!info?.body) {
-      return Promise.resolve();
+      return undefined;
     }
 
-    return info
-      .clone()
-      .text()
-      .then((t) => getByteLength(t));
+    const text = await info.clone().text();
+    return getByteLength(text);
   }
 }
 
-function _getBodyNonDestructively(body: ReadableStream) {
+function _getBodyNonDestructively(body: ReadableStream): {
+  body: ReadableStream;
+  length: Promise<number | undefined>;
+} {
   // can't read a ReadableStream without destroying it
   // but we CAN pipe it through and return a new ReadableStream
 
