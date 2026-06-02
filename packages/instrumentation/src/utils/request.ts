@@ -70,6 +70,9 @@ export async function getFetchBodyLength(
   }
 }
 
+// This function returns the body right away piped to a transform stream
+// if available. The length is returned as a promise because the original
+// fetch logic has to consume the body to get the final value.
 function _getBodyNonDestructively(body: ReadableStream): {
   body: ReadableStream;
   length: Promise<number | undefined>;
