@@ -176,13 +176,17 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(true);
   });
 
-  it.skip('should add a BatchSpanProcessor to the ones in config if exporter config is set', async () => {
+  it('should add a BatchSpanProcessor into the list if exporter config is set', async () => {
     // Arrange
     let exportCalled = false;
-    const url = 'http://otlp-signal-endpoint:4318/v1/traces'
+    const url = 'http://otlp-signal-endpoint:4318/v1/traces';
 
     // Act
     tracesSdk = startTracesSdk({
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
       exportConfig: { url },
       processors: [
         new SimpleSpanProcessor({
@@ -192,6 +196,7 @@ describe('startTracesSdk', () => {
       ],
     });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(exportCalled).toStrictEqual(true);

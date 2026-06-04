@@ -155,7 +155,7 @@ describe('startLogsSdk', () => {
     ]);
   });
 
-  it('should accept Span processors from the user', async () => {
+  it('should accept LogRecord processors from the user', async () => {
     // Arrange
     let exportCalled = false;
 
@@ -173,5 +173,33 @@ describe('startLogsSdk', () => {
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
+  });
+
+  it('should add a BatchLogRecordProcessor into the list if exporter config is set', async () => {
+    // Arrange
+    let exportCalled = false;
+    const url = 'http://otlp-signal-endpoint:4318/v1/traces';
+
+    // Act
+    logsSdk = startLogsSdk({
+      processorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+      exportConfig: { url },
+      processors: [
+        new SimpleLogRecordProcessor({
+          export: () => (exportCalled = true),
+          shutdown: () => Promise.resolve(),
+        }),
+      ],
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
   });
 });

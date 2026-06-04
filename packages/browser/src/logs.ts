@@ -41,12 +41,13 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
 
   // Resolve the list of log record processors.
   // - if provided by the user use them
-  // - otherwise create a `BatchLogRecordProcessor`
+  // - if not provided or exportConfig is set push a `BatchLogRecordProcessor`
   const processors: LogRecordProcessor[] = [];
 
   if (config?.processors) {
     processors.push(...config.processors);
-  } else {
+  }
+  if (!config?.processors || config?.exportConfig) {
     const logsEndpoint =
       config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
     processors.push(

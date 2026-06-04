@@ -38,12 +38,13 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
 
   // Resolve the list of span processors.
   // - if provided by the user use them
-  // - otherwise create a `BatchSpanProcessor`
+  // - if not provided or exportConfig is set push a `BatchSpanProcessor`
   const spanProcessors: SpanProcessor[] = [];
 
   if (config?.processors) {
     spanProcessors.push(...config.processors);
-  } else {
+  }
+  if (!config?.processors || config?.exportConfig) {
     const tracesEndpoint =
       config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDOINT;
 
