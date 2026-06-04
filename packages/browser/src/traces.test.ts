@@ -175,4 +175,27 @@ describe('startTracesSdk', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
   });
+
+  it.skip('should add a BatchSpanProcessor to the ones in config if exporter config is set', async () => {
+    // Arrange
+    let exportCalled = false;
+    const url = 'http://otlp-signal-endpoint:4318/v1/traces'
+
+    // Act
+    tracesSdk = startTracesSdk({
+      exportConfig: { url },
+      processors: [
+        new SimpleSpanProcessor({
+          export: () => (exportCalled = true),
+          shutdown: () => Promise.resolve(),
+        }),
+      ],
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
 });
