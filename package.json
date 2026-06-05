@@ -66,16 +66,19 @@
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.9.0",
+  "packageManager": "npm@11.16.0",
   "devEngines": {
     "packageManager": {
       "name": "npm",
-      "version": "^11.9.0",
+      "version": "^11.16.0",
       "onFail": "error"
     },
     "runtime": {
       "name": "node",
-      "version": ">=24"
+      "version": ">=26.3.0"
     }
+  },
+  "allowScripts": {
+    "lefthook@2.1.8": true
   }
 }
