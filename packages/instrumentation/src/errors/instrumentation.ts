@@ -4,7 +4,7 @@
  */
 
 import type { Attributes } from '@opentelemetry/api';
-import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
+import type { AnyValueMap } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import {
   InstrumentationBase,
@@ -69,26 +69,51 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
       return;
     }
 
-    let errorAttributes: AnyValueMap;
-    if (typeof error === 'string') {
-      errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: error };
-    } else {
-      errorAttributes = {
-        [ATTR_EXCEPTION_TYPE]: error.name,
-        [ATTR_EXCEPTION_MESSAGE]: error.message,
-        [ATTR_EXCEPTION_STACKTRACE]: error.stack,
-      };
-    }
+    this._emit(error);
+  }
 
-    const customAttributes = this._applyCustomAttributes(error);
+  // Build and emit the exception log inside a single guarded region so that
+  // nothing it touches can escape the global `error`/`unhandledrejection`
+  // listener and re-enter this handler via the browser's "report the
+  // exception" algorithm. That covers both a throwing LogRecordProcessor and
+  // a hostile `error` whose `name`/`message`/`stack` getters throw.
+  private _emit(error: Error | string): void {
+    // Captured before emit so the failure log can name the lost exception.
+    let message: string | undefined;
+    safeExecuteInTheMiddle(
+      () => {
+        let errorAttributes: AnyValueMap;
+        if (typeof error === 'string') {
+          message = error;
+          errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: error };
+        } else {
+          message = error.message;
+          errorAttributes = {
+            [ATTR_EXCEPTION_TYPE]: error.name,
+            [ATTR_EXCEPTION_MESSAGE]: message,
+            [ATTR_EXCEPTION_STACKTRACE]: error.stack,
+          };
+        }
 
-    const logRecord: LogRecord = {
-      eventName: EXCEPTION_EVENT_NAME,
-      severityNumber: SeverityNumber.ERROR,
-      attributes: { ...errorAttributes, ...customAttributes },
-    };
-
-    this.logger.emit(logRecord);
+        this.logger.emit({
+          eventName: EXCEPTION_EVENT_NAME,
+          severityNumber: SeverityNumber.ERROR,
+          attributes: {
+            ...errorAttributes,
+            ...this._applyCustomAttributes(error),
+          },
+        });
+      },
+      (err) => {
+        if (err) {
+          this._diag.error(
+            `failed to emit exception log: ${message ?? '<unknown>'}`,
+            err,
+          );
+        }
+      },
+      true,
+    );
   }
 
   private _applyCustomAttributes(error: Error | string): Attributes {
