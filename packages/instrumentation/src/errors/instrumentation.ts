@@ -62,10 +62,38 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
   }
 
   private _onError(event: ErrorEvent | PromiseRejectionEvent): void {
-    const error: Error | string | null | undefined =
-      'reason' in event ? event.reason : event.error;
+    const isRejection = 'reason' in event;
+    let error: Error | string | null | undefined = isRejection
+      ? event.reason
+      : event.error;
+
+    // Cross-origin scripts deliver an ErrorEvent with `event.error` null but
+    // a populated `event.message` (the canonical "Script error." sanitized
+    // message). Treat that message as a string error so these events still
+    // surface as an exception log instead of being silently dropped.
+    // PromiseRejectionEvent has no analogous message field, so it stays a
+    // no-op.
+    if (
+      error == null &&
+      !isRejection &&
+      typeof event.message === 'string' &&
+      event.message.length > 0
+    ) {
+      error = event.message;
+    }
 
     if (error == null) {
+      // Emit a diag debug message so the drop is observable. Anything that
+      // lands here had no usable signal (ErrorEvent with no error and no
+      // message, or PromiseRejectionEvent rejected with null/undefined). Pass
+      // the raw value too so the reader can tell null from undefined when
+      // investigating a missing capture.
+      this._diag.debug(
+        isRejection
+          ? 'ignored unhandledrejection event with no reason'
+          : 'ignored error event with no error and no message',
+        error,
+      );
       return;
     }
 
