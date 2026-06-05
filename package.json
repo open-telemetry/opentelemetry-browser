@@ -17,7 +17,6 @@
   "private": true,
   "scripts": {
     "prepare": "lefthook install -f",
-    "generate": "turbo generate",
     "clean": "npx -y rimraf -g \"**/.turbo\" \"**/dist\" \"**/node_modules\"",
     "dev": "turbo run watch dev --filter=sandbox...",
     "example": "turbo run watch dev --filter=examples-all-instrumentations...",
@@ -39,7 +38,6 @@
     "@biomejs/biome": "2.4.16",
     "@commitlint/cli": "21.0.1",
     "@commitlint/config-conventional": "21.0.1",
-    "@turbo/gen": "2.9.16",
     "@types/jsdom": "28.0.3",
     "@vitest/browser-playwright": "4.1.7",
     "@vitest/coverage-v8": "4.1.7",
