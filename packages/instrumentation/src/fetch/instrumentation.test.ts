@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import type { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
 import {
   ATTR_ERROR_TYPE,
@@ -13,10 +13,22 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import type { Mock } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { setupTestSpanExporter } from '#utils/test';
+import * as resourceUtils from '../utils/resource.ts';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
+
+vi.mock('../utils/resource.ts', { spy: true });
 
 export const handlers = [
   http.get('/api/get', () => {
@@ -33,7 +45,7 @@ export const handlers = [
   }),
 ];
 
-describe('WebVitalsInstrumentation', () => {
+describe('FetchInstrumentation', () => {
   let inMemoryExporter: InMemorySpanExporter;
   let instrumentation: FetchInstrumentation;
 
@@ -89,8 +101,11 @@ describe('WebVitalsInstrumentation', () => {
   describe('with no configuration', () => {
     it('should create spans for GET requests', async () => {
       const url = getUrlForPath('/api/get');
+      const startTime = performance.now();
       await fetch(url);
+      const endTime = performance.now();
 
+      // Span is exported
       const span = await waitForSpan(url);
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
@@ -98,7 +113,22 @@ describe('WebVitalsInstrumentation', () => {
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(63315); // vitest server port
 
-      // TODO: check the context has been stashed for the resource
+      // Context has been stashed for the resource
+      const setContextMock =
+        resourceUtils.setContextForResource as unknown as Mock<
+          typeof resourceUtils.setContextForResource
+        >;
+      expect(setContextMock).toHaveBeenCalledOnce();
+
+      const resourceDetails = setContextMock.mock.lastCall![0];
+      const spanContext = setContextMock.mock.lastCall![1];
+      expect(resourceDetails.url).toEqual(url);
+      expect(resourceDetails.startTime).toBeGreaterThanOrEqual(startTime);
+      expect(resourceDetails.endTime).toBeLessThanOrEqual(endTime);
+      expect(spanContext).toBeDefined();
+
+      const contextSpan = trace.getSpan(spanContext);
+      expect(contextSpan?.spanContext()).toEqual(span.spanContext());
     });
 
     it('should create spans for POST requests', async () => {

@@ -238,38 +238,35 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
           throw error;
         }
 
-        return context.with(
-          trace.setSpan(context.active(), createdSpan),
-          () => {
-            const fetchUrl = url;
-            const fetchStart = performance.now();
-            const fetchContext = context.active();
+        const fetchContext = trace.setSpan(context.active(), createdSpan);
+        return context.with(fetchContext, () => {
+          const fetchUrl = url;
+          const fetchStart = performance.now();
 
-            // Call request hook before injection so hooks cannot tamper with propagation headers.
-            // Also, this means the hook will see `options.headers` in the same type as passed in,
-            // rather than as a `Headers` instance set by `_addHeaders()`.
-            instrumentation._callRequestHook(createdSpan, options);
-            instrumentation._addHeaders(options, url);
+          // Call request hook before injection so hooks cannot tamper with propagation headers.
+          // Also, this means the hook will see `options.headers` in the same type as passed in,
+          // rather than as a `Headers` instance set by `_addHeaders()`.
+          instrumentation._callRequestHook(createdSpan, options);
+          instrumentation._addHeaders(options, url);
 
-            return original
-              .apply(
-                globalThis,
-                options instanceof Request ? [options] : [url, options],
-              )
-              .then(
-                onSuccess.bind(globalThis, createdSpan),
-                onError.bind(globalThis, createdSpan),
-              )
-              .finally(() => {
-                // Set the context for other instrumentations (resource-timing) to pick it up
-                const fetchEnd = performance.now();
-                setContextForResource(
-                  { url: fetchUrl, startTime: fetchStart, endTime: fetchEnd },
-                  fetchContext,
-                );
-              });
-          },
-        );
+          return original
+            .apply(
+              globalThis,
+              options instanceof Request ? [options] : [url, options],
+            )
+            .then(
+              onSuccess.bind(globalThis, createdSpan),
+              onError.bind(globalThis, createdSpan),
+            )
+            .finally(() => {
+              // Set the context for other instrumentations (resource-timing) to pick it up
+              const fetchEnd = performance.now();
+              setContextForResource(
+                { url: fetchUrl, startTime: fetchStart, endTime: fetchEnd },
+                fetchContext,
+              );
+            });
+        });
       };
     };
   }

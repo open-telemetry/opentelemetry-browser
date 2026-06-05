@@ -40,7 +40,6 @@ export function setContextForResource(
   if (resourceContextMap.has(res)) {
     // TODO: log/debug? override?
   } else {
-    console.log('set context');
     resourceContextMap.set(res, ctx);
     setTimeout(() => resourceContextMap.delete(res), ttl);
   }
