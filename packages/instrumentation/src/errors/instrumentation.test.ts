@@ -58,6 +58,15 @@ const dispatchUnhandledRejection = (reason: Error | string) => {
   window.dispatchEvent(event);
 };
 
+// The instrumentation does not expose its diag logger or logger for testing,
+// so reach the internals through a single typed accessor rather than casting
+// in each test.
+const internals = (inst: ErrorsInstrumentation | undefined) =>
+  inst as unknown as {
+    _diag: { error: (...args: unknown[]) => void };
+    logger: { emit: (record: unknown) => void };
+  };
+
 describe('ErrorsInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
   let instrumentation: ErrorsInstrumentation | undefined;
@@ -243,6 +252,42 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes['app.custom.exception']).toBe(
         STRING_ERROR.toLocaleUpperCase(),
       );
+    });
+
+    it('should contain logger.emit failures to prevent an error-event feedback loop', () => {
+      // If logger.emit throws unguarded, the listener exception escapes
+      // dispatchEvent and is surfaced by the browser's "report the exception"
+      // algorithm as another 'error' event. That is the feedback-loop hazard
+      // this guard removes: safeExecuteInTheMiddle contains the throw and
+      // routes it to diag.error so it never escapes the listener in the first
+      // place. (In practice the HTML spec's "in error reporting mode" flag also
+      // keeps a real browser from refiring re-entrantly while reporting.)
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      instrumentation.enable();
+
+      const accessor = internals(instrumentation);
+      const diagSpy = vi.spyOn(accessor._diag, 'error');
+      const emitSpy = vi
+        .spyOn(accessor.logger, 'emit')
+        .mockImplementation(() => {
+          throw new Error('processor exploded');
+        });
+
+      try {
+        // The feedback-loop guarantee is that the throw never escapes the
+        // listener; assert that directly, not just that it was logged.
+        expect(() =>
+          dispatchErrorEvent(new ValidationError('original')),
+        ).not.toThrow();
+
+        expect(diagSpy).toHaveBeenCalledWith(
+          'failed to emit exception log: original',
+          expect.any(Error),
+        );
+      } finally {
+        emitSpy.mockRestore();
+        diagSpy.mockRestore();
+      }
     });
 
     it('should still emit standard attributes when the hook throws', () => {
