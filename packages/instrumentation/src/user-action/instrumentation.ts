@@ -4,7 +4,7 @@
  */
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { getElementCSSSelector } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
@@ -37,10 +37,6 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       version,
       config,
     );
-  }
-
-  protected override init() {
-    return [];
   }
 
   private _getMouseButtonFromMouseEvent(event: MouseEvent): MouseButton {

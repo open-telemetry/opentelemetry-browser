@@ -5,4 +5,5 @@
 
 export { getElementCSSSelector } from './getElementCSSSelector.ts';
 export { getElementXPath } from './getElementXPath.ts';
+export { safeExecuteInTheMiddle } from './safeExecuteInTheMiddle.ts';
 export { defaultSanitizeUrl } from './url.ts';

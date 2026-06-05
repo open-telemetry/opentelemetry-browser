@@ -26,6 +26,7 @@
   },
   "type": "module",
   "imports": {
+    "#instrumentation-base": "./src/InstrumentationBase/index.ts",
     "#utils": "./src/utils/index.ts",
     "#utils/test": "./src/utils/test/index.ts"
   },
