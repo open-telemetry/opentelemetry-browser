@@ -35,7 +35,7 @@
     "test:coverage": "turbo run test:coverage"
   },
   "devDependencies": {
-    "@arethetypeswrong/core": "0.18.2",
+    "@arethetypeswrong/core": "0.18.3",
     "@biomejs/biome": "2.4.16",
     "@commitlint/cli": "21.0.1",
     "@commitlint/config-conventional": "21.0.1",
@@ -57,11 +57,6 @@
   },
   "peerDependencies": {
     "typescript": "^6.0.3"
-  },
-  "overrides": {
-    "@arethetypeswrong/core": {
-      "fflate": "0.8.2"
-    }
   },
   "workspaces": [
     "examples/*",
