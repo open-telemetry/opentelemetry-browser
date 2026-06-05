@@ -15,13 +15,37 @@ import {
 import { startBrowserSdk } from './sdk.ts';
 
 interface QuickStartConfig {
+  /**
+   * Log level for SDK's internal logger
+   *
+   * @defaultValue DiagLogLevel.INFO
+   */
   logLevel: keyof typeof DiagLogLevel;
-  serviceName: string;
+  /**
+   * Sets the value of the `service.name` resource attribute
+   */
+  serviceName?: string;
+  /**
+   * Sets the value of the `service.version` resource attribute
+   *
+   * @defaultValue undefined
+   */
   serviceVersion?: string;
+  /**
+   * Target URL for the SDK to send traces and logs.
+   */
   exportUrl: string;
+  /**
+   * Headers to be added to each traces/logs export request.
+   * This is the place to add API keys or similar.
+   */
   exportHeaders?: Record<string, string>;
 }
 
+/**
+ * This function does the same as `startBrowserSdk` but requiring
+ * a much simpler configuration object.
+ */
 export function quickStartBrowserSdk(config: QuickStartConfig) {
   const sdkConfig: Parameters<typeof startBrowserSdk>[0] = {
     logLevel: config.logLevel,

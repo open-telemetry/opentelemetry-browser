@@ -26,7 +26,7 @@ import type {
 export interface ExportConfig {
   /**
    * URL to send the data. For signal specific exports you might need to
-   * specify the singnal path like `/v1/traces`. Default values depend on where
+   * specify the signal path like `/v1/traces`. Default values depend on where
    * this config is defined:
    * - globally: the default is http://localhost:4318
    * - logs: the default is http://localhost:4318/v1/logs
