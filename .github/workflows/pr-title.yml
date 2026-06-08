@@ -21,7 +21,7 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      - run: npm ci --ignore-scripts
+      - run: npm ci
 
       - name: Validate PR title
         env:

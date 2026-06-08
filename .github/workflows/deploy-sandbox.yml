@@ -27,7 +27,7 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      - run: npm ci --ignore-scripts
+      - run: npm ci
 
       - run: npx turbo run build --filter=sandbox
 
