@@ -5,7 +5,7 @@
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { isUrlIgnored } from '@opentelemetry/core';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
@@ -73,10 +73,6 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       version,
       config,
     );
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {
