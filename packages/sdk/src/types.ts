@@ -44,7 +44,7 @@ export interface ExportConfig {
 /**
  * Batch processor configuration. Can be used globally or per signal
  */
-export interface ProcessorConfig {
+export interface BatchProcessorConfig {
   /**
    * Delay interval (in milliseconds) between two consecutive exports.
    * Default values depend on where this config is defined:
@@ -124,7 +124,7 @@ export type RootConfig = CommonConfig & {
    * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless signal
    * specific configuration is set for the signal.
    */
-  processorConfig?: ProcessorConfig;
+  batchProcessorConfig?: BatchProcessorConfig;
   /**
    * Configuration for exporters. If defined it will be applied to the
    * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`
@@ -145,7 +145,7 @@ export type LogsConfig = CommonConfig & {
   /**
    * Configuration for the LogRecord processor.
    */
-  processorConfig?: ProcessorConfig;
+  batchProcessorConfig?: BatchProcessorConfig;
   /**
    * Configuration for the LogRecord exporter.
    */
@@ -156,7 +156,7 @@ export type LogsConfig = CommonConfig & {
   logRecordLimits?: LogRecordLimits;
   /**
    * List of LogRecordProcessor for the logger provider. Setting this will make the SDK
-   * ignore `processorConfig` and `exportConfig` since no `BatchLogRecordProcessor` will
+   * ignore `batchProcessorConfig` and `exportConfig` since no `BatchLogRecordProcessor` will
    * be created.
    */
   processors?: LogRecordProcessor[];
@@ -189,12 +189,12 @@ export type TracesConfig = CommonConfig & {
    * that has the default configuration or the one set in `exportConfig`
    * option.
    */
-  processorConfig?: ProcessorConfig;
+  batchProcessorConfig?: BatchProcessorConfig;
   /**
    * Configuration for the Span exporter. Setting this
    * config will enable a `BatchSpanProcessor` whith the default
    * options for batch and queue size and export schedule and timeouts
-   * unless the `processorConfig` option is set.
+   * unless the `batchProcessorConfig` option is set.
    */
   exportConfig?: ExportConfig;
   /**

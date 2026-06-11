@@ -32,7 +32,7 @@ describe('startTracesSdk', () => {
   it('should use the default configuration for exporters', async () => {
     // Act
     tracesSdk = startTracesSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
@@ -57,7 +57,7 @@ describe('startTracesSdk', () => {
   it('should accept signal specific OTLP endpoint and headers', async () => {
     // Act
     tracesSdk = startTracesSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
@@ -86,7 +86,7 @@ describe('startTracesSdk', () => {
   it('should append the resource attributes in exports', async () => {
     // Act
     tracesSdk = startTracesSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
@@ -120,7 +120,7 @@ describe('startTracesSdk', () => {
   it('should give precedence to serviceName & serviceVersion over resource attributes', async () => {
     // Act
     tracesSdk = startTracesSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
@@ -183,7 +183,7 @@ describe('startTracesSdk', () => {
 
     // Act
     tracesSdk = startTracesSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },

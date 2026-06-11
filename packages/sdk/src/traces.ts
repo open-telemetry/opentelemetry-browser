@@ -54,7 +54,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
           url: tracesEndpoint,
           headers: config?.exportConfig?.headers,
         }),
-        config?.processorConfig,
+        config?.batchProcessorConfig,
       ),
     );
   }

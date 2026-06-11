@@ -32,7 +32,7 @@ describe('startLogsSdk', () => {
   it('should use the default configuration for exporters', async () => {
     // Act
     logsSdk = startLogsSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },
@@ -56,7 +56,7 @@ describe('startLogsSdk', () => {
   it('should accept signal specific OTLP endpoint and headers', async () => {
     // Act
     logsSdk = startLogsSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },
@@ -85,7 +85,7 @@ describe('startLogsSdk', () => {
   it('should append the resource attributes in exports', async () => {
     // Act
     logsSdk = startLogsSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },
@@ -119,7 +119,7 @@ describe('startLogsSdk', () => {
   it('should give precedence to serviceName & serviceVersion over resource attributes', async () => {
     // Act
     logsSdk = startLogsSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },
@@ -182,7 +182,7 @@ describe('startLogsSdk', () => {
 
     // Act
     logsSdk = startLogsSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },

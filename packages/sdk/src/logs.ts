@@ -56,7 +56,7 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
           url: logsEndpoint,
           headers: config?.exportConfig?.headers,
         }),
-        config?.processorConfig,
+        config?.batchProcessorConfig,
       ),
     );
   }

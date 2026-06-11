@@ -34,7 +34,7 @@ describe('startBrowserSdk', () => {
     // Act
     browserSdk = startBrowserSdk({
       // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      processorConfig: {
+      batchProcessorConfig: {
         scheduledDelayMillis: SCHEDULE_DELAY,
       },
     });
@@ -59,7 +59,7 @@ describe('startBrowserSdk', () => {
   it('should accept exporter confgiration with URL and headers', async () => {
     // Act
     browserSdk = startBrowserSdk({
-      processorConfig: {
+      batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: SCHEDULE_DELAY,
       },

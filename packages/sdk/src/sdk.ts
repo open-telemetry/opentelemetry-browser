@@ -85,8 +85,8 @@ function combineSdks<T extends SdkFactories>(
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
       // Check for root configs if processor or exporter are not defined
-      if (!logsConfig.processorConfig) {
-        logsConfig.processorConfig = rootConfig.processorConfig || {};
+      if (!logsConfig.batchProcessorConfig) {
+        logsConfig.batchProcessorConfig = rootConfig.batchProcessorConfig || {};
       }
       if (!logsConfig.exportConfig) {
         logsConfig.exportConfig = rootConfig.exportConfig || {};
@@ -107,8 +107,9 @@ function combineSdks<T extends SdkFactories>(
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
       // Check for root configs if processor or exporter are not defined
-      if (!tracesConfig.processorConfig) {
-        tracesConfig.processorConfig = rootConfig.processorConfig || {};
+      if (!tracesConfig.batchProcessorConfig) {
+        tracesConfig.batchProcessorConfig =
+          rootConfig.batchProcessorConfig || {};
       }
       if (!tracesConfig.exportConfig) {
         tracesConfig.exportConfig = rootConfig.exportConfig || {};

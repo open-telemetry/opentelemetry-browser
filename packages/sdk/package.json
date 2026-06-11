@@ -21,7 +21,9 @@
   },
   "type": "module",
   "exports": {
+    "./context": "./dist/context.js",
     "./propagation": "./dist/propagation.js",
+    "./sampler": "./dist/sampler.js",
     "./logs": "./dist/logs.js",
     "./traces": "./dist/traces.js",
     "./sdk": "./dist/sdk.js"
