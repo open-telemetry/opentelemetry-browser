@@ -5,7 +5,7 @@
 
 **Note: This is an experimental package under active development. New releases may include breaking changes.**
 
-This package provides the required components to start a OpenTelemetry SDK for Browser including
+This package provides the required components to start an OpenTelemetry SDK for Browser including
 logs and traces. Metrics are out of the scope for now
 <!-- TODO: add referecnce to the discussion about metrics for browser  -->
 
@@ -13,17 +13,17 @@ logs and traces. Metrics are out of the scope for now
 
 **Note: This documentation assumes you have a bundler in your tool chain that can handle ESM modules.**
 
-To get started you need to install `@opentelemetry/browser` and any appropriate instrumentation for the
+To get started you need to install `@opentelemetry/browser-sdk` and any appropriate instrumentation for the
 events or tasks performed by your application.
 
 ### Installation
 
 ```bash
 # Install the package
-npm install @opentelemetry/browser
+npm install @opentelemetry/browser-sdk
 
 # Install the instrumentations
-npm install @opentelemetry/instrumentation-browser \ # add OTEL instrumentations for browser
+npm install @opentelemetry/browser-instrumentation \ # add OTEL instrumentations for browser
     @opentelemetry/instrumentation-fetch # or any other instrumentation outside this repo
 ```
 
@@ -42,7 +42,7 @@ This example shows how to setup the SDK exporting logs and traces to a specific 
 a couple of customized headers.
 
 ```javascript
-import { startBrowserSdk } from '@opentelemetry/browser/sdk';
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
 const sdk = startBrowserSdk({
@@ -98,8 +98,8 @@ code related to other signals.
 
 | Subpath                         | Purpose                                                        |
 | ------------------------------- | -------------------------------------------------------------- |
-| `@opentelemetry/browser/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
-| `@opentelemetry/browser/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
+| `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
+| `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
 
 
 #### Initialize logs SDK
@@ -108,7 +108,7 @@ This example shows how to setup the logs SDK exporting to a specific OTLP endpoi
 a couple of customized headers.
 
 ```javascript
-import { startLogsSdk } from '@opentelemetry/browser/logs';
+import { startLogsSdk } from '@opentelemetry/browser-sdk/logs';
 
 // Start the SDK 
 const logsSdk = startLogsSdk({
@@ -150,7 +150,7 @@ This example shows how to setup the traces SDK exporting to a specific OTLP endp
 a couple of customized headers.
 
 ```javascript
-import { startTracesSdk } from '@opentelemetry/browser/traces';
+import { startTracesSdk } from '@opentelemetry/browser-sdk/traces';
 
 // Start the SDK 
 const tracesSdk = startTracesSdk({
@@ -189,7 +189,7 @@ tracesSdk.shutdown().then(
 
 ### Common configuration
 
-The following configuration options are common to each independent SDK. When usgin `startBrowserSdk` which
+The following configuration options are common to each independent SDK. When using `startBrowserSdk` which
 combines all signals these options are accepted and the top level of the configuration and they don't need to
 be in signal specific configuration. See the example below.
 
@@ -239,7 +239,7 @@ Object containing configuration options for the batch processing of log records.
 - `maxExportBatchSize`: Maximum batch size.
 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
-the option is defined at the top level and within the `logs` signal configuration the later wins.
+the option is defined at the top level and within the signal configuration the later wins.
 
 #### exportConfig
 
@@ -249,7 +249,7 @@ Object containing configuraiton options for the HTTP log record exporter. These 
 - `headers`: Key-value pairs to be used as headers associated with HTTP requests.
 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
-the option is defined at the top level and within the `logs` signal configuration the later wins.
+the option is defined at the top level and within the signal configuration the later wins.
 
 #### logRecordLimits
 
@@ -267,7 +267,7 @@ and `exportConfig` since no `BatchLogRecordProcessor` will be created.
 
 #### processorConfig
 
-Object containign configuraiton options for the batch processing of spans. These options are:
+Object containing configuraiton options for the batch processing of spans. These options are:
 
 - `scheduledDelayMillis`: Delay interval (in milliseconds) between two consecutive exports.
 - `exportTimeoutMillis`: Maximum allowed time (in milliseconds) to export data.
@@ -309,7 +309,7 @@ Manager to use to propagate context across different call stacks.
 
 #### propagators
 
-Propagators to use to carry information to oather services (like backend services).
+Propagators to use to carry information to other services (like backend services).
 
 #### sampler
 

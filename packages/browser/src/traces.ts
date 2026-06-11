@@ -18,7 +18,7 @@ import {
 import { setSdkLogger } from './diag.ts';
 import type { TracesConfig, WebSdk } from './types.ts';
 
-const DEFAULT_TRACES_OTLP_ENDOINT = 'http://localhost:4318/v1/traces';
+const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
   // Set the logger
@@ -46,7 +46,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   }
   if (!config?.processors || config?.exportConfig) {
     const tracesEndpoint =
-      config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDOINT;
+      config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDPOINT;
 
     spanProcessors.push(
       new BatchSpanProcessor(

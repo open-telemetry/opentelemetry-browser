@@ -1,12 +1,14 @@
 {
-  "name": "@opentelemetry/browser",
+  "name": "@opentelemetry/browser-sdk",
   "version": "0.1.0",
-  "description": "OpenTelemetry browser main package.",
+  "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",
     "browser",
     "web",
-    "sdk"
+    "sdk",
+    "logs",
+    "traces"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",

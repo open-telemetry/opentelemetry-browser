@@ -32,7 +32,7 @@ type ExtractConfigs<T> = Partial<{
     : never;
 }>;
 
-const DEFAULT_OTLP_ENDOINT = 'http://localhost:4318';
+const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
@@ -64,18 +64,19 @@ function combineSdks<T extends SdkFactories>(
       rootConfig.resourceAttributes['service.name'] = rootConfig.serviceName;
     }
     if (rootConfig.serviceVersion) {
-      rootConfig.resourceAttributes['service.name'] = rootConfig.serviceVersion;
+      rootConfig.resourceAttributes['service.version'] =
+        rootConfig.serviceVersion;
     }
 
     // Export
     rootConfig.exportConfig = {
-      url: DEFAULT_OTLP_ENDOINT,
+      url: DEFAULT_OTLP_ENDPOINT,
       ...rootConfig.exportConfig,
     };
 
     const sdks: WebSdk[] = [];
     const endpointUrl = new URL(
-      rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDOINT,
+      rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
     );
 
     // Start logs
