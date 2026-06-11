@@ -4,6 +4,10 @@ import type { Tracer } from '@opentelemetry/api';
 import { trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
+import {
+  BrowserDocumentUrlLogProcessor,
+  BrowserDocumentUrlSpanProcessor,
+} from '@opentelemetry/browser-instrumentation/experimental/browser-document-url';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -68,6 +72,7 @@ export function initOtel(
     headers: {},
   });
   const spanProcessors = [
+    new BrowserDocumentUrlSpanProcessor(),
     new BatchSpanProcessor(traceExporter, {
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
@@ -84,6 +89,7 @@ export function initOtel(
   // ── Logs ────────────────────────────────────────────────────────────────────
   const logExporter = new OTLPLogExporter({ url: config.logsUrl, headers: {} });
   const logProcessors = [
+    new BrowserDocumentUrlLogProcessor(),
     new BatchLogRecordProcessor(logExporter, {
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
