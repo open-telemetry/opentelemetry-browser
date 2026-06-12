@@ -206,6 +206,7 @@ describe('startLogsSdk', () => {
         new SimpleLogRecordProcessor({
           export: () => (exportCalled = true),
           shutdown: () => Promise.resolve(),
+          forceFlush: () => Promise.resolve(),
         }),
       ],
     });
@@ -232,6 +233,7 @@ describe('startLogsSdk', () => {
         new SimpleLogRecordProcessor({
           export: () => (exportCalled = true),
           shutdown: () => Promise.resolve(),
+          forceFlush: () => Promise.resolve(),
         }),
       ],
     });
