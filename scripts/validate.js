@@ -229,7 +229,7 @@ function checkBundleSize(units) {
   logSection('4. Bundle Size');
   const MIN_SIZE_KB = 0.1;
   let allPassed = true;
-  
+
   for (const { label, distPath } of units) {
     // NOTE: the SDK package is expected to grow bigger than the instrumentations
     const MAX_SIZE_KB = label === 'sdk' ? 8 : 4;
