@@ -33,13 +33,16 @@ class ValidationError extends Error {
 
 // jsdom routes window 'error' events through its uncaught-exception reporter,
 // which would surface to vitest's unhandled error reporter and fail the run.
-// We dispatch a cancelable plain Event (the instrumentation only reads
-// `event.error`) and call preventDefault from a capture-phase listener to
-// suppress the default reporting behavior.
-const dispatchErrorEvent = (error?: Error | string) => {
+// We dispatch a cancelable plain Event (the instrumentation reads
+// `event.error`, falling back to `event.message`) and call preventDefault from
+// a capture-phase listener to suppress the default reporting behavior.
+const dispatchErrorEvent = (error?: Error | string, message?: string) => {
   const event = new Event('error', { cancelable: true });
   if (error !== undefined) {
     Object.defineProperty(event, 'error', { value: error });
+  }
+  if (message !== undefined) {
+    Object.defineProperty(event, 'message', { value: message });
   }
   const suppress = (e: Event) => e.preventDefault();
   window.addEventListener('error', suppress, { capture: true });
@@ -50,13 +53,32 @@ const dispatchErrorEvent = (error?: Error | string) => {
   }
 };
 
-const dispatchUnhandledRejection = (reason: Error | string) => {
+const dispatchUnhandledRejection = (
+  reason?: Error | string | null,
+  message?: string,
+) => {
   // jsdom does not implement the PromiseRejectionEvent constructor, so we
   // synthesize an event with the same shape the instrumentation listens for.
+  // A real PromiseRejectionEvent always exposes a `reason` property, so we
+  // always define it (even when null/undefined) to keep the instrumentation's
+  // `'reason' in event` discriminant accurate.
   const event = new Event('unhandledrejection');
   Object.defineProperty(event, 'reason', { value: reason });
+  // A real PromiseRejectionEvent has no `message`; the optional param lets a
+  // test plant a stray one to prove the error-path fallback never leaks in.
+  if (message !== undefined) {
+    Object.defineProperty(event, 'message', { value: message });
+  }
   window.dispatchEvent(event);
 };
+
+// The instrumentation does not expose its diag logger for testing, so reach
+// the internal `_diag` through a single typed accessor rather than casting in
+// each test.
+const internals = (inst: ErrorsInstrumentation | undefined) =>
+  inst as unknown as {
+    _diag: { debug: (...args: unknown[]) => void };
+  };
 
 describe('ErrorsInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
@@ -167,10 +189,54 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_EXCEPTION_STACKTRACE]).toBeUndefined();
     });
 
-    it('should not emit when the error is missing', () => {
+    it('should not emit and should log a diag debug message when both error and message are missing', () => {
+      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'debug');
+
       dispatchErrorEvent();
 
       expect(getErrorLogs()).toHaveLength(0);
+      expect(diagSpy).toHaveBeenCalledWith(
+        'ignored error event with no error and no message',
+        undefined,
+      );
+
+      diagSpy.mockRestore();
+    });
+
+    it('should emit using event.message when event.error is missing', () => {
+      // Cross-origin scripts deliver "Script error." with event.error null.
+      dispatchErrorEvent(undefined, 'Script error.');
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.eventName).toBe(EXCEPTION_EVENT_NAME);
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('Script error.');
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_STACKTRACE]).toBeUndefined();
+    });
+
+    it('should not emit and should log a diag debug message when event.message is an empty string', () => {
+      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'debug');
+
+      dispatchErrorEvent(undefined, '');
+
+      expect(getErrorLogs()).toHaveLength(0);
+      expect(diagSpy).toHaveBeenCalledWith(
+        'ignored error event with no error and no message',
+        undefined,
+      );
+
+      diagSpy.mockRestore();
+    });
+
+    it('should prefer event.error over event.message when both are present', () => {
+      const error = new ValidationError('Real error');
+      dispatchErrorEvent(error, 'Script error.');
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('Real error');
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBe('ValidationError');
     });
   });
 
@@ -197,6 +263,41 @@ describe('ErrorsInstrumentation', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(STRING_ERROR);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
+    });
+
+    it('should not emit and should log a diag debug message when the reason is null', () => {
+      // A PromiseRejectionEvent has no message field to fall back to, so a
+      // null reason is dropped rather than surfaced as the error path's
+      // "Script error." fallback would be.
+      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'debug');
+
+      dispatchUnhandledRejection(null);
+
+      expect(getErrorLogs()).toHaveLength(0);
+      expect(diagSpy).toHaveBeenCalledWith(
+        'ignored unhandledrejection event with no reason',
+        null,
+      );
+
+      diagSpy.mockRestore();
+    });
+
+    it('should not fall back to event.message for rejections even when one is present', () => {
+      // The `event.message` fallback is gated to error events via `!isRejection`.
+      // A synthesized or polyfilled PromiseRejectionEvent could carry a stray
+      // `message`; this proves it is never used as a rejection's exception
+      // message, so the null reason is still dropped.
+      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'debug');
+
+      dispatchUnhandledRejection(null, 'Script error.');
+
+      expect(getErrorLogs()).toHaveLength(0);
+      expect(diagSpy).toHaveBeenCalledWith(
+        'ignored unhandledrejection event with no reason',
+        null,
+      );
+
+      diagSpy.mockRestore();
     });
   });
 
@@ -243,6 +344,42 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes['app.custom.exception']).toBe(
         STRING_ERROR.toLocaleUpperCase(),
       );
+    });
+
+    it('should merge custom attributes on the event.message fallback path', () => {
+      instrumentation = new ErrorsInstrumentation({
+        enabled: false,
+        applyCustomAttributes: (error) => ({
+          'app.custom.exception':
+            typeof error === 'string'
+              ? error.toLocaleUpperCase()
+              : error.message.toLocaleUpperCase(),
+        }),
+      });
+      instrumentation.enable();
+
+      dispatchErrorEvent(undefined, 'Script error.');
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('Script error.');
+      expect(logs[0]?.attributes['app.custom.exception']).toBe('SCRIPT ERROR.');
+    });
+
+    it('should let custom attributes override the message on the fallback path', () => {
+      instrumentation = new ErrorsInstrumentation({
+        enabled: false,
+        applyCustomAttributes: () => ({
+          [ATTR_EXCEPTION_MESSAGE]: 'overridden',
+        }),
+      });
+      instrumentation.enable();
+
+      dispatchErrorEvent(undefined, 'Script error.');
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('overridden');
     });
 
     it('should still emit standard attributes when the hook throws', () => {
