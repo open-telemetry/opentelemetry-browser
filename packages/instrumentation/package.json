@@ -38,6 +38,7 @@
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js"
   },
+  "sideEffects": false,
   "files": [
     "dist"
   ],
