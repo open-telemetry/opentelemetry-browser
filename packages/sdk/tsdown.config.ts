@@ -3,5 +3,5 @@ import baseConfig from '../../tsdown.config.ts';
 
 export default defineConfig({
   ...baseConfig,
-  entry: ['src/*.ts', '!src/*.test.ts'],
+  entry: ['src/sdk/logs.ts', 'src/sdk/traces.ts', 'src/sdk/start.ts'],
 });
