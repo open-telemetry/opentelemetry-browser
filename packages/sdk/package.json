@@ -1,7 +1,7 @@
 {
   "name": "@opentelemetry/browser-sdk",
   "version": "0.1.0",
-  "private": "true",
+  "private": true,
   "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",
@@ -18,13 +18,13 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/open-telemetry/opentelemetry-browser.git",
-    "directory": "packages/browser"
+    "directory": "packages/sdk"
   },
   "type": "module",
   "exports": {
+    ".": "./dist/start.js",
     "./logs": "./dist/logs.js",
-    "./traces": "./dist/traces.js",
-    ".": "./dist/start.js"
+    "./traces": "./dist/traces.js"
   },
   "sideEffects": false,
   "files": [
