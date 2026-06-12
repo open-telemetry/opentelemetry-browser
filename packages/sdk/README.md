@@ -39,10 +39,34 @@ Loading the SDK after some library has pacthed Browser's API may affect the beha
 components, like exporters, and instrumentations in unexpected ways.
 
 This example shows how to setup the SDK exporting logs and traces to a specific OTLP endpoint URL with
-a couple of customized headers.
+a couple of customized headers. 
 
 ```javascript
-import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk/start';
+
+// Start the SDK 
+const sdk = quickStartBrowserSdk({
+  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
+  disabled: false,
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'DEBUG',
+  // Optional - name of the service being instrumented. Default value is 'unknown_service'
+  serviceName: 'my-service',
+  // Optional - version of the service. Default value is undefined
+  serviceVersion: '1.0',
+  // Required - URL of the collector that will accept the export requests
+  exportUrl: 'https://collector.mycompany.com',
+  // Optional - Headers to be added in each export request for all signals
+  exportHeaders: { foo: 'bar' },
+});
+```
+
+If you need a deeper control of the configuration the `startBrowserSdk` function accepts an
+extended configuration object to tune some other component and also apply specific configuration per signal.
+The following example sets some extra resource attributes and the limits for spans and log records.
+
+```javascript
+import { startBrowserSdk } from '@opentelemetry/browser-sdk/start';
 
 // Start the SDK 
 const sdk = startBrowserSdk({
@@ -92,7 +116,7 @@ The previous example configures logs and traces signals. Although this is convei
 when you don't need a specific signal and don't want to pay the toll of sending unused code to your clients. As
 an example if none of the selected instrumentations send traces there is no need to setup the traces SDK.
 
-For that purpose `@opentelemetry/browser` provides functions to start signal specific SDKs (logs, traces)
+For that purpose `@opentelemetry/browser-sdk` provides functions to start signal specific SDKs (logs, traces)
 independently. Each signal SDK function has its own subpath point so bundlers can easily tree shake the
 code related to other signals.
 

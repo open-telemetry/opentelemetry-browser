@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { context, propagation, trace } from '@opentelemetry/api';
+import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import {
@@ -48,17 +48,30 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     const tracesEndpoint =
       config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDPOINT;
 
-    spanProcessors.push(
-      new BatchSpanProcessor(
-        new OTLPTraceExporter({
-          url: tracesEndpoint,
-          headers: config?.exportConfig?.headers,
-        }),
-        config?.batchProcessorConfig,
-      ),
-    );
+    if (URL.parse(tracesEndpoint)) {
+      spanProcessors.push(
+        new BatchSpanProcessor(
+          new OTLPTraceExporter({
+            url: tracesEndpoint,
+            headers: config?.exportConfig?.headers,
+          }),
+          config?.batchProcessorConfig,
+        ),
+      );
+    } else {
+      diag.error(
+        `BatchSpanProcessor configuration error. Invalid export URL "${tracesEndpoint}".`,
+      );
+    }
   }
 
+  if (spanProcessors.length === 0) {
+    diag.error("No Span processors configured. Traces SDK won't start");
+    // TODO: need to discuss with the SIG if it's better to return `undefined`
+    return {
+      shutdown: () => Promise.resolve(),
+    };
+  }
   const tracerProvider = new BasicTracerProvider({
     // sampler: new TraceIdRatioBasedSampler(
     //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,

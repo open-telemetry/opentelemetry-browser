@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { trace } from '@opentelemetry/api';
+import { diag, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { startBrowserSdk } from './sdk.ts';
+import { startBrowserSdk } from './start.ts';
 import type { WebSdk } from './types.ts';
 
 // Arrange
@@ -15,6 +15,7 @@ const SCHEDULE_DELAY = 10;
 describe('startBrowserSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+  const diagErrorSpy = vi.spyOn(diag, 'error');
   let browserSdk: WebSdk;
 
   // NOTE: we mock the registration of the logger/tracer provider because
@@ -28,6 +29,27 @@ describe('startBrowserSdk', () => {
     fetchSpy.mockClear();
     logs.disable();
     trace.disable();
+  });
+
+  it('should not start if an invalid URL is provided', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'this_is_not_an_URL',
+      },
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Browser SDK won't start/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should use the default configuration for batch processor', async () => {

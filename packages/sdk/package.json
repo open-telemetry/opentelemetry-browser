@@ -1,6 +1,7 @@
 {
   "name": "@opentelemetry/browser-sdk",
   "version": "0.1.0",
+  "private": "true",
   "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",
@@ -26,7 +27,7 @@
     "./sampler": "./dist/sampler.js",
     "./logs": "./dist/logs.js",
     "./traces": "./dist/traces.js",
-    "./sdk": "./dist/sdk.js"
+    "./start": "./dist/start.js"
   },
   "files": [
     "dist"

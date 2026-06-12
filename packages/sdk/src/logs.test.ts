@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
@@ -15,6 +16,7 @@ const BLRP_SCHEDULE_DELAY = 10;
 describe('startLogsSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+  const diagErrorSpy = vi.spyOn(diag, 'error');
   let logsSdk: WebSdk;
 
   // NOTE: we mock the registration of the logger provider because
@@ -27,6 +29,26 @@ describe('startLogsSdk', () => {
     fetchSpy.mockClear();
     await logsSdk?.shutdown();
     logs.disable();
+  });
+
+  it('should not start if an invalid URL is provided', async () => {
+    // Act
+    logsSdk = startLogsSdk({
+      exportConfig: {
+        url: 'this_is_not_an_URL',
+      },
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Logs SDK won't start/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should use the default configuration for exporters', async () => {

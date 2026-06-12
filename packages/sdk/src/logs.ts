@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import {
@@ -50,15 +51,30 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   if (!config?.processors || config?.exportConfig) {
     const logsEndpoint =
       config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
-    processors.push(
-      new BatchLogRecordProcessor(
-        new OTLPLogExporter({
-          url: logsEndpoint,
-          headers: config?.exportConfig?.headers,
-        }),
-        config?.batchProcessorConfig,
-      ),
-    );
+
+    if (URL.parse(logsEndpoint)) {
+      processors.push(
+        new BatchLogRecordProcessor(
+          new OTLPLogExporter({
+            url: logsEndpoint,
+            headers: config?.exportConfig?.headers,
+          }),
+          config?.batchProcessorConfig,
+        ),
+      );
+    } else {
+      diag.error(
+        `BatchLogRecordProcessor configuration error. Invalid export URL "${logsEndpoint}".`,
+      );
+    }
+  }
+
+  if (processors.length === 0) {
+    diag.error("No LogRecord processors configured. Logs SDK won't start");
+    // TODO: need to discuss with the SIG if it's better to return `undefined`
+    return {
+      shutdown: () => Promise.resolve(),
+    };
   }
 
   const loggerProvider = new LoggerProvider({

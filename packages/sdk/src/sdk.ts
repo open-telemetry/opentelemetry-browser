@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import { setSdkLogger } from './diag.ts';
-import { startLogsSdk } from './logs.ts';
-import { startTracesSdk } from './traces.ts';
 import type {
   CommonConfig,
   LogsConfig,
@@ -42,7 +41,7 @@ const DEFAULT_CONFIG: RootConfig = {
  * Combines different SDK factory functions into a single one
  * which accepts a global configuration along
  */
-function combineSdks<T extends SdkFactories>(
+export function combineSdks<T extends SdkFactories>(
   factories: T,
 ): WebSdkFactory<RootConfig & ExtractConfigs<T>> {
   // The returned function will transform some of the global
@@ -75,9 +74,19 @@ function combineSdks<T extends SdkFactories>(
     };
 
     const sdks: WebSdk[] = [];
-    const endpointUrl = new URL(
+    const endpointUrl = URL.parse(
       rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
     );
+
+    if (!endpointUrl) {
+      diag.error(
+        `Invalid export URL "${rootConfig.exportConfig.url}". Browser SDK won't start.`,
+      );
+      // TODO: need to discuss with the SIG if it's better to return `undefined`
+      return {
+        shutdown: () => Promise.resolve(),
+      };
+    }
 
     // Start logs
     if (factories.logs) {
@@ -127,19 +136,21 @@ function combineSdks<T extends SdkFactories>(
     return {
       shutdown() {
         return Promise.allSettled(sdks.map((s) => s.shutdown())).then(
-          () => undefined,
+          (results) => {
+            const errors = [];
+            for (const res of results) {
+              if (res.status === 'rejected') {
+                errors.push(res.reason);
+              }
+            }
+            if (errors.length > 0) {
+              throw new Error(
+                `Shutdown process failed. Reason: ${errors.join(', ')}`,
+              );
+            }
+          },
         );
       },
     };
   };
 }
-
-/**
- * Combination of all singal SDKs into one. A shorthand for users to
- * start with all signals allowing them to pass some global configuration
- * options.
- */
-export const startBrowserSdk = combineSdks({
-  logs: startLogsSdk,
-  traces: startTracesSdk,
-});

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { trace } from '@opentelemetry/api';
+import { diag, trace } from '@opentelemetry/api';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +15,7 @@ const BSP_SCHEDULE_DELAY = 10;
 describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+  const diagErrorSpy = vi.spyOn(diag, 'error');
   let tracesSdk: WebSdk;
 
   // NOTE: we mock the registration of the tracer provider because
@@ -27,6 +28,26 @@ describe('startTracesSdk', () => {
     fetchSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
+  });
+
+  it('should not start if an invalid URL is provided', async () => {
+    // Act
+    tracesSdk = startTracesSdk({
+      exportConfig: {
+        url: 'this_is_not_an_URL',
+      },
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't start/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should use the default configuration for exporters', async () => {

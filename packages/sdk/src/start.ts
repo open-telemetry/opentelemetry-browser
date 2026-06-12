@@ -12,15 +12,33 @@ import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { startBrowserSdk } from './sdk.ts';
+import { startLogsSdk } from './logs.ts';
+import { combineSdks } from './sdk.ts';
+import { startTracesSdk } from './traces.ts';
+
+/**
+ * Combination of all singal SDKs into one. A shorthand for users to
+ * start with all signals allowing them to pass some global configuration
+ * options.
+ */
+export const startBrowserSdk = combineSdks({
+  logs: startLogsSdk,
+  traces: startTracesSdk,
+});
 
 interface QuickStartConfig {
+  /**
+   * Set `disabled: true` to disable the SDK
+   *
+   * @defaultValue undefined
+   */
+  disabled?: boolean;
   /**
    * Log level for SDK's internal logger
    *
    * @defaultValue DiagLogLevel.INFO
    */
-  logLevel: keyof typeof DiagLogLevel;
+  logLevel?: keyof typeof DiagLogLevel;
   /**
    * Sets the value of the `service.name` resource attribute
    */
@@ -48,6 +66,7 @@ interface QuickStartConfig {
  */
 export function quickStartBrowserSdk(config: QuickStartConfig) {
   const sdkConfig: Parameters<typeof startBrowserSdk>[0] = {
+    disabled: config.disabled,
     logLevel: config.logLevel,
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
