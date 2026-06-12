@@ -22,8 +22,11 @@
   },
   "type": "module",
   "exports": {
-    ".": "./dist/index.js"
+    "./logs": "./dist/logs.js",
+    "./traces": "./dist/traces.js",
+    ".": "./dist/start.js"
   },
+  "sideEffects": false,
   "files": [
     "dist"
   ],

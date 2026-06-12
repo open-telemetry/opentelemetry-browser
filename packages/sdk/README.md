@@ -42,7 +42,7 @@ This example shows how to setup the SDK exporting logs and traces to a specific 
 a couple of customized headers. 
 
 ```javascript
-import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk/start';
+import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
 const sdk = quickStartBrowserSdk({
@@ -66,7 +66,7 @@ extended configuration object to tune some other component and also apply specif
 The following example sets some extra resource attributes and the limits for spans and log records.
 
 ```javascript
-import { startBrowserSdk } from '@opentelemetry/browser-sdk/start';
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
 const sdk = startBrowserSdk({
