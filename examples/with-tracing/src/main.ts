@@ -60,11 +60,11 @@ registerInstrumentations({
 });
 
 // --- Button handlers ---
-document.getElementById('fetch-button')!.addEventListener('click', () => {
+document.getElementById('fetch-button')?.addEventListener('click', () => {
   fetch('https://httpbin.org/get');
 });
 
-document.getElementById('xhr-button')!.addEventListener('click', () => {
+document.getElementById('xhr-button')?.addEventListener('click', () => {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', 'https://httpbin.org/get');
   xhr.send();
