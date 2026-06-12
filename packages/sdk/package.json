@@ -22,12 +22,7 @@
   },
   "type": "module",
   "exports": {
-    "./context": "./dist/context.js",
-    "./propagation": "./dist/propagation.js",
-    "./sampler": "./dist/sampler.js",
-    "./logs": "./dist/logs.js",
-    "./traces": "./dist/traces.js",
-    "./start": "./dist/start.js"
+    ".": "./dist/index.js"
   },
   "files": [
     "dist"
