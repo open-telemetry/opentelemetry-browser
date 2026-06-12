@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { getElementCSSSelector } from '#utils';
@@ -82,6 +83,9 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       }
     }
 
+    const userActionContext = context.active();
+    const mouseButton = this._getMouseButtonFromMouseEvent(event);
+
     this.logger.emit({
       severityNumber: SeverityNumber.INFO,
       eventName: CLICK_EVENT_NAME,
@@ -90,9 +94,11 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
         [ATTR_PAGE_Y]: event.pageY,
         [ATTR_TAG_NAME]: element.tagName,
         [ATTR_TAGS]: otelPrefixedAttributes,
-        [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
-        [ATTR_CSS_SELECTOR]: cssSelector,
+        [ATTR_MOUSE_EVENT_BUTTON]: mouseButton,
+        [ATTR_CSS_SELECTOR]: cssSelector,  
       },
+      context: userActionContext,
+      body: `click (${mouseButton}) on ${cssSelector}`,
     });
   }
 

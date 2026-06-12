@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { context } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import {
@@ -145,6 +146,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
 
   private _onHardNavigation(): void {
     const cfg = this.getConfig();
+    const navigationContext = context.active();
     const logRecord: LogRecord = {
       eventName: BROWSER_NAVIGATION_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
@@ -155,6 +157,8 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
         [ATTR_BROWSER_NAVIGATION_SAME_DOCUMENT]: false,
         [ATTR_BROWSER_NAVIGATION_HASH_CHANGE]: false,
       },
+      context: navigationContext,
+      body: 'navigation: hard',
     };
     this._applyCustomLogRecordData(logRecord);
     this.logger.emit(logRecord);
@@ -179,6 +183,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
     const sameDocument = this._determineSameDocument(referrerUrl, currentUrl);
     const hashChange = isHashChange(referrerUrl, currentUrl);
     const cfg = this.getConfig();
+    const navigationContext = context.active();
 
     const logRecord: LogRecord = {
       eventName: BROWSER_NAVIGATION_EVENT_NAME,
@@ -191,6 +196,8 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
         [ATTR_BROWSER_NAVIGATION_HASH_CHANGE]: hashChange,
         ...(navType ? { [ATTR_BROWSER_NAVIGATION_TYPE]: navType } : {}),
       },
+      context: navigationContext,
+      body: `navigation: ${navType}`,
     };
     this._applyCustomLogRecordData(logRecord);
     this.logger.emit(logRecord);
