@@ -36,6 +36,7 @@ const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
 };
+const NOOP_SDK = { shutdown: () => Promise.resolve() };
 
 /**
  * Combines different SDK factory functions into a single one
@@ -52,6 +53,12 @@ export function combineSdks<T extends SdkFactories>(
 
     // Set the logger
     setSdkLogger(rootConfig?.logLevel);
+
+    if (config?.disabled) {
+      diag.debug('Browser SDK disabled by configuration.');
+      // TODO: need to discuss with the SIG if it's better to return `undefined`
+      return NOOP_SDK;
+    }
 
     // TODO: questions (for the SIG?)
     // - accept resource detectors?
@@ -83,9 +90,7 @@ export function combineSdks<T extends SdkFactories>(
         `Invalid export URL "${rootConfig.exportConfig.url}". Browser SDK won't start.`,
       );
       // TODO: need to discuss with the SIG if it's better to return `undefined`
-      return {
-        shutdown: () => Promise.resolve(),
-      };
+      return NOOP_SDK;
     }
 
     // Start logs

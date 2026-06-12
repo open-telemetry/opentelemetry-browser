@@ -16,6 +16,7 @@ describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
+  const diagDebugSpy = vi.spyOn(diag, 'debug');
   let tracesSdk: WebSdk;
 
   // NOTE: we mock the registration of the tracer provider because
@@ -28,6 +29,24 @@ describe('startTracesSdk', () => {
     fetchSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
+  });
+
+  it('should not start if disabled by configuration', async () => {
+    // Act
+    tracesSdk = startTracesSdk({
+      disabled: true,
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagDebugSpy).toHaveBeenCalled();
+    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Traces SDK disabled/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {

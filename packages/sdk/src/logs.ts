@@ -19,6 +19,7 @@ import { setSdkLogger } from './diag.ts';
 import type { LogsConfig, WebSdk } from './types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
+const NOOP_SDK = { shutdown: () => Promise.resolve() };
 
 /**
  * @param config The configuration for logs
@@ -27,6 +28,12 @@ const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
 export function startLogsSdk(config?: LogsConfig): WebSdk {
   // Set the logger
   setSdkLogger(config?.logLevel);
+
+  if (config?.disabled) {
+    diag.debug('Logs SDK disabled by configuration.');
+    // TODO: need to discuss with the SIG if it's better to return `undefined`
+    return NOOP_SDK;
+  }
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};
@@ -72,9 +79,7 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   if (processors.length === 0) {
     diag.error("No LogRecord processors configured. Logs SDK won't start");
     // TODO: need to discuss with the SIG if it's better to return `undefined`
-    return {
-      shutdown: () => Promise.resolve(),
-    };
+    return NOOP_SDK;
   }
 
   const loggerProvider = new LoggerProvider({

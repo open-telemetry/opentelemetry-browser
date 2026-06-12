@@ -17,6 +17,7 @@ describe('startLogsSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
+  const diagDebugSpy = vi.spyOn(diag, 'debug');
   let logsSdk: WebSdk;
 
   // NOTE: we mock the registration of the logger provider because
@@ -29,6 +30,24 @@ describe('startLogsSdk', () => {
     fetchSpy.mockClear();
     await logsSdk?.shutdown();
     logs.disable();
+  });
+
+  it('should not start if disabled by configuration', async () => {
+    // Act
+    logsSdk = startLogsSdk({
+      disabled: true,
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagDebugSpy).toHaveBeenCalled();
+    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Logs SDK disabled/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {

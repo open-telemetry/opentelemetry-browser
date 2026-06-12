@@ -16,6 +16,7 @@ describe('startBrowserSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
+  const diagDebugSpy = vi.spyOn(diag, 'debug');
   let browserSdk: WebSdk;
 
   // NOTE: we mock the registration of the logger/tracer provider because
@@ -29,6 +30,25 @@ describe('startBrowserSdk', () => {
     fetchSpy.mockClear();
     logs.disable();
     trace.disable();
+  });
+
+  it('should not start disabled by configuration', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      disabled: true,
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagDebugSpy).toHaveBeenCalled();
+    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {

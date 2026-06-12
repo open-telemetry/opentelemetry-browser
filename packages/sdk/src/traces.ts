@@ -19,10 +19,17 @@ import { setSdkLogger } from './diag.ts';
 import type { TracesConfig, WebSdk } from './types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
+const NOOP_SDK = { shutdown: () => Promise.resolve() };
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
   // Set the logger
   setSdkLogger(config?.logLevel);
+
+  if (config?.disabled) {
+    diag.debug('Traces SDK disabled by configuration.');
+    // TODO: need to discuss with the SIG if it's better to return `undefined`
+    return NOOP_SDK;
+  }
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};
@@ -68,9 +75,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   if (spanProcessors.length === 0) {
     diag.error("No Span processors configured. Traces SDK won't start");
     // TODO: need to discuss with the SIG if it's better to return `undefined`
-    return {
-      shutdown: () => Promise.resolve(),
-    };
+    return NOOP_SDK;
   }
   const tracerProvider = new BasicTracerProvider({
     // sampler: new TraceIdRatioBasedSampler(
