@@ -8,6 +8,10 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import {
+  SessionLogRecordProcessor,
+  SessionSpanProcessor,
+} from '@opentelemetry/browser-sdk/session';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -31,6 +35,8 @@ import {
   ATTR_SERVICE_VERSION,
 } from '@opentelemetry/semantic-conventions';
 import type { OtelConfig } from './app/types/OtelConfig.type.ts';
+import type { MutableSessionProvider } from './utils/session-provider.ts';
+import { createMutableSessionProvider } from './utils/session-provider.ts';
 import {
   createUILogExporter,
   createUISpanExporter,
@@ -46,6 +52,7 @@ interface InitOtelOptions {
 interface OtelHandle {
   tracer: Tracer;
   logger: Logger;
+  sessionProvider: MutableSessionProvider;
 }
 
 // ── initOtel ──────────────────────────────────────────────────────────────────
@@ -62,12 +69,18 @@ export function initOtel(
     ...customAttrs,
   });
 
+  // ── Sessions ────────────────────────────────────────────────────────────────
+  // The session processors must run BEFORE the export processors so the
+  // session.id attribute is set on each span / log record before it is exported.
+  const sessionProvider = createMutableSessionProvider();
+
   // ── Traces ──────────────────────────────────────────────────────────────────
   const traceExporter = new OTLPTraceExporter({
     url: config.tracesUrl,
     headers: {},
   });
   const spanProcessors = [
+    new SessionSpanProcessor(sessionProvider),
     new BatchSpanProcessor(traceExporter, {
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
@@ -84,6 +97,7 @@ export function initOtel(
   // ── Logs ────────────────────────────────────────────────────────────────────
   const logExporter = new OTLPLogExporter({ url: config.logsUrl, headers: {} });
   const logProcessors = [
+    new SessionLogRecordProcessor(sessionProvider),
     new BatchLogRecordProcessor(logExporter, {
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
@@ -126,5 +140,6 @@ export function initOtel(
   return {
     tracer: trace.getTracer(config.serviceName, config.serviceVersion),
     logger: logs.getLogger(config.serviceName, config.serviceVersion),
+    sessionProvider,
   };
 }

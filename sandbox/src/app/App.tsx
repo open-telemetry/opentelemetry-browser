@@ -16,6 +16,7 @@ export function App() {
   const [statusMsg, setStatusMsg] = useState('Initialising SDK…');
   const [ready, setReady] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const actionsRef = useRef<ReturnType<typeof createActions> | null>(null);
   const logIdRef = useRef(0);
 
@@ -46,10 +47,15 @@ export function App() {
         onLog: addLog,
       });
 
-      actionsRef.current = createActions(handle.tracer, handle.logger);
+      actionsRef.current = createActions(
+        handle.tracer,
+        handle.logger,
+        handle.sessionProvider,
+      );
       setStatus('ok');
       setStatusMsg(`SDK ready · ${config.tracesUrl}`);
       setReady(true);
+      setSessionId(handle.sessionProvider.getSessionId());
 
       addLog(
         'info',
@@ -57,6 +63,7 @@ export function App() {
       );
       addLog('info', `Traces → ${config.tracesUrl}`);
       addLog('info', `Logs   → ${config.logsUrl}`);
+      addLog('info', `Session → ${handle.sessionProvider.getSessionId()}`);
       if (Object.keys(attrs).length) {
         addLog('info', `Resource attrs → ${JSON.stringify(attrs)}`);
       }
@@ -84,6 +91,14 @@ export function App() {
     actionsRef.current?.[name]?.();
   }
 
+  function rotateSession() {
+    const next = actionsRef.current?.rotateSession();
+    if (next) {
+      setSessionId(next);
+      addLog('info', `Session rotated → ${next}`);
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main className="container">
@@ -104,7 +119,12 @@ export function App() {
       <div className="two-col">
         <div className="left-col">
           <SandboxConfigForm cfg={cfg} />
-          <ActionsPanel ready={ready} act={act} />
+          <ActionsPanel
+            ready={ready}
+            act={act}
+            sessionId={sessionId}
+            onRotateSession={rotateSession}
+          />
         </div>
 
         <article>

@@ -4,12 +4,17 @@ import type { Tracer } from '@opentelemetry/api';
 import { context, SpanStatusCode, trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { MutableSessionProvider } from '../utils/session-provider.ts';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function createActions(tracer: Tracer, logger: Logger) {
+export function createActions(
+  tracer: Tracer,
+  logger: Logger,
+  sessionProvider: MutableSessionProvider,
+) {
   // ── Trace actions ───────────────────────────────────────────────────────────
 
   const fetchOk = async () => {
@@ -147,6 +152,10 @@ export function createActions(tracer: Tracer, logger: Logger) {
     });
   };
 
+  // ── Session actions ─────────────────────────────────────────────────────────
+
+  const rotateSession = () => sessionProvider.rotate();
+
   return {
     fetchOk,
     fetch404,
@@ -159,5 +168,6 @@ export function createActions(tracer: Tracer, logger: Logger) {
     logInfo,
     logWarn,
     logError,
+    rotateSession,
   };
 }
