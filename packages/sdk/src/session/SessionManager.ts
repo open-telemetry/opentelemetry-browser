@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Session } from "./types/Session.ts";
-import type { SessionIdGenerator } from "./types/SessionIdGenerator.ts";
-import type { SessionObserver } from "./types/SessionObserver.ts";
-import type { SessionProvider } from "./types/SessionProvider.ts";
-import type { SessionPublisher } from "./types/SessionPublisher.ts";
-import type { SessionStore } from "./types/SessionStore.ts";
+import type { Session } from './types/Session.ts';
+import type { SessionIdGenerator } from './types/SessionIdGenerator.ts';
+import type { SessionObserver } from './types/SessionObserver.ts';
+import type { SessionProvider } from './types/SessionProvider.ts';
+import type { SessionPublisher } from './types/SessionPublisher.ts';
+import type { SessionStore } from './types/SessionStore.ts';
 
 const MAX_DURATION_MS = 2147483647; // max setTimeout value in milliseconds (~24.8 days)
 export interface SessionManagerConfig {
