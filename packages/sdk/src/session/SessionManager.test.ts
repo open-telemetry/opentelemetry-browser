@@ -152,17 +152,32 @@ describe('SessionManager', () => {
   });
 
   it('should notify observers when session starts and ends', () => {
+    let idSeenInsideOnStarted: string | null | undefined;
+    const inspectingObserver: SessionObserver = {
+      onSessionStarted: () => {
+        idSeenInsideOnStarted = sessionManager.getSessionId();
+      },
+      onSessionEnded: () => {},
+    };
+
     sessionManager = new SessionManager(config);
     sessionManager.addObserver(observer);
+    sessionManager.addObserver(inspectingObserver);
 
     sessionManager.getSessionId(); // Starts session-1
     sessionManager.getSessionId(); // Reuse session-1
     expect(observer.startedSessions.length).toBe(1);
+    expect(observer.startedSessions[0]?.id).toEqual('session-1');
     expect(observer.endedSessions.length).toBe(0);
+    // Reading back during onSessionStarted must see the new session.
+    expect(idSeenInsideOnStarted).toBe('session-1');
 
     (sessionManager as unknown as PrivateSessionManager).resetSession();
     expect(observer.startedSessions.length).toBe(2);
+    expect(observer.startedSessions[1]?.id).toEqual('session-2');
     expect(observer.endedSessions.length).toBe(1);
+    expect(observer.endedSessions[0]?.id).toEqual('session-1');
+    expect(idSeenInsideOnStarted).toBe('session-2');
   });
 
   it('should persist session in store', async () => {
