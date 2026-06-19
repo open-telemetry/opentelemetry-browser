@@ -581,6 +581,7 @@ describe('ResourceTimingInstrumentation', () => {
       expect(
         (records[0] as unknown as { eventName: string } | undefined)?.eventName,
       ).toBe(RESOURCE_TIMING_EVENT_NAME);
+      expect(records[0]?.body).toBe('resource timing for https://example.com/script.js');
     });
 
     it('should flush on visibility change', () => {

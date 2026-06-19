@@ -114,6 +114,9 @@ describe('NavigationInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_HASH_CHANGE]).toBe(
         false,
       );
+      expect(logs[0]?.body).toBe(
+        'navigation: hard'
+      );
     });
 
     it('should emit on DOMContentLoaded when readyState is loading', () => {
@@ -129,6 +132,9 @@ describe('NavigationInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_SAME_DOCUMENT]).toBe(
         false,
       );
+      expect(logs[0]?.body).toBe(
+        'navigation: hard'
+      )
     });
 
     it('should not emit a duplicate initial event if DOMContentLoaded fires twice', () => {
@@ -161,6 +167,9 @@ describe('NavigationInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_HASH_CHANGE]).toBe(
         false,
       );
+      expect(logs[0]?.body).toBe(
+        'navigation: push'
+      );
     });
 
     it('should emit a replace event when history.replaceState is called', () => {
@@ -174,6 +183,7 @@ describe('NavigationInstrumentation', () => {
       const logs = getNavigationLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_TYPE]).toBe('replace');
+      expect(logs[0]?.body).toBe('navigation: replace');
     });
 
     it('should not emit when pushState is called twice with the same URL', () => {
@@ -224,6 +234,9 @@ describe('NavigationInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_TYPE]).toBe(
         'traverse',
       );
+      expect(logs[0]?.body).toBe(
+        'navigation: traverse'
+      );
     });
   });
 
@@ -240,6 +253,9 @@ describe('NavigationInstrumentation', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_HASH_CHANGE]).toBe(
         true,
+      );
+      expect(logs[0]?.body).toBe(
+        'navigation: push'
       );
     });
 
@@ -432,6 +448,7 @@ describe('NavigationInstrumentation', () => {
         'http://localhost/nav-api-path',
       );
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_TYPE]).toBe('push');
+      expect(logs[0]?.body).toBe('navigation: push');
 
       restore();
     });
@@ -455,6 +472,7 @@ describe('NavigationInstrumentation', () => {
       const logs = getNavigationLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_TYPE]).toBe('push');
+      expect(logs[0]?.body).toBe('navigation: push');
     });
 
     it('should map currententrychange navigationType values correctly', () => {
@@ -481,6 +499,9 @@ describe('NavigationInstrumentation', () => {
       const logs = getNavigationLogs();
       expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_TYPE]).toBe(
         'traverse',
+      );
+      expect(logs[0]?.body).toBe(
+        'navigation: traverse'
       );
 
       restore();
