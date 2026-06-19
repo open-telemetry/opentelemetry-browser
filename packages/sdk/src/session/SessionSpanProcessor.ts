@@ -13,7 +13,7 @@ import { ATTR_SESSION_ID } from './semconv.ts';
 import type { SessionProvider } from './types/SessionProvider.ts';
 
 /**
- * SessionSpanProcessor is a {@link SpanProcessor} that adds the session.id attribute.
+ * SessionSpanProcessor is a {@link SpanProcessor} that adds the session.id attribute
  */
 export class SessionSpanProcessor implements SpanProcessor {
   private _sessionIdProvider: SessionProvider;

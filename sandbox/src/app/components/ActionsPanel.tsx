@@ -4,15 +4,9 @@ interface ActionsPanelProps {
   ready: boolean;
   act: (name: keyof ReturnType<typeof createActions>) => void;
   sessionId: string | null;
-  onRotateSession: () => void;
 }
 
-export function ActionsPanel({
-  ready,
-  act,
-  sessionId,
-  onRotateSession,
-}: ActionsPanelProps) {
+export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
   return (
     <>
       <article>
@@ -93,14 +87,6 @@ export function ActionsPanel({
         </header>
         <div className="session-row">
           <code className="session-id">{sessionId ?? '—'}</code>
-          <button
-            type="button"
-            disabled={!ready}
-            onClick={onRotateSession}
-            className="btn-resource"
-          >
-            🔄 Rotate Session
-          </button>
         </div>
       </article>
 

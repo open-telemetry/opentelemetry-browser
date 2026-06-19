@@ -9,7 +9,7 @@ import { ATTR_SESSION_ID } from './semconv.ts';
 import type { SessionProvider } from './types/SessionProvider.ts';
 
 /**
- * SessionLogRecordProcessor is a {@link LogRecordProcessor} that adds the session.id attribute.
+ * SessionLogRecordProcessor is a {@link SpanProcessor} adds the session.id attribute
  */
 export class SessionLogRecordProcessor implements LogRecordProcessor {
   private _sessionIdProvider: SessionProvider;
