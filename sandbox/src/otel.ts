@@ -8,6 +8,14 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import type { SessionManager } from '@opentelemetry/browser-sdk/session';
+import {
+  createDefaultSessionIdGenerator,
+  createLocalStorageSessionStore,
+  createSessionLogRecordProcessor,
+  createSessionManager,
+  createSessionSpanProcessor,
+} from '@opentelemetry/browser-sdk/session';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -46,21 +54,34 @@ interface InitOtelOptions {
 interface OtelHandle {
   tracer: Tracer;
   logger: Logger;
+  sessionManager: SessionManager;
 }
 
 // ── initOtel ──────────────────────────────────────────────────────────────────
 // onSpan/onLog callbacks push entries into the React app's log state.
 
-export function initOtel(
+export async function initOtel(
   config: OtelConfig,
   customAttrs: Record<string, string> = {},
   { onSpan, onLog }: InitOtelOptions = {},
-): OtelHandle {
+): Promise<OtelHandle> {
   const resource = resourceFromAttributes({
     [ATTR_SERVICE_NAME]: config.serviceName,
     [ATTR_SERVICE_VERSION]: config.serviceVersion,
     ...customAttrs,
   });
+
+  // ── Sessions ────────────────────────────────────────────────────────────────
+  // The session processors must run BEFORE the export processors so the
+  // session.id attribute is set on each span / log record before it is exported.
+  const sessionManager = createSessionManager({
+    sessionIdGenerator: createDefaultSessionIdGenerator(),
+    sessionStore: createLocalStorageSessionStore(),
+    // 4h ceiling, 30min of inactivity rotates the session.
+    maxDuration: 4 * 60 * 60,
+    inactivityTimeout: 30 * 60,
+  });
+  await sessionManager.start();
 
   // ── Traces ──────────────────────────────────────────────────────────────────
   const traceExporter = new OTLPTraceExporter({
@@ -68,6 +89,7 @@ export function initOtel(
     headers: {},
   });
   const spanProcessors = [
+    createSessionSpanProcessor(sessionManager),
     new BatchSpanProcessor(traceExporter, {
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
@@ -84,6 +106,7 @@ export function initOtel(
   // ── Logs ────────────────────────────────────────────────────────────────────
   const logExporter = new OTLPLogExporter({ url: config.logsUrl, headers: {} });
   const logProcessors = [
+    createSessionLogRecordProcessor(sessionManager),
     new BatchLogRecordProcessor(logExporter, {
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
@@ -126,5 +149,6 @@ export function initOtel(
   return {
     tracer: trace.getTracer(config.serviceName, config.serviceVersion),
     logger: logs.getLogger(config.serviceName, config.serviceVersion),
+    sessionManager,
   };
 }

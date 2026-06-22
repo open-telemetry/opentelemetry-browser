@@ -3,9 +3,10 @@ import type { createActions } from '../actions.ts';
 interface ActionsPanelProps {
   ready: boolean;
   act: (name: keyof ReturnType<typeof createActions>) => void;
+  sessionId: string | null;
 }
 
-export function ActionsPanel({ ready, act }: ActionsPanelProps) {
+export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
   return (
     <>
       <article>
@@ -77,6 +78,15 @@ export function ActionsPanel({ ready, act }: ActionsPanelProps) {
           >
             🔀 Nested Spans
           </button>
+        </div>
+      </article>
+
+      <article>
+        <header>
+          <strong>Session</strong>
+        </header>
+        <div className="session-row">
+          <code className="session-id">{sessionId ?? '—'}</code>
         </div>
       </article>
 
