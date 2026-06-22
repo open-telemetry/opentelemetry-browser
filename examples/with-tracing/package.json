@@ -19,6 +19,7 @@
     "@opentelemetry/opentelemetry-browser-detector": "^0.219.0",
     "@opentelemetry/resources": "^2.8.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
-    "@opentelemetry/browser-instrumentation": "file:../../packages/instrumentation"
+    "@opentelemetry/browser-instrumentation": "file:../../packages/instrumentation",
+    "@opentelemetry/browser-sdk": "file:../../packages/sdk"
   }
 }
