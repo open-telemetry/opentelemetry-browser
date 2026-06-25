@@ -353,6 +353,7 @@ The `@opentelemetry/browser-sdk/session` subpath provides a default implementati
 Example:
 
 ```javascript
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import {
   createDefaultSessionIdGenerator,
   createLocalStorageSessionStore,
@@ -372,18 +373,14 @@ const sessionManager = createSessionManager({
 // restore or start the session
 await sessionManager.start();
 
-// configure tracer
-const tracerProvider = new WebTracerProvider({
-  spanProcessors: [
-    createSessionSpanProcessor(sessionManager),
-  ],
-});
-
-// configure logger
-const loggerProvider = new LoggerProvider({
-  processors: [
-    createSessionLogRecordProcessor(sessionManager),
-  ],
+startBrowserSdk({
+  serviceName: 'my-service',
+  traces: {
+    processors: [createSessionSpanProcessor(sessionManager)],
+  },
+  logs: {
+    processors: [createSessionLogRecordProcessor(sessionManager)],
+  },
 });
 ```
 
@@ -415,18 +412,14 @@ const customSessionProvider = {
   getSessionId: () => 'abcd1234',
 };
 
-// configure tracer
-const tracerProvider = new WebTracerProvider({
-  spanProcessors: [
-    createSessionSpanProcessor(customSessionProvider),
-  ],
-});
-
-// configure logger
-const loggerProvider = new LoggerProvider({
-  processors: [
-    createSessionLogRecordProcessor(customSessionProvider),
-  ],
+startBrowserSdk({
+  serviceName: 'my-service',
+  traces: {
+    processors: [createSessionSpanProcessor(customSessionProvider)],
+  },
+  logs: {
+    processors: [createSessionLogRecordProcessor(customSessionProvider)],
+  },
 });
 ```
 
