@@ -7,6 +7,7 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { isUrlIgnored } from '@opentelemetry/core';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
+import { getNetworkContextManager } from '../utils/NetworkContextManager.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
   cancelIdleCallbackShim,
@@ -248,6 +249,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     try {
       this.logger.emit({
         eventName: RESOURCE_TIMING_EVENT_NAME,
+        context: getNetworkContextManager().getContext(entry),
         severityNumber: SeverityNumber.INFO,
         attributes: {
           [ATTR_RESOURCE_URL]: entry.name,

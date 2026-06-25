@@ -5,4 +5,5 @@
 
 export { getElementCSSSelector } from './getElementCSSSelector.ts';
 export { getElementXPath } from './getElementXPath.ts';
+export { NetworkContextManager, getNetworkContextManager } from './NetworkContextManager.ts';
 export { defaultSanitizeUrl } from './url.ts';
