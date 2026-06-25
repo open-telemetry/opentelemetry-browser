@@ -67,7 +67,9 @@ export function createActions(tracer: Tracer, logger: Logger) {
 
   const exceptionEvent = () => {
     setTimeout(() => {
-      throw new Error('Demo exception event — captured by ErrorsInstrumentation');
+      throw new Error(
+        'Demo exception event — captured by ErrorsInstrumentation',
+      );
     }, 0);
   };
 
