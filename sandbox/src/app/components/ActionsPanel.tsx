@@ -121,6 +121,22 @@ export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
           </button>
         </div>
       </article>
+
+      <article>
+        <header>
+          <strong>Events</strong>
+        </header>
+        <div className="btn-grid">
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => act('exceptionEvent')}
+            className="btn-err"
+          >
+            💥 Exception
+          </button>
+        </div>
+      </article>
     </>
   );
 }

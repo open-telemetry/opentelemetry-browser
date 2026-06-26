@@ -63,6 +63,16 @@ export function createActions(tracer: Tracer, logger: Logger) {
     }
   };
 
+  // ── Event actions ────────────────────────────────────────────────────────────
+
+  const exceptionEvent = () => {
+    setTimeout(() => {
+      throw new Error(
+        'Demo exception event — captured by ErrorsInstrumentation',
+      );
+    }, 0);
+  };
+
   const navigation = () => {
     const routes = [
       '/home',
@@ -159,5 +169,6 @@ export function createActions(tracer: Tracer, logger: Logger) {
     logInfo,
     logWarn,
     logError,
+    exceptionEvent,
   };
 }
