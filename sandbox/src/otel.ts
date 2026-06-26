@@ -4,6 +4,7 @@ import type { Tracer } from '@opentelemetry/api';
 import { trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -128,6 +129,7 @@ export async function initOtel(
   // ── Auto-instrumentations ───────────────────────────────────────────────────
   registerInstrumentations({
     instrumentations: [
+      new ErrorsInstrumentation(),
       new NavigationTimingInstrumentation(),
       new ResourceTimingInstrumentation({
         ignoreUrls: [config.tracesUrl, config.logsUrl],
