@@ -16,8 +16,12 @@ export class NetworkContextRegistry extends ContextRegistry<
   NetworkSpanData,
   PerformanceResourceTiming
 > {
+  getKey(entry: PerformanceResourceTiming): string {
+    return entry.name;
+  }
+
   getContext(entry: PerformanceResourceTiming): Context | undefined {
-    const list = this._records.get(entry.name);
+    const list = this._records.get(this.getKey(entry));
     return list?.find(
       (r) =>
         entry.fetchStart >= r.startPerfNow && entry.responseEnd <= r.endPerfNow,

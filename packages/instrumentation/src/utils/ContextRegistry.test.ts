@@ -14,6 +14,10 @@ interface TestData {
 }
 
 class TestRegistry extends ContextRegistry<TestData, string> {
+  getKey(lookup: string): string {
+    return lookup;
+  }
+
   getContext(key: string): Context | undefined {
     return this._records.get(key)?.[0]?.ctx;
   }
@@ -79,6 +83,60 @@ describe('ContextRegistry', () => {
       expect(barCtx && trace.getSpan(barCtx)?.spanContext().traceId).toBe(
         '2'.repeat(32),
       );
+    });
+  });
+
+  describe('unregister', () => {
+    it('removes the matching record for the given lookup', () => {
+      const registry = new TestRegistry();
+      const span = makeSpan('a'.repeat(32), 'b'.repeat(16));
+
+      registry.register(span, { key: 'foo', value: 1 });
+      registry.unregister('foo');
+
+      expect(registry.getContext('foo')).toBeUndefined();
+    });
+
+    it('deletes the key when the last record is removed', () => {
+      const registry = new TestRegistry();
+      const span = makeSpan('a'.repeat(32), 'b'.repeat(16));
+
+      registry.register(span, { key: 'foo', value: 1 });
+      registry.unregister('foo');
+
+      expect(registry['_records'].has('foo')).toBe(false);
+    });
+
+    it('removes only the matching record when multiple entries share the same key', () => {
+      const registry = new TestRegistry();
+      const span1 = makeSpan('1'.repeat(32), '1'.repeat(16));
+      const span2 = makeSpan('2'.repeat(32), '2'.repeat(16));
+
+      registry.register(span1, { key: 'foo', value: 1 });
+      registry.register(span2, { key: 'foo', value: 2 });
+
+      registry.unregister('foo');
+
+      expect(registry['_records'].get('foo')).toHaveLength(1);
+    });
+
+    it('does not affect entries for other keys', () => {
+      const registry = new TestRegistry();
+      const span1 = makeSpan('1'.repeat(32), '1'.repeat(16));
+      const span2 = makeSpan('2'.repeat(32), '2'.repeat(16));
+
+      registry.register(span1, { key: 'foo', value: 1 });
+      registry.register(span2, { key: 'bar', value: 2 });
+      registry.unregister('foo');
+
+      expect(registry.getContext('foo')).toBeUndefined();
+      expect(registry.getContext('bar')).toBeDefined();
+    });
+
+    it('is a no-op when the lookup does not match any record', () => {
+      const registry = new TestRegistry();
+
+      expect(() => registry.unregister('unknown')).not.toThrow();
     });
   });
 });
