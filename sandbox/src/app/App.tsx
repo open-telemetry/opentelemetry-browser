@@ -1,3 +1,4 @@
+import type { SessionManager } from '@opentelemetry/browser-sdk/session';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { initOtel } from '../otel.ts';
 import { createActions } from './actions.ts';
@@ -16,7 +17,9 @@ export function App() {
   const [statusMsg, setStatusMsg] = useState('Initialising SDK…');
   const [ready, setReady] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const actionsRef = useRef<ReturnType<typeof createActions> | null>(null);
+  const sessionManagerRef = useRef<SessionManager | null>(null);
   const logIdRef = useRef(0);
 
   // ── Log helper ────────────────────────────────────────────────────────────
@@ -40,36 +43,50 @@ export function App() {
     };
     const attrs = { ...cfg.initial.customAttributes };
 
-    try {
-      const handle = initOtel(config, attrs, {
-        onSpan: addLog,
-        onLog: addLog,
+    let cancelled = false;
+
+    initOtel(config, attrs, { onSpan: addLog, onLog: addLog })
+      .then((handle) => {
+        if (cancelled) {
+          handle.sessionManager.shutdown();
+          return;
+        }
+
+        sessionManagerRef.current = handle.sessionManager;
+        actionsRef.current = createActions(handle.tracer, handle.logger);
+        setStatus('ok');
+        setStatusMsg(`SDK ready · ${config.tracesUrl}`);
+        setReady(true);
+        setSessionId(handle.sessionManager.getSessionId());
+
+        addLog(
+          'info',
+          `SDK initialised — service="${config.serviceName}" v${config.serviceVersion}`,
+        );
+        addLog('info', `Traces → ${config.tracesUrl}`);
+        addLog('info', `Logs   → ${config.logsUrl}`);
+        addLog('info', `Session → ${handle.sessionManager.getSessionId()}`);
+        if (Object.keys(attrs).length) {
+          addLog('info', `Resource attrs → ${JSON.stringify(attrs)}`);
+        }
+        addLog('muted', 'Open DevTools → Console to see full span/log objects');
+      })
+      .catch((err: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setStatus('error');
+        setStatusMsg('SDK init failed — check console');
+        addLog(
+          'error',
+          `SDK init error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        console.error('[OTel Sandbox] SDK init failed:', err);
       });
 
-      actionsRef.current = createActions(handle.tracer, handle.logger);
-      setStatus('ok');
-      setStatusMsg(`SDK ready · ${config.tracesUrl}`);
-      setReady(true);
-
-      addLog(
-        'info',
-        `SDK initialised — service="${config.serviceName}" v${config.serviceVersion}`,
-      );
-      addLog('info', `Traces → ${config.tracesUrl}`);
-      addLog('info', `Logs   → ${config.logsUrl}`);
-      if (Object.keys(attrs).length) {
-        addLog('info', `Resource attrs → ${JSON.stringify(attrs)}`);
-      }
-      addLog('muted', 'Open DevTools → Console to see full span/log objects');
-    } catch (err) {
-      setStatus('error');
-      setStatusMsg('SDK init failed — check console');
-      addLog(
-        'error',
-        `SDK init error: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      console.error('[OTel Sandbox] SDK init failed:', err);
-    }
+    return () => {
+      cancelled = true;
+    };
   }, [
     addLog,
     cfg.initial.customAttributes,
@@ -104,7 +121,7 @@ export function App() {
       <div className="two-col">
         <div className="left-col">
           <SandboxConfigForm cfg={cfg} />
-          <ActionsPanel ready={ready} act={act} />
+          <ActionsPanel ready={ready} act={act} sessionId={sessionId} />
         </div>
 
         <article>

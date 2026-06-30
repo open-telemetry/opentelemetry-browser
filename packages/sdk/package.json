@@ -24,6 +24,7 @@
   "exports": {
     ".": "./dist/start.js",
     "./logs": "./dist/logs.js",
+    "./session": "./dist/session/index.js",
     "./traces": "./dist/traces.js"
   },
   "sideEffects": false,
