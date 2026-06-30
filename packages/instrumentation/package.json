@@ -38,6 +38,7 @@
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js"
   },
+  "sideEffects": false,
   "files": [
     "dist"
   ],
@@ -50,9 +51,9 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@opentelemetry/api-logs": "^0.218.0",
-    "@opentelemetry/core": "^2.7.1",
-    "@opentelemetry/instrumentation": "^0.218.0",
+    "@opentelemetry/api-logs": "^0.219.0",
+    "@opentelemetry/core": "^2.8.0",
+    "@opentelemetry/instrumentation": "^0.219.0",
     "@opentelemetry/semantic-conventions": "^1.41.1",
     "web-vitals": "^5.3.0"
   },
@@ -60,7 +61,7 @@
     "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "0.218.0",
+    "@opentelemetry/sdk-logs": "0.219.0",
     "@opentelemetry/sdk-trace-base": "^2.7.1",
     "msw": "^2.14.6"
   },

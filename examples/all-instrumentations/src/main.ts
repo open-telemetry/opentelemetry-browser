@@ -5,6 +5,12 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import {
+  createDefaultSessionIdGenerator,
+  createLocalStorageSessionStore,
+  createSessionLogRecordProcessor,
+  createSessionManager,
+} from '@opentelemetry/browser-sdk/session';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   ConsoleLogRecordExporter,
@@ -14,8 +20,23 @@ import {
 
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.VERBOSE);
 
+// ── Sessions ────────────────────────────────────────────────────────────────
+// The session processors must run BEFORE the export processors so the
+// session.id attribute is set on each log record before it is exported.
+const sessionManager = createSessionManager({
+  sessionIdGenerator: createDefaultSessionIdGenerator(),
+  sessionStore: createLocalStorageSessionStore(),
+  // 4h ceiling, 30min of inactivity rotates the session.
+  maxDuration: 4 * 60 * 60,
+  inactivityTimeout: 30 * 60,
+});
+await sessionManager.start();
+
 const loggerProvider = new LoggerProvider({
-  processors: [new SimpleLogRecordProcessor(new ConsoleLogRecordExporter())],
+  processors: [
+    createSessionLogRecordProcessor(sessionManager),
+    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+  ],
 });
 
 logs.setGlobalLoggerProvider(loggerProvider);

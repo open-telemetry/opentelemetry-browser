@@ -10,9 +10,10 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
-    "@opentelemetry/api-logs": "^0.218.0",
-    "@opentelemetry/sdk-logs": "^0.218.0",
-    "@opentelemetry/instrumentation": "^0.218.0",
-    "@opentelemetry/browser-instrumentation": "file:../../packages/instrumentation"
+    "@opentelemetry/api-logs": "^0.219.0",
+    "@opentelemetry/sdk-logs": "^0.219.0",
+    "@opentelemetry/instrumentation": "^0.219.0",
+    "@opentelemetry/browser-instrumentation": "file:../../packages/instrumentation",
+    "@opentelemetry/browser-sdk": "file:../../packages/sdk"
   }
 }

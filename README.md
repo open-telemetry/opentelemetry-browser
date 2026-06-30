@@ -120,12 +120,12 @@ For more information about the maintainer role, see the [community repository](h
 
 ### Approvers
 
-- [Benoît Zugmeyer](https://github.com/BenoitZugmeyer), DataDog
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
 ### Emeritus
 
+- [Benoît Zugmeyer](https://github.com/BenoitZugmeyer), Approver
 - [Ted Young](https://github.com/tedsuo), Maintainer
 
 For more information about the emeritus role, see the

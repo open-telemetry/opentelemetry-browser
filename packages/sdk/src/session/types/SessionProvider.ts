@@ -3,4 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export { {{pascalCase name}}Instrumentation } from './instrumentation.ts';
+export interface SessionProvider {
+  getSessionId(): string | null;
+}

@@ -9,6 +9,11 @@ import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 
 type LogCallback = (type: string, msg: string) => void;
 
+function shortSession(attrs: Record<string, unknown> | undefined): string {
+  const id = attrs?.['session.id'];
+  return typeof id === 'string' ? ` · session=${id.slice(0, 8)}…` : '';
+}
+
 export function createUISpanExporter(onSpan: LogCallback): SpanExporter {
   return {
     export(spans: ReadableSpan[], cb) {
@@ -19,7 +24,7 @@ export function createUISpanExporter(onSpan: LogCallback): SpanExporter {
         const traceId = `${span.spanContext().traceId.slice(0, 16)}…`;
         onSpan(
           err ? 'error' : 'span',
-          `[span] ${span.name} · ${ms}ms · trace=${traceId}`,
+          `[span] ${span.name} · ${ms}ms · trace=${traceId}${shortSession(span.attributes)}`,
         );
       }
       cb({ code: ExportResultCode.SUCCESS });
@@ -40,7 +45,7 @@ export function createUILogExporter(onLog: LogCallback): LogRecordExporter {
         const sev = r.severityText ?? 'INFO';
         const body =
           typeof r.body === 'string' ? r.body : JSON.stringify(r.body);
-        onLog('muted', `[log] ${sev} · ${body}`);
+        onLog('muted', `[log] ${sev} · ${body}${shortSession(r.attributes)}`);
       }
       cb({ code: ExportResultCode.SUCCESS });
     },

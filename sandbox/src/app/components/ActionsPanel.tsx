@@ -3,9 +3,10 @@ import type { createActions } from '../actions.ts';
 interface ActionsPanelProps {
   ready: boolean;
   act: (name: keyof ReturnType<typeof createActions>) => void;
+  sessionId: string | null;
 }
 
-export function ActionsPanel({ ready, act }: ActionsPanelProps) {
+export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
   return (
     <>
       <article>
@@ -82,6 +83,15 @@ export function ActionsPanel({ ready, act }: ActionsPanelProps) {
 
       <article>
         <header>
+          <strong>Session</strong>
+        </header>
+        <div className="session-row">
+          <code className="session-id">{sessionId ?? '—'}</code>
+        </div>
+      </article>
+
+      <article>
+        <header>
           <strong>Logs</strong>
         </header>
         <div className="btn-grid">
@@ -108,6 +118,22 @@ export function ActionsPanel({ ready, act }: ActionsPanelProps) {
             className="btn-err"
           >
             🚨 Error
+          </button>
+        </div>
+      </article>
+
+      <article>
+        <header>
+          <strong>Events</strong>
+        </header>
+        <div className="btn-grid">
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => act('exceptionEvent')}
+            className="btn-err"
+          >
+            💥 Exception
           </button>
         </div>
       </article>
