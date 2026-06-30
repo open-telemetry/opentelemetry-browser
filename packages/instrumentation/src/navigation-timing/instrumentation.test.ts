@@ -123,6 +123,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs.length).toBe(1);
     expect(logs[0]?.eventName).toBe(NAVIGATION_TIMING_EVENT_NAME);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
+    expect(logs[0]?.body).toBe('navigation timing for navigate');
   });
 
   it('should emit on construction when enabled by default and page is still loading', () => {
@@ -150,6 +151,7 @@ describe('NavigationTimingInstrumentation', () => {
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
+    expect(logs[0]?.body).toBe('navigation timing for navigate');
 
     inst.disable();
   });
@@ -450,6 +452,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_TRANSFER_SIZE]).toBe(1024);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_ENCODED_BODY_SIZE]).toBe(800);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DECODED_BODY_SIZE]).toBe(2000);
+    expect(logs[0]?.body).toBe('navigation timing for navigate');
   });
 
   it('should work correctly when disable() is called then immediately enable() again', () => {

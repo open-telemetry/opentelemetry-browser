@@ -187,6 +187,7 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(STRING_ERROR);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
       expect(logs[0]?.attributes[ATTR_EXCEPTION_STACKTRACE]).toBeUndefined();
+      expect(logs[0]?.body).toBe(`unhandled: ${STRING_ERROR}`);
     });
 
     it('should not emit and should log a diag debug message when both error and message are missing', () => {
@@ -254,6 +255,7 @@ describe('ErrorsInstrumentation', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBe('ValidationError');
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('Rejected!');
+      expect(logs[0]?.body).toBe('unhandled: ValidationError');
     });
 
     it('should emit an exception event when a promise is rejected with a string', () => {
@@ -263,6 +265,7 @@ describe('ErrorsInstrumentation', () => {
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(STRING_ERROR);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
+      expect(logs[0]?.body).toBe(`unhandled: ${STRING_ERROR}`);
     });
 
     it('should not emit and should log a diag debug message when the reason is null', () => {
