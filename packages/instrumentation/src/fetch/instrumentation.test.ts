@@ -29,7 +29,7 @@ import { setupTestSpanExporter } from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 
-const VITEST_SERVER_PORT = parseInt((new URL(location.href)).port, 10);
+const VITEST_SERVER_PORT = parseInt(new URL(location.href).port, 10);
 const networkContextRegistry = getNetworkContextRegistry();
 
 export const handlers = [
