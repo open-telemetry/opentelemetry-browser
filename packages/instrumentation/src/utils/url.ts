@@ -54,3 +54,53 @@ export function defaultSanitizeUrl(url: string): string {
     return sanitized;
   }
 }
+
+/**
+ * Parses url using URL constructor or fallback to anchor element.
+ * @param url
+ */
+export function parseUrl(url: string): URL {
+  return new URL(url, document?.baseURI || location?.href);
+}
+
+/**
+ * Tells if the given URL matches any of the string|RegExp provided in the list
+ * @param url
+ * @param urlsToMatch
+ */
+export function matchesUrl(
+  url: string,
+  urlsToMatch?: Array<string | RegExp>,
+): boolean {
+  if (!urlsToMatch) {
+    return false;
+  }
+
+  for (const urlToMatch of urlsToMatch) {
+    if (typeof urlToMatch === 'string') {
+      if (url === urlToMatch) {
+        return true;
+      }
+    } else if (url.match(urlToMatch)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const HTTP_PORT_FROM_PROTOCOL: { [key: string]: string } = {
+  'https:': '443',
+  'http:': '80',
+};
+/**
+ * Extracts the server port fromt the given URL object
+ */
+export function serverPortFromUrl(url: URL): number | undefined {
+  const serverPort = Number(url.port || HTTP_PORT_FROM_PROTOCOL[url.protocol]);
+  // Guard with `if (serverPort)` because `Number('') === 0`.
+  if (serverPort && !Number.isNaN(serverPort)) {
+    return serverPort;
+  } else {
+    return undefined;
+  }
+}

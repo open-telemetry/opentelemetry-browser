@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Span } from '@opentelemetry/api';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -13,11 +14,14 @@ import {
   it,
   vi,
 } from 'vitest';
+import { getNetworkContextRegistry } from '#utils';
 import { setupTestLogExporter } from '#utils/test';
 import * as shimModule from './idle-callback-shim.ts';
 import { ResourceTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_RESOURCE_DURATION,
+  ATTR_RESOURCE_FETCH_START,
+  ATTR_RESOURCE_RESPONSE_END,
   ATTR_RESOURCE_TRANSFER_SIZE,
   ATTR_RESOURCE_URL,
   RESOURCE_TIMING_EVENT_NAME,
@@ -581,6 +585,48 @@ describe('ResourceTimingInstrumentation', () => {
       expect(
         (records[0] as unknown as { eventName: string } | undefined)?.eventName,
       ).toBe(RESOURCE_TIMING_EVENT_NAME);
+    });
+
+    it('should emit log records with correct context if registered', () => {
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const TRACE_ID = '1aa6c4e2912022f20cc0f30e1cce1902';
+      const SPAN_ID = '6e65f4fc04c216ec';
+      const mockEntry = createMockResourceEntry({
+        name: 'https://example.com/api/resource',
+        fetchStart: 50,
+        responseEnd: 1000,
+      });
+      const ctx = { traceId: TRACE_ID, spanId: SPAN_ID };
+      const span = { spanContext: () => ctx } as Span;
+
+      getNetworkContextRegistry().register(span, {
+        key: 'https://example.com/api/resource',
+        startPerfNow: 50,
+        endPerfNow: 1000,
+      });
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([mockEntry]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(10);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      console.log(records[0]);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
+        'https://example.com/api/resource',
+      );
+      expect(records[0]?.attributes[ATTR_RESOURCE_FETCH_START]).toBe(50);
+      expect(records[0]?.attributes[ATTR_RESOURCE_RESPONSE_END]).toBe(1000);
+      expect(
+        (records[0] as unknown as { eventName: string } | undefined)?.eventName,
+      ).toBe(RESOURCE_TIMING_EVENT_NAME);
+      expect(records[0]?.spanContext?.traceId).toBe(TRACE_ID);
+      expect(records[0]?.spanContext?.spanId).toBe(SPAN_ID);
     });
 
     it('should flush on visibility change', () => {
