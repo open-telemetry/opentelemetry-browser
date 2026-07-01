@@ -29,6 +29,7 @@ import { setupTestSpanExporter } from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 
+const VITEST_SERVER_PORT = parseInt((new URL(location.href)).port, 10);
 const networkContextRegistry = getNetworkContextRegistry();
 
 export const handlers = [
@@ -117,7 +118,7 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
-      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(63315); // vitest server port
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
 
       // Context has been stashed for the resource
       const registerMock = networkContextRegistry.register as unknown as Mock<
@@ -143,7 +144,7 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('POST');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
-      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(63315); // vitest server port
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toBeUndefined(); // requires config set to true
 
       // TODO: check the context has been stashed for the resource
@@ -158,7 +159,7 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
-      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(63315); // vitest server port
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
       expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('500');
       // TODO: check the context has been stashed for the resource
