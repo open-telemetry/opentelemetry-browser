@@ -25,11 +25,11 @@ import {
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 import { version } from '../../package.json' with { type: 'json' };
+import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getFetchBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
-import { setContextForResource } from '../utils/resource.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type {
@@ -49,6 +49,10 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   // set the instrumentaitons in a base state (enabled, patched but with flags set to false)
   private declare _isEnabled: boolean;
   private declare _isFetchPatched: boolean;
+
+  // To keep track of the resources for posterior cleanup the context registrey
+  private declare _registeredResources: PerformanceResourceTiming[] | undefined;
+  private declare _unregisterTimer: number | undefined;
 
   constructor(config: FetchInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/fetch', version, config);
@@ -259,16 +263,49 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
               onError.bind(globalThis, createdSpan),
             )
             .finally(() => {
-              // Set the context for other instrumentations (resource-timing) to pick it up
-              const fetchEnd = performance.now();
-              setContextForResource(
-                { url: fetchUrl, startTime: fetchStart, endTime: fetchEnd },
-                fetchContext,
-              );
+              // Set the context for other instrumentations (like resource-timing) to pick it up
+              const responseEnd = performance.now();
+              const resource = {
+                name: fetchUrl,
+                fetchStart,
+                responseEnd,
+              } as PerformanceResourceTiming;
+              instrumentation._registerResource(createdSpan, resource);
             });
         });
       };
     };
+  }
+
+  /**
+   * Registers a resource and sets a timer for clearing the registry after a time bing idle
+   */
+  private _registerResource(span: Span, resource: PerformanceResourceTiming) {
+    const registry = getNetworkContextRegistry();
+    const data = {
+      key: resource.name,
+      startPerfNow: resource.fetchStart,
+      endPerfNow: resource.responseEnd,
+    };
+
+    // Add to the registry and keep a reference
+    registry.register(span, data);
+    this._registeredResources = this._registeredResources || [];
+    this._registeredResources.push(resource);
+
+    // Cancel any pending clear task and schedule
+    if (typeof this._unregisterTimer === 'number') {
+      clearTimeout(this._unregisterTimer);
+    }
+    this._unregisterTimer = setTimeout(() => {
+      if (this._registeredResources) {
+        for (const res of this._registeredResources) {
+          registry.unregister(res);
+        }
+      }
+      this._registeredResources = undefined;
+      this._unregisterTimer = undefined;
+    }, 1000);
   }
 
   /**

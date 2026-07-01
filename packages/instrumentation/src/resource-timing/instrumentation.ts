@@ -6,8 +6,8 @@
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
-import { findContextForResource } from '../utils/resource.ts';
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
@@ -269,12 +269,8 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: entry.renderBlockingStatus,
         },
       };
-      const ctx = findContextForResource(
-        (res) =>
-          res.url === entry.name &&
-          entry.fetchStart >= res.startTime &&
-          entry.responseEnd <= res.endTime,
-      );
+      const ctx = getNetworkContextRegistry().getContext(entry);
+
       if (ctx) {
         record.context = ctx;
       }

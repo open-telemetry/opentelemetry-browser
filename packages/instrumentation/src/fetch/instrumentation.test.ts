@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import type { InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
 import {
   ATTR_ERROR_TYPE,
@@ -18,17 +18,18 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
   vi,
 } from 'vitest';
+import { getNetworkContextRegistry } from '#utils';
 import { setupTestSpanExporter } from '#utils/test';
-import * as resourceUtils from '../utils/resource.ts';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 
-vi.mock('../utils/resource.ts', { spy: true });
+const networkContextRegistry = getNetworkContextRegistry();
 
 export const handlers = [
   http.get('/api/get', () => {
@@ -57,9 +58,14 @@ describe('FetchInstrumentation', () => {
     instrumentation = new FetchInstrumentation();
   });
 
+  beforeEach(() => {
+    vi.spyOn(networkContextRegistry, 'register');
+  });
+
   afterEach(() => {
     inMemoryExporter.reset();
     msWorker.resetHandlers();
+    vi.restoreAllMocks();
   });
 
   afterAll(() => {
@@ -114,21 +120,18 @@ describe('FetchInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(63315); // vitest server port
 
       // Context has been stashed for the resource
-      const setContextMock =
-        resourceUtils.setContextForResource as unknown as Mock<
-          typeof resourceUtils.setContextForResource
-        >;
-      expect(setContextMock).toHaveBeenCalledOnce();
+      const registerMock = networkContextRegistry.register as unknown as Mock<
+        typeof networkContextRegistry.register
+      >;
+      const registeredSpan = registerMock.mock.lastCall?.[0];
+      const registerData = registerMock.mock.lastCall?.[1];
 
-      const resourceDetails = setContextMock.mock.lastCall![0];
-      const spanContext = setContextMock.mock.lastCall![1];
-      expect(resourceDetails.url).toEqual(url);
-      expect(resourceDetails.startTime).toBeGreaterThanOrEqual(startTime);
-      expect(resourceDetails.endTime).toBeLessThanOrEqual(endTime);
-      expect(spanContext).toBeDefined();
-
-      const contextSpan = trace.getSpan(spanContext);
-      expect(contextSpan?.spanContext()).toEqual(span.spanContext());
+      expect(registerMock).toHaveBeenCalledOnce();
+      expect(registerData?.key).toEqual(url);
+      expect(registerData?.startPerfNow).toBeGreaterThanOrEqual(startTime);
+      expect(registerData?.endPerfNow).toBeLessThanOrEqual(endTime);
+      expect(registeredSpan).toBeDefined();
+      expect(registeredSpan?.spanContext()).toEqual(span.spanContext());
     });
 
     it('should create spans for POST requests', async () => {
