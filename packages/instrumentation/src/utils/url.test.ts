@@ -4,11 +4,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { URLLike } from './url.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from './url.ts';
 
 describe('parseUrl', () => {
-  const urlFields: Array<keyof URLLike> = [
+  const urlFields: Array<keyof URL> = [
     'hash',
     'host',
     'hostname',
@@ -106,13 +105,13 @@ describe('serverPortFromUrl', () => {
   });
 
   it('should return undefined if the port is not a number', () => {
-    const url = { port: 'foo' } as URLLike;
+    const url = { port: 'foo' } as URL;
 
     expect(serverPortFromUrl(url)).toBeUndefined();
   });
 
   it('should return undefined if the port is not defined and protocol is not known', () => {
-    const url = { port: '', protocol: 'bar' } as URLLike;
+    const url = { port: '', protocol: 'bar' } as URL;
 
     expect(serverPortFromUrl(url)).toBeUndefined();
   });
