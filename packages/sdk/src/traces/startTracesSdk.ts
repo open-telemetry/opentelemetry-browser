@@ -15,8 +15,8 @@ import {
   BasicTracerProvider,
   BatchSpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { setSdkLogger } from './diag.ts';
-import type { TracesConfig, WebSdk } from './types.ts';
+import { setSdkLogger } from '../core/diag.ts';
+import type { TracesConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
 const NOOP_SDK = { shutdown: () => Promise.resolve() };

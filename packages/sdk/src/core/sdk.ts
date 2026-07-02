@@ -11,8 +11,9 @@ import type {
   RootConfig,
   TracesConfig,
   WebSdk,
-  WebSdkFactory,
 } from './types.ts';
+
+type WebSdkFactory<T> = (config?: T) => WebSdk;
 
 interface SdkFactories {
   logs?: WebSdkFactory<LogsConfig>;

@@ -22,10 +22,23 @@
   },
   "type": "module",
   "exports": {
-    ".": "./dist/start.js",
-    "./logs": "./dist/logs.js",
-    "./session": "./dist/session/index.js",
-    "./traces": "./dist/traces.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./logs": {
+      "types": "./dist/logs/index.d.ts",
+      "default": "./dist/logs/index.js"
+    },
+    "./traces": {
+      "types": "./dist/traces/index.d.ts",
+      "default": "./dist/traces/index.js"
+    },
+    "./session": {
+      "types": "./dist/session/index.d.ts",
+      "default": "./dist/session/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "files": [

@@ -6,8 +6,8 @@
 import { diag, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { startBrowserSdk } from './start.ts';
-import type { WebSdk } from './types.ts';
+import type { WebSdk } from './core/types.ts';
+import { startBrowserSdk } from './startBrowserSdk.ts';
 
 // Arrange
 const SCHEDULE_DELAY = 10;
