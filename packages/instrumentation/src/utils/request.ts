@@ -39,9 +39,6 @@ function isDocument(value: unknown): value is Document {
  *   So we can measure the body length as it passes through the pipe, but need to attach
  *   the new stream to the original request
  *   so that the browser still has access to the body.
- *
- * @param body
- * @returns promise that resolves to the content length of the body
  */
 export async function getFetchBodyLength(
   ...args: Parameters<typeof fetch>
@@ -117,8 +114,6 @@ function _getBodyNonDestructively(body: ReadableStream): {
 
 /**
  * Helper function to determine payload content length for XHR requests
- * @param body
- * @returns content length
  */
 export function getXHRBodyLength(
   body: Document | XMLHttpRequestBodyInit,
