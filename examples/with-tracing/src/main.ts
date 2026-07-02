@@ -3,6 +3,13 @@ import { logs } from '@opentelemetry/api-logs';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import {
+  createDefaultSessionIdGenerator,
+  createLocalStorageSessionStore,
+  createSessionLogRecordProcessor,
+  createSessionManager,
+  createSessionSpanProcessor,
+} from '@opentelemetry/browser-sdk/session';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
@@ -32,17 +39,35 @@ const detectedResources = detectResources({
 });
 resource = resource.merge(detectedResources);
 
+// --- Sessions ---
+// The session processors must run BEFORE the export processors so the
+// session.id attribute is set on each span / log record before it is exported.
+const sessionManager = createSessionManager({
+  sessionIdGenerator: createDefaultSessionIdGenerator(),
+  sessionStore: createLocalStorageSessionStore(),
+  // 4h ceiling, 30min of inactivity rotates the session.
+  maxDuration: 4 * 60 * 60,
+  inactivityTimeout: 30 * 60,
+});
+await sessionManager.start();
+
 // --- Event-based instrumentations (this repository) ---
 const logProvider = new LoggerProvider({
   resource,
-  processors: [new SimpleLogRecordProcessor(new ConsoleLogRecordExporter())],
+  processors: [
+    createSessionLogRecordProcessor(sessionManager),
+    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+  ],
 });
 logs.setGlobalLoggerProvider(logProvider);
 
 // --- Span-based instrumentations (opentelemetry-js / opentelemetry-js-contrib) ---
 const provider = new WebTracerProvider({
   resource,
-  spanProcessors: [new SimpleSpanProcessor(new ConsoleSpanExporter())],
+  spanProcessors: [
+    createSessionSpanProcessor(sessionManager),
+    new SimpleSpanProcessor(new ConsoleSpanExporter()),
+  ],
 });
 provider.register();
 

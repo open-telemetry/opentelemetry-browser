@@ -12,6 +12,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.219.0",
     "@opentelemetry/browser-instrumentation": "file:../packages/instrumentation",
+    "@opentelemetry/browser-sdk": "file:../packages/sdk",
     "@opentelemetry/core": "^2.8.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.219.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
@@ -27,7 +28,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@types/react": "19.2.16",
+    "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3"
   }
 }

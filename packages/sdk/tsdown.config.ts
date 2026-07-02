@@ -3,5 +3,10 @@ import baseConfig from '../../tsdown.config.ts';
 
 export default defineConfig({
   ...baseConfig,
-  entry: ['src/sdk/logs.ts', 'src/sdk/traces.ts', 'src/sdk/start.ts'],
+  entry: {
+    logs: 'src/sdk/logs.ts',
+    traces: 'src/sdk/traces.ts',
+    start: 'src/sdk/start.ts',
+    'session/index': 'src/session/index.ts',
+  },
 });
