@@ -46,11 +46,11 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   // InstrumentationBase class.
   // Also not initializing the fields to `false` because the base class
   // constructor already call `enable` modifying their values and it will
-  // set the instrumentaitons in a base state (enabled, patched but with flags set to false)
+  // set the instrumentations in a base state (enabled, patched but with flags set to false)
   private declare _isEnabled: boolean;
   private declare _isFetchPatched: boolean;
 
-  // To keep track of the resources for posterior cleanup the context registrey
+  // To keep track of the resources for posterior cleanup the context registry
   private _registeredResources: PerformanceResourceTiming[] = [];
   private _unregisterTimer: number | undefined;
 
@@ -186,9 +186,9 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             // returned to the caller untouched so that it passes internal
             // brand-checks required by APIs such as
             // WebAssembly.compileStreaming.
-            // It consumens the entire body even if the user cancels reading it
+            // It consumes the entire body even if the user cancels reading it
             // from the original response. But it does work with `AbortController.abort()`
-            // because it aborts the underliying fetch cancelling the original and clone streams
+            // because it aborts the underlying fetch cancelling the original and clone streams
             // ref: https://github.com/open-telemetry/opentelemetry-js/pull/6521
             const resClone = response.clone();
             const body = resClone.body;
@@ -278,7 +278,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   }
 
   /**
-   * Registers a resource and sets a timer for clearing the registry after a time bing idle
+   * Registers a resource and sets a timer for clearing the registry after a time being idle
    */
   private _registerResource(span: Span, resource: PerformanceResourceTiming) {
     const registry = getNetworkContextRegistry();
@@ -336,7 +336,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   }
 
   /**
-   * Finish span, add attributes, network events etc.
+   * Finish span, add attributes, etc.
    */
   private _endSpan(span: Span, response: FetchResponse) {
     span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, response.status);
