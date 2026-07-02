@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '12 20 * * 3' # weekly at 20:12 (UTC) on Wednesday
+    - cron: 12 20 * * 3 # weekly at 20:12 (UTC) on Wednesday
   workflow_dispatch:
 
 permissions: read-all
