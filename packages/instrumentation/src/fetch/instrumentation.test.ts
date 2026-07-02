@@ -13,6 +13,7 @@ import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
+  ATTR_SERVER_ADDRESS,
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
@@ -34,7 +35,9 @@ import { setupTestSpanExporter } from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 
-const VITEST_SERVER_PORT = parseInt(new URL(location.href).port, 10);
+const VITEST_SERVER_URL = new URL(location.href);
+const VITEST_SERVER_NAME = VITEST_SERVER_URL.hostname;
+const VITEST_SERVER_PORT = parseInt(VITEST_SERVER_URL.port, 10);
 const originalFetchFunction = globalThis.fetch;
 const networkContextRegistry = getNetworkContextRegistry();
 
@@ -43,6 +46,10 @@ export const handlers = [
     return HttpResponse.json({ ok: true });
   }),
   http.post('/api/post', () => {
+    return HttpResponse.json({ ok: true });
+  }),
+  // MSW does nt have a specific handler for query
+  http.all('/api/query', () => {
     return HttpResponse.json({ ok: true });
   }),
   http.get('/api/error', () => {
@@ -247,7 +254,9 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
@@ -265,8 +274,30 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('POST');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toBeUndefined(); // requires config set to true
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should create spans for QUERY requests', async () => {
+      const url = getUrlForPath('/api/query');
+      const startTime = performance.now();
+      await fetch(url, { method: 'QUERY' });
+      const endTime = performance.now();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('QUERY');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('QUERY');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
@@ -284,22 +315,14 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(500);
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
       expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('500');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
-    });
-
-    it('should return a Promise<Response> compatible with WebAssembly.compileStreaming', async () => {
-      // Some web APIs do brand checks to ensure they are working with native objects.
-      // compileStreaming checks that the argument is a native Response, and will throw if it isn't.
-      // WebAssembly.compileStreaming requires a native Response from fetch.
-      const module = await WebAssembly.compileStreaming(
-        fetch(`${location.origin}/test.wasm`),
-      );
-      expect(module instanceof WebAssembly.Module).toBeTruthy();
     });
 
     it('204 (No Content) will correctly end the span', async () => {
@@ -312,9 +335,11 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(204);
     });
+
     it('205 (Reset Content) will correctly end the span', async () => {
       const url = getUrlForPath('/null-body-205');
       await fetch(url);
@@ -325,9 +350,11 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(205);
     });
+
     it('304 (Not Modified) will correctly end the span', async () => {
       const url = getUrlForPath('/null-body-304');
       await fetch(url);
@@ -338,8 +365,19 @@ describe('FetchInstrumentation', () => {
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(304);
+    });
+
+    it('should return a Promise<Response> compatible with WebAssembly.compileStreaming', async () => {
+      // Some web APIs do brand checks to ensure they are working with native objects.
+      // compileStreaming checks that the argument is a native Response, and will throw if it isn't.
+      // WebAssembly.compileStreaming requires a native Response from fetch.
+      const module = await WebAssembly.compileStreaming(
+        fetch(`${location.origin}/test.wasm`),
+      );
+      expect(module instanceof WebAssembly.Module).toBeTruthy();
     });
 
     describe('with ignoreUrls configuration', () => {
