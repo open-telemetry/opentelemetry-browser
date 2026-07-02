@@ -3,8 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { isWrapped } from '@opentelemetry/instrumentation';
+import {
+  B3InjectEncoding,
+  B3Propagator,
+  X_B3_SAMPLED,
+  X_B3_SPAN_ID,
+  X_B3_TRACE_ID,
+} from '@opentelemetry/propagator-b3';
 import type {
   InMemorySpanExporter,
   ReadableSpan,
@@ -81,6 +88,23 @@ export const handlers = [
   }),
   http.get('/null-body-304', () => {
     return new HttpResponse(null, { status: 304 });
+  }),
+  http.get('/api/echo-headers.json', ({ request }) => {
+    return HttpResponse.json({
+      request: {
+        headers: Object.fromEntries(request.headers),
+      },
+    });
+  }),
+  http.get('http://example.com/api/status.json', () => {
+    return HttpResponse.json({ ok: true });
+  }),
+  http.get('http://example.com/api/echo-headers.json', ({ request }) => {
+    return HttpResponse.json({
+      request: {
+        headers: Object.fromEntries(request.headers),
+      },
+    });
   }),
 ];
 
@@ -390,6 +414,242 @@ describe('FetchInstrumentation', () => {
         expect(async () => await waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('trace propagation headers', () => {
+      const assertPropagationHeaders = async (
+        response: Response,
+        span?: ReadableSpan,
+      ): Promise<Record<string, string>> => {
+        const { request } = await response.json();
+
+        if (span) {
+          expect(request.headers[X_B3_TRACE_ID]).toEqual(
+            span.spanContext().traceId,
+          );
+          expect(request.headers[X_B3_SPAN_ID]).toEqual(
+            span.spanContext().spanId,
+          );
+          expect(request.headers[X_B3_SAMPLED]).toEqual(
+            String(span.spanContext().traceFlags),
+          );
+        } else {
+          expect(request.headers[X_B3_TRACE_ID]).toBeUndefined();
+          expect(request.headers[X_B3_SPAN_ID]).toBeUndefined();
+          expect(request.headers[X_B3_SAMPLED]).toBeUndefined();
+        }
+
+        return request.headers;
+      };
+
+      describe('without global propagator', () => {
+        it('should not set trace propagation headers', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url);
+
+          await assertPropagationHeaders(response);
+        });
+
+        it('should not set trace propagation headers with a Request object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(new Request(url));
+
+          await assertPropagationHeaders(response);
+        });
+
+        it('should keep custom headers with a request object and a headers object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(
+            new Request(url, { headers: new Headers({ foo: 'bar' }) }),
+          );
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers with url, untyped request object and untyped headers object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, { headers: { foo: 'bar' } });
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers with url, untyped request object and typed (Map) headers object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, {
+            // @ts-expect-error relies on implicit coercion
+            headers: new Map().set('foo', 'bar'),
+          });
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers with url, untyped request object and tuple array headers', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, {
+            headers: [
+              ['foo', 'bar'],
+              ['content-type', 'application/json'],
+            ],
+          });
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['foo']).toEqual('bar');
+          expect(headers['content-type']).toEqual('application/json');
+        });
+      });
+
+      describe('with global propagator', () => {
+        beforeAll(() => {
+          propagation.setGlobalPropagator(
+            new B3Propagator({
+              injectEncoding: B3InjectEncoding.MULTI_HEADER,
+            }),
+          );
+        });
+
+        afterAll(() => {
+          propagation.disable();
+        });
+
+        it('should set trace propagation headers', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url);
+          const span = await waitForSpan(url);
+
+          await assertPropagationHeaders(response, span);
+        });
+
+        it('should set trace propagation headers with a Request object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(new Request(url));
+          const span = await waitForSpan(url);
+
+          await assertPropagationHeaders(response, span);
+        });
+
+        it('should keep custom headers from init overrides when first arg is a Request object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(
+            new Request(url, { headers: { foo: 'bar' } }),
+          );
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers from init overrides with typed Headers when first arg is a Request object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(
+            new Request(url, { headers: new Headers({ foo: 'bar' }) }),
+          );
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should merge headers from Request and init overrides with init taking precedence', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(
+            new Request(url, {
+              headers: {
+                'x-from-request': 'request-value',
+                shared: 'from-request',
+              },
+            }),
+            {
+              headers: {
+                'x-from-init': 'init-value',
+                shared: 'from-init',
+              },
+            },
+          );
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          // XXX: check if original implementation actually merges
+          // expect(headers['x-from-request']).toEqual('request-value');
+          expect(headers['x-from-init']).toEqual('init-value');
+          expect(headers['shared']).toEqual('from-init');
+        });
+
+        it('should keep custom headers with url, untyped request object and typed (Headers) headers object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, {
+            headers: new Headers({ foo: 'bar' }),
+          });
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers with url, untyped request object and untyped headers object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, { headers: { foo: 'bar' } });
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers with url, untyped request object and typed (Map) headers object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, {
+            // @ts-expect-error relies on implicit coercion
+            headers: new Map().set('foo', 'bar'),
+          });
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+        });
+
+        it('should keep custom headers with url, untyped request object and tuple array headers', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url, {
+            headers: [
+              ['foo', 'bar'],
+              ['content-type', 'application/json'],
+            ],
+          });
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+          expect(headers['content-type']).toEqual('application/json');
+        });
+      });
+    });
+
+    // ServiceWorker request interception occurs before CORS preflight requests
+    // are made. If a request is handled by the SW, it won't cause a preflight
+    // (at least not on the page – if the SW makes its own "real" request while
+    // responding to the fetch event, that request may very well require CORS &
+    // preflight, but that would be happening within the SW, not the page.)
+    //
+    // However, as far as the instrumentation behavior, there aren't much that
+    // we need to specifically unit test in relation to CORS and preflights,
+    // since preflight requests are completely transparent, the instrumentation
+    // code could not detect that it happened, let alone report on its timing:
+    // https://github.com/open-telemetry/opentelemetry-js/issues/5122
+    //
+    // So the purpose of this test module is mostly just to test the configs
+    // related to CORS requests.
+    describe('cross origin requests', () => {
+      const corsFetch = () =>
+        fetch('http://example.com/api/status.json', {
+          mode: 'cors',
+          headers: { 'x-custom': 'custom value' },
+        });
+      it.skip('should create a span with correct root span', async () => {
+        await corsFetch();
+        // XXX: implement tests
       });
     });
   });

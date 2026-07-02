@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Attributes, Span } from '@opentelemetry/api';
+import type { Attributes, Context, Span } from '@opentelemetry/api';
 import {
   context,
   propagation,
@@ -51,8 +51,8 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   private declare _isFetchPatched: boolean;
 
   // To keep track of the resources for posterior cleanup the context registrey
-  private declare _registeredResources: PerformanceResourceTiming[] | undefined;
-  private declare _unregisterTimer: number | undefined;
+  private _registeredResources: PerformanceResourceTiming[] = [];
+  private _unregisterTimer: number | undefined;
 
   constructor(config: FetchInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/fetch', version, config);
@@ -251,7 +251,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
           // Also, this means the hook will see `options.headers` in the same type as passed in,
           // rather than as a `Headers` instance set by `_addHeaders()`.
           instrumentation._callRequestHook(createdSpan, options);
-          instrumentation._addHeaders(options, url);
+          instrumentation._addHeaders(options, url, fetchContext);
 
           return original
             .apply(
@@ -290,7 +290,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
     // Add to the registry and keep a reference
     registry.register(span, data);
-    this._registeredResources = this._registeredResources || [];
     this._registeredResources.push(resource);
 
     // Cancel any pending clear task and schedule
@@ -298,20 +297,16 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
       clearTimeout(this._unregisterTimer);
     }
     this._unregisterTimer = setTimeout(() => {
-      if (this._registeredResources) {
-        for (const res of this._registeredResources) {
-          registry.unregister(res);
-        }
+      for (const res of this._registeredResources) {
+        registry.unregister(res);
       }
-      this._registeredResources = undefined;
+      this._registeredResources.length = 0;
       this._unregisterTimer = undefined;
     }, 1000);
   }
 
   /**
    * Creates a new span
-   * @param url
-   * @param options
    */
   private _createSpan(
     url: string,
@@ -342,8 +337,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
   /**
    * Finish span, add attributes, network events etc.
-   * @param span
-   * @param response
    */
   private _endSpan(span: Span, response: FetchResponse) {
     span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, response.status);
@@ -378,8 +371,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
   /**
    * Calls the request hook if defined
-   * @param span
-   * @param request
    */
   private _callRequestHook(span: Span, request: Request | RequestInit) {
     const requestHook = this.getConfig().requestHook;
@@ -398,11 +389,13 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   }
 
   /**
-   * Add headers
-   * @param options
-   * @param url
+   * Add headers for the request and the given context if apply
    */
-  private _addHeaders(options: Request | RequestInit, url: string): void {
+  private _addHeaders(
+    options: Request | RequestInit,
+    url: string,
+    ctx: Context,
+  ): void {
     // Propagate only if in request goes to same origin or is in the allow list
     const urlsToPropagate = this.getConfig().propagateTraceHeaderCorsUrls;
     const urlOrigin = parseUrl(url).origin;
@@ -414,21 +407,21 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         // This mutates `Request.headers` in-place, because it is read-only
         // (per https://developer.mozilla.org/en-US/docs/Web/API/Request/headers),
         // so we cannot (easily) replace it.
-        propagation.inject(context.active(), options.headers, {
+        propagation.inject(ctx, options.headers, {
           set: (h, k, v) => h.set(k, typeof v === 'string' ? v : String(v)),
         });
       } else {
         // Otherwise, create a new Headers to avoid mutating the caller's
         // possibly re-used headers.
         const headers = new Headers(options.headers);
-        propagation.inject(context.active(), headers, {
+        propagation.inject(ctx, headers, {
           set: (h, k, v) => h.set(k, typeof v === 'string' ? v : String(v)),
         });
         options.headers = headers;
       }
     } else {
       const headers: Partial<Record<string, unknown>> = {};
-      propagation.inject(context.active(), headers);
+      propagation.inject(ctx, headers);
       if (Object.keys(headers).length > 0) {
         this._diag.debug('headers inject skipped due to CORS policy');
       }
