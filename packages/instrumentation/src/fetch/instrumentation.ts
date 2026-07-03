@@ -202,10 +202,18 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
                 const read = (): void => {
                   reader.read().then(
                     ({ done }) => {
-                      if (done) {
-                        endSpanOnSuccess(span, response);
-                      } else {
-                        read();
+                      try {
+                        if (done) {
+                          endSpanOnSuccess(span, response);
+                        } else {
+                          read();
+                        }
+                      } catch (e) {
+                        instrumentation._diag.error(
+                          'Failed to finalize span after body read',
+                          e,
+                        );
+                        instrumentation._endSpan(span, { status: 0 });
                       }
                     },
                     (error) => {
