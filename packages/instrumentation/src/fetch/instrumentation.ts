@@ -129,140 +129,156 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
           return original.apply(this, args);
         }
 
-        // Per the Fetch spec, when fetch() is called with a Request object
-        // and a separate init object, the init properties override the
-        // Request's properties. Merge them into a new Request so that
-        // downstream consumers (hooks, header injection, the actual fetch
-        // call) see the correct final values.
-        // See: https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters
-        let options: Request | RequestInit;
-        if (args[0] instanceof Request) {
-          options = args[1] != null ? new Request(args[0], args[1]) : args[0];
-        } else {
-          options = args[1] || {};
-        }
-
-        const createdSpan = instrumentation._createSpan(url, options);
-        if (instrConfig.measureRequestSize) {
-          getFetchBodyLength(...args)
-            .then((bodyLength) => {
-              if (typeof bodyLength === 'number') {
-                createdSpan.setAttribute(
-                  ATTR_HTTP_REQUEST_BODY_SIZE,
-                  bodyLength,
-                );
-              }
-            })
-            .catch((error) => {
-              instrumentation._diag.warn('getFetchBodyLength', error);
-            });
-        }
-
-        function endSpanOnError(span: Span, error: FetchError) {
-          instrumentation._applyAttributesAfterFetch(span, options, error);
-          instrumentation._endSpan(span, {
-            status: error.status || 0,
-            statusText: error.message,
-          });
-        }
-
-        function endSpanOnSuccess(span: Span, response: Response) {
-          instrumentation._applyAttributesAfterFetch(span, options, response);
-          if (response.status >= 200 && response.status < 400) {
-            instrumentation._endSpan(span, response);
+        // Reference to the Span in case there is an exception after creating it (wil not end)
+        // It will be used to keep the Map only with the Spans that will be ended
+        let trucatedSpan: Span | undefined;
+        try {
+          // Per the Fetch spec, when fetch() is called with a Request object
+          // and a separate init object, the init properties override the
+          // Request's properties. Merge them into a new Request so that
+          // downstream consumers (hooks, header injection, the actual fetch
+          // call) see the correct final values.
+          // See: https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#parameters
+          let options: Request | RequestInit;
+          if (args[0] instanceof Request) {
+            options = args[1] != null ? new Request(args[0], args[1]) : args[0];
           } else {
-            instrumentation._endSpan(span, {
-              status: response.status,
-              statusText: response.statusText,
-            });
+            options = args[1] || {};
           }
-        }
 
-        function onSuccess(span: Span, response: Response): Response {
-          try {
-            // Clone the response and eagerly consume the clone to detect
-            // when the body transfer completes.  The original response is
-            // returned to the caller untouched so that it passes internal
-            // brand-checks required by APIs such as
-            // WebAssembly.compileStreaming.
-            // It consumes the entire body even if the user cancels reading it
-            // from the original response. But it does work with `AbortController.abort()`
-            // because it aborts the underlying fetch cancelling the original and clone streams
-            // ref: https://github.com/open-telemetry/opentelemetry-js/pull/6521
-            const resClone = response.clone();
-            const body = resClone.body;
-            if (body) {
-              const reader = body.getReader();
-
-              const read = (): void => {
-                reader.read().then(
-                  ({ done }) => {
-                    if (done) {
-                      endSpanOnSuccess(span, response);
-                    } else {
-                      read();
-                    }
-                  },
-                  (error) => {
-                    endSpanOnError(span, error);
-                  },
-                );
-              };
-              read();
-            } else {
-              // some older browsers don't have .body implemented
-              endSpanOnSuccess(span, response);
-            }
-          } catch (error) {
-            // Setup failed (e.g. clone() or getReader() threw).
-            instrumentation._diag.error(
-              'Failed to read fetch response body',
-              error,
-            );
-            instrumentation._endSpan(span, {
-              status: 0,
-            });
+          const createdSpan = instrumentation._createSpan(url, options);
+          trucatedSpan = createdSpan;
+          if (instrConfig.measureRequestSize) {
+            getFetchBodyLength(...args)
+              .then((bodyLength) => {
+                if (typeof bodyLength === 'number') {
+                  createdSpan.setAttribute(
+                    ATTR_HTTP_REQUEST_BODY_SIZE,
+                    bodyLength,
+                  );
+                }
+              })
+              .catch((error) => {
+                instrumentation._diag.warn('getFetchBodyLength', error);
+              });
           }
-          return response;
-        }
 
-        function onError(span: Span, error: FetchError): never {
-          try {
-            endSpanOnError(span, error);
-          } catch (e: unknown) {
-            // endSpanOnError failed — fall back to ending the span
-            // directly so _tasksCount doesn't leak.
-            instrumentation._diag.error('Failed to end span on fetch error', e);
+          function endSpanOnError(span: Span, error: FetchError) {
+            instrumentation._applyAttributesAfterFetch(span, options, error);
             instrumentation._endSpan(span, {
               status: error.status || 0,
+              statusText: error.message,
             });
           }
-          throw error;
+
+          function endSpanOnSuccess(span: Span, response: Response) {
+            instrumentation._applyAttributesAfterFetch(span, options, response);
+            if (response.status >= 200 && response.status < 400) {
+              instrumentation._endSpan(span, response);
+            } else {
+              instrumentation._endSpan(span, {
+                status: response.status,
+                statusText: response.statusText,
+              });
+            }
+          }
+
+          function onSuccess(span: Span, response: Response): Response {
+            try {
+              // Clone the response and eagerly consume the clone to detect
+              // when the body transfer completes.  The original response is
+              // returned to the caller untouched so that it passes internal
+              // brand-checks required by APIs such as
+              // WebAssembly.compileStreaming.
+              // It consumes the entire body even if the user cancels reading it
+              // from the original response. But it does work with `AbortController.abort()`
+              // because it aborts the underlying fetch cancelling the original and clone streams
+              // ref: https://github.com/open-telemetry/opentelemetry-js/pull/6521
+              const resClone = response.clone();
+              const body = resClone.body;
+              if (body) {
+                const reader = body.getReader();
+
+                const read = (): void => {
+                  reader.read().then(
+                    ({ done }) => {
+                      if (done) {
+                        endSpanOnSuccess(span, response);
+                      } else {
+                        read();
+                      }
+                    },
+                    (error) => {
+                      endSpanOnError(span, error);
+                    },
+                  );
+                };
+                read();
+              } else {
+                // some older browsers don't have .body implemented
+                endSpanOnSuccess(span, response);
+              }
+            } catch (error) {
+              // Setup failed (e.g. clone() or getReader() threw).
+              instrumentation._diag.error(
+                'Failed to read fetch response body',
+                error,
+              );
+              instrumentation._endSpan(span, {
+                status: 0,
+              });
+            }
+            return response;
+          }
+
+          function onError(span: Span, error: FetchError): never {
+            try {
+              endSpanOnError(span, error);
+            } catch (e: unknown) {
+              // endSpanOnError failed — fall back to ending the span
+              // directly so _tasksCount doesn't leak.
+              instrumentation._diag.error(
+                'Failed to end span on fetch error',
+                e,
+              );
+              instrumentation._endSpan(span, {
+                status: error.status || 0,
+              });
+            }
+            throw error;
+          }
+
+          const fetchContext = trace.setSpan(context.active(), createdSpan);
+          return context.with(fetchContext, () => {
+            instrumentation._spanResources.set(createdSpan, {
+              name: url,
+              fetchStart: performance.now(),
+            } as PerformanceResourceTiming);
+
+            // Call request hook before injection so hooks cannot tamper with propagation headers.
+            // Also, this means the hook will see `options.headers` in the same type as passed in,
+            // rather than as a `Headers` instance set by `_addHeaders()`.
+            instrumentation._callRequestHook(createdSpan, options);
+            instrumentation._addHeaders(options, url, fetchContext);
+
+            return original
+              .apply(
+                globalThis,
+                options instanceof Request ? [options] : [url, options],
+              )
+              .then(
+                onSuccess.bind(globalThis, createdSpan),
+                onError.bind(globalThis, createdSpan),
+              );
+          });
+        } catch (e: unknown) {
+          instrumentation._diag.error('Failed to instrument fetch request', e);
         }
-
-        const fetchContext = trace.setSpan(context.active(), createdSpan);
-        return context.with(fetchContext, () => {
-          instrumentation._spanResources.set(createdSpan, {
-            name: url,
-            fetchStart: performance.now(),
-          } as PerformanceResourceTiming);
-
-          // Call request hook before injection so hooks cannot tamper with propagation headers.
-          // Also, this means the hook will see `options.headers` in the same type as passed in,
-          // rather than as a `Headers` instance set by `_addHeaders()`.
-          instrumentation._callRequestHook(createdSpan, options);
-          instrumentation._addHeaders(options, url, fetchContext);
-
-          return original
-            .apply(
-              globalThis,
-              options instanceof Request ? [options] : [url, options],
-            )
-            .then(
-              onSuccess.bind(globalThis, createdSpan),
-              onError.bind(globalThis, createdSpan),
-            );
-        });
+        // Remove the span if it was created and stored before the exception
+        if (trucatedSpan) {
+          instrumentation._spanResources.delete(trucatedSpan);
+        }
+        return original.apply(this, args);
       };
     };
   }
@@ -313,6 +329,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     // Register the resource context for other instrumentations
     const resource = this._spanResources.get(span);
     if (resource) {
+      this._spanResources.delete(span);
       getNetworkContextRegistry().register(span, {
         key: resource.name,
         startPerfNow: resource.fetchStart,

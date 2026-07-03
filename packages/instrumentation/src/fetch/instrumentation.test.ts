@@ -267,6 +267,19 @@ describe('FetchInstrumentation', () => {
       instrumentation = new FetchInstrumentation();
     });
 
+    it('should still do the Request even if the instrumentation fails', async () => {
+      const injectSpy = vi
+        .spyOn(propagation, 'inject')
+        .mockThrow('Injection Error');
+      const url = getUrlForPath('/api/get');
+      const result = await fetch(url).then((r) => r.json());
+
+      // inject is called
+      expect(injectSpy).toHaveBeenCalled();
+      expect(result).toEqual({ ok: true });
+      injectSpy.mockReset();
+    });
+
     it('should create spans for GET requests', async () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();
