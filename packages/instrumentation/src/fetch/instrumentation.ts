@@ -216,7 +216,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             }
           } catch (error) {
             // Setup failed (e.g. clone() or getReader() threw).
-            // End the span and clean up so _tasksCount doesn't leak.
             instrumentation._diag.error(
               'Failed to read fetch response body',
               error,
@@ -318,9 +317,10 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     const normMethod = normalizeHttpRequestMethod(options.method || 'GET');
     const serverPort = serverPortFromUrl(parsedUrl);
     const name = normMethod;
+    const { sanitizeUrl } = this.getConfig();
 
     attributes[ATTR_HTTP_REQUEST_METHOD] = normMethod;
-    attributes[ATTR_URL_FULL] = url;
+    attributes[ATTR_URL_FULL] = sanitizeUrl ? sanitizeUrl(url) : url;
     attributes[ATTR_SERVER_ADDRESS] = parsedUrl.hostname;
     if (serverPort) {
       attributes[ATTR_SERVER_PORT] = serverPort;

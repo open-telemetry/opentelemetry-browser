@@ -37,7 +37,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { getNetworkContextRegistry } from '#utils';
+import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
 import { setupTestSpanExporter } from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
@@ -50,6 +50,7 @@ const networkContextRegistry = getNetworkContextRegistry();
 
 export const handlers = [
   http.get('/api/get', () => {
+    console.log('api/get');
     return HttpResponse.json({ ok: true });
   }),
   http.post('/api/post', () => {
@@ -135,8 +136,9 @@ describe('FetchInstrumentation', () => {
   });
 
   const getUrlForPath = (path: string) => {
-    const url = new URL(location.href);
-    url.pathname = path;
+    // const url = new URL(location.href);
+    // url.pathname = path;
+    const url = new URL(path, location.href);
     return url.href;
   };
 
@@ -402,6 +404,32 @@ describe('FetchInstrumentation', () => {
         fetch(`${location.origin}/test.wasm`),
       );
       expect(module instanceof WebAssembly.Module).toBeTruthy();
+    });
+
+    describe('with sanitizeUrl configuration', () => {
+      it('should create spans for GET requests', async () => {
+        instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
+        const url = getUrlForPath('/api/get?api_key=secret&normal=value');
+        const startTime = performance.now();
+        await fetch(url);
+        const endTime = performance.now();
+
+        // Span is exported (with sanitized URL)
+        const span = await waitForSpan(defaultSanitizeUrl(url));
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toContain('api_key=REDACTED');
+        expect(span.attributes[ATTR_URL_FULL]).toContain('normal=value');
+        expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(
+          VITEST_SERVER_NAME,
+        );
+        expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+        expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
+      });
     });
 
     describe('with ignoreUrls configuration', () => {
