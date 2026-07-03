@@ -269,10 +269,12 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: entry.renderBlockingStatus,
         },
       };
-      const ctx = getNetworkContextRegistry().getContext(entry);
-
+      const registry = getNetworkContextRegistry();
+      const ctx = registry.getContext(entry);
+      // Attach the context to the LogRecord and remove it from the registry
       if (ctx) {
         record.context = ctx;
+        registry.unregister(entry);
       }
       this.logger.emit(record);
     } catch (error) {

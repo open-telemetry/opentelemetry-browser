@@ -50,7 +50,6 @@ const networkContextRegistry = getNetworkContextRegistry();
 
 export const handlers = [
   http.get('/api/get', () => {
-    console.log('api/get');
     return HttpResponse.json({ ok: true });
   }),
   http.post('/api/post', () => {
@@ -271,7 +270,7 @@ describe('FetchInstrumentation', () => {
     it('should create spans for GET requests', async () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();
-      await fetch(url);
+      await fetch(url).then((r) => r.json());
       const endTime = performance.now();
 
       // Span is exported
@@ -291,7 +290,9 @@ describe('FetchInstrumentation', () => {
     it('should create spans for POST requests', async () => {
       const url = getUrlForPath('/api/post');
       const startTime = performance.now();
-      await fetch(url, { method: 'post', body: 'body_content' });
+      await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
+        r.json(),
+      );
       const endTime = performance.now();
 
       // Span is exported
@@ -312,7 +313,7 @@ describe('FetchInstrumentation', () => {
     it('should create spans for QUERY requests', async () => {
       const url = getUrlForPath('/api/query');
       const startTime = performance.now();
-      await fetch(url, { method: 'QUERY' });
+      await fetch(url, { method: 'QUERY' }).then((r) => r.json());
       const endTime = performance.now();
 
       // Span is exported
@@ -411,7 +412,7 @@ describe('FetchInstrumentation', () => {
         instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
         const url = getUrlForPath('/api/get?api_key=secret&normal=value');
         const startTime = performance.now();
-        await fetch(url);
+        await fetch(url).then((r) => r.json());
         const endTime = performance.now();
 
         // Span is exported (with sanitized URL)

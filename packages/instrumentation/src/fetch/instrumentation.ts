@@ -50,9 +50,8 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   private declare _isEnabled: boolean;
   private declare _isFetchPatched: boolean;
 
-  // To keep track of the resources for posterior cleanup the context registry
-  private _registeredResources: PerformanceResourceTiming[] = [];
-  private _unregisterTimer: number | undefined;
+  // To keep track of the resources
+  private _spanResources: Map<Span, PerformanceResourceTiming> = new Map();
 
   constructor(config: FetchInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/fetch', version, config);
@@ -243,8 +242,10 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
         const fetchContext = trace.setSpan(context.active(), createdSpan);
         return context.with(fetchContext, () => {
-          const fetchUrl = url;
-          const fetchStart = performance.now();
+          instrumentation._spanResources.set(createdSpan, {
+            name: url,
+            fetchStart: performance.now(),
+          } as PerformanceResourceTiming);
 
           // Call request hook before injection so hooks cannot tamper with propagation headers.
           // Also, this means the hook will see `options.headers` in the same type as passed in,
@@ -260,48 +261,10 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             .then(
               onSuccess.bind(globalThis, createdSpan),
               onError.bind(globalThis, createdSpan),
-            )
-            .finally(() => {
-              // Set the context for other instrumentations (like resource-timing) to pick it up
-              const responseEnd = performance.now();
-              const resource = {
-                name: fetchUrl,
-                fetchStart,
-                responseEnd,
-              } as PerformanceResourceTiming;
-              instrumentation._registerResource(createdSpan, resource);
-            });
+            );
         });
       };
     };
-  }
-
-  /**
-   * Registers a resource and sets a timer for clearing the registry after a time being idle
-   */
-  private _registerResource(span: Span, resource: PerformanceResourceTiming) {
-    const registry = getNetworkContextRegistry();
-    const data = {
-      key: resource.name,
-      startPerfNow: resource.fetchStart,
-      endPerfNow: resource.responseEnd,
-    };
-
-    // Add to the registry and keep a reference
-    registry.register(span, data);
-    this._registeredResources.push(resource);
-
-    // Cancel any pending clear task and schedule
-    if (typeof this._unregisterTimer === 'number') {
-      clearTimeout(this._unregisterTimer);
-    }
-    this._unregisterTimer = setTimeout(() => {
-      for (const res of this._registeredResources) {
-        registry.unregister(res);
-      }
-      this._registeredResources.length = 0;
-      this._unregisterTimer = undefined;
-    }, 1000);
   }
 
   /**
@@ -346,6 +309,16 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
       span.setAttribute(ATTR_ERROR_TYPE, String(response.status));
     }
     span.end();
+
+    // Register the resource context for other instrumentations
+    const resource = this._spanResources.get(span);
+    if (resource) {
+      getNetworkContextRegistry().register(span, {
+        key: resource.name,
+        startPerfNow: resource.fetchStart,
+        endPerfNow: performance.now(),
+      });
+    }
   }
 
   private _applyAttributesAfterFetch(
