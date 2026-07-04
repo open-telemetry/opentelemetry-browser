@@ -99,6 +99,36 @@ export const handlers = [
       },
     });
   }),
+  http.get('/api/stream', () => {
+    let timer: number | undefined;
+    let pushes = 0;
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        // Continuously push data to simulate a long connection
+        timer = setInterval(() => {
+          if (pushes >= 50) {
+            clearInterval(timer);
+            controller.close();
+            return;
+          }
+          pushes += 1;
+          controller.enqueue(encoder.encode(`data: ${pushes}\n`));
+        }, 50);
+      },
+    });
+
+    const response = new HttpResponse(stream, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+
+    return response;
+  }),
   http.get('http://example.com/api/status.json', () => {
     return HttpResponse.json({ ok: true });
   }),
@@ -480,6 +510,117 @@ describe('FetchInstrumentation', () => {
         expect(async () => await waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
+        // reset config
+        instrumentation.setConfig({ ignoreUrls: [] });
+      });
+    });
+
+    describe('with measureRequestSize configuration', () => {
+      it('should not measure the size if not set', async () => {
+        const url = getUrlForPath('/api/post');
+        await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
+          r.json(),
+        );
+
+        const span = await waitForSpan(url);
+        expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toBeUndefined();
+      });
+
+      it('should not measure the size if set to false', async () => {
+        instrumentation.setConfig({ measureRequestSize: false });
+        const url = getUrlForPath('/api/post');
+        await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
+          r.json(),
+        );
+
+        const span = await waitForSpan(url);
+        expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toBeUndefined();
+      });
+
+      describe('with measureRequestSize set to true', () => {
+        beforeAll(() => {
+          instrumentation.setConfig({ measureRequestSize: true });
+        });
+        afterAll(() => {
+          instrumentation.setConfig({ measureRequestSize: undefined });
+        });
+
+        it('should measure the size with URL and init object', async () => {
+          const body = 'body_content';
+          const url = getUrlForPath('/api/post');
+          await fetch(url, { method: 'post', body }).then((r) => r.json());
+
+          const span = await waitForSpan(url);
+          expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toEqual(
+            body.length,
+          );
+        });
+
+        it('should measure the size with url and init object with a body stream', async () => {
+          const url = getUrlForPath('/api/post');
+          const body = JSON.stringify({ hello: 'world' });
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start: (controller) => {
+              controller.enqueue(encoder.encode(body));
+              controller.close();
+            },
+            cancel: (controller) => {
+              controller.close();
+            },
+          });
+          await fetch(url, {
+            method: 'post',
+            headers: { 'Content-Type': 'application/json' },
+            body: stream,
+            // @ts-expect-error this is required IRL but missing on the current TS definition
+            // https://developer.chrome.com/docs/capabilities/web-apis/fetch-streaming-requests#half_duplex
+            duplex: 'half',
+          }).then((r) => r.json());
+
+          const span = await waitForSpan(url);
+          expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toEqual(
+            body.length,
+          );
+        });
+
+        it('should measure the size with a Request object', async () => {
+          const body = JSON.stringify({ hello: 'world' });
+          const url = getUrlForPath('/api/post');
+          await fetch(
+            new Request(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body,
+            }),
+          ).then((r) => r.json());
+
+          const span = await waitForSpan(url);
+          expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toEqual(
+            body.length,
+          );
+        });
+
+        it('should measure the size with a Request object and a URLSearchParams body', async () => {
+          const body = new URLSearchParams({ hello: 'world' });
+          const url = getUrlForPath('/api/post');
+          await fetch(
+            new Request(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body,
+            }),
+          ).then((r) => r.json());
+
+          const span = await waitForSpan(url);
+          expect(span.attributes[ATTR_HTTP_REQUEST_BODY_SIZE]).toEqual(
+            'hello=world'.length,
+          );
+        });
       });
     });
 
@@ -708,15 +849,115 @@ describe('FetchInstrumentation', () => {
     // So the purpose of this test module is mostly just to test the configs
     // related to CORS requests.
     describe('cross origin requests', () => {
-      const corsFetch = () =>
-        fetch('http://example.com/api/status.json', {
-          mode: 'cors',
-          headers: { 'x-custom': 'custom value' },
-        });
-      it.skip('should create a span with correct root span', async () => {
-        await corsFetch();
-        // XXX: implement tests
+      it('should not break for CORS requests', async () => {
+        const url = 'http://example.com/api/status.json';
+        const startTime = performance.now();
+        await fetch(url).then((r) => r.json());
+        const endTime = performance.now();
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual('example.com');
+        expect(span.attributes[ATTR_SERVER_PORT]).toEqual(80);
+        expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
       });
+
+      describe('trace propagation headers', () => {
+        const assertPropagationHeaders = async (
+          response: Response,
+          span?: ReadableSpan,
+        ): Promise<Record<string, string>> => {
+          const { request } = await response.json();
+
+          if (span) {
+            expect(request.headers[X_B3_TRACE_ID]).toEqual(
+              span.spanContext().traceId,
+            );
+            expect(request.headers[X_B3_SPAN_ID]).toEqual(
+              span.spanContext().spanId,
+            );
+            expect(request.headers[X_B3_SAMPLED]).toEqual(
+              String(span.spanContext().traceFlags),
+            );
+          } else {
+            expect(request.headers[X_B3_TRACE_ID]).toBeUndefined();
+            expect(request.headers[X_B3_SPAN_ID]).toBeUndefined();
+            expect(request.headers[X_B3_SAMPLED]).toBeUndefined();
+          }
+
+          return request.headers;
+        };
+
+        describe('without global propagator', () => {
+          it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
+            const url = 'http://example.com/api/echo-headers.json';
+            const response = await fetch(url);
+
+            await assertPropagationHeaders(response);
+          });
+
+          it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
+            instrumentation.setConfig({
+              propagateTraceHeaderCorsUrls: [/example.com/],
+            });
+            const url = 'http://example.com/api/echo-headers.json';
+            const response = await fetch(url);
+
+            await assertPropagationHeaders(response);
+            // reset for other tests
+            instrumentation.setConfig({
+              propagateTraceHeaderCorsUrls: [],
+            });
+          });
+        });
+
+        describe('with global propagator', () => {
+          beforeAll(() => {
+            propagation.setGlobalPropagator(
+              new B3Propagator({
+                injectEncoding: B3InjectEncoding.MULTI_HEADER,
+              }),
+            );
+          });
+
+          afterAll(() => {
+            propagation.disable();
+          });
+
+          it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
+            const url = 'http://example.com/api/echo-headers.json';
+            const response = await fetch(url);
+
+            await assertPropagationHeaders(response);
+          });
+
+          it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
+            instrumentation.setConfig({
+              propagateTraceHeaderCorsUrls: [/example.com/],
+            });
+            const url = 'http://example.com/api/echo-headers.json';
+            const response = await fetch(url);
+
+            const span = await waitForSpan(url);
+            await assertPropagationHeaders(response, span);
+            // reset for other tests
+            instrumentation.setConfig({
+              propagateTraceHeaderCorsUrls: [],
+            });
+          });
+        });
+      });
+    });
+
+    describe('long-lived streaming requests', () => {
+      // XXX: implement this test
     });
   });
 });
