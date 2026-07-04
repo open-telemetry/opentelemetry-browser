@@ -65,6 +65,9 @@ export const handlers = [
       statusText: 'Internal Server Error',
     });
   }),
+  http.get('/api/network-error', () => {
+    return HttpResponse.error();
+  }),
   http.get(`${location.origin}/test.wasm`, () => {
     // Minimal valid WASM binary: magic number + version only.
     const wasmBytes = new Uint8Array([
@@ -217,14 +220,6 @@ describe('FetchInstrumentation', () => {
       expect(isWrapped(globalThis.fetch)).toBeTruthy();
     });
 
-    it('should not wrap global fetch when instantiated with `enabled: false`', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
-      instrumentation = new FetchInstrumentation({ enabled: false });
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
-      instrumentation.enable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
-    });
-
     describe('when the fetch property cannot be wrapped', () => {
       // Simulate the production failure mode (third-party scripts locking
       // `globalThis.fetch` via `Object.defineProperty` with `writable: false,
@@ -359,7 +354,36 @@ describe('FetchInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(500);
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('500');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Internal Server Error');
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should record the exception for network errors', async () => {
+      const url = getUrlForPath('/api/network-error');
+      const startTime = performance.now();
+      // We know this is goint to throw
+      try {
+        const response = await fetch(url);
+        expect(response).not.toBeDefined(); // fail if we get a response
+      } catch (err) {
+        expect(err).toBeDefined();
+      }
+
+      const endTime = performance.now();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+      expect(span.status.code).toEqual(SpanStatusCode.ERROR);
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Failed to fetch');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });

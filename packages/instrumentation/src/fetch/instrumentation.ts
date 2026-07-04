@@ -173,14 +173,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
           function endSpanOnSuccess(span: Span, response: Response) {
             instrumentation._applyAttributesAfterFetch(span, options, response);
-            if (response.status >= 200 && response.status < 400) {
-              instrumentation._endSpan(span, response);
-            } else {
-              instrumentation._endSpan(span, {
-                status: response.status,
-                statusText: response.statusText,
-              });
-            }
+            instrumentation._endSpan(span, response);
           }
 
           function onSuccess(span: Span, response: Response): Response {
@@ -243,8 +236,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             try {
               endSpanOnError(span, error);
             } catch (e: unknown) {
-              // endSpanOnError failed — fall back to ending the span
-              // directly so _tasksCount doesn't leak.
+              // endSpanOnError failed — fall back to ending the span directly
               instrumentation._diag.error(
                 'Failed to end span on fetch error',
                 e,
@@ -327,10 +319,14 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
    */
   private _endSpan(span: Span, response: FetchResponse) {
     span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, response.status);
+
     // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
-    if (response.status >= 400) {
+    const isErrorStatus = response.status < 200 || response.status >= 400;
+    if (isErrorStatus) {
       span.setStatus({ code: SpanStatusCode.ERROR });
-      span.setAttribute(ATTR_ERROR_TYPE, String(response.status));
+      if (typeof response.statusText === 'string') {
+        span.setAttribute(ATTR_ERROR_TYPE, response.statusText);
+      }
     }
     span.end();
 
