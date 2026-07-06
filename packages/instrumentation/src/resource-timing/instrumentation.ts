@@ -3,10 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { isUrlIgnored } from '@opentelemetry/core';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
+import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
   cancelIdleCallbackShim,
@@ -154,14 +156,8 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           continue;
         }
 
-        let ignored: boolean;
-        try {
-          ignored = isUrlIgnored(entry.name, this._config.ignoreUrls);
-        } catch (e) {
-          this._diag.error('Failed to check ignoreUrls for resource entry', e);
-          continue;
-        }
-        if (ignored) {
+        const shouldIgnoreUrl = matchesUrl(entry.name, this._config.ignoreUrls);
+        if (shouldIgnoreUrl) {
           continue;
         }
 
@@ -246,7 +242,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _emitResource(entry: PerformanceResourceTiming): void {
     try {
-      this.logger.emit({
+      const record: LogRecord = {
         eventName: RESOURCE_TIMING_EVENT_NAME,
         severityNumber: SeverityNumber.INFO,
         attributes: {
@@ -272,7 +268,15 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
           // @ts-expect-error renderBlockingStatus is only available in Chromium as of March 2026
           [ATTR_RESOURCE_RENDER_BLOCKING_STATUS]: entry.renderBlockingStatus,
         },
-      });
+      };
+      const registry = getNetworkContextRegistry();
+      const ctx = registry.getContext(entry);
+      // Attach the context to the LogRecord and remove it from the registry
+      if (ctx) {
+        record.context = ctx;
+        registry.unregister(entry);
+      }
+      this.logger.emit(record);
     } catch (error) {
       this._diag.error(
         `Failed to emit resource timing entry for "${entry.name}"`,
