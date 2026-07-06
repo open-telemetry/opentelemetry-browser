@@ -107,7 +107,7 @@ export const handlers = [
       start(controller) {
         // Continuously push data to simulate a long connection
         timer = setInterval(() => {
-          if (pushes >= 50) {
+          if (pushes >= 25) {
             clearInterval(timer);
             controller.close();
             return;
@@ -150,7 +150,6 @@ describe('FetchInstrumentation', () => {
   beforeAll(async () => {
     await msWorker.start();
     inMemoryExporter = setupTestSpanExporter();
-    // instrumentation = new FetchInstrumentation();
   });
 
   beforeEach(() => {
@@ -168,8 +167,6 @@ describe('FetchInstrumentation', () => {
   });
 
   const getUrlForPath = (path: string) => {
-    // const url = new URL(location.href);
-    // url.pathname = path;
     const url = new URL(path, location.href);
     return url.href;
   };
@@ -221,6 +218,29 @@ describe('FetchInstrumentation', () => {
     expect(registerData?.endPerfNow).toBeLessThanOrEqual(options.endTime);
     expect(registeredSpan).toBeDefined();
     expect(registeredSpan?.spanContext()).toEqual(options.span.spanContext());
+  };
+
+  const assertPropagationHeaders = async (
+    response: Response,
+    span?: ReadableSpan,
+  ): Promise<Record<string, string>> => {
+    const { request } = await response.json();
+
+    if (span) {
+      expect(request.headers[X_B3_TRACE_ID]).toEqual(
+        span.spanContext().traceId,
+      );
+      expect(request.headers[X_B3_SPAN_ID]).toEqual(span.spanContext().spanId);
+      expect(request.headers[X_B3_SAMPLED]).toEqual(
+        String(span.spanContext().traceFlags),
+      );
+    } else {
+      expect(request.headers[X_B3_TRACE_ID]).toBeUndefined();
+      expect(request.headers[X_B3_SPAN_ID]).toBeUndefined();
+      expect(request.headers[X_B3_SAMPLED]).toBeUndefined();
+    }
+
+    return request.headers;
   };
 
   describe('enable/disable', () => {
@@ -400,7 +420,6 @@ describe('FetchInstrumentation', () => {
       } catch (err) {
         expect(err).toBeDefined();
       }
-
       const endTime = performance.now();
 
       // Span is exported
@@ -475,8 +494,14 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with sanitizeUrl configuration', () => {
-      it('should create spans for GET requests', async () => {
+      beforeAll(() => {
         instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
+      });
+      afterAll(() => {
+        instrumentation.setConfig({ sanitizeUrl: undefined });
+      });
+
+      it('should create spans for GET requests', async () => {
         const url = getUrlForPath('/api/get?api_key=secret&normal=value');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
@@ -501,7 +526,11 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with ignoreUrls configuration', () => {
-      it('should create spans for GET requests', async () => {
+      afterAll(() => {
+        instrumentation.setConfig({ sanitizeUrl: undefined });
+      });
+
+      it('should not create spans for GET requests if URL matches', async () => {
         const url = getUrlForPath('/api/get');
         instrumentation.setConfig({ ignoreUrls: [url] });
         await fetch(url);
@@ -510,8 +539,6 @@ describe('FetchInstrumentation', () => {
         expect(async () => await waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
-        // reset config
-        instrumentation.setConfig({ ignoreUrls: [] });
       });
     });
 
@@ -624,32 +651,143 @@ describe('FetchInstrumentation', () => {
       });
     });
 
+    describe('with applyCustomAttributesOnSpan configuration', () => {
+      afterEach(() => {
+        instrumentation.setConfig({ applyCustomAttributesOnSpan: undefined });
+      });
+
+      it('should not break fetch or instrumentation of throws', async () => {
+        instrumentation.setConfig({
+          applyCustomAttributesOnSpan: () => {
+            throw new Error('boom');
+          },
+        });
+        const url = getUrlForPath('/api/get');
+        const startTime = performance.now();
+        await fetch(url).then((r) => r.json());
+        const endTime = performance.now();
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(
+          VITEST_SERVER_NAME,
+        );
+        expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+        expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
+      });
+
+      it('should be able to set attributes on the span', async () => {
+        instrumentation.setConfig({
+          applyCustomAttributesOnSpan: (span) => {
+            span.setAttribute('custom.foo', 'bar');
+          },
+        });
+        const url = getUrlForPath('/api/get');
+        const startTime = performance.now();
+        await fetch(url).then((r) => r.json());
+        const endTime = performance.now();
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['custom.foo']).toEqual('bar');
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
+      });
+
+      it('should be able to acces to Request and Response', async () => {
+        instrumentation.setConfig({
+          applyCustomAttributesOnSpan: (span, req, res) => {
+            const reqHeaders = req.headers as Headers;
+            const resHeaders = (res as Response).headers;
+
+            // Set some attribs to do expectations later
+            span.setAttribute('has.req.access', reqHeaders instanceof Headers);
+            span.setAttribute('has.res.access', resHeaders instanceof Headers);
+            span.setAttribute('req.header.foo', reqHeaders.get('foo') || '');
+            span.setAttribute(
+              'res.header.ctype',
+              resHeaders.get('content-type') || '',
+            );
+            /*
+            Note: this confirms that nothing *in the instrumentation code*
+            consumed the response body; it doesn't guarantee that the response
+            object passed to the `applyCustomAttributes` hook will always have
+            a consumable body – in fact, this is typically *not* the case:
+
+            ```js
+            // user code:
+            let response = await fetch("foo");
+            let json = await response.json(); // <- user code consumes the body on `response`
+            // ...
+
+            {
+              // ...this is called sometime later...
+              applyCustomAttributes(span, request, response) {
+                // too late!
+                response.bodyUsed // => true
+              }
+            }
+            ```
+
+            See https://github.com/open-telemetry/opentelemetry-js/pull/5281
+          */
+            span.setAttribute('res.body.used', (res as Response).bodyUsed);
+          },
+        });
+        const url = getUrlForPath('/api/get');
+        await fetch(url, { headers: { foo: 'bar' } });
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['has.req.access']).toEqual(true);
+        expect(span.attributes['has.res.access']).toEqual(true);
+        expect(span.attributes['req.header.foo']).toEqual('bar');
+        expect(span.attributes['res.header.ctype']).toEqual('application/json');
+        expect(span.attributes['res.body.used']).toEqual(false);
+      });
+
+      // https://github.com/open-telemetry/opentelemetry-js/pull/5281
+      it('should not be able to access the response body if already consumed', async () => {
+        instrumentation.setConfig({
+          applyCustomAttributesOnSpan: (span, _req, res) => {
+            span.setAttribute('res.body.used', (res as Response).bodyUsed);
+          },
+        });
+        const url = getUrlForPath('/api/get');
+        const startTime = performance.now();
+        await fetch(url).then((r) => r.json());
+        const endTime = performance.now();
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['res.body.used']).toEqual(true);
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
+      });
+    });
+
     describe('trace propagation headers', () => {
-      const assertPropagationHeaders = async (
-        response: Response,
-        span?: ReadableSpan,
-      ): Promise<Record<string, string>> => {
-        const { request } = await response.json();
-
-        if (span) {
-          expect(request.headers[X_B3_TRACE_ID]).toEqual(
-            span.spanContext().traceId,
-          );
-          expect(request.headers[X_B3_SPAN_ID]).toEqual(
-            span.spanContext().spanId,
-          );
-          expect(request.headers[X_B3_SAMPLED]).toEqual(
-            String(span.spanContext().traceFlags),
-          );
-        } else {
-          expect(request.headers[X_B3_TRACE_ID]).toBeUndefined();
-          expect(request.headers[X_B3_SPAN_ID]).toBeUndefined();
-          expect(request.headers[X_B3_SAMPLED]).toBeUndefined();
-        }
-
-        return request.headers;
-      };
-
       describe('without global propagator', () => {
         it('should not set trace propagation headers', async () => {
           const url = getUrlForPath('/api/echo-headers.json');
@@ -870,30 +1008,11 @@ describe('FetchInstrumentation', () => {
       });
 
       describe('trace propagation headers', () => {
-        const assertPropagationHeaders = async (
-          response: Response,
-          span?: ReadableSpan,
-        ): Promise<Record<string, string>> => {
-          const { request } = await response.json();
-
-          if (span) {
-            expect(request.headers[X_B3_TRACE_ID]).toEqual(
-              span.spanContext().traceId,
-            );
-            expect(request.headers[X_B3_SPAN_ID]).toEqual(
-              span.spanContext().spanId,
-            );
-            expect(request.headers[X_B3_SAMPLED]).toEqual(
-              String(span.spanContext().traceFlags),
-            );
-          } else {
-            expect(request.headers[X_B3_TRACE_ID]).toBeUndefined();
-            expect(request.headers[X_B3_SPAN_ID]).toBeUndefined();
-            expect(request.headers[X_B3_SAMPLED]).toBeUndefined();
-          }
-
-          return request.headers;
-        };
+        afterEach(() => {
+          instrumentation.setConfig({
+            propagateTraceHeaderCorsUrls: [],
+          });
+        });
 
         describe('without global propagator', () => {
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
@@ -911,10 +1030,6 @@ describe('FetchInstrumentation', () => {
             const response = await fetch(url);
 
             await assertPropagationHeaders(response);
-            // reset for other tests
-            instrumentation.setConfig({
-              propagateTraceHeaderCorsUrls: [],
-            });
           });
         });
 
@@ -947,17 +1062,34 @@ describe('FetchInstrumentation', () => {
 
             const span = await waitForSpan(url);
             await assertPropagationHeaders(response, span);
-            // reset for other tests
-            instrumentation.setConfig({
-              propagateTraceHeaderCorsUrls: [],
-            });
           });
         });
       });
     });
 
     describe('long-lived streaming requests', () => {
-      // XXX: implement this test
+      it('should end the span when the stream completes', async () => {
+        const url = getUrlForPath('/api/stream');
+        const response = await fetch(url);
+
+        expect(response.body instanceof ReadableStream).toBeTruthy();
+
+        const reader = response.body?.getReader();
+        expect(reader).toBeTruthy();
+
+        const first = await reader!.read();
+        const text = new TextDecoder().decode(first.value);
+        expect(first.done).toBeFalsy();
+        expect(text).toMatch(/^data: \d+\n$/);
+
+        reader!.cancel('test-cancel');
+
+        // We increase here the timeout since the stream takes a bit more than 1sec.
+        // The instrumentation tracks completion via an eagerly-consumed clone;
+        // consumer-side cancellation does not propagate to the clone.
+        const span = await waitForSpan(url, 1500);
+        expect(span.ended).toBeTruthy();
+      });
     });
   });
 });
