@@ -787,6 +787,107 @@ describe('FetchInstrumentation', () => {
       });
     });
 
+    describe('with requestHook configuration', () => {
+      afterEach(() => {
+        instrumentation.setConfig({ requestHook: undefined });
+      });
+
+      it('should be able to set attributes on the span', async () => {
+        instrumentation.setConfig({
+          requestHook: (span) => {
+            span.setAttribute('custom.foo', 'bar');
+          },
+        });
+        const url = getUrlForPath('/api/get');
+        const startTime = performance.now();
+        await fetch(url).then((r) => r.json());
+        const endTime = performance.now();
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['custom.foo']).toEqual('bar');
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
+      });
+
+      it('should be able to modify headers with a string param', async () => {
+        instrumentation.setConfig({
+          requestHook: (span, req) => {
+            const isInitObj =
+              typeof req === 'object' && !(req instanceof Request);
+            span.setAttribute('is.req.init', isInitObj);
+            // @ts-expect-error -- read only prop in types
+            req.headers = { foo: 'bar' };
+          },
+        });
+        const url = getUrlForPath('/api/echo-headers.json');
+        const { request } = await fetch(url).then((r) => r.json());
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['is.req.init']).toEqual(true);
+        expect(request.headers.foo).toEqual('bar');
+      });
+
+      it('should be able to modify headers with a a url and RequestInit param', async () => {
+        instrumentation.setConfig({
+          requestHook: (span, req) => {
+            const isInitObj =
+              typeof req === 'object' && !(req instanceof Request);
+            span.setAttribute('is.req.init', isInitObj);
+            // @ts-expect-error -- possibly null and property not in type
+            req.headers.foo = 'bar';
+          },
+        });
+        const url = getUrlForPath('/api/echo-headers.json');
+        const { request } = await fetch(url, { headers: { baz: 'quux' } }).then(
+          (r) => r.json(),
+        );
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['is.req.init']).toEqual(true);
+        expect(request.headers.foo).toEqual('bar');
+        expect(request.headers.baz).toEqual('quux');
+      });
+
+      it('should be able to modify headers with a Request param', async () => {
+        instrumentation.setConfig({
+          requestHook: (span, req) => {
+            span.setAttribute('is.req', req instanceof Request);
+            (req as Request).headers.set('foo', 'bar');
+          },
+        });
+        const url = getUrlForPath('/api/echo-headers.json');
+        const { request } = await fetch(
+          new Request(url, { headers: { baz: 'quux' } }),
+        ).then((r) => r.json());
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes['is.req']).toEqual(true);
+        expect(request.headers.foo).toEqual('bar');
+        expect(request.headers.baz).toEqual('quux');
+      });
+    });
+
     describe('trace propagation headers', () => {
       describe('without global propagator', () => {
         it('should not set trace propagation headers', async () => {
