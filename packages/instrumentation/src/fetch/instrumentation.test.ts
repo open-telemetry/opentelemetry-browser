@@ -1108,7 +1108,7 @@ describe('FetchInstrumentation', () => {
         assertResourceRegistered({ span, url, startTime, endTime });
       });
 
-      describe('trace propagation headers', () => {
+      describe('with propagateTraceHeaderCorsUrls configuration', () => {
         afterEach(() => {
           instrumentation.setConfig({
             propagateTraceHeaderCorsUrls: [],
