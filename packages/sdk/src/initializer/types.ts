@@ -14,11 +14,11 @@ import type {
   LogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import type {
-  GeneralLimits,
   Sampler,
   SpanLimits,
   SpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
+import type { GeneralLimits } from '@opentelemetry/sdk-trace-base';
 
 /**
  * Export configuration. Can be used globally or per signal

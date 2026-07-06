@@ -12,6 +12,7 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.220.0",
     "@opentelemetry/sdk-logs": "^0.220.0",
+    "@opentelemetry/sdk-trace": "^2.9.0",
     "@opentelemetry/sdk-trace-web": "^2.9.0",
     "@opentelemetry/instrumentation": "^0.220.0",
     "@opentelemetry/instrumentation-fetch": "^0.220.0",

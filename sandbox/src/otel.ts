@@ -33,7 +33,7 @@ import {
   BatchSpanProcessor,
   ConsoleSpanExporter,
   SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import {
   ATTR_SERVICE_NAME,
@@ -91,14 +91,17 @@ export async function initOtel(
   });
   const spanProcessors = [
     createSessionSpanProcessor(sessionManager),
-    new BatchSpanProcessor(traceExporter, {
+    new BatchSpanProcessor({
+      exporter: traceExporter,
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
     }),
-    new SimpleSpanProcessor(new ConsoleSpanExporter()),
+    new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
   ];
   if (onSpan) {
-    spanProcessors.push(new SimpleSpanProcessor(createUISpanExporter(onSpan)));
+    spanProcessors.push(
+      new SimpleSpanProcessor({ exporter: createUISpanExporter(onSpan) }),
+    );
   }
 
   const traceProvider = new WebTracerProvider({ resource, spanProcessors });

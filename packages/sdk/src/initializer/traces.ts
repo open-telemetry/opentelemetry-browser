@@ -10,11 +10,9 @@ import {
   defaultResource,
   resourceFromAttributes,
 } from '@opentelemetry/resources';
-import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import {
-  BasicTracerProvider,
-  BatchSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
+import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 import { setSdkLogger } from './diag.ts';
 import type { TracesConfig, WebSdk } from './types.ts';
 
@@ -57,13 +55,13 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
 
     if (URL.parse(tracesEndpoint)) {
       spanProcessors.push(
-        new BatchSpanProcessor(
-          new OTLPTraceExporter({
+        new BatchSpanProcessor({
+          exporter: new OTLPTraceExporter({
             url: tracesEndpoint,
             headers: config?.exportConfig?.headers,
           }),
-          config?.batchProcessorConfig,
-        ),
+          ...config?.batchProcessorConfig,
+        }),
       );
     } else {
       diag.error(

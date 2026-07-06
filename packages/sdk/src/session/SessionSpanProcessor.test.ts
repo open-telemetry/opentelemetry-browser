@@ -4,7 +4,7 @@
  */
 
 import { ROOT_CONTEXT } from '@opentelemetry/api';
-import type { Span } from '@opentelemetry/sdk-trace-base';
+import type { Span } from '@opentelemetry/sdk-trace';
 import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
 import { describe, expect, it } from 'vitest';
 import { SessionSpanProcessor } from './SessionSpanProcessor.ts';

@@ -26,8 +26,8 @@ import {
 import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
-  WebTracerProvider,
-} from '@opentelemetry/sdk-trace-web';
+} from '@opentelemetry/sdk-trace';
+import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 // --- Resource detection ---
@@ -66,7 +66,7 @@ const provider = new WebTracerProvider({
   resource,
   spanProcessors: [
     createSessionSpanProcessor(sessionManager),
-    new SimpleSpanProcessor(new ConsoleSpanExporter()),
+    new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
   ],
 });
 provider.register();
