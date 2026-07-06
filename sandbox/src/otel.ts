@@ -108,15 +108,16 @@ export async function initOtel(
   const logExporter = new OTLPLogExporter({ url: config.logsUrl, headers: {} });
   const logProcessors = [
     createSessionLogRecordProcessor(sessionManager),
-    new BatchLogRecordProcessor(logExporter, {
+    new BatchLogRecordProcessor({
+      exporter: logExporter,
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
     }),
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ];
   if (onLog) {
     logProcessors.push(
-      new SimpleLogRecordProcessor(createUILogExporter(onLog)),
+      new SimpleLogRecordProcessor({ exporter: createUILogExporter(onLog) }),
     );
   }
 

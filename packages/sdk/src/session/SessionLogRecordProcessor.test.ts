@@ -24,7 +24,7 @@ describe('SessionLogRecordProcessor', () => {
     const exporter = new InMemoryLogRecordExporter();
     const processor = new SessionLogRecordProcessor(sessionProvider);
     const provider = new LoggerProvider({
-      processors: [processor, new SimpleLogRecordProcessor(exporter)],
+      processors: [processor, new SimpleLogRecordProcessor({ exporter })],
     });
 
     const logger = provider.getLogger('session-testing');
@@ -42,7 +42,7 @@ describe('SessionLogRecordProcessor', () => {
     const exporter = new InMemoryLogRecordExporter();
     const processor = new SessionLogRecordProcessor(sessionProvider);
     const provider = new LoggerProvider({
-      processors: [processor, new SimpleLogRecordProcessor(exporter)],
+      processors: [processor, new SimpleLogRecordProcessor({ exporter })],
     });
 
     const logger = provider.getLogger('session-testing');
@@ -57,7 +57,7 @@ describe('SessionLogRecordProcessor', () => {
     // biome-ignore lint/suspicious/noExplicitAny: testing missing provider
     const processor = new SessionLogRecordProcessor(null as any);
     const provider = new LoggerProvider({
-      processors: [processor, new SimpleLogRecordProcessor(exporter)],
+      processors: [processor, new SimpleLogRecordProcessor({ exporter })],
     });
 
     const logger = provider.getLogger('session-testing');

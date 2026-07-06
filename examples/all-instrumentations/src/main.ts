@@ -35,7 +35,7 @@ await sessionManager.start();
 const loggerProvider = new LoggerProvider({
   processors: [
     createSessionLogRecordProcessor(sessionManager),
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ],
 });
 

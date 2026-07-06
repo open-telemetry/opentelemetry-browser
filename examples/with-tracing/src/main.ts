@@ -56,7 +56,7 @@ const logProvider = new LoggerProvider({
   resource,
   processors: [
     createSessionLogRecordProcessor(sessionManager),
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ],
 });
 logs.setGlobalLoggerProvider(logProvider);

@@ -81,7 +81,9 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
-        new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+        new SimpleLogRecordProcessor({
+          exporter: new ConsoleLogRecordExporter(),
+        }),
       ],
     };
     sdkConfig.traces = {
