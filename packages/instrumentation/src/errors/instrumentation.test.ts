@@ -72,12 +72,16 @@ const dispatchUnhandledRejection = (
   window.dispatchEvent(event);
 };
 
-// The instrumentation does not expose its diag logger for testing, so reach
-// the internal `_diag` through a single typed accessor rather than casting in
-// each test.
+// The instrumentation does not expose its `_diag` or `logger` fields for
+// testing, so reach the internals through a single typed accessor rather than
+// casting in each test.
 const internals = (inst: ErrorsInstrumentation | undefined) =>
   inst as unknown as {
-    _diag: { debug: (...args: unknown[]) => void };
+    _diag: {
+      debug: (...args: unknown[]) => void;
+      error: (...args: unknown[]) => void;
+    };
+    logger: { emit: (record: unknown) => void };
   };
 
 describe('ErrorsInstrumentation', () => {
@@ -401,6 +405,65 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
         'Something happened!',
       );
+    });
+  });
+
+  describe('failure containment', () => {
+    beforeEach(() => {
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      instrumentation.enable();
+    });
+
+    it('should contain a throwing LogRecordProcessor and surface it via diag', () => {
+      const accessor = internals(instrumentation);
+      const diagSpy = vi.spyOn(accessor._diag, 'error');
+      const emitSpy = vi
+        .spyOn(accessor.logger, 'emit')
+        .mockImplementation(() => {
+          throw new Error('processor exploded');
+        });
+
+      try {
+        // A throw escaping the listener would re-trigger 'error' and loop.
+        expect(() =>
+          dispatchErrorEvent(new ValidationError('boom')),
+        ).not.toThrow();
+
+        // Exactly once: the contained throw did not re-enter the listener.
+        expect(emitSpy).toHaveBeenCalledTimes(1);
+        expect(diagSpy).toHaveBeenCalledWith(
+          'failed to record exception',
+          expect.any(Error),
+        );
+      } finally {
+        emitSpy.mockRestore();
+        diagSpy.mockRestore();
+      }
+    });
+
+    it('should contain a rejection reason that throws while its properties are read', () => {
+      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'error');
+
+      // A promise can reject with any value. This one throws while its `stack`
+      // is read, exercising the extraction path before emit is ever reached.
+      const hostileReason = {} as Error;
+      Object.defineProperty(hostileReason, 'stack', {
+        get() {
+          throw new Error('stack getter exploded');
+        },
+      });
+
+      try {
+        expect(() => dispatchUnhandledRejection(hostileReason)).not.toThrow();
+
+        expect(getErrorLogs()).toHaveLength(0);
+        expect(diagSpy).toHaveBeenCalledWith(
+          'failed to record exception',
+          expect.any(Error),
+        );
+      } finally {
+        diagSpy.mockRestore();
+      }
     });
   });
 });
