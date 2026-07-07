@@ -5,7 +5,7 @@
 
 import { ROOT_CONTEXT } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/sdk-trace';
-import { BasicTracerProvider } from '@opentelemetry/sdk-trace-base';
+import { TracerProvider } from '@opentelemetry/sdk-trace';
 import { describe, expect, it } from 'vitest';
 import { SessionSpanProcessor } from './SessionSpanProcessor.ts';
 
@@ -15,7 +15,7 @@ describe('SessionSpanProcessor', () => {
       'session.id': '12345678',
     };
 
-    const tracer = new BasicTracerProvider().getTracer('session-testing');
+    const tracer = new TracerProvider().getTracer('session-testing');
     const span = tracer.startSpan('test-span') as Span;
 
     const sessionProvider = {
@@ -29,7 +29,7 @@ describe('SessionSpanProcessor', () => {
   });
 
   it('does not add session.id attribute when there is no session', () => {
-    const tracer = new BasicTracerProvider().getTracer('session-testing');
+    const tracer = new TracerProvider().getTracer('session-testing');
     const span = tracer.startSpan('test-span') as Span;
 
     const sessionProvider = {
@@ -43,7 +43,7 @@ describe('SessionSpanProcessor', () => {
   });
 
   it('does not add session.id attribute when there is no provider', () => {
-    const tracer = new BasicTracerProvider().getTracer('session-testing');
+    const tracer = new TracerProvider().getTracer('session-testing');
     const span = tracer.startSpan('test-span') as Span;
 
     // biome-ignore lint/suspicious/noExplicitAny: testing missing provider
@@ -61,7 +61,7 @@ describe('SessionSpanProcessor', () => {
   });
 
   it('onEnd is a no-op and does not throw error', () => {
-    const tracer = new BasicTracerProvider().getTracer('session-testing');
+    const tracer = new TracerProvider().getTracer('session-testing');
     const span = tracer.startSpan('test-span') as Span;
 
     const processor = new SessionSpanProcessor({

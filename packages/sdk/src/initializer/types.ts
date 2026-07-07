@@ -18,7 +18,6 @@ import type {
   SpanLimits,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace';
-import type { GeneralLimits } from '@opentelemetry/sdk-trace-base';
 
 /**
  * Export configuration. Can be used globally or per signal
@@ -131,8 +130,6 @@ export type RootConfig = CommonConfig & {
    * unless signal specific configuration is set for the signal.
    */
   exportConfig?: ExportConfig;
-  // General Limits
-  generalLimits?: GeneralLimits;
   // TODO: to be discussed in Browser SIG
   // Basic options that could translate to more complex ones
   // in specific signals like
