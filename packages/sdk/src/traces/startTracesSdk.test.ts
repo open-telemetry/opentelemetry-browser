@@ -4,7 +4,7 @@
  */
 
 import { diag, trace } from '@opentelemetry/api';
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { WebSdk } from '../core/types.ts';
 import { startTracesSdk } from './startTracesSdk.ts';
@@ -203,8 +203,10 @@ describe('startTracesSdk', () => {
     tracesSdk = startTracesSdk({
       processors: [
         new SimpleSpanProcessor({
-          export: () => (exportCalled = true),
-          shutdown: () => Promise.resolve(),
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
         }),
       ],
     });
@@ -229,8 +231,10 @@ describe('startTracesSdk', () => {
       exportConfig: { url },
       processors: [
         new SimpleSpanProcessor({
-          export: () => (exportCalled = true),
-          shutdown: () => Promise.resolve(),
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
         }),
       ],
     });
