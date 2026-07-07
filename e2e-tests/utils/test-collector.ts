@@ -117,6 +117,8 @@ export function setupCollector(): TestCollector {
         ),
       ),
     cleanup: () => {
+      tracePayloads.length = 0;
+      logPayloads.length = 0;
       worker?.resetHandlers();
     },
   };

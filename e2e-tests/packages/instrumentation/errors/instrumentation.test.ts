@@ -69,7 +69,7 @@ describe('ErrorsInstrumentation', () => {
         const log = logs[0];
         expect(log).toBeDefined();
         if (!log) {
-          return;
+          throw new Error('Log record is undefined');
         }
 
         const attr = (key: string) =>
@@ -98,7 +98,7 @@ describe('ErrorsInstrumentation', () => {
         const log = logs[0];
         expect(log).toBeDefined();
         if (!log) {
-          return;
+          throw new Error('Log record is undefined');
         }
 
         const attr = (key: string) =>
@@ -126,7 +126,7 @@ describe('ErrorsInstrumentation', () => {
         const log = logs[0];
         expect(log).toBeDefined();
         if (!log) {
-          return;
+          throw new Error('Log record is undefined');
         }
 
         const attr = (key: string) =>
@@ -160,7 +160,7 @@ describe('ErrorsInstrumentation', () => {
         const log = logs[0];
         expect(log).toBeDefined();
         if (!log) {
-          return;
+          throw new Error('Log record is undefined');
         }
 
         const attr = (key: string) =>
