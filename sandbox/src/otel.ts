@@ -33,7 +33,7 @@ import {
   BatchSpanProcessor,
   ConsoleSpanExporter,
   SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import {
   ATTR_SERVICE_NAME,
@@ -91,14 +91,17 @@ export async function initOtel(
   });
   const spanProcessors = [
     createSessionSpanProcessor(sessionManager),
-    new BatchSpanProcessor(traceExporter, {
+    new BatchSpanProcessor({
+      exporter: traceExporter,
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
     }),
-    new SimpleSpanProcessor(new ConsoleSpanExporter()),
+    new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
   ];
   if (onSpan) {
-    spanProcessors.push(new SimpleSpanProcessor(createUISpanExporter(onSpan)));
+    spanProcessors.push(
+      new SimpleSpanProcessor({ exporter: createUISpanExporter(onSpan) }),
+    );
   }
 
   const traceProvider = new WebTracerProvider({ resource, spanProcessors });
@@ -108,15 +111,16 @@ export async function initOtel(
   const logExporter = new OTLPLogExporter({ url: config.logsUrl, headers: {} });
   const logProcessors = [
     createSessionLogRecordProcessor(sessionManager),
-    new BatchLogRecordProcessor(logExporter, {
+    new BatchLogRecordProcessor({
+      exporter: logExporter,
       maxExportBatchSize: 10,
       scheduledDelayMillis: 1_000,
     }),
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ];
   if (onLog) {
     logProcessors.push(
-      new SimpleLogRecordProcessor(createUILogExporter(onLog)),
+      new SimpleLogRecordProcessor({ exporter: createUILogExporter(onLog) }),
     );
   }
 

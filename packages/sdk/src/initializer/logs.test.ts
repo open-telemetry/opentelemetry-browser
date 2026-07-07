@@ -204,9 +204,11 @@ describe('startLogsSdk', () => {
     logsSdk = startLogsSdk({
       processors: [
         new SimpleLogRecordProcessor({
-          export: () => (exportCalled = true),
-          shutdown: () => Promise.resolve(),
-          forceFlush: () => Promise.resolve(),
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
         }),
       ],
     });
@@ -231,9 +233,11 @@ describe('startLogsSdk', () => {
       exportConfig: { url },
       processors: [
         new SimpleLogRecordProcessor({
-          export: () => (exportCalled = true),
-          shutdown: () => Promise.resolve(),
-          forceFlush: () => Promise.resolve(),
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
         }),
       ],
     });

@@ -11,7 +11,7 @@ import {
 import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
 import { startLogsSdk } from './logs.ts';
 import { combineSdks } from './sdk.ts';
 import { startTracesSdk } from './traces.ts';
@@ -81,11 +81,15 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
-        new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+        new SimpleLogRecordProcessor({
+          exporter: new ConsoleLogRecordExporter(),
+        }),
       ],
     };
     sdkConfig.traces = {
-      processors: [new SimpleSpanProcessor(new ConsoleSpanExporter())],
+      processors: [
+        new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
+      ],
     };
   }
 
