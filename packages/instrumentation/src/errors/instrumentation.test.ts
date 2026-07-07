@@ -72,12 +72,16 @@ const dispatchUnhandledRejection = (
   window.dispatchEvent(event);
 };
 
-// The instrumentation does not expose its diag logger for testing, so reach
-// the internal `_diag` through a single typed accessor rather than casting in
-// each test.
+// The instrumentation does not expose its diag logger or logger for testing,
+// so reach the internals through a single typed accessor rather than casting
+// in each test.
 const internals = (inst: ErrorsInstrumentation | undefined) =>
   inst as unknown as {
-    _diag: { debug: (...args: unknown[]) => void };
+    _diag: {
+      debug: (...args: unknown[]) => void;
+      error: (...args: unknown[]) => void;
+    };
+    logger: { emit: (record: unknown) => void };
   };
 
 describe('ErrorsInstrumentation', () => {
@@ -380,6 +384,35 @@ describe('ErrorsInstrumentation', () => {
       const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('overridden');
+    });
+
+    it('should contain a throwing LogRecordProcessor and surface it via diag', () => {
+      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      instrumentation.enable();
+
+      const accessor = internals(instrumentation);
+      const diagSpy = vi.spyOn(accessor._diag, 'error');
+      const emitSpy = vi
+        .spyOn(accessor.logger, 'emit')
+        .mockImplementation(() => {
+          throw new Error('processor exploded');
+        });
+
+      try {
+        dispatchErrorEvent(new ValidationError('boom'));
+
+        // Emit is attempted exactly once (no re-entry), no log escapes, and
+        // the failure is surfaced rather than swallowed.
+        expect(emitSpy).toHaveBeenCalledTimes(1);
+        expect(getErrorLogs()).toHaveLength(0);
+        expect(diagSpy).toHaveBeenCalledWith(
+          'failed to emit exception log',
+          expect.any(Error),
+        );
+      } finally {
+        emitSpy.mockRestore();
+        diagSpy.mockRestore();
+      }
     });
 
     it('should still emit standard attributes when the hook throws', () => {

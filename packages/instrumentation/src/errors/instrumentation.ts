@@ -116,7 +116,17 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
       attributes: { ...errorAttributes, ...customAttributes },
     };
 
-    this.logger.emit(logRecord);
+    // A throwing LogRecordProcessor would otherwise let the exception escape
+    // this global error listener; contain it and surface the failure via diag.
+    safeExecuteInTheMiddle(
+      () => this.logger.emit(logRecord),
+      (err) => {
+        if (err) {
+          this._diag.error('failed to emit exception log', err);
+        }
+      },
+      true,
+    );
   }
 
   private _applyCustomAttributes(error: Error | string): Attributes {
