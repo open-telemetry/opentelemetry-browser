@@ -211,4 +211,3 @@ export type TracesConfig = CommonConfig & {
 export interface WebSdk {
   shutdown(): Promise<void>;
 }
-export type WebSdkFactory<T> = (config?: T) => WebSdk;

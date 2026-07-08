@@ -15,8 +15,8 @@ import {
   BatchLogRecordProcessor,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
-import { setSdkLogger } from './diag.ts';
-import type { LogsConfig, WebSdk } from './types.ts';
+import { setSdkLogger } from '../core/diag.ts';
+import type { LogsConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
 const NOOP_SDK = { shutdown: () => Promise.resolve() };

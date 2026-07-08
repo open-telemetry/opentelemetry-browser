@@ -12,9 +12,9 @@ import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
-import { startLogsSdk } from './logs.ts';
-import { combineSdks } from './sdk.ts';
-import { startTracesSdk } from './traces.ts';
+import { combineSdks } from './core/sdk.ts';
+import { startLogsSdk } from './logs/startLogsSdk.ts';
+import { startTracesSdk } from './traces/startTracesSdk.ts';
 
 /**
  * Combination of all singal SDKs into one. A shorthand for users to
@@ -26,7 +26,7 @@ export const startBrowserSdk = combineSdks({
   traces: startTracesSdk,
 });
 
-interface QuickStartConfig {
+export interface QuickStartConfig {
   /**
    * Set `disabled: true` to disable the SDK
    *
