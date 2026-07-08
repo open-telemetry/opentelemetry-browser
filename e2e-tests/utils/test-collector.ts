@@ -64,62 +64,64 @@ interface ExportLogsServiceRequest {
   }>;
 }
 
-// ── MSW worker (singleton) ─────────────────────────────────────────────────────
+// ── Internal singleton state ───────────────────────────────────────────────────
 
 let worker: ReturnType<typeof setupWorker> | undefined;
+let tracePayloads: ExportTraceServiceRequest[] = [];
+let logPayloads: ExportLogsServiceRequest[] = [];
 
-export async function startMsw(...handlers: HttpHandler[]): Promise<void> {
-  worker = setupWorker(...handlers);
-  await worker.start({ onUnhandledRequest: 'error', quiet: true });
-}
+// ── Collector ─────────────────────────────────────────────────────────────────
 
-export function stopMsw(): void {
-  worker?.stop();
-  worker = undefined;
-}
+export const collector = {
+  /** Start MSW and intercept OTLP exports. Call once in beforeAll. */
+  async start(): Promise<void> {
+    worker = setupWorker(
+      http.post(COLLECTOR_URL, async ({ request }) => {
+        tracePayloads.push((await request.json()) as ExportTraceServiceRequest);
+        return HttpResponse.json({});
+      }),
+      http.post(LOGS_COLLECTOR_URL, async ({ request }) => {
+        logPayloads.push((await request.json()) as ExportLogsServiceRequest);
+        return HttpResponse.json({});
+      }),
+    );
+    await worker.start({ onUnhandledRequest: 'error', quiet: true });
+  },
 
-// ── Test collector ─────────────────────────────────────────────────────────────
+  /** Stop MSW and discard all captured data. Call once in afterAll. */
+  stop(): void {
+    worker?.stop();
+    worker = undefined;
+    tracePayloads = [];
+    logPayloads = [];
+  },
 
-export interface TestCollector {
-  getSpans: () => OtlpSpan[];
-  getLogs: () => OtlpLogRecord[];
-  cleanup: () => void;
-}
+  /**
+   * Clear captured payloads and remove any runtime handlers added via `use()`.
+   * Call in afterEach to isolate tests.
+   */
+  reset(): void {
+    tracePayloads.length = 0;
+    logPayloads.length = 0;
+    worker?.resetHandlers();
+  },
 
-export function setupCollector(): TestCollector {
-  const tracePayloads: ExportTraceServiceRequest[] = [];
-  const logPayloads: ExportLogsServiceRequest[] = [];
+  /** Add runtime MSW handlers for the current test (cleared by reset()). */
+  use(...handlers: HttpHandler[]): void {
+    worker?.use(...handlers);
+  },
 
-  worker?.use(
-    http.post(COLLECTOR_URL, async ({ request }) => {
-      const payload = (await request.json()) as ExportTraceServiceRequest;
-      tracePayloads.push(payload);
-      return HttpResponse.json({});
-    }),
-    http.post(LOGS_COLLECTOR_URL, async ({ request }) => {
-      const payload = (await request.json()) as ExportLogsServiceRequest;
-      logPayloads.push(payload);
-      return HttpResponse.json({});
-    }),
-  );
+  getSpans(): OtlpSpan[] {
+    return tracePayloads.flatMap((p) =>
+      p.resourceSpans.flatMap((rs) => rs.scopeSpans.flatMap((ss) => ss.spans)),
+    );
+  },
 
-  return {
-    getSpans: () =>
-      tracePayloads.flatMap((p) =>
-        p.resourceSpans.flatMap((rs) =>
-          rs.scopeSpans.flatMap((ss) => ss.spans),
-        ),
+  getLogs(): OtlpLogRecord[] {
+    return logPayloads.flatMap((p) =>
+      p.resourceLogs.flatMap((rl) =>
+        rl.scopeLogs.flatMap((sl) => sl.logRecords),
       ),
-    getLogs: () =>
-      logPayloads.flatMap((p) =>
-        p.resourceLogs.flatMap((rl) =>
-          rl.scopeLogs.flatMap((sl) => sl.logRecords),
-        ),
-      ),
-    cleanup: () => {
-      tracePayloads.length = 0;
-      logPayloads.length = 0;
-      worker?.resetHandlers();
-    },
-  };
-}
+    );
+  },
+};

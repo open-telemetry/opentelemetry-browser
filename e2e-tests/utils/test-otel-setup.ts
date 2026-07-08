@@ -1,65 +1,38 @@
 import { trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import {
-  LoggerProvider,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
-import {
-  SimpleSpanProcessor,
-  WebTracerProvider,
-} from '@opentelemetry/sdk-trace-web';
-import type { OtlpLogRecord, OtlpSpan } from './test-collector.ts';
-import {
-  COLLECTOR_URL,
-  LOGS_COLLECTOR_URL,
-  setupCollector,
-} from './test-collector.ts';
+import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-web';
+import { COLLECTOR_URL, LOGS_COLLECTOR_URL } from './test-collector.ts';
 
-export interface TestOtelSetupResult {
-  getSpans: () => OtlpSpan[];
-  getLogs: () => OtlpLogRecord[];
-  cleanup: () => Promise<void>;
-}
-
-export function testOtelSetup(
-  instrumentations: Instrumentation[],
-): TestOtelSetupResult {
-  const collector = setupCollector();
-
-  const traceExporter = new OTLPTraceExporter({
-    url: COLLECTOR_URL,
-    timeoutMillis: 1,
+export function testSdkSetup(instrumentations: Instrumentation[]) {
+  const sdk = startBrowserSdk({
+    logs: {
+      processors: [
+        new SimpleLogRecordProcessor({
+          exporter: new OTLPLogExporter({ url: LOGS_COLLECTOR_URL }),
+        }),
+      ],
+    },
+    traces: {
+      processors: [
+        new SimpleSpanProcessor(new OTLPTraceExporter({ url: COLLECTOR_URL })),
+      ],
+    },
   });
-  const provider = new WebTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(traceExporter)],
-  });
-  provider.register();
-
-  const logExporter = new OTLPLogExporter({
-    url: LOGS_COLLECTOR_URL,
-    timeoutMillis: 1,
-  });
-  const logProvider = new LoggerProvider({
-    processors: [new SimpleLogRecordProcessor(logExporter)],
-  });
-  logs.setGlobalLoggerProvider(logProvider);
 
   const deregister = registerInstrumentations({ instrumentations });
 
   return {
-    getSpans: collector.getSpans,
-    getLogs: collector.getLogs,
-    cleanup: async () => {
+    shutdown: async () => {
+      await sdk.shutdown();
       deregister();
-      await provider.shutdown();
-      await logProvider.shutdown();
-      trace.disable();
       logs.disable();
-      collector.cleanup();
+      trace.disable();
     },
   };
 }

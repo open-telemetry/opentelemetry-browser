@@ -13,9 +13,8 @@ import {
   it,
   vi,
 } from 'vitest';
-import { startMsw, stopMsw } from '../../../utils/test-collector.ts';
-import type { TestOtelSetupResult } from '../../../utils/test-otel-setup.ts';
-import { testOtelSetup } from '../../../utils/test-otel-setup.ts';
+import { collector } from '../../../utils/test-collector.ts';
+import { testSdkSetup } from '../../../utils/test-otel-setup.ts';
 
 // Dispatch a synthetic error event without actually crashing the browser page.
 // We suppress the default reporting behavior with a capture-phase listener that
@@ -42,29 +41,30 @@ const dispatchUnhandledRejection = (reason: Error | string) => {
 };
 
 describe('ErrorsInstrumentation', () => {
-  let result: TestOtelSetupResult;
+  let result: ReturnType<typeof testSdkSetup>;
 
   beforeAll(async () => {
-    await startMsw();
+    await collector.start();
   });
 
   afterAll(() => {
-    stopMsw();
+    collector.stop();
   });
 
   afterEach(async () => {
-    await result.cleanup();
+    await result.shutdown();
+    collector.reset();
   });
 
   it('emits a log record with exception attributes when an Error is thrown', async () => {
-    result = testOtelSetup([new ErrorsInstrumentation()]);
+    result = testSdkSetup([new ErrorsInstrumentation()]);
 
     const error = new TypeError('Something went wrong');
     dispatchErrorEvent(error);
 
     await vi.waitFor(
       () => {
-        const logs = result.getLogs();
+        const logs = collector.getLogs();
         expect(logs).toHaveLength(1);
         const log = logs[0];
         expect(log).toBeDefined();
@@ -87,13 +87,13 @@ describe('ErrorsInstrumentation', () => {
   });
 
   it('emits a log record with only exception.message when the error is a string', async () => {
-    result = testOtelSetup([new ErrorsInstrumentation()]);
+    result = testSdkSetup([new ErrorsInstrumentation()]);
 
     dispatchErrorEvent('plain string error');
 
     await vi.waitFor(
       () => {
-        const logs = result.getLogs();
+        const logs = collector.getLogs();
         expect(logs).toHaveLength(1);
         const log = logs[0];
         expect(log).toBeDefined();
@@ -115,13 +115,13 @@ describe('ErrorsInstrumentation', () => {
   });
 
   it('emits a log record when a promise is rejected with an Error', async () => {
-    result = testOtelSetup([new ErrorsInstrumentation()]);
+    result = testSdkSetup([new ErrorsInstrumentation()]);
 
     dispatchUnhandledRejection(new RangeError('Out of bounds'));
 
     await vi.waitFor(
       () => {
-        const logs = result.getLogs();
+        const logs = collector.getLogs();
         expect(logs).toHaveLength(1);
         const log = logs[0];
         expect(log).toBeDefined();
@@ -142,7 +142,7 @@ describe('ErrorsInstrumentation', () => {
   });
 
   it('merges custom attributes from applyCustomAttributes', async () => {
-    result = testOtelSetup([
+    result = testSdkSetup([
       new ErrorsInstrumentation({
         applyCustomAttributes: (error) => ({
           'app.error.handled': false,
@@ -155,7 +155,7 @@ describe('ErrorsInstrumentation', () => {
 
     await vi.waitFor(
       () => {
-        const logs = result.getLogs();
+        const logs = collector.getLogs();
         expect(logs).toHaveLength(1);
         const log = logs[0];
         expect(log).toBeDefined();
