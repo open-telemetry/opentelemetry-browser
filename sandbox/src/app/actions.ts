@@ -51,7 +51,7 @@ export function createActions(tracer: Tracer, logger: Logger) {
     const errorSpan = tracer.startSpan('js-error-event');
     try {
       // @ts-expect-error generating an error on purpose
-      void {}.undefinedProperty;
+      ({}).undefinedMethod();
     } catch (e) {
       errorSpan.recordException(e as Error);
       errorSpan.setStatus({
