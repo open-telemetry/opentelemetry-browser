@@ -60,6 +60,12 @@ For detailed configuration options, see the [instrumentation package README](./p
 
 For a more complete setup combining event-based instrumentations from this repository with span-based instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib), see the [examples](./examples/) directory.
 
+## Documentation
+
+- [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in session support.
+- [Browser Events](./docs/browser-observability-model.md) — catalog of browser telemetry events.
+- [Navigation event](./docs/navigation-event.md) — deep dive on the `browser.navigation` event.
+
 ## Browser Packages
 
 The following tables list browser-related packages across all OpenTelemetry JS repositories.

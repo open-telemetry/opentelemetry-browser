@@ -386,42 +386,7 @@ startBrowserSdk({
 
 The session processors must be registered **before** the export processors so the `session.id` attribute is set on each span / log record before it is exported.
 
-The above implementation can be customized by providing different implementations of `SessionStore` and `SessionIdGenerator`.
-
-### Observing sessions
-
-The `SessionManager` provides a mechanism for observing sessions. This is useful when other components should be notified when a session is started or ended.
-
-```javascript
-sessionManager.addObserver({
-  onSessionStarted: (newSession, previousSession) => {
-    console.log('Session started', newSession, previousSession);
-  },
-  onSessionEnded: (session) => {
-    console.log('Session ended', session);
-  },
-});
-```
-
-### Custom implementation of managing sessions
-
-If you require a completely custom solution for managing sessions, you can still use the processors that attach attributes to spans/logs by passing your own `getSessionId` implementation:
-
-```javascript
-const customSessionProvider = {
-  getSessionId: () => 'abcd1234',
-};
-
-startBrowserSdk({
-  serviceName: 'my-service',
-  traces: {
-    processors: [createSessionSpanProcessor(customSessionProvider)],
-  },
-  logs: {
-    processors: [createSessionLogRecordProcessor(customSessionProvider)],
-  },
-});
-```
+For session lifecycle details, configuration reference, observing sessions, custom `SessionStore`/`SessionIdGenerator` implementations, and known limitations, see [Session Management](../../docs/session-management.md).
 
 ## Useful links
 
