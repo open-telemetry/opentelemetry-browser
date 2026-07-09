@@ -173,11 +173,13 @@ describe('quickStartBrowserSdk', () => {
   // spy and restores it in its `afterAll`.
   let fetchSpy: MockInstance;
   let consoleDirSpy: MockInstance;
+  let diagDebugSpy: MockInstance;
   let browserSdk: WebSdk;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
     consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+    diagDebugSpy = vi.spyOn(diag, 'debug');
   });
   afterEach(async () => {
     // A test may already have shut the SDK down to flush its batch
@@ -190,8 +192,26 @@ describe('quickStartBrowserSdk', () => {
     }
     fetchSpy.mockRestore();
     consoleDirSpy.mockRestore();
+    diagDebugSpy.mockRestore();
     logs.disable();
     trace.disable();
+  });
+
+  it('should not start when disabled by configuration', async () => {
+    // Act
+    browserSdk = quickStartBrowserSdk({
+      disabled: true,
+      exportUrl: 'http://otlp-signal-endpoint:4318',
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    // A started SDK would flush and export here; a disabled one must not
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(diagDebugSpy).toHaveBeenCalled();
+    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should forward the export URL and headers to the exporters', async () => {
