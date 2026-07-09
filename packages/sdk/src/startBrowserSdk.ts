@@ -11,10 +11,10 @@ import {
 import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
-import { startLogsSdk } from './logs.ts';
-import { combineSdks } from './sdk.ts';
-import { startTracesSdk } from './traces.ts';
+} from '@opentelemetry/sdk-trace';
+import { combineSdks } from './core/sdk.ts';
+import { startLogsSdk } from './logs/startLogsSdk.ts';
+import { startTracesSdk } from './traces/startTracesSdk.ts';
 
 /**
  * Combination of all singal SDKs into one. A shorthand for users to
@@ -26,7 +26,7 @@ export const startBrowserSdk = combineSdks({
   traces: startTracesSdk,
 });
 
-interface QuickStartConfig {
+export interface QuickStartConfig {
   /**
    * Set `disabled: true` to disable the SDK
    *
@@ -81,11 +81,15 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
-        new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+        new SimpleLogRecordProcessor({
+          exporter: new ConsoleLogRecordExporter(),
+        }),
       ],
     };
     sdkConfig.traces = {
-      processors: [new SimpleSpanProcessor(new ConsoleSpanExporter())],
+      processors: [
+        new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
+      ],
     };
   }
 

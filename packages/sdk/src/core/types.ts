@@ -14,11 +14,10 @@ import type {
   LogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import type {
-  GeneralLimits,
   Sampler,
   SpanLimits,
   SpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
 
 /**
  * Export configuration. Can be used globally or per signal
@@ -131,8 +130,6 @@ export type RootConfig = CommonConfig & {
    * unless signal specific configuration is set for the signal.
    */
   exportConfig?: ExportConfig;
-  // General Limits
-  generalLimits?: GeneralLimits;
   // TODO: to be discussed in Browser SIG
   // Basic options that could translate to more complex ones
   // in specific signals like
@@ -214,4 +211,3 @@ export type TracesConfig = CommonConfig & {
 export interface WebSdk {
   shutdown(): Promise<void>;
 }
-export type WebSdkFactory<T> = (config?: T) => WebSdk;

@@ -10,13 +10,10 @@ import {
   defaultResource,
   resourceFromAttributes,
 } from '@opentelemetry/resources';
-import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import {
-  BasicTracerProvider,
-  BatchSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
-import { setSdkLogger } from './diag.ts';
-import type { TracesConfig, WebSdk } from './types.ts';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace';
+import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
+import { setSdkLogger } from '../core/diag.ts';
+import type { TracesConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
 const NOOP_SDK = { shutdown: () => Promise.resolve() };
@@ -57,13 +54,13 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
 
     if (URL.parse(tracesEndpoint)) {
       spanProcessors.push(
-        new BatchSpanProcessor(
-          new OTLPTraceExporter({
+        new BatchSpanProcessor({
+          exporter: new OTLPTraceExporter({
             url: tracesEndpoint,
             headers: config?.exportConfig?.headers,
           }),
-          config?.batchProcessorConfig,
-        ),
+          ...config?.batchProcessorConfig,
+        }),
       );
     } else {
       diag.error(
@@ -77,7 +74,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     // TODO: need to discuss with the SIG if it's better to return `undefined`
     return NOOP_SDK;
   }
-  const tracerProvider = new BasicTracerProvider({
+  const tracerProvider = new TracerProvider({
     // sampler: new TraceIdRatioBasedSampler(
     //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
     // ),
