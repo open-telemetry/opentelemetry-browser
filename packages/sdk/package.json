@@ -1,7 +1,6 @@
 {
   "name": "@opentelemetry/browser-sdk",
   "version": "0.1.0",
-  "private": true,
   "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",

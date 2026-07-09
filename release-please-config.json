@@ -7,6 +7,10 @@
     "packages/instrumentation": {
       "component": "browser-instrumentation",
       "changelog-path": "CHANGELOG.md"
+    },
+    "packages/sdk": {
+      "component": "browser-sdk",
+      "changelog-path": "CHANGELOG.md"
     }
   }
 }

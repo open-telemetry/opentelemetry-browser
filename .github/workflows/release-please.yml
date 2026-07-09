@@ -18,6 +18,7 @@ jobs:
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       browser-instrumentation-release_created: ${{ steps.release.outputs['packages/instrumentation--release_created'] }}
+      browser-sdk-release_created: ${{ steps.release.outputs['packages/sdk--release_created'] }}
     steps:
       - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app-token
@@ -58,3 +59,7 @@ jobs:
       - name: Publish @opentelemetry/browser-instrumentation
         if: needs.release-please.outputs.browser-instrumentation-release_created == 'true'
         run: npm publish --workspace=packages/instrumentation --provenance --access public
+
+      - name: Publish @opentelemetry/browser-sdk
+        if: needs.release-please.outputs.browser-sdk-release_created == 'true'
+        run: npm publish --workspace=packages/sdk --provenance --access public
