@@ -93,5 +93,5 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     };
   }
 
-  return startBrowserSdk();
+  return startBrowserSdk(sdkConfig);
 }
