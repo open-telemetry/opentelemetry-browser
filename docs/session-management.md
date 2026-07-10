@@ -1,3 +1,5 @@
+# Session Management
+
 ## Overview
 
 Sessions correlate multiple traces, events and logs that happen within a given time period.
@@ -94,26 +96,26 @@ interface Session {
 
 `createSessionManager` accepts a `SessionManagerConfig`:
 
-#### sessionIdGenerator
+### sessionIdGenerator
 
 A `SessionIdGenerator` (an object with `generateSessionId(): string`) responsible for producing
 new session IDs. Required. Use `createDefaultSessionIdGenerator()` for the built-in implementation,
 or provide your own — see [Custom implementations](#custom-implementations).
 
-#### sessionStore
+### sessionStore
 
 A `SessionStore` (an object with `save(session): Promise<void>` and `get(): Promise<Session |
 null>`) responsible for persisting the session across page loads. Required. Use
 `createLocalStorageSessionStore()` for the built-in implementation, or provide your own — see
 [Custom implementations](#custom-implementations).
 
-#### maxDuration
+### maxDuration
 
 Maximum duration of a session, in **seconds**. Optional — there is no built-in default. If
 omitted, the session is never reset due to elapsed time; it will only be reset by
 `inactivityTimeout` (if configured) or when explicitly recreated.
 
-#### inactivityTimeout
+### inactivityTimeout
 
 Maximum time without activity after which a session is reset, in **seconds**. Optional — there is
 no built-in default. If omitted, the session is never reset due to inactivity.
@@ -125,13 +127,13 @@ no built-in default. If omitted, the session is never reset due to inactivity.
 
 ## Default Implementations
 
-#### createDefaultSessionIdGenerator
+### createDefaultSessionIdGenerator
 
 Generates a 32-character hexadecimal ID using `Math.random()`. This is suitable as a correlation
 identifier but is **not cryptographically secure** and is not a UUID — do not use it as a security
 or authentication token.
 
-#### LocalStorageSessionStore
+### createLocalStorageSessionStore
 
 Persists the session as JSON under a single fixed key in `window.localStorage`. Because
 `localStorage` is shared by every tab and window open to the same origin, **all tabs on the same
@@ -186,7 +188,7 @@ a session starts or ends.
 
 ## Custom Implementations
 
-#### Custom SessionStore (per-tab sessions)
+### Custom SessionStore (per-tab sessions)
 
 The built-in `LocalStorageSessionStore` shares one session across every tab on the same origin. To
 scope sessions to a single tab instead, provide a `SessionStore` backed by `sessionStorage`, which
@@ -218,7 +220,7 @@ const sessionManager = createSessionManager({
 await sessionManager.start();
 ```
 
-#### Custom session provider (bypassing SessionManager)
+### Custom session provider (bypassing SessionManager)
 
 If you require a completely custom solution for managing sessions, you can skip `SessionManager`
 entirely and pass any object implementing `SessionProvider` directly to the processors:
@@ -251,7 +253,8 @@ Keep the following in mind when configuring session timeouts:
   inactivity window rather than continuing from where it left off, so a session can stay active
   longer than `inactivityTimeout` alone would suggest.
 - **Session IDs are not cryptographically secure.** The default ID generator uses `Math.random()`
-  and is intended only as a correlation identifier — see [DefaultIdGenerator](#defaultidgenerator).
+  and is intended only as a correlation identifier — see
+  [createDefaultSessionIdGenerator](#createdefaultsessionidgenerator).
 
 ## Related Links
 
