@@ -135,6 +135,142 @@ function decodeLogs(body: Json): Pick<IntakeRequest, 'resource' | 'records'> {
   return { resource, records };
 }
 
+// ── Collector debug-exporter formatting ───────────────────────────────────────
+// Mimics the text the OpenTelemetry Collector's `debug` exporter prints
+// (verbosity: detailed), so the panel can show "what the collector would log".
+// This is a faithful format-only simulation — no real collector is involved.
+
+const SPAN_KINDS = [
+  'Unspecified',
+  'Internal',
+  'Server',
+  'Client',
+  'Producer',
+  'Consumer',
+];
+const STATUS_CODES = ['Unset', 'Ok', 'Error'];
+
+// Render an OTLP AnyValue with the collector's `Type(value)` notation.
+function otlpValue(v: Json): string {
+  if (v == null) {
+    return 'Empty()';
+  }
+  if ('stringValue' in v) {
+    return `Str(${v.stringValue})`;
+  }
+  if ('boolValue' in v) {
+    return `Bool(${v.boolValue})`;
+  }
+  if ('intValue' in v) {
+    return `Int(${v.intValue})`;
+  }
+  if ('doubleValue' in v) {
+    return `Double(${v.doubleValue})`;
+  }
+  if ('arrayValue' in v) {
+    const items = (v.arrayValue?.values ?? []).map(otlpValue).join(', ');
+    return `Slice([${items}])`;
+  }
+  if ('kvlistValue' in v) {
+    const items = (v.kvlistValue?.values ?? [])
+      .map((kv: Json) => `${kv.key}:${otlpValue(kv.value)}`)
+      .join(', ');
+    return `Map(${items})`;
+  }
+  return 'Empty()';
+}
+
+function resourceLines(attrs: Json[] = []): string {
+  const lines = attrs.map((a) => `     -> ${a.key}: ${otlpValue(a.value)}`);
+  return `Resource attributes:\n${lines.join('\n')}\n`;
+}
+
+function attrLines(attrs: Json[] = [], indent: string): string {
+  if (!attrs.length) {
+    return '';
+  }
+  const lines = attrs.map(
+    (a) => `${indent}     -> ${a.key}: ${otlpValue(a.value)}`,
+  );
+  return `${indent}Attributes:\n${lines.join('\n')}\n`;
+}
+
+function ts(nano?: string): string {
+  if (!nano) {
+    return '';
+  }
+  return new Date(Number(nano) / 1_000_000).toISOString();
+}
+
+function severityLabel(n?: number): string {
+  if (!n) {
+    return 'Unspecified(0)';
+  }
+  const names = ['', 'Trace', 'Debug', 'Info', 'Warn', 'Error', 'Fatal'];
+  return `${names[Math.min(6, Math.ceil(n / 4))] || 'Unspecified'}(${n})`;
+}
+
+function debugTraces(body: Json): string {
+  const out: string[] = [];
+  (body.resourceSpans ?? []).forEach((rs: Json, i: number) => {
+    out.push(`ResourceSpans #${i}`, resourceLines(rs.resource?.attributes));
+    (rs.scopeSpans ?? []).forEach((ss: Json, j: number) => {
+      out.push(
+        `ScopeSpans #${j}`,
+        `InstrumentationScope ${ss.scope?.name ?? ''} ${ss.scope?.version ?? ''}`,
+      );
+      (ss.spans ?? []).forEach((span: Json, k: number) => {
+        out.push(
+          `Span #${k}`,
+          `    Trace ID       : ${span.traceId ?? ''}`,
+          `    Parent ID      : ${span.parentSpanId ?? ''}`,
+          `    ID             : ${span.spanId ?? ''}`,
+          `    Name           : ${span.name ?? ''}`,
+          `    Kind           : ${SPAN_KINDS[span.kind ?? 0] ?? 'Unspecified'}`,
+          `    Start time     : ${ts(span.startTimeUnixNano)}`,
+          `    End time       : ${ts(span.endTimeUnixNano)}`,
+          `    Status code    : ${STATUS_CODES[span.status?.code ?? 0] ?? 'Unset'}`,
+          attrLines(span.attributes, '    ').trimEnd(),
+        );
+      });
+    });
+  });
+  return out.join('\n');
+}
+
+function debugLogs(body: Json): string {
+  const out: string[] = [];
+  (body.resourceLogs ?? []).forEach((rl: Json, i: number) => {
+    out.push(`ResourceLog #${i}`, resourceLines(rl.resource?.attributes));
+    (rl.scopeLogs ?? []).forEach((sl: Json, j: number) => {
+      out.push(
+        `ScopeLogs #${j}`,
+        `InstrumentationScope ${sl.scope?.name ?? ''} ${sl.scope?.version ?? ''}`,
+      );
+      (sl.logRecords ?? []).forEach((log: Json, k: number) => {
+        out.push(
+          `LogRecord #${k}`,
+          `    ObservedTimestamp : ${ts(log.observedTimeUnixNano)}`,
+          `    Timestamp         : ${ts(log.timeUnixNano)}`,
+          `    SeverityText      : ${log.severityText ?? ''}`,
+          `    SeverityNumber    : ${severityLabel(log.severityNumber)}`,
+          `    Body              : ${otlpValue(log.body)}`,
+          attrLines(log.attributes, '    ').trimEnd(),
+          `    Trace ID          : ${log.traceId ?? ''}`,
+          `    Span ID           : ${log.spanId ?? ''}`,
+        );
+      });
+    });
+  });
+  return out.join('\n');
+}
+
+/** Format an intercepted request the way the collector's `debug` exporter would. */
+export function toCollectorDebug(req: IntakeRequest): string {
+  const body = req.raw as Json;
+  return req.signal === 'traces' ? debugTraces(body) : debugLogs(body);
+}
+
 // ── Pub/sub ───────────────────────────────────────────────────────────────────
 
 const bus = new EventTarget();

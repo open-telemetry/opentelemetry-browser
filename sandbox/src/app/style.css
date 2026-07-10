@@ -336,8 +336,14 @@ input {
   padding: 0.02rem 0.3rem;
 }
 
+.intake-views {
+  display: flex;
+  gap: 0.4rem;
+  padding-left: 0.75rem;
+  margin: 0.35rem 0;
+}
+
 .intake-raw-toggle {
-  margin: 0.35rem 0 0.35rem 0.75rem;
   padding: 0.1rem 0.4rem;
   font-size: 0.68rem;
   width: auto;
@@ -345,6 +351,11 @@ input {
   border: 1px solid var(--pico-muted-border-color);
   color: var(--pico-muted-color);
   border-radius: 0.25rem;
+}
+
+.intake-raw-toggle.active {
+  border-color: var(--pico-primary);
+  color: var(--pico-primary);
 }
 
 .intake-raw {

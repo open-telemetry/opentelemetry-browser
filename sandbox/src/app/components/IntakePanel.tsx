@@ -3,7 +3,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { IntakeRecord, IntakeRequest } from '../../mocks/intake-bus.ts';
-import { onIntake } from '../../mocks/intake-bus.ts';
+import { onIntake, toCollectorDebug } from '../../mocks/intake-bus.ts';
+
+type RequestView = 'none' | 'collector' | 'raw';
 
 const MAX_REQUESTS = 50;
 
@@ -53,8 +55,9 @@ function RecordRow({ record }: { record: IntakeRecord }) {
 }
 
 function RequestCard({ req }: { req: IntakeRequest }) {
-  const [showRaw, setShowRaw] = useState(false);
+  const [view, setView] = useState<RequestView>('none');
   const scopes = useMemo(() => byScope(req.records), [req.records]);
+  const toggle = (v: RequestView) => setView((cur) => (cur === v ? 'none' : v));
   const path = (() => {
     try {
       return new URL(req.url).pathname;
@@ -92,14 +95,26 @@ function RequestCard({ req }: { req: IntakeRequest }) {
         </div>
       ))}
 
-      <button
-        type="button"
-        className="intake-raw-toggle"
-        onClick={() => setShowRaw((s) => !s)}
-      >
-        {showRaw ? 'hide raw OTLP JSON' : 'raw OTLP JSON'}
-      </button>
-      {showRaw && (
+      <div className="intake-views">
+        <button
+          type="button"
+          className={`intake-raw-toggle ${view === 'collector' ? 'active' : ''}`}
+          onClick={() => toggle('collector')}
+        >
+          collector debug view
+        </button>
+        <button
+          type="button"
+          className={`intake-raw-toggle ${view === 'raw' ? 'active' : ''}`}
+          onClick={() => toggle('raw')}
+        >
+          raw OTLP JSON
+        </button>
+      </div>
+      {view === 'collector' && (
+        <pre className="intake-raw">{toCollectorDebug(req)}</pre>
+      )}
+      {view === 'raw' && (
         <pre className="intake-raw">{JSON.stringify(req.raw, null, 2)}</pre>
       )}
     </details>
