@@ -77,7 +77,7 @@ export function CodeSnippet({
       </span>
       {'\n  },\n'}
       {'  '}
-      <span className="com">// ...more SDK options</span>
+      <span className="com">{'// ...more SDK options'}</span>
       {'\n});\n\n'}
       <span className="com">
         {'// ...plus auto-instrumentations: fetch, XHR, web vitals, and more'}
