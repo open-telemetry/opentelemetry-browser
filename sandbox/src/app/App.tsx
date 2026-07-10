@@ -6,10 +6,11 @@ import { ActionsPanel } from './components/ActionsPanel.tsx';
 import { CodeSnippet } from './components/CodeSnippet.tsx';
 import type { LogEntry } from './components/EventLog.tsx';
 import { EventLog } from './components/EventLog.tsx';
+import { IntakePanel } from './components/IntakePanel.tsx';
 import { SandboxConfigForm } from './components/SandboxConfigForm.tsx';
 import { useSandboxConfig } from './hooks/use-sandbox-config.ts';
 
-export function App() {
+export function App({ intakeMock = false }: { intakeMock?: boolean }) {
   const cfg = useSandboxConfig();
 
   // ── SDK state ─────────────────────────────────────────────────────────────
@@ -124,12 +125,15 @@ export function App() {
           <ActionsPanel ready={ready} act={act} sessionId={sessionId} />
         </div>
 
-        <article>
-          <header>
-            <strong>Equivalent SDK init</strong>
-          </header>
-          <CodeSnippet config={cfg.config} attrs={cfg.attrs} />
-        </article>
+        <div className="right-col">
+          <article>
+            <header>
+              <strong>Equivalent SDK init</strong>
+            </header>
+            <CodeSnippet config={cfg.config} attrs={cfg.attrs} />
+          </article>
+          {intakeMock && <IntakePanel />}
+        </div>
       </div>
 
       <EventLog logs={logs} onClear={() => setLogs([])} />
