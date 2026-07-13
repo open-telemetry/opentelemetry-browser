@@ -32,12 +32,11 @@ export default defineConfig({
           ),
         ),
       '@opentelemetry/browser-sdk': fileURLToPath(
-        new URL('../packages/sdk/src/initializer/start.ts', import.meta.url),
+        new URL('../packages/sdk/src/index.ts', import.meta.url),
       ),
     },
   },
   test: {
-    onConsoleLog: () => (process.env['VERBOSE'] ? undefined : false),
     include: ['e2e-tests/**/*.test.ts'],
     browser: {
       provider: playwright(),
