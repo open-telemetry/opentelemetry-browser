@@ -99,16 +99,21 @@ export function combineSdks<T extends SdkFactories>(
       const logsConfig = (config?.logs || {}) as LogsConfig;
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
-      // Check for root configs if processor or exporter are not defined
-      if (!logsConfig.batchProcessorConfig) {
-        logsConfig.batchProcessorConfig = rootConfig.batchProcessorConfig || {};
-      }
-      if (!logsConfig.exportConfig) {
-        logsConfig.exportConfig = rootConfig.exportConfig || {};
+      // Propagate root configs to signal configs only when the signal does not
+      // have custom processors. When processors are provided, exportConfig and
+      // batchProcessorConfig are intentionally ignored per the LogsConfig docs.
+      if (!logsConfig.processors) {
+        if (!logsConfig.batchProcessorConfig) {
+          logsConfig.batchProcessorConfig =
+            rootConfig.batchProcessorConfig || {};
+        }
+        if (!logsConfig.exportConfig) {
+          logsConfig.exportConfig = rootConfig.exportConfig || {};
+        }
       }
 
       // Set the path if endpoint comes from general config
-      if (isGenericEndpoint) {
+      if (isGenericEndpoint && logsConfig.exportConfig) {
         endpointUrl.pathname = '/v1/logs';
         logsConfig.exportConfig.url = endpointUrl.href;
       }
@@ -121,17 +126,21 @@ export function combineSdks<T extends SdkFactories>(
       const tracesConfig = (config?.traces || {}) as TracesConfig;
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
-      // Check for root configs if processor or exporter are not defined
-      if (!tracesConfig.batchProcessorConfig) {
-        tracesConfig.batchProcessorConfig =
-          rootConfig.batchProcessorConfig || {};
-      }
-      if (!tracesConfig.exportConfig) {
-        tracesConfig.exportConfig = rootConfig.exportConfig || {};
+      // Propagate root configs to signal configs only when the signal does not
+      // have custom processors. When processors are provided, exportConfig and
+      // batchProcessorConfig are intentionally ignored per the TracesConfig docs.
+      if (!tracesConfig.processors) {
+        if (!tracesConfig.batchProcessorConfig) {
+          tracesConfig.batchProcessorConfig =
+            rootConfig.batchProcessorConfig || {};
+        }
+        if (!tracesConfig.exportConfig) {
+          tracesConfig.exportConfig = rootConfig.exportConfig || {};
+        }
       }
 
       // Set the path if endpoint comes from general config
-      if (isGenericEndpoint) {
+      if (isGenericEndpoint && tracesConfig.exportConfig) {
         endpointUrl.pathname = '/v1/traces';
         tracesConfig.exportConfig.url = endpointUrl.href;
       }
