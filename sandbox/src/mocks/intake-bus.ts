@@ -4,6 +4,16 @@
 // into the main app bundle (the MSW worker + handlers are code-split and only
 // loaded when the mock intake is enabled — see mocks/browser.ts).
 
+// OTLP/HTTP JSON shapes are shared with the e2e test collector (type-only
+// import — nothing from that workspace ends up in the sandbox bundle).
+import type {
+  ExportLogsServiceRequest,
+  ExportTraceServiceRequest,
+  OtlpAnyValue,
+  OtlpKeyValue,
+  OtlpSpan,
+} from '../../../e2e-tests/utils/otlp-types.ts';
+
 export type Signal = 'traces' | 'logs';
 
 export interface IntakeRecord {
@@ -39,10 +49,7 @@ export interface IntakeRequest {
 
 // ── OTLP AnyValue / KeyValue decoding ─────────────────────────────────────────
 
-// biome-ignore lint/suspicious/noExplicitAny: OTLP JSON is dynamically shaped.
-type Json = any;
-
-function anyValue(v: Json): unknown {
+function anyValue(v: OtlpAnyValue | undefined): unknown {
   if (v == null) {
     return undefined;
   }
@@ -67,7 +74,7 @@ function anyValue(v: Json): unknown {
   return undefined;
 }
 
-function keyValues(kvs: Json[] = []): Record<string, unknown> {
+function keyValues(kvs: OtlpKeyValue[] = []): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const kv of kvs) {
     out[kv.key] = anyValue(kv.value);
@@ -75,13 +82,15 @@ function keyValues(kvs: Json[] = []): Record<string, unknown> {
   return out;
 }
 
-function durationMs(span: Json): string {
+function durationMs(span: OtlpSpan): string {
   // start/end are int64 nanoseconds serialized as strings in OTLP JSON.
   const ns = Number(span.endTimeUnixNano) - Number(span.startTimeUnixNano);
   return `${(ns / 1_000_000).toFixed(1)}ms`;
 }
 
-function decodeTraces(body: Json): Pick<IntakeRequest, 'resource' | 'records'> {
+function decodeTraces(
+  body: ExportTraceServiceRequest,
+): Pick<IntakeRequest, 'resource' | 'records'> {
   const records: IntakeRecord[] = [];
   let resource: Record<string, unknown> = {};
   for (const rs of body.resourceSpans ?? []) {
@@ -94,7 +103,7 @@ function decodeTraces(body: Json): Pick<IntakeRequest, 'resource' | 'records'> {
         records.push({
           kind: 'span',
           scope,
-          name: span.name,
+          name: span.name ?? '',
           detail: durationMs(span),
           traceId: span.traceId,
           spanId: span.spanId,
@@ -108,7 +117,9 @@ function decodeTraces(body: Json): Pick<IntakeRequest, 'resource' | 'records'> {
   return { resource, records };
 }
 
-function decodeLogs(body: Json): Pick<IntakeRequest, 'resource' | 'records'> {
+function decodeLogs(
+  body: ExportLogsServiceRequest,
+): Pick<IntakeRequest, 'resource' | 'records'> {
   const records: IntakeRecord[] = [];
   let resource: Record<string, unknown> = {};
   for (const rl of body.resourceLogs ?? []) {
@@ -117,12 +128,13 @@ function decodeLogs(body: Json): Pick<IntakeRequest, 'resource' | 'records'> {
       const scope = sl.scope?.name || 'unknown';
       for (const log of sl.logRecords ?? []) {
         const attributes = keyValues(log.attributes);
-        const body = anyValue(log.body);
+        const logBody = anyValue(log.body);
         records.push({
           kind: 'log',
           scope,
           name: log.severityText || 'LOG',
-          detail: typeof body === 'string' ? body : JSON.stringify(body),
+          detail:
+            typeof logBody === 'string' ? logBody : JSON.stringify(logBody),
           traceId: log.traceId,
           spanId: log.spanId,
           sessionId: attributes['session.id'] as string | undefined,
@@ -151,7 +163,7 @@ const SPAN_KINDS = [
 const STATUS_CODES = ['Unset', 'Ok', 'Error'];
 
 // Render an OTLP AnyValue with the collector's `Type(value)` notation.
-function otlpValue(v: Json): string {
+function otlpValue(v: OtlpAnyValue | undefined): string {
   if (v == null) {
     return 'Empty()';
   }
@@ -173,19 +185,19 @@ function otlpValue(v: Json): string {
   }
   if ('kvlistValue' in v) {
     const items = (v.kvlistValue?.values ?? [])
-      .map((kv: Json) => `${kv.key}:${otlpValue(kv.value)}`)
+      .map((kv) => `${kv.key}:${otlpValue(kv.value)}`)
       .join(', ');
     return `Map(${items})`;
   }
   return 'Empty()';
 }
 
-function resourceLines(attrs: Json[] = []): string {
+function resourceLines(attrs: OtlpKeyValue[] = []): string {
   const lines = attrs.map((a) => `     -> ${a.key}: ${otlpValue(a.value)}`);
   return `Resource attributes:\n${lines.join('\n')}\n`;
 }
 
-function attrLines(attrs: Json[] = [], indent: string): string {
+function attrLines(attrs: OtlpKeyValue[] = [], indent: string): string {
   if (!attrs.length) {
     return '';
   }
@@ -210,16 +222,16 @@ function severityLabel(n?: number): string {
   return `${names[Math.min(6, Math.ceil(n / 4))] || 'Unspecified'}(${n})`;
 }
 
-function debugTraces(body: Json): string {
+function debugTraces(body: ExportTraceServiceRequest): string {
   const out: string[] = [];
-  (body.resourceSpans ?? []).forEach((rs: Json, i: number) => {
+  (body.resourceSpans ?? []).forEach((rs, i) => {
     out.push(`ResourceSpans #${i}`, resourceLines(rs.resource?.attributes));
-    (rs.scopeSpans ?? []).forEach((ss: Json, j: number) => {
+    (rs.scopeSpans ?? []).forEach((ss, j) => {
       out.push(
         `ScopeSpans #${j}`,
         `InstrumentationScope ${ss.scope?.name ?? ''} ${ss.scope?.version ?? ''}`,
       );
-      (ss.spans ?? []).forEach((span: Json, k: number) => {
+      (ss.spans ?? []).forEach((span, k) => {
         out.push(
           `Span #${k}`,
           `    Trace ID       : ${span.traceId ?? ''}`,
@@ -238,16 +250,16 @@ function debugTraces(body: Json): string {
   return out.join('\n');
 }
 
-function debugLogs(body: Json): string {
+function debugLogs(body: ExportLogsServiceRequest): string {
   const out: string[] = [];
-  (body.resourceLogs ?? []).forEach((rl: Json, i: number) => {
+  (body.resourceLogs ?? []).forEach((rl, i) => {
     out.push(`ResourceLog #${i}`, resourceLines(rl.resource?.attributes));
-    (rl.scopeLogs ?? []).forEach((sl: Json, j: number) => {
+    (rl.scopeLogs ?? []).forEach((sl, j) => {
       out.push(
         `ScopeLogs #${j}`,
         `InstrumentationScope ${sl.scope?.name ?? ''} ${sl.scope?.version ?? ''}`,
       );
-      (sl.logRecords ?? []).forEach((log: Json, k: number) => {
+      (sl.logRecords ?? []).forEach((log, k) => {
         out.push(
           `LogRecord #${k}`,
           `    ObservedTimestamp : ${ts(log.observedTimeUnixNano)}`,
@@ -267,8 +279,9 @@ function debugLogs(body: Json): string {
 
 /** Format an intercepted request the way the collector's `debug` exporter would. */
 export function toCollectorDebug(req: IntakeRequest): string {
-  const body = req.raw as Json;
-  return req.signal === 'traces' ? debugTraces(body) : debugLogs(body);
+  return req.signal === 'traces'
+    ? debugTraces(req.raw as ExportTraceServiceRequest)
+    : debugLogs(req.raw as ExportLogsServiceRequest);
 }
 
 // ── Pub/sub ───────────────────────────────────────────────────────────────────
@@ -287,15 +300,17 @@ export function onIntake(cb: (req: IntakeRequest) => void): () => void {
  * Called by the MSW request handlers.
  */
 export function ingest(signal: Signal, url: string, text: string): void {
-  let body: Json;
+  let parsed: unknown;
   try {
-    body = JSON.parse(text);
+    parsed = JSON.parse(text);
   } catch {
     return;
   }
   const bytes = new TextEncoder().encode(text).length;
   const { resource, records } =
-    signal === 'traces' ? decodeTraces(body) : decodeLogs(body);
+    signal === 'traces'
+      ? decodeTraces(parsed as ExportTraceServiceRequest)
+      : decodeLogs(parsed as ExportLogsServiceRequest);
 
   const req: IntakeRequest = {
     id: ++seq,
@@ -305,13 +320,13 @@ export function ingest(signal: Signal, url: string, text: string): void {
     bytes,
     resource,
     records,
-    raw: body,
+    raw: parsed,
   };
 
   if (import.meta.env.DEV) {
     console.debug(
       `[intake] ${signal} · ${records.length} record(s) · ${bytes}B`,
-      body,
+      parsed,
     );
   }
   bus.dispatchEvent(new CustomEvent('intake', { detail: req }));
