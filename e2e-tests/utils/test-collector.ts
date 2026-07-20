@@ -1,68 +1,19 @@
 import type { HttpHandler } from 'msw';
 import { HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
+import type {
+  ExportLogsServiceRequest,
+  ExportTraceServiceRequest,
+  OtlpLogRecord,
+  OtlpSpan,
+} from './otlp-types.ts';
+
+// Re-exported for backwards compatibility; the shapes now live in otlp-types.ts
+// and are shared with the sandbox mock intake.
+export type { OtlpKeyValue, OtlpLogRecord, OtlpSpan } from './otlp-types.ts';
 
 export const COLLECTOR_URL = 'http://localhost:4318/v1/traces';
 export const LOGS_COLLECTOR_URL = 'http://localhost:4318/v1/logs';
-
-// ── OTLP JSON types ────────────────────────────────────────────────────────────
-
-interface OtlpAnyValue {
-  stringValue?: string;
-  intValue?: number;
-  boolValue?: boolean;
-  doubleValue?: number;
-}
-
-export interface OtlpKeyValue {
-  key: string;
-  value: OtlpAnyValue;
-}
-
-export interface OtlpSpan {
-  traceId: string;
-  spanId: string;
-  parentSpanId?: string;
-  name: string;
-  kind: number;
-  startTimeUnixNano: string;
-  endTimeUnixNano: string;
-  attributes: OtlpKeyValue[];
-  events: Array<{
-    name: string;
-    timeUnixNano: string;
-    attributes: OtlpKeyValue[];
-  }>;
-  status: { code: number; message?: string };
-}
-
-export interface OtlpLogRecord {
-  traceId?: string;
-  spanId?: string;
-  severityNumber?: number;
-  severityText?: string;
-  attributes: OtlpKeyValue[];
-}
-
-interface ExportTraceServiceRequest {
-  resourceSpans: Array<{
-    resource: { attributes: OtlpKeyValue[] };
-    scopeSpans: Array<{
-      scope: { name: string; version?: string };
-      spans: OtlpSpan[];
-    }>;
-  }>;
-}
-
-interface ExportLogsServiceRequest {
-  resourceLogs: Array<{
-    resource: { attributes: OtlpKeyValue[] };
-    scopeLogs: Array<{
-      scope: { name: string; version?: string };
-      logRecords: OtlpLogRecord[];
-    }>;
-  }>;
-}
 
 // ── Internal singleton state ───────────────────────────────────────────────────
 

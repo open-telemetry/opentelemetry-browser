@@ -31,7 +31,8 @@ input {
   }
 }
 
-.left-col {
+.left-col,
+.right-col {
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -224,4 +225,142 @@ input {
 }
 .log-msg-muted {
   color: var(--pico-muted-color);
+}
+
+/* ── Intake panel ─────────────────────────────────────────────────────────────── */
+
+.intake-body {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.intake-empty {
+  color: var(--pico-muted-color);
+  font-size: 0.8rem;
+}
+
+.intake-req {
+  border-bottom: 1px solid var(--pico-muted-border-color);
+  padding: 0.15rem 0;
+}
+
+.intake-req > summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0;
+}
+
+.intake-time {
+  color: var(--pico-muted-color);
+  font-size: 0.7rem;
+}
+
+.intake-badge {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  color: #fff;
+}
+.intake-badge.traces {
+  background: #7c3aed;
+}
+.intake-badge.logs {
+  background: #0891b2;
+}
+
+.intake-summary-text {
+  color: var(--pico-color);
+}
+
+.intake-resource {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.35rem 0 0.35rem 1rem;
+}
+
+.intake-scope {
+  padding-left: 1rem;
+}
+
+.intake-scope-name {
+  color: var(--pico-muted-color);
+  font-size: 0.7rem;
+  margin: 0.2rem 0;
+}
+
+.intake-record {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  line-height: 1.5;
+}
+
+.intake-icon {
+  color: #7c3aed;
+}
+
+.intake-name {
+  font-weight: 600;
+}
+
+.intake-detail {
+  color: var(--pico-muted-color);
+}
+
+.intake-record.error .intake-icon,
+.intake-record.error .intake-name {
+  color: red;
+}
+
+.intake-tag {
+  font-size: 0.68rem;
+  color: var(--pico-muted-color);
+  background: var(--pico-code-background-color, #2a2a3a);
+  border-radius: 0.25rem;
+  padding: 0.02rem 0.3rem;
+}
+
+.intake-chip {
+  font-size: 0.68rem;
+  color: #a6e3a1;
+  background: rgba(166, 227, 161, 0.12);
+  border-radius: 0.25rem;
+  padding: 0.02rem 0.3rem;
+}
+
+.intake-views {
+  display: flex;
+  gap: 0.4rem;
+  padding-left: 0.75rem;
+  margin: 0.35rem 0;
+}
+
+.intake-raw-toggle {
+  padding: 0.1rem 0.4rem;
+  font-size: 0.68rem;
+  width: auto;
+  background: transparent;
+  border: 1px solid var(--pico-muted-border-color);
+  color: var(--pico-muted-color);
+  border-radius: 0.25rem;
+}
+
+.intake-raw-toggle.active {
+  border-color: var(--pico-primary);
+  color: var(--pico-primary);
+}
+
+.intake-raw {
+  font-size: 0.68rem;
+  max-height: 220px;
+  overflow: auto;
+  margin: 0 0 0.5rem 0.75rem;
 }
