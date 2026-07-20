@@ -194,9 +194,23 @@ By default the instrumentation captures `click` events. You can configure which 
 
 ```typescript
 new UserActionInstrumentation({
-  autoCapturedActions: [], // default is ['click']
+  // Array of actions to automatically capture. Default: ['click'].
+  autoCapturedActions: [],
+
+  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  applyCustomLogRecordData: (logRecord) => {
+    logRecord.attributes = {
+      ...logRecord.attributes,
+      'app.user.role': 'admin',
+    };
+  },
 });
 ```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `autoCapturedActions` | `AutoCapturedUserAction[]` | `['click']` | Array of actions to automatically capture. |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
 #### Additional Attributes
 

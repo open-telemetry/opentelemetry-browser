@@ -6,7 +6,7 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupTestLogExporter } from '#utils/test';
 import { UserActionInstrumentation } from './instrumentation.ts';
 
@@ -141,5 +141,62 @@ describe('UserActionInstrumentation', () => {
 
     const logs = inMemoryExporter.getFinishedLogRecords();
     expect(logs.length).toBe(0);
+  });
+
+  describe('applyCustomLogRecordData hook', () => {
+    it('should allow hook to add custom attributes', () => {
+      disableInstrumentations();
+      const customInstrumentation = new UserActionInstrumentation({
+        applyCustomLogRecordData: (logRecord) => {
+          logRecord.attributes = {
+            ...logRecord.attributes,
+            'custom.attribute': 'custom-value',
+          };
+        },
+      });
+      disableInstrumentations = registerInstrumentations({
+        instrumentations: [customInstrumentation],
+      });
+
+      const element = createTestElement();
+      dispatchMouseDownEvent(element, 0); // Left click
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+
+      const log = logs[0];
+      expect(log?.attributes['custom.attribute']).toBe('custom-value');
+    });
+
+    it('should catch errors thrown by the hook and still emit', () => {
+      disableInstrumentations();
+      const customInstrumentation = new UserActionInstrumentation({
+        applyCustomLogRecordData: () => {
+          throw new Error('hook boom');
+        },
+      });
+      const diagErrorSpy = vi
+        .spyOn(
+          (
+            customInstrumentation as unknown as {
+              _diag: { error: (...a: unknown[]) => void };
+            }
+          )._diag,
+          'error',
+        )
+        .mockImplementation(() => { });
+
+      disableInstrumentations = registerInstrumentations({
+        instrumentations: [customInstrumentation],
+      });
+
+      const element = createTestElement();
+
+      dispatchMouseDownEvent(element, 0); // Left click
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(diagErrorSpy).toHaveBeenCalled();
+    });
   });
 });
