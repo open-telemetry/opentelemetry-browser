@@ -33,6 +33,17 @@ type ExtractConfigs<T> = Partial<{
     : never;
 }>;
 
+/**
+ * Concrete view of the config used inside `startSdk`. It is structurally a
+ * superset of `RootConfig & ExtractConfigs<T>` for any `T`, so the returned
+ * function stays assignable to the precise, factory-derived public type while
+ * the body can read each signal's config without casting.
+ */
+type CombinedConfig = RootConfig & {
+  logs?: RemoveCommonProps<LogsConfig>;
+  traces?: RemoveCommonProps<TracesConfig>;
+};
+
 const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
@@ -49,7 +60,7 @@ export function combineSdks<T extends SdkFactories>(
 ): WebSdkFactory<RootConfig & ExtractConfigs<T>> {
   // The returned function will transform some of the global
   // configuration options to signal specific ones if the SDK is available
-  return function startSdk(config?: RootConfig & ExtractConfigs<T>) {
+  return function startSdk(config?: CombinedConfig) {
     // Check the global config and set defaults
     const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
@@ -94,12 +105,13 @@ export function combineSdks<T extends SdkFactories>(
       // TODO: need to discuss with the SIG if it's better to return `undefined`
       return NOOP_SDK;
     }
+    // Resolve each signal's config once so it can be validated here and reused
+    // when starting the signals below.
+    const logsConfig: LogsConfig = config?.logs || {};
+    const tracesConfig: TracesConfig = config?.traces || {};
     const signalExportUrls: [string, string | undefined][] = [
-      ['Logs SDK', (config?.logs as LogsConfig | undefined)?.exportConfig?.url],
-      [
-        'Traces SDK',
-        (config?.traces as TracesConfig | undefined)?.exportConfig?.url,
-      ],
+      ['Logs SDK', logsConfig.exportConfig?.url],
+      ['Traces SDK', tracesConfig.exportConfig?.url],
     ];
     for (const [scope, signalUrl] of signalExportUrls) {
       // Only bail out when a signal explicitly sets an invalid URL. An unset
@@ -112,7 +124,6 @@ export function combineSdks<T extends SdkFactories>(
 
     // Start logs
     if (factories.logs) {
-      const logsConfig = (config?.logs || {}) as LogsConfig;
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
       // Propagate root configs to signal configs only when the signal does not
@@ -139,7 +150,6 @@ export function combineSdks<T extends SdkFactories>(
 
     // Start traces
     if (factories.traces) {
-      const tracesConfig = (config?.traces || {}) as TracesConfig;
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
       // Propagate root configs to signal configs only when the signal does not
