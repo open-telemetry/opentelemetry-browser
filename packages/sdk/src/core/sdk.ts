@@ -5,6 +5,7 @@
 
 import { diag } from '@opentelemetry/api';
 import { setSdkLogger } from './diag.ts';
+import { parseExportUrl } from './exportUrl.ts';
 import type {
   CommonConfig,
   LogsConfig,
@@ -82,16 +83,31 @@ export function combineSdks<T extends SdkFactories>(
     };
 
     const sdks: WebSdk[] = [];
-    const endpointUrl = URL.parse(
+
+    // Validate every export URL up-front and bail out on the first invalid one.
+    // Doing this before starting any signal SDK avoids a partial start where one
+    // signal's provider is registered while the other refuses to start.
+    const endpointUrl = parseExportUrl(
       rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
     );
-
     if (!endpointUrl) {
-      diag.error(
-        `Invalid export URL "${rootConfig.exportConfig.url}". Browser SDK won't start.`,
-      );
       // TODO: need to discuss with the SIG if it's better to return `undefined`
       return NOOP_SDK;
+    }
+    const signalExportUrls: [string, string | undefined][] = [
+      ['Logs SDK', (config?.logs as LogsConfig | undefined)?.exportConfig?.url],
+      [
+        'Traces SDK',
+        (config?.traces as TracesConfig | undefined)?.exportConfig?.url,
+      ],
+    ];
+    for (const [scope, signalUrl] of signalExportUrls) {
+      // Only bail out when a signal explicitly sets an invalid URL. An unset
+      // signal URL inherits the (already validated) root endpoint, so it must
+      // not block the SDK from starting.
+      if (signalUrl && !parseExportUrl(signalUrl, scope)) {
+        return NOOP_SDK;
+      }
     }
 
     // Start logs

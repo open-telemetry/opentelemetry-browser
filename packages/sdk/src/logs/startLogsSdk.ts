@@ -16,6 +16,7 @@ import {
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
 import { setSdkLogger } from '../core/diag.ts';
+import { parseExportUrl } from '../core/exportUrl.ts';
 import type { LogsConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
@@ -59,21 +60,20 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     const logsEndpoint =
       config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
 
-    if (URL.parse(logsEndpoint)) {
-      processors.push(
-        new BatchLogRecordProcessor({
-          exporter: new OTLPLogExporter({
-            url: logsEndpoint,
-            headers: config?.exportConfig?.headers,
-          }),
-          ...config?.batchProcessorConfig,
-        }),
-      );
-    } else {
-      diag.error(
-        `BatchLogRecordProcessor configuration error. Invalid export URL "${logsEndpoint}".`,
-      );
+    // Bail out on an invalid URL instead of silently skipping the exporter,
+    // which would leave the SDK running without exporting the telemetry.
+    if (!parseExportUrl(logsEndpoint, 'Logs SDK')) {
+      return NOOP_SDK;
     }
+    processors.push(
+      new BatchLogRecordProcessor({
+        exporter: new OTLPLogExporter({
+          url: logsEndpoint,
+          headers: config?.exportConfig?.headers,
+        }),
+        ...config?.batchProcessorConfig,
+      }),
+    );
   }
 
   if (processors.length === 0) {

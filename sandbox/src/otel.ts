@@ -69,16 +69,6 @@ export async function initOtel(
   customAttrs: Record<string, string> = {},
   { onSpan, onLog }: InitOtelOptions = {},
 ): Promise<OtelHandle> {
-  // ── Validate export endpoints ───────────────────────────────────────────────
-  // startBrowserSdk logs a diag.error and silently skips the OTLP exporter for
-  // an invalid URL, so guard here and throw to surface the failure through the
-  // caller's error handling instead of reporting "SDK ready".
-  for (const url of [config.tracesUrl, config.logsUrl]) {
-    if (!URL.parse(url)) {
-      throw new Error(`Invalid OTLP export URL: "${url}"`);
-    }
-  }
-
   // ── Sessions ────────────────────────────────────────────────────────────────
   // The session processors must run BEFORE the export processors so the
   // session.id attribute is set on each span / log record before it is exported.
