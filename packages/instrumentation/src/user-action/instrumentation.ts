@@ -104,12 +104,11 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
   }
 
   private _applyCustomLogRecordData(logRecord: LogRecord) {
-    const applyCustomLogRecordData =
-      this.getConfig().applyCustomLogRecordData;
+    const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
     if (applyCustomLogRecordData) {
       safeExecuteInTheMiddle(
         () => applyCustomLogRecordData(logRecord),
-        error => {
+        (error) => {
           if (error) {
             this._diag.error('applyCustomLogRecordData hook failed', error);
           }
