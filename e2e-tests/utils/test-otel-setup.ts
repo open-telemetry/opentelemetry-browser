@@ -1,4 +1,4 @@
-import { trace } from '@opentelemetry/api';
+import { context, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -6,10 +6,19 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-web';
+import {
+  SimpleSpanProcessor,
+  StackContextManager,
+} from '@opentelemetry/sdk-trace-web';
 import { COLLECTOR_URL, LOGS_COLLECTOR_URL } from './test-collector.ts';
 
-export function testSdkSetup(instrumentations: Instrumentation[]) {
+export interface TestSdkHandle {
+  shutdown: () => Promise<void>;
+}
+
+export function testSdkSetup(
+  instrumentations: Instrumentation[],
+): TestSdkHandle {
   const sdk = startBrowserSdk({
     logs: {
       processors: [
@@ -19,6 +28,7 @@ export function testSdkSetup(instrumentations: Instrumentation[]) {
       ],
     },
     traces: {
+      contextManager: new StackContextManager().enable(),
       processors: [
         new SimpleSpanProcessor(new OTLPTraceExporter({ url: COLLECTOR_URL })),
       ],
@@ -33,6 +43,7 @@ export function testSdkSetup(instrumentations: Instrumentation[]) {
       deregister();
       logs.disable();
       trace.disable();
+      context.disable();
     },
   };
 }
