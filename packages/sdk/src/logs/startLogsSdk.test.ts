@@ -69,6 +69,34 @@ describe('startLogsSdk', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('should not start for an invalid URL even when custom processors are set', async () => {
+    // Arrange: an invalid `exportConfig.url` must not be silently skipped just
+    // because the user also provided their own processors.
+    let exportCalled = false;
+
+    // Act
+    logsSdk = startLogsSdk({
+      processors: [
+        new SimpleLogRecordProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
+        }),
+      ],
+      exportConfig: { url: 'this_is_not_an_URL' },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Logs SDK won't start/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(false);
+  });
+
   it('should use the default configuration for exporters', async () => {
     // Act
     logsSdk = startLogsSdk({

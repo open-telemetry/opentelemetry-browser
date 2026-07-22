@@ -13,6 +13,7 @@ import {
 import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import { setSdkLogger } from '../core/diag.ts';
+import { parseExportUrl } from '../core/exportUrl.ts';
 import type { TracesConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
@@ -52,21 +53,20 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     const tracesEndpoint =
       config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDPOINT;
 
-    if (URL.parse(tracesEndpoint)) {
-      spanProcessors.push(
-        new BatchSpanProcessor({
-          exporter: new OTLPTraceExporter({
-            url: tracesEndpoint,
-            headers: config?.exportConfig?.headers,
-          }),
-          ...config?.batchProcessorConfig,
-        }),
-      );
-    } else {
-      diag.error(
-        `BatchSpanProcessor configuration error. Invalid export URL "${tracesEndpoint}".`,
-      );
+    // Bail out on an invalid URL instead of silently skipping the exporter,
+    // which would leave the SDK running without exporting the telemetry.
+    if (!parseExportUrl(tracesEndpoint, 'Traces SDK')) {
+      return NOOP_SDK;
     }
+    spanProcessors.push(
+      new BatchSpanProcessor({
+        exporter: new OTLPTraceExporter({
+          url: tracesEndpoint,
+          headers: config?.exportConfig?.headers,
+        }),
+        ...config?.batchProcessorConfig,
+      }),
+    );
   }
 
   if (spanProcessors.length === 0) {
