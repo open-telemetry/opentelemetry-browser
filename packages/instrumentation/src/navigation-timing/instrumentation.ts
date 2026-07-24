@@ -3,8 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import {
+  InstrumentationBase,
+  safeExecuteInTheMiddle,
+} from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -201,7 +205,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       return;
     }
 
-    this.logger.emit({
+    const logRecord: LogRecord = {
       eventName: NAVIGATION_TIMING_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       attributes: {
@@ -232,7 +236,26 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
         [ATTR_NAVIGATION_ENCODED_BODY_SIZE]: entry.encodedBodySize,
         [ATTR_NAVIGATION_DECODED_BODY_SIZE]: entry.decodedBodySize,
       },
-    });
+    };
+
+    this._applyCustomLogRecordData(logRecord);
+
+    this.logger.emit(logRecord);
+  }
+
+  private _applyCustomLogRecordData(logRecord: LogRecord) {
+    const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
+    if (applyCustomLogRecordData) {
+      safeExecuteInTheMiddle(
+        () => applyCustomLogRecordData(logRecord),
+        (error) => {
+          if (error) {
+            this._diag.error('applyCustomLogRecordData hook failed', error);
+          }
+        },
+        true,
+      );
+    }
   }
 
   private _unsubscribeAll(): void {
