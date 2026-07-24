@@ -12,6 +12,6 @@
     "@opentelemetry/instrumentation": "^0.220.0",
     "@opentelemetry/sdk-logs": "^0.220.0",
     "@opentelemetry/sdk-trace-web": "^2.9.0",
-    "msw": "^2.14.6"
+    "msw": "^2.15.0"
   }
 }
