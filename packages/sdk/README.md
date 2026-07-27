@@ -341,16 +341,8 @@ Sampler to be used by traces to resolve if the Spans should be recorded or not.
 
 ## Sessions
 
-Sessions correlate multiple traces, events and logs that happen within a given time period. Sessions are represented as span/log attributes prefixed with the `session.` namespace. For additional information, see [documentation in semantic conventions](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/session.md).
-
-The `@opentelemetry/browser-sdk/session` subpath provides a default implementation of managing sessions that:
-
-- abstracts persisting sessions across page loads, with a default implementation based on `LocalStorage`
-- abstracts generating session IDs
-- provides a mechanism for resetting the active session after a maximum defined duration
-- provides a mechanism for resetting the active session after a defined inactivity duration
-
-Example:
+Sessions correlate multiple traces, events and logs that happen within a given time period. The
+`@opentelemetry/browser-sdk/session` subpath provides a default implementation for managing them.
 
 ```javascript
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
@@ -384,44 +376,10 @@ startBrowserSdk({
 });
 ```
 
-The session processors must be registered **before** the export processors so the `session.id` attribute is set on each span / log record before it is exported.
-
-The above implementation can be customized by providing different implementations of `SessionStore` and `SessionIdGenerator`.
-
-### Observing sessions
-
-The `SessionManager` provides a mechanism for observing sessions. This is useful when other components should be notified when a session is started or ended.
-
-```javascript
-sessionManager.addObserver({
-  onSessionStarted: (newSession, previousSession) => {
-    console.log('Session started', newSession, previousSession);
-  },
-  onSessionEnded: (session) => {
-    console.log('Session ended', session);
-  },
-});
-```
-
-### Custom implementation of managing sessions
-
-If you require a completely custom solution for managing sessions, you can still use the processors that attach attributes to spans/logs by passing your own `getSessionId` implementation:
-
-```javascript
-const customSessionProvider = {
-  getSessionId: () => 'abcd1234',
-};
-
-startBrowserSdk({
-  serviceName: 'my-service',
-  traces: {
-    processors: [createSessionSpanProcessor(customSessionProvider)],
-  },
-  logs: {
-    processors: [createSessionLogRecordProcessor(customSessionProvider)],
-  },
-});
-```
+**Session processors must be registered before the export processors.** See [Session
+Management](../../docs/session-management.md) for lifecycle details, the full configuration
+reference, observing sessions, custom `SessionStore`/`SessionIdGenerator` implementations, and
+known limitations.
 
 ## Useful links
 
