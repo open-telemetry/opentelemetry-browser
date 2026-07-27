@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Sampler } from '@opentelemetry/sdk-trace-base';
+import type { Sampler } from '@opentelemetry/sdk-trace';
 import {
   AlwaysOffSampler,
   AlwaysOnSampler,
   ParentBasedSampler,
   TraceIdRatioBasedSampler,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
 
 export {
   AlwaysOffSampler,

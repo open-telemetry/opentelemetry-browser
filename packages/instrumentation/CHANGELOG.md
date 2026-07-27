@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.6.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.5.2...browser-instrumentation-v0.6.0) (2026-07-13)
+
+
+### Features
+
+* add NetworkContextManager proposal for cross-instrumentation OTel context sharing ([#329](https://github.com/open-telemetry/opentelemetry-browser/issues/329)) ([4adcc9a](https://github.com/open-telemetry/opentelemetry-browser/commit/4adcc9ab2e6b3a164c04f70b702ef574004908ac))
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#294](https://github.com/open-telemetry/opentelemetry-browser/issues/294)) ([f5c9711](https://github.com/open-telemetry/opentelemetry-browser/commit/f5c97112f3ff76b1c2790ec679e793ece805caee))
+* **deps:** update dependency @opentelemetry/semantic-conventions to ^1.43.0 ([#350](https://github.com/open-telemetry/opentelemetry-browser/issues/350)) ([6c5650d](https://github.com/open-telemetry/opentelemetry-browser/commit/6c5650d62f5cc03e25b89a644cdc11c909576c6a))
+* **deps:** update opentelemetry ([#318](https://github.com/open-telemetry/opentelemetry-browser/issues/318)) ([89b8e27](https://github.com/open-telemetry/opentelemetry-browser/commit/89b8e271bf00669cc3d94ed2895a870516034b78))
+* **deps:** update opentelemetry ([#338](https://github.com/open-telemetry/opentelemetry-browser/issues/338)) ([bc54414](https://github.com/open-telemetry/opentelemetry-browser/commit/bc54414f6278e41c32d68bd72109643f75ff2878))
+* **errors:** contain throwing LogRecordProcessor to prevent error-event loop ([#303](https://github.com/open-telemetry/opentelemetry-browser/issues/303)) ([06275ee](https://github.com/open-telemetry/opentelemetry-browser/commit/06275ee58b7fa4a4367b964b9ef9fa443f4d2d51))
+* **errors:** emit ErrorEvent.message when the error object is null ([#301](https://github.com/open-telemetry/opentelemetry-browser/issues/301)) ([771b77d](https://github.com/open-telemetry/opentelemetry-browser/commit/771b77d30181022aa21b203001e7292efff7abe9))
+
+
+### Performance Improvements
+
+* **instrumentation:** declare package side-effect free for tree-shaking ([#316](https://github.com/open-telemetry/opentelemetry-browser/issues/316)) ([942bce1](https://github.com/open-telemetry/opentelemetry-browser/commit/942bce19f038b3f996a070a7eb03cf2b328299bf))
+
 ## [0.5.2](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.5.1...browser-instrumentation-v0.5.2) (2026-05-18)
 
 

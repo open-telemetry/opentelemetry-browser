@@ -1,7 +1,6 @@
 {
   "name": "@opentelemetry/browser-sdk",
   "version": "0.1.0",
-  "private": true,
   "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",
@@ -22,10 +21,23 @@
   },
   "type": "module",
   "exports": {
-    ".": "./dist/start.js",
-    "./logs": "./dist/logs.js",
-    "./session": "./dist/session/index.js",
-    "./traces": "./dist/traces.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./logs": {
+      "types": "./dist/logs/index.d.ts",
+      "default": "./dist/logs/index.js"
+    },
+    "./traces": {
+      "types": "./dist/traces/index.d.ts",
+      "default": "./dist/traces/index.js"
+    },
+    "./session": {
+      "types": "./dist/session/index.d.ts",
+      "default": "./dist/session/index.js"
+    },
+    "./package.json": "./package.json"
   },
   "sideEffects": false,
   "files": [
@@ -40,15 +52,13 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "@opentelemetry/api-logs": "^0.219.0",
-    "@opentelemetry/core": "^2.8.0",
-    "@opentelemetry/exporter-logs-otlp-http": "^0.219.0",
-    "@opentelemetry/exporter-metrics-otlp-http": "^0.219.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.219.0",
-    "@opentelemetry/resources": "^2.8.0",
-    "@opentelemetry/sdk-logs": "^0.219.0",
-    "@opentelemetry/sdk-metrics": "^2.8.0",
-    "@opentelemetry/sdk-trace-base": "^2.8.0"
+    "@opentelemetry/api-logs": "^0.221.0",
+    "@opentelemetry/core": "^2.10.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.221.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/resources": "^2.10.0",
+    "@opentelemetry/sdk-logs": "^0.221.0",
+    "@opentelemetry/sdk-trace": "^2.10.0"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.1"
