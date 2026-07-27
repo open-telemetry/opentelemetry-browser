@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Attributes, Span, SpanStatus } from '@opentelemetry/api';
+import type { Attributes, Context, Span } from '@opentelemetry/api';
 import {
   context,
   propagation,
@@ -52,9 +52,6 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     XMLHttpRequest,
     { span: Span; url: string; start: number }
   > = new WeakMap();
-  // To keep track of the resources for posterior cleanup the context registry
-  private _registeredResources: PerformanceResourceTiming[] = [];
-  private _unregisterTimer: number | undefined;
 
   constructor(config: XhrInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/xhr', version, config);
@@ -153,26 +150,38 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
 
         const spanDetails = instrumentation._xhrSpanMap.get(this);
         if (spanDetails) {
-          const { span, url } = spanDetails;
+          try {
+            const { span, url } = spanDetails;
 
-          if (instrumentation.getConfig().measureRequestSize && args?.[0]) {
-            const bodyLength = getXHRBodyLength(args[0]);
-            if (bodyLength) {
-              span.setAttribute(ATTR_HTTP_REQUEST_BODY_SIZE, bodyLength);
+            if (instrumentation.getConfig().measureRequestSize && args?.[0]) {
+              const bodyLength = getXHRBodyLength(args[0]);
+              if (bodyLength) {
+                span.setAttribute(ATTR_HTTP_REQUEST_BODY_SIZE, bodyLength);
+              }
             }
+
+            const onXhrEvent = (errorType?: string) => {
+              instrumentation._endSpan(this, errorType);
+            };
+
+            const xhrContext = trace.setSpan(context.active(), span);
+            context.with(xhrContext, () => {
+              this.addEventListener('abort', () => onXhrEvent());
+              this.addEventListener('error', () => onXhrEvent('Request error'));
+              this.addEventListener('load', () => onXhrEvent());
+              this.addEventListener('timeout', () =>
+                onXhrEvent('Request timeout'),
+              );
+              instrumentation._addHeaders(this, url, xhrContext);
+            });
+          } catch (e: unknown) {
+            // failed to instrument request, remove span
+            instrumentation._diag.error(
+              'Failed to instrument fetch request',
+              e,
+            );
+            instrumentation._xhrSpanMap.delete(this);
           }
-
-          const onXhrEvent = (isError: boolean, errorType?: string) => {
-            instrumentation._endSpan(this, isError, errorType);
-          };
-
-          context.with(trace.setSpan(context.active(), span), () => {
-            this.addEventListener('abort', () => onXhrEvent(false));
-            this.addEventListener('error', () => onXhrEvent(true, 'error'));
-            this.addEventListener('load', () => onXhrEvent(false));
-            this.addEventListener('timeout', () => onXhrEvent(true, 'timeout'));
-            instrumentation._addHeaders(this, url);
-          });
         }
         return original.apply(this, args);
       } as XhrSendFunction;
@@ -187,12 +196,13 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     const origMethod = method;
     const normMethod = normalizeHttpRequestMethod(method);
     const attributes = {} as Attributes;
+    const { sanitizeUrl } = this.getConfig();
 
     attributes[ATTR_HTTP_REQUEST_METHOD] = normMethod;
     if (normMethod !== origMethod) {
       attributes[ATTR_HTTP_REQUEST_METHOD_ORIGINAL] = origMethod;
     }
-    attributes[ATTR_URL_FULL] = parsedUrl.toString();
+    attributes[ATTR_URL_FULL] = sanitizeUrl ? sanitizeUrl(url) : url;
     attributes[ATTR_SERVER_ADDRESS] = parsedUrl.hostname;
     const serverPort = serverPortFromUrl(parsedUrl);
     if (serverPort) {
@@ -208,70 +218,34 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   /**
    * Finish span, add attributes, network events etc.
    */
-  private _endSpan(xhr: XMLHttpRequest, isError: boolean, errorType?: string) {
+  private _endSpan(xhr: XMLHttpRequest, errorType?: string) {
+    console.log('endSpan!!!!', xhr.status);
     const spanDetails = this._xhrSpanMap.get(xhr);
 
     if (spanDetails) {
       const { span, url, start } = spanDetails;
-      const { status } = xhr;
 
-      this._xhrSpanMap.delete(xhr);
-      this._applyAttributesAfterSend(span, xhr);
-      if (isError) {
-        const status = { code: SpanStatusCode.ERROR } as SpanStatus;
-        if (errorType) {
-          status.message = errorType;
+      span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, xhr.status);
+      // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
+      const isErrorStatus = xhr.status < 200 || xhr.status >= 400;
+      if (isErrorStatus || errorType) {
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        if (typeof xhr.statusText === 'string' && xhr.statusText) {
+          span.setAttribute(ATTR_ERROR_TYPE, xhr.statusText);
+        } else if (errorType) {
           span.setAttribute(ATTR_ERROR_TYPE, errorType);
         }
-        span.setStatus(status);
-      } else if (status && status >= 400) {
-        span.setStatus({ code: SpanStatusCode.ERROR });
-        span.setAttribute(ATTR_ERROR_TYPE, String(status));
       }
-
-      // Intentionally exclude status=0, because XHR uses 0 for before a
-      // response is received and semconv says to only add the attribute if
-      // received a response.
-      if (status) {
-        span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, status);
-      }
+      this._xhrSpanMap.delete(xhr);
+      this._applyAttributesAfterSend(span, xhr);
       span.end();
-      this._registerResource(span, {
-        name: url,
-        fetchStart: start,
-        responseEnd: performance.now(),
-      } as PerformanceResourceTiming);
+
+      getNetworkContextRegistry().register(span, {
+        key: url,
+        startPerfNow: start,
+        endPerfNow: performance.now(),
+      });
     }
-  }
-
-  /**
-   * Registers a resource and sets a timer for clearing the registry after a time bing idle
-   */
-  private _registerResource(span: Span, resource: PerformanceResourceTiming) {
-    const registry = getNetworkContextRegistry();
-    const data = {
-      key: resource.name,
-      startPerfNow: resource.fetchStart,
-      endPerfNow: resource.responseEnd,
-    };
-
-    // Add to the registry and keep a reference
-    registry.register(span, data);
-    this._registeredResources.push(resource);
-
-    // Cancel any pending clear task and schedule
-    if (typeof this._unregisterTimer === 'number') {
-      clearTimeout(this._unregisterTimer);
-    }
-    this._unregisterTimer = setTimeout(() => {
-      if (this._registeredResources) {
-        for (const res of this._registeredResources) {
-          registry.unregister(res);
-        }
-      }
-      this._registeredResources.length = 0;
-      this._unregisterTimer = undefined;
-    }, 1000);
   }
 
   /**
@@ -297,20 +271,24 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   /**
    * Adds custom headers to XMLHttpRequest
    */
-  private _addHeaders(xhr: XMLHttpRequest, url: string) {
+  private _addHeaders(xhr: XMLHttpRequest, url: string, ctx: Context) {
     // Propagate only if in request goes to same origin or is in the allow list
     const urlsToPropagate = this.getConfig().propagateTraceHeaderCorsUrls;
     const urlOrigin = parseUrl(url).origin;
     const sameOrigin = location.origin === urlOrigin;
     const shouldPropagate = sameOrigin || matchesUrl(url, urlsToPropagate);
 
+    console.log('shouldPropagate', shouldPropagate);
     if (shouldPropagate) {
-      propagation.inject(context.active(), xhr, {
-        set: (x, k, v) => x.setRequestHeader(k, String(v)),
+      propagation.inject(ctx, xhr, {
+        set: (x, k, v) => {
+          console.log('set', shouldPropagate);
+          x.setRequestHeader(k, String(v));
+        },
       });
     } else {
       const headers: Partial<Record<string, unknown>> = {};
-      propagation.inject(context.active(), headers);
+      propagation.inject(ctx, headers);
       if (Object.keys(headers).length > 0) {
         this._diag.debug('headers inject skipped due to CORS policy');
       }

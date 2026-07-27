@@ -28,4 +28,6 @@ export interface XhrInstrumentationConfig extends InstrumentationConfig {
   applyCustomAttributesOnSpan?: XhrCustomAttributeFunction;
   /** Measure outgoing request size */
   measureRequestSize?: boolean;
+  /** Custom function to sanitize URLs before adding to log records. */
+  sanitizeUrl?: (url: string) => string;
 }
