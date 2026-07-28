@@ -15,7 +15,7 @@ import {
 import type {
   InMemorySpanExporter,
   ReadableSpan,
-} from '@opentelemetry/sdk-trace-base';
+} from '@opentelemetry/sdk-trace';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -765,11 +765,11 @@ describe('XhrInstrumentation', () => {
     //
     // So the purpose of this test module is mostly just to test the configs
     // related to CORS requests.
-    describe.skip('cross origin requests', () => {
+    describe('cross origin requests', () => {
       it('should not break for CORS requests', async () => {
         const url = 'http://example.com/api/status.json';
         const startTime = performance.now();
-        await fetch(url).then((r) => r.json());
+        await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
         const endTime = performance.now();
 
         // Span is exported
@@ -796,7 +796,7 @@ describe('XhrInstrumentation', () => {
         describe('without global propagator', () => {
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
             const url = 'http://example.com/api/echo-headers.json';
-            const response = await fetch(url);
+            const response = await doXhrRequest({ method: 'GET', url });
 
             await assertPropagationHeaders(response);
           });
@@ -806,7 +806,7 @@ describe('XhrInstrumentation', () => {
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
-            const response = await fetch(url);
+            const response = await doXhrRequest({ method: 'GET', url });
 
             await assertPropagationHeaders(response);
           });
@@ -827,7 +827,7 @@ describe('XhrInstrumentation', () => {
 
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
             const url = 'http://example.com/api/echo-headers.json';
-            const response = await fetch(url);
+            const response = await doXhrRequest({ method: 'GET', url });
 
             await assertPropagationHeaders(response);
           });
@@ -837,7 +837,7 @@ describe('XhrInstrumentation', () => {
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
-            const response = await fetch(url);
+            const response = await doXhrRequest({ method: 'GET', url });
 
             const span = await waitForSpan(url);
             await assertPropagationHeaders(response, span);
@@ -846,6 +846,7 @@ describe('XhrInstrumentation', () => {
       });
     });
 
+    // XXX: does this apply to XHR
     describe.skip('long-lived streaming requests', () => {
       it('should end the span when the stream completes', async () => {
         const url = getUrlForPath('/api/stream');
