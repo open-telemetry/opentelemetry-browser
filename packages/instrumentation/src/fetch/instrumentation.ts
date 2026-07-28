@@ -98,6 +98,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     if (!hasBrowserPerformanceAPI) {
       return;
     }
+
     if (!this._isEnabled) {
       return;
     }

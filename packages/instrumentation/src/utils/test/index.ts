@@ -29,7 +29,7 @@ export const setupTestLogExporter = (
   const logProvider = new LoggerProvider({
     processors: [
       ...logProcessors,
-      new SimpleLogRecordProcessor({exporter: memoryExporter}),
+      new SimpleLogRecordProcessor({ exporter: memoryExporter }),
     ],
   });
   logs.setGlobalLoggerProvider(logProvider);
