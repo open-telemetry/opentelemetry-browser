@@ -11,12 +11,12 @@ import {
   LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
-import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 
 /**
  * setupTestLogExporter is a utility function that sets up a test log exporter for use in testing.

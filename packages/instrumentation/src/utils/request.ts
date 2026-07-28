@@ -119,7 +119,7 @@ export function getXHRBodyLength(
   body: Document | XMLHttpRequestBodyInit,
 ): number | undefined {
   if (isDocument(body)) {
-    return new XMLSerializer().serializeToString(document).length;
+    return new XMLSerializer().serializeToString(body).length;
   }
 
   // XMLHttpRequestBodyInit expands to the following:

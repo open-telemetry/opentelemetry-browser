@@ -1178,12 +1178,13 @@ describe('FetchInstrumentation', () => {
         const reader = response.body?.getReader();
         expect(reader).toBeTruthy();
 
-        const first = await reader!.read();
-        const text = new TextDecoder().decode(first.value);
-        expect(first.done).toBeFalsy();
-        expect(text).toMatch(/^data: \d+\n$/);
-
-        reader!.cancel('test-cancel');
+        if (reader) {
+          const first = await reader.read();
+          const text = new TextDecoder().decode(first.value);
+          expect(first.done).toBeFalsy();
+          expect(text).toMatch(/^data: \d+\n$/);
+          reader.cancel('test-cancel');
+        }
 
         // We increase here the timeout since the stream takes a bit more than 1sec.
         // The instrumentation tracks completion via an eagerly-consumed clone;

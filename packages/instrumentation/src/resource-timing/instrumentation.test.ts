@@ -616,7 +616,6 @@ describe('ResourceTimingInstrumentation', () => {
 
       const records = inMemoryExporter.getFinishedLogRecords();
       expect(records).toHaveLength(1);
-      console.log(records[0]);
       expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe(
         'https://example.com/api/resource',
       );
