@@ -11,12 +11,12 @@ import {
   LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
-import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import {
-  BasicTracerProvider,
   InMemorySpanExporter,
   SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace-base';
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 
 /**
  * setupTestLogExporter is a utility function that sets up a test log exporter for use in testing.
@@ -29,7 +29,7 @@ export const setupTestLogExporter = (
   const logProvider = new LoggerProvider({
     processors: [
       ...logProcessors,
-      new SimpleLogRecordProcessor({ exporter: memoryExporter }),
+      new SimpleLogRecordProcessor(memoryExporter),
     ],
   });
   logs.setGlobalLoggerProvider(logProvider);
@@ -42,10 +42,10 @@ export const setupTestLogExporter = (
  * */
 export const setupTestSpanExporter = (spanProcessors: SpanProcessor[] = []) => {
   const memoryExporter = new InMemorySpanExporter();
-  const tracerProvider = new BasicTracerProvider({
+  const tracerProvider = new TracerProvider({
     spanProcessors: [
       ...spanProcessors,
-      new SimpleSpanProcessor(memoryExporter),
+      new SimpleSpanProcessor({ exporter: memoryExporter }),
     ],
   });
   trace.setGlobalTracerProvider(tracerProvider);
