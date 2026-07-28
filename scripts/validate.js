@@ -229,8 +229,8 @@ function checkPackageExports(units) {
 // - sdk: includes the required components to register the required providers
 // - utils: code shared by the instrumentations
 const MAX_SIZE_KB_BUCKETS = {
-  'sdk': 8,
-  'utils': 5,
+  sdk: 8,
+  utils: 5,
 };
 function checkBundleSize(units) {
   logSection('4. Bundle Size');
