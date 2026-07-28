@@ -225,6 +225,13 @@ function checkPackageExports(units) {
   return allPassed;
 }
 
+// NOTE: some packages may grow bigger than the instrumentations like
+// - sdk: includes the required components to register the required providers
+// - utils: code shared by the instrumentations
+const MAX_SIZE_KB_BUCKETS = {
+  'sdk': 8,
+  'utils': 5,
+};
 function checkBundleSize(units) {
   logSection('4. Bundle Size');
   const MIN_SIZE_KB = 0.1;
@@ -232,7 +239,7 @@ function checkBundleSize(units) {
 
   for (const { label, distPath } of units) {
     // NOTE: the SDK package is expected to grow bigger than the instrumentations
-    const MAX_SIZE_KB = label === 'sdk' ? 8 : 4;
+    const MAX_SIZE_KB = MAX_SIZE_KB_BUCKETS[label] || 4;
     const jsFilePaths = getJsFiles(distPath);
 
     let totalRaw = 0;

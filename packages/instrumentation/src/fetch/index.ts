@@ -6,8 +6,8 @@
 export { FetchInstrumentation } from './instrumentation.ts';
 export type {
   FetchCustomAttributeFunction,
-  FetchRequestHookFunction,
   FetchError,
-  FetchResponse,
   FetchInstrumentationConfig,
+  FetchRequestHookFunction,
+  FetchResponse,
 } from './types.ts';
