@@ -167,7 +167,7 @@ differentiator from server-side telemetry. Goals:
 * Modeling sessions and documents/page views as entities, with session and
   page context carried on telemetry via resource attributes
   ([#269](https://github.com/open-telemetry/opentelemetry-browser/pull/269),
-  [semantic-conventions#3519](https://github.com/open-telemetry/semantic-conventions/pull/3519)).
+  [semantic-conventions#3633](https://github.com/open-telemetry/semantic-conventions/pull/3633)).
 * Alignment with other client platforms on session semantics, in
   coordination with the Client Instrumentation SIG, since entity support may
   require engagement with the broader OpenTelemetry specification.
