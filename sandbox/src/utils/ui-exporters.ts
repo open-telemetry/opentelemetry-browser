@@ -5,7 +5,7 @@ import type {
   LogRecordExporter,
   ReadableLogRecord,
 } from '@opentelemetry/sdk-logs';
-import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace';
 
 type LogCallback = (type: string, msg: string) => void;
 

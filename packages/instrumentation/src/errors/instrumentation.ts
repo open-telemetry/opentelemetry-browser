@@ -97,26 +97,43 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
       return;
     }
 
-    let errorAttributes: AnyValueMap;
-    if (typeof error === 'string') {
-      errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: error };
-    } else {
-      errorAttributes = {
-        [ATTR_EXCEPTION_TYPE]: error.name,
-        [ATTR_EXCEPTION_MESSAGE]: error.message,
-        [ATTR_EXCEPTION_STACKTRACE]: error.stack,
-      };
-    }
+    // Capture as a const so the type narrowing survives into the closure below.
+    const capturedError = error;
 
-    const customAttributes = this._applyCustomAttributes(error);
+    // This runs inside a global error listener, so an escaping throw would
+    // re-trigger the listener and loop. Both attribute extraction (a rejection
+    // can carry a value whose `stack` getter throws) and emit (a broken
+    // LogRecordProcessor) can throw, so contain the whole path.
+    safeExecuteInTheMiddle(
+      () => {
+        let errorAttributes: AnyValueMap;
+        if (typeof capturedError === 'string') {
+          errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: capturedError };
+        } else {
+          errorAttributes = {
+            [ATTR_EXCEPTION_TYPE]: capturedError.name,
+            [ATTR_EXCEPTION_MESSAGE]: capturedError.message,
+            [ATTR_EXCEPTION_STACKTRACE]: capturedError.stack,
+          };
+        }
 
-    const logRecord: LogRecord = {
-      eventName: EXCEPTION_EVENT_NAME,
-      severityNumber: SeverityNumber.ERROR,
-      attributes: { ...errorAttributes, ...customAttributes },
-    };
+        const customAttributes = this._applyCustomAttributes(capturedError);
 
-    this.logger.emit(logRecord);
+        const logRecord: LogRecord = {
+          eventName: EXCEPTION_EVENT_NAME,
+          severityNumber: SeverityNumber.ERROR,
+          attributes: { ...errorAttributes, ...customAttributes },
+        };
+
+        this.logger.emit(logRecord);
+      },
+      (err) => {
+        if (err) {
+          this._diag.error('failed to record exception', err);
+        }
+      },
+      true,
+    );
   }
 
   private _applyCustomAttributes(error: Error | string): Attributes {

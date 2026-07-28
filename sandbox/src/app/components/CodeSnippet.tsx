@@ -12,14 +12,12 @@ export function CodeSnippet({
     <div className="code-block">
       <span className="kw">import</span>
       {' { '}
-      <span className="fn">BrowserSDK</span>
+      <span className="fn">startBrowserSdk</span>
       {' } '}
       <span className="kw">from</span>{' '}
-      <span className="str">'@opentelemetry/browser-instrumentation'</span>
+      <span className="str">'@opentelemetry/browser-sdk'</span>
       {';\n\n'}
-      <span className="kw">const</span>
-      {' sdk = '}
-      <span className="kw">new</span> <span className="fn">BrowserSDK</span>
+      <span className="fn">startBrowserSdk</span>
       {'({\n'}
       {'  '}
       <span className="prop">serviceName</span>
@@ -31,24 +29,10 @@ export function CodeSnippet({
       {': '}
       <span className="str">{`'${config.serviceVersion}'`}</span>
       {',\n'}
-      {'  '}
-      <span className="prop">otlpExporterConfig</span>
-      {': {\n'}
-      {'    '}
-      <span className="prop">tracesUrl</span>
-      {': '}
-      <span className="str">{`'${config.tracesUrl}'`}</span>
-      {',\n'}
-      {'    '}
-      <span className="prop">logsUrl</span>
-      {'  : '}
-      <span className="str">{`'${config.logsUrl}'`}</span>
-      {',\n'}
-      {'  }'}
       {entries.length > 0 && (
         <>
-          {',\n  '}
-          <span className="prop">attributes</span>
+          {'  '}
+          <span className="prop">resourceAttributes</span>
           {': {\n'}
           {entries.map(([k, v]) => (
             <span key={k}>
@@ -59,12 +43,45 @@ export function CodeSnippet({
               {',\n'}
             </span>
           ))}
-          {'  }'}
+          {'  },\n'}
         </>
       )}
-      {',\n});\n\nsdk.'}
-      <span className="fn">start</span>
-      {'();'}
+      {'  '}
+      <span className="prop">traces</span>
+      {': {\n'}
+      {'    '}
+      <span className="prop">exportConfig</span>
+      {': { '}
+      <span className="prop">url</span>
+      {': '}
+      <span className="str">{`'${config.tracesUrl}'`}</span>
+      {' },\n'}
+      {'    '}
+      <span className="com">
+        {'// ...session + console processors, batching, propagators'}
+      </span>
+      {'\n  },\n'}
+      {'  '}
+      <span className="prop">logs</span>
+      {': {\n'}
+      {'    '}
+      <span className="prop">exportConfig</span>
+      {': { '}
+      <span className="prop">url</span>
+      {': '}
+      <span className="str">{`'${config.logsUrl}'`}</span>
+      {' },\n'}
+      {'    '}
+      <span className="com">
+        {'// ...session + console processors, batching'}
+      </span>
+      {'\n  },\n'}
+      {'  '}
+      <span className="com">{'// ...more SDK options'}</span>
+      {'\n});\n\n'}
+      <span className="com">
+        {'// ...plus auto-instrumentations: fetch, XHR, web vitals, and more'}
+      </span>
     </div>
   );
 }

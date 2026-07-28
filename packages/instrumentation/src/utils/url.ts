@@ -56,7 +56,7 @@ export function defaultSanitizeUrl(url: string): string {
 }
 
 /**
- * Parses url using URL constructor or fallback to anchor element.
+ * Parses a URL, resolving relative URLs against document.baseURI (or location.href)
  * @param url
  */
 export function parseUrl(url: string): URL {
@@ -93,7 +93,7 @@ const HTTP_PORT_FROM_PROTOCOL: { [key: string]: string } = {
   'http:': '80',
 };
 /**
- * Extracts the server port fromt the given URL object
+ * Extracts the server port from the given URL object
  */
 export function serverPortFromUrl(url: URL): number | undefined {
   const serverPort = Number(url.port || HTTP_PORT_FROM_PROTOCOL[url.protocol]);

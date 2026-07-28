@@ -4,7 +4,7 @@
  */
 
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
-import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import { DefaultIdGenerator } from './DefaultIdGenerator.ts';
 import { LocalStorageSessionStore } from './LocalStorageSessionStore.ts';
 import { SessionLogRecordProcessor } from './SessionLogRecordProcessor.ts';

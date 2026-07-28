@@ -34,7 +34,7 @@ export type FetchRequestHookFunction = (
 ) => void;
 
 export interface FetchInstrumentationConfig extends InstrumentationConfig {
-  // urls which should include trace headers when origin doesn't match
+  /** urls which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
   /**
    * URLs that partially match any regex in ignoreUrls will not be traced.
@@ -48,4 +48,6 @@ export interface FetchInstrumentationConfig extends InstrumentationConfig {
   requestHook?: FetchRequestHookFunction;
   /** Measure outgoing request size */
   measureRequestSize?: boolean;
+  /** Custom function to sanitize URLs before adding to log records. */
+  sanitizeUrl?: (url: string) => string;
 }

@@ -3,88 +3,87 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
-import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { diag, trace } from '@opentelemetry/api';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import type { WebSdk } from '../core/types.ts';
+import { startTracesSdk } from './startTracesSdk.ts';
 
-import { startLogsSdk } from './logs.ts';
-import type { WebSdk } from './types.ts';
+const BSP_SCHEDULE_DELAY = 10;
 
-const BLRP_SCHEDULE_DELAY = 10;
-
-describe('startLogsSdk', () => {
+describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
-  let logsSdk: WebSdk;
+  let tracesSdk: WebSdk;
 
-  // NOTE: we mock the registration of the logger provider because
-  // the logs API only allow to register once. With the mock we can use
+  // NOTE: we mock the registration of the tracer provider because
+  // the trace API only allow to register once. With the mock we can use
   // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
   });
   afterEach(async () => {
     fetchSpy.mockClear();
-    await logsSdk?.shutdown();
-    logs.disable();
+    await tracesSdk?.shutdown();
+    trace.disable();
   });
 
   it('should not start if disabled by configuration', async () => {
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       disabled: true,
       // NOTE: we set a short delay to speed up tests and avoid test timeouts
       batchProcessorConfig: {
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(diagDebugSpy).toHaveBeenCalled();
-    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Logs SDK disabled/);
+    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Traces SDK disabled/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       exportConfig: {
         url: 'this_is_not_an_URL',
       },
       // NOTE: we set a short delay to speed up tests and avoid test timeouts
       batchProcessorConfig: {
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(diagErrorSpy).toHaveBeenCalled();
-    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Logs SDK won't start/);
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should use the default configuration for exporters', async () => {
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://localhost:4318/v1/logs',
+      'http://localhost:4318/v1/traces',
     );
     expect(fetchSpy.mock.lastCall?.[1]).containSubset({
       method: 'POST',
@@ -96,23 +95,23 @@ describe('startLogsSdk', () => {
 
   it('should accept signal specific OTLP endpoint and headers', async () => {
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
       exportConfig: {
-        url: 'http://otlp-signal-endpoint:4318/v1/logs',
+        url: 'http://otlp-signal-endpoint:4318/v1/traces',
         headers: { bar: 'baz' },
       },
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://otlp-signal-endpoint:4318/v1/logs',
+      'http://otlp-signal-endpoint:4318/v1/traces',
     );
     expect(fetchSpy.mock.lastCall?.[1]).containSubset({
       method: 'POST',
@@ -125,28 +124,28 @@ describe('startLogsSdk', () => {
 
   it('should append the resource attributes in exports', async () => {
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
       resourceAttributes: {
         'resource.attr1': 'value 1',
         'resource.attr2': 'value 2',
       },
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://localhost:4318/v1/logs',
+      'http://localhost:4318/v1/traces',
     );
     const fetchInit = fetchSpy.mock.lastCall?.[1];
     const decoder = new TextDecoder();
     const payload = JSON.parse(decoder.decode(fetchInit?.body as Uint8Array));
-    const exportAttributes = payload.resourceLogs[0].resource.attributes;
+    const exportAttributes = payload.resourceSpans[0].resource.attributes;
 
     expect(exportAttributes).containSubset([
       { key: 'resource.attr1', value: { stringValue: 'value 1' } },
@@ -159,10 +158,10 @@ describe('startLogsSdk', () => {
 
   it('should give precedence to serviceName & serviceVersion over resource attributes', async () => {
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
       serviceName: 'test-service',
       serviceVersion: '1.0.0',
@@ -173,18 +172,18 @@ describe('startLogsSdk', () => {
         'service.version': '0.0.1',
       },
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://localhost:4318/v1/logs',
+      'http://localhost:4318/v1/traces',
     );
     const fetchInit = fetchSpy.mock.lastCall?.[1];
     const decoder = new TextDecoder();
     const payload = JSON.parse(decoder.decode(fetchInit?.body as Uint8Array));
-    const exportAttributes = payload.resourceLogs[0].resource.attributes;
+    const exportAttributes = payload.resourceSpans[0].resource.attributes;
 
     expect(exportAttributes).containSubset([
       { key: 'resource.attr1', value: { stringValue: 'value 1' } },
@@ -196,49 +195,51 @@ describe('startLogsSdk', () => {
     ]);
   });
 
-  it('should accept LogRecord processors from the user', async () => {
+  it('should accept Span processors from the user', async () => {
     // Arrange
     let exportCalled = false;
 
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       processors: [
-        new SimpleLogRecordProcessor({
-          export: () => (exportCalled = true),
-          shutdown: () => Promise.resolve(),
-          forceFlush: () => Promise.resolve(),
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
         }),
       ],
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
 
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
   });
 
-  it('should add a BatchLogRecordProcessor into the list if exporter config is set', async () => {
+  it('should add a BatchSpanProcessor into the list if exporter config is set', async () => {
     // Arrange
     let exportCalled = false;
     const url = 'http://otlp-signal-endpoint:4318/v1/traces';
 
     // Act
-    logsSdk = startLogsSdk({
+    tracesSdk = startTracesSdk({
       batchProcessorConfig: {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
       exportConfig: { url },
       processors: [
-        new SimpleLogRecordProcessor({
-          export: () => (exportCalled = true),
-          shutdown: () => Promise.resolve(),
-          forceFlush: () => Promise.resolve(),
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
         }),
       ],
     });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
     expect(exportCalled).toStrictEqual(true);
