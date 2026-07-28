@@ -119,21 +119,21 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         if (!instrumentation._isEnabled) {
           return original.apply(this, args);
         }
-        const instrConfig = instrumentation.getConfig();
-
-        const url = parseUrl(
-          args[0] instanceof Request ? args[0].url : String(args[0]),
-        ).href;
-
-        const shouldIgnoreUrl = matchesUrl(url, instrConfig.ignoreUrls);
-        if (shouldIgnoreUrl) {
-          return original.apply(this, args);
-        }
 
         // Reference to the Span in case there is an exception after creating it (wil not end)
         // It will be used to keep the Map only with the Spans that will be ended
         let trucatedSpan: Span | undefined;
         try {
+          const instrConfig = instrumentation.getConfig();
+          const url = parseUrl(
+            args[0] instanceof Request ? args[0].url : String(args[0]),
+          ).href;
+
+          const shouldIgnoreUrl = matchesUrl(url, instrConfig.ignoreUrls);
+          if (shouldIgnoreUrl) {
+            return original.apply(this, args);
+          }
+
           // Per the Fetch spec, when fetch() is called with a Request object
           // and a separate init object, the init properties override the
           // Request's properties. Merge them into a new Request so that
