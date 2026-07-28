@@ -36,7 +36,8 @@
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
-    "./experimental/web-vitals": "./dist/web-vitals/index.js"
+    "./experimental/web-vitals": "./dist/web-vitals/index.js",
+    "./experimental/fetch": "./dist/fetch/index.js"
   },
   "sideEffects": false,
   "files": [
