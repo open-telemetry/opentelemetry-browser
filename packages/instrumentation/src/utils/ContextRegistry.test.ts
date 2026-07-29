@@ -14,7 +14,11 @@ interface TestData {
 }
 
 class TestRegistry extends ContextRegistry<TestData, string> {
-  getKey(lookup: string): string {
+  getDataKey(data: TestData): string {
+    return data.key;
+  }
+
+  getLookupKey(lookup: string): string {
     return lookup;
   }
 

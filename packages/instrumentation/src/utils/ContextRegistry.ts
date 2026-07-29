@@ -8,6 +8,8 @@ import { ROOT_CONTEXT, trace } from '@opentelemetry/api';
 
 type StoredRecord<TData> = TData & { ctx: Context };
 
+const MAX_ITEMS = 1000;
+
 /**
  * Base class for sharing OTel span context between two instrumentations that
  * observe the same events from different angles.
@@ -16,21 +18,37 @@ type StoredRecord<TData> = TData & { ctx: Context };
  * consuming instrumentation calls `getContext()` to retrieve the span context
  * associated with the event it is processing.
  *
- * @typeParam TData - Registration payload. Must include a `key` string used
- *   as the primary index, plus any implementation-specific fields needed to
+ * @typeParam TData - Registration payload. Must include enough info to derive a `key` string
+ *   which will be used as the primary index, plus any implementation-specific fields needed to
  *   disambiguate concurrent operations (e.g. timing windows for network spans).
  * @typeParam TLookup - The object the consuming instrumentation passes to
  *   `getContext` and `unregister` (e.g. a `PerformanceResourceTiming` entry).
  */
-export abstract class ContextRegistry<TData extends { key: string }, TLookup> {
+export abstract class ContextRegistry<TData, TLookup> {
   protected _records = new Map<string, StoredRecord<TData>[]>();
+  private _usedKeys: string[] = [];
 
-  /** Store the span context for the given data, indexed by `data.key`. */
+  /** Store the span context for the given data, key is resolved . */
   register(span: Span, data: TData): void {
     const ctx = trace.setSpan(ROOT_CONTEXT, span);
-    const list = this._records.get(data.key) ?? [];
+    const key = this.getDataKey(data);
+    const list = this._records.get(key) ?? [];
     list.push({ ...data, ctx });
-    this._records.set(data.key, list);
+    this._records.set(key, list);
+
+    // To keep track of the items added we just need the keys. Removing the oldest
+    // bocomes only keeping the key used at that time and remove the 1st element of
+    // the list under that key (since we are pushing)
+
+    // Keep the key used for registration
+    this._usedKeys.push(key);
+    if (this._usedKeys.length > MAX_ITEMS) {
+      // 1st key of the array is the oldest
+      const oldestKey = this._usedKeys.shift() as string;
+      // and 1st item on the list is the oldest
+      const oldestList = this._records.get(oldestKey) || [];
+      oldestList.shift();
+    }
   }
 
   /**
@@ -38,7 +56,7 @@ export abstract class ContextRegistry<TData extends { key: string }, TLookup> {
    * is a no-op. Deletes the key entirely once all records under it are removed.
    */
   unregister(lookup: TLookup): void {
-    const key = this.getKey(lookup);
+    const key = this.getLookupKey(lookup);
     const ctx = this.getContext(lookup);
     if (ctx === undefined) {
       return;
@@ -57,8 +75,11 @@ export abstract class ContextRegistry<TData extends { key: string }, TLookup> {
     }
   }
 
+  /** Return the index key for the given data object. */
+  abstract getDataKey(data: TData): string;
+
   /** Return the index key for the given lookup object. */
-  abstract getKey(lookup: TLookup): string;
+  abstract getLookupKey(lookup: TLookup): string;
 
   /**
    * Return the OTel context for the record that matches `lookup`, or
