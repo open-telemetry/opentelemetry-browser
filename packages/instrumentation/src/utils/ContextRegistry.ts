@@ -8,7 +8,7 @@ import { ROOT_CONTEXT, trace } from '@opentelemetry/api';
 
 type StoredRecord<TData> = TData & { ctx: Context };
 
-const MAX_ITEMS = 1000;
+const MAX_CAPACITY = 1000;
 
 /**
  * Base class for sharing OTel span context between two instrumentations that
@@ -42,7 +42,7 @@ export abstract class ContextRegistry<TData, TLookup> {
 
     // Keep the key used for registration
     this._usedKeys.push(key);
-    if (this._usedKeys.length > MAX_ITEMS) {
+    if (this._usedKeys.length > MAX_CAPACITY) {
       // 1st key of the array is the oldest
       const oldestKey = this._usedKeys.shift() as string;
       // and 1st item on the list is the oldest
