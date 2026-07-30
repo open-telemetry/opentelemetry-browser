@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.6.0...browser-instrumentation-v0.7.0) (2026-07-29)
+
+
+### Features
+
+* **user-action:** add callback function to create custom attributes in user action logs ([#358](https://github.com/open-telemetry/opentelemetry-browser/issues/358)) ([c0bcfb9](https://github.com/open-telemetry/opentelemetry-browser/commit/c0bcfb98be8f1e98efed46b739008600bc436403))
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#363](https://github.com/open-telemetry/opentelemetry-browser/issues/363)) ([533fcdf](https://github.com/open-telemetry/opentelemetry-browser/commit/533fcdf72db5eed6158b9e2bc42deb2452236d98))
+
 ## [0.6.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.5.2...browser-instrumentation-v0.6.0) (2026-07-13)
 
 
