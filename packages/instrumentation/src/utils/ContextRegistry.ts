@@ -28,7 +28,7 @@ export abstract class ContextRegistry<TData, TLookup> {
   protected _records = new Map<string, StoredRecord<TData>[]>();
   private _usedKeys: string[] = [];
 
-  /** Store the span context for the given data, key is resolved . */
+  /** Store the span context for the given data, key is resolved by getDataKey(). */
   register(span: Span, data: TData): void {
     const ctx = trace.setSpan(ROOT_CONTEXT, span);
     const key = this.getDataKey(data);
