@@ -37,7 +37,7 @@ export abstract class ContextRegistry<TData, TLookup> {
     this._records.set(key, list);
 
     // To keep track of the items added we just need the keys. Removing the oldest
-    // bocomes only keeping the key used at that time and remove the 1st element of
+    // becomes only keeping the key used at that time and remove the 1st element of
     // the list under that key (since we are pushing)
 
     // Keep the key used for registration
