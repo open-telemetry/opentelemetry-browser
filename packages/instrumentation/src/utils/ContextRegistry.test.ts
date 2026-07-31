@@ -23,7 +23,7 @@ class TestRegistry extends ContextRegistry<TestData, string> {
   }
 
   getContext(key: string): Context | undefined {
-    return this._records.get(key)?.[0]?.ctx;
+    return this._recordsByKey.get(key)?.[0]?.ctx;
   }
 }
 
@@ -48,6 +48,7 @@ describe('ContextRegistry', () => {
       expect(ctx && trace.getSpan(ctx)?.spanContext().traceId).toBe(
         'a'.repeat(32),
       );
+      expect(registry.size()).toEqual(1);
     });
 
     it('merges additional data fields into the stored record', () => {
@@ -56,8 +57,9 @@ describe('ContextRegistry', () => {
 
       registry.register(span, { key: 'foo', value: 42 });
 
-      const record = registry['_records'].get('foo')?.[0];
+      const record = registry['_recordsByKey'].get('foo')?.[0];
       expect(record?.value).toBe(42);
+      expect(registry.size()).toEqual(1);
     });
 
     it('accumulates multiple entries under the same key', () => {
@@ -68,7 +70,8 @@ describe('ContextRegistry', () => {
       registry.register(span1, { key: 'foo', value: 1 });
       registry.register(span2, { key: 'foo', value: 2 });
 
-      expect(registry['_records'].get('foo')).toHaveLength(2);
+      expect(registry['_recordsByKey'].get('foo')).toHaveLength(2);
+      expect(registry.size()).toEqual(2);
     });
 
     it('keeps entries for different keys separate', () => {
@@ -87,6 +90,7 @@ describe('ContextRegistry', () => {
       expect(barCtx && trace.getSpan(barCtx)?.spanContext().traceId).toBe(
         '2'.repeat(32),
       );
+      expect(registry.size()).toEqual(2);
     });
   });
 
@@ -99,6 +103,7 @@ describe('ContextRegistry', () => {
       registry.unregister('foo');
 
       expect(registry.getContext('foo')).toBeUndefined();
+      expect(registry.size()).toEqual(0);
     });
 
     it('deletes the key when the last record is removed', () => {
@@ -108,7 +113,8 @@ describe('ContextRegistry', () => {
       registry.register(span, { key: 'foo', value: 1 });
       registry.unregister('foo');
 
-      expect(registry['_records'].has('foo')).toBe(false);
+      expect(registry['_recordsByKey'].has('foo')).toBe(false);
+      expect(registry.size()).toEqual(0);
     });
 
     it('removes only the matching record when multiple entries share the same key', () => {
@@ -121,7 +127,8 @@ describe('ContextRegistry', () => {
 
       registry.unregister('foo');
 
-      expect(registry['_records'].get('foo')).toHaveLength(1);
+      expect(registry['_recordsByKey'].get('foo')).toHaveLength(1);
+      expect(registry.size()).toEqual(1);
     });
 
     it('does not affect entries for other keys', () => {
@@ -135,12 +142,61 @@ describe('ContextRegistry', () => {
 
       expect(registry.getContext('foo')).toBeUndefined();
       expect(registry.getContext('bar')).toBeDefined();
+      expect(registry.size()).toEqual(1);
     });
 
     it('is a no-op when the lookup does not match any record', () => {
       const registry = new TestRegistry();
 
       expect(() => registry.unregister('unknown')).not.toThrow();
+      expect(registry.size()).toEqual(0);
+    });
+  });
+
+  describe('capacity', () => {
+    it('removes the oldest entry when it reaches tha max capacity', () => {
+      const registry = new TestRegistry();
+      for (let i = 0; i < 1000; i++) {
+        registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
+          key: `key-${i}`,
+          value: i,
+        });
+      }
+      expect(registry.size()).toEqual(1000);
+
+      // This last registration overflows
+      registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
+        key: `key-${1000}`,
+        value: 1000,
+      });
+      expect(registry.getContext('key-0')).toBeUndefined();
+      expect(registry.size()).toEqual(1000);
+    });
+
+    it('keep track of the ', () => {
+      const registry = new TestRegistry();
+      for (let i = 0; i < 1000; i++) {
+        registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
+          key: `key-${i}`,
+          value: i,
+        });
+      }
+      expect(registry.size()).toEqual(1000);
+
+      // Remove a couple of records
+      registry.unregister('key-200');
+      registry.unregister('key-250');
+
+      // This last registration should not overflow
+      registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
+        key: `key-${1000}`,
+        value: 1000,
+      });
+      expect(registry.getContext('key-0')).toBeDefined();
+      expect(registry.getContext('key-200')).toBeUndefined();
+      expect(registry.getContext('key-250')).toBeUndefined();
+      expect(registry.getContext('key-1000')).toBeDefined();
+      expect(registry.size()).toEqual(999);
     });
   });
 });

@@ -25,29 +25,30 @@ const MAX_CAPACITY = 1000;
  *   `getContext` and `unregister` (e.g. a `PerformanceResourceTiming` entry).
  */
 export abstract class ContextRegistry<TData, TLookup> {
-  protected _records = new Map<string, StoredRecord<TData>[]>();
-  private _usedKeys: string[] = [];
+  protected _recordsByKey = new Map<string, StoredRecord<TData>[]>();
+  private _recordsList: StoredRecord<TData>[] = [];
 
   /** Store the span context for the given data, key is resolved . */
   register(span: Span, data: TData): void {
     const ctx = trace.setSpan(ROOT_CONTEXT, span);
     const key = this.getDataKey(data);
-    const list = this._records.get(key) ?? [];
-    list.push({ ...data, ctx });
-    this._records.set(key, list);
+    const list = this._recordsByKey.get(key) ?? [];
+    const record = { ...data, ctx };
 
-    // To keep track of the items added we just need the keys. Removing the oldest
-    // bocomes only keeping the key used at that time and remove the 1st element of
-    // the list under that key (since we are pushing)
+    // Set record into the map for faster lookup and in the
+    // list to track the size
+    list.push(record);
+    this._recordsByKey.set(key, list);
+    this._recordsList.push(record);
 
-    // Keep the key used for registration
-    this._usedKeys.push(key);
-    if (this._usedKeys.length > MAX_CAPACITY) {
-      // 1st key of the array is the oldest
-      const oldestKey = this._usedKeys.shift() as string;
-      // and 1st item on the list is the oldest
-      const oldestList = this._records.get(oldestKey) || [];
-      oldestList.shift();
+    // If capacity is exceeded remove the oldest (1st in the array)
+    if (this._recordsList.length > MAX_CAPACITY) {
+      const oldestRecord = this._recordsList.shift();
+      if (oldestRecord) {
+        const oldestKey = this.getDataKey(oldestRecord);
+        const oldestCtx = oldestRecord.ctx;
+        this.removeByKey(oldestKey, oldestCtx);
+      }
     }
   }
 
@@ -62,17 +63,40 @@ export abstract class ContextRegistry<TData, TLookup> {
       return;
     }
 
-    const list = this._records.get(key);
+    // Remove form the lookup map and from the global list
+    // to keep size up to date
+    this.removeByKey(key, ctx);
+    const index = this._recordsList.findIndex((r) => {
+      const k = this.getDataKey(r);
+      return key === k && ctx === r.ctx;
+    });
+    if (index > -1) {
+      this._recordsList.splice(index, 1);
+    }
+  }
+
+  /**
+   * Remove a record from the records sub-list of the given key
+   */
+  private removeByKey(key: string, ctx: Context): void {
+    const list = this._recordsByKey.get(key);
     if (!list) {
       return;
     }
 
     const filtered = list.filter((r) => r.ctx !== ctx);
     if (filtered.length === 0) {
-      this._records.delete(key);
+      this._recordsByKey.delete(key);
     } else {
-      this._records.set(key, filtered);
+      this._recordsByKey.set(key, filtered);
     }
+  }
+
+  /**
+   * Return the size number of records stored in the registry
+   */
+  size(): number {
+    return this._recordsList.length;
   }
 
   /** Return the index key for the given data object. */
