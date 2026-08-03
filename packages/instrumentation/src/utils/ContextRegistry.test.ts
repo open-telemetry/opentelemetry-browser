@@ -154,7 +154,7 @@ describe('ContextRegistry', () => {
   });
 
   describe('capacity', () => {
-    it('removes the oldest entry when it reaches the max capacity', () => {
+    it('removes the oldest record when it reaches the max capacity', () => {
       const registry = new TestRegistry();
       for (let i = 0; i < 1000; i++) {
         registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
