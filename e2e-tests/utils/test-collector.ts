@@ -41,6 +41,8 @@ export interface OtlpLogRecord {
   spanId?: string;
   severityNumber?: number;
   severityText?: string;
+  eventName?: string;
+  body?: OtlpAnyValue;
   attributes: OtlpKeyValue[];
 }
 

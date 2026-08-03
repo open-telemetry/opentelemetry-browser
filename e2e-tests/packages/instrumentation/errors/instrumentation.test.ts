@@ -14,6 +14,7 @@ import {
   vi,
 } from 'vitest';
 import { collector } from '../../../utils/test-collector.ts';
+import type { TestSdkHandle } from '../../../utils/test-otel-setup.ts';
 import { testSdkSetup } from '../../../utils/test-otel-setup.ts';
 
 // Dispatch a synthetic error event without actually crashing the browser page.
@@ -41,7 +42,7 @@ const dispatchUnhandledRejection = (reason: Error | string) => {
 };
 
 describe('ErrorsInstrumentation', () => {
-  let result: ReturnType<typeof testSdkSetup>;
+  let result: TestSdkHandle;
 
   beforeAll(async () => {
     await collector.start();
