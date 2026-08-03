@@ -154,7 +154,7 @@ describe('ContextRegistry', () => {
   });
 
   describe('capacity', () => {
-    it('removes the oldest entry when it reaches tha max capacity', () => {
+    it('removes the oldest entry when it reaches the max capacity', () => {
       const registry = new TestRegistry();
       for (let i = 0; i < 1000; i++) {
         registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
@@ -173,7 +173,7 @@ describe('ContextRegistry', () => {
       expect(registry.size()).toEqual(1000);
     });
 
-    it('keep track of the ', () => {
+    it('does not remove records if there is still capacity', () => {
       const registry = new TestRegistry();
       for (let i = 0; i < 1000; i++) {
         registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
@@ -187,7 +187,7 @@ describe('ContextRegistry', () => {
       registry.unregister('key-200');
       registry.unregister('key-250');
 
-      // This last registration should not overflow
+      // This last registration should not remove the oldest record
       registry.register(makeSpan('a'.repeat(32), 'b'.repeat(16)), {
         key: `key-${1000}`,
         value: 1000,
