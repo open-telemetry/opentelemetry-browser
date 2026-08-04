@@ -134,7 +134,9 @@ describe('startBrowserSdk', () => {
 
     // Assert
     expect(diagErrorSpy).toHaveBeenCalled();
-    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't start/);
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(
+      /Invalid OTLP export URL "this_is_not_an_URL". Traces SDK won't start/,
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(false);
   });
