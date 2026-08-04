@@ -95,9 +95,8 @@ export function combineSdks<T extends SdkFactories>(
 
     const sdks: WebSdk[] = [];
 
-    // Validate every export URL up-front and bail out on the first invalid one.
-    // Doing this before starting any signal SDK avoids a partial start where one
-    // signal's provider is registered while the other refuses to start.
+    // Validate every export URL before starting any signal SDK, so an invalid
+    // URL cannot leave one signal exporting while the other refuses to start.
     const endpointUrl = parseExportUrl(
       rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
     );
