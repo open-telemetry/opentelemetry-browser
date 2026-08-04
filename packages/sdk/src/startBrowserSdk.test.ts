@@ -77,7 +77,8 @@ describe('startBrowserSdk', () => {
     trace.getTracer('traces-sdk-test').startSpan('test').end();
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
-    // Assert
+    // Assert: an intentional disable is not flagged as an invalid config
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(diagDebugSpy).toHaveBeenCalled();
     expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -99,6 +100,7 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
     expect(diagErrorSpy).toHaveBeenCalled();
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Browser SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -133,6 +135,7 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
     expect(diagErrorSpy).toHaveBeenCalled();
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(
       /Invalid OTLP export URL "this_is_not_an_URL". Traces SDK won't start/,
@@ -154,6 +157,7 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(
       fetchSpy.mock.calls.find(

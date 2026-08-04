@@ -209,5 +209,13 @@ export type TracesConfig = CommonConfig & {
 };
 
 export interface WebSdk {
+  /**
+   * `true` when the SDK refused to start because its configuration is invalid
+   * — e.g. a malformed export URL or no usable processors. Left `undefined` on
+   * a started SDK and on one intentionally turned off via `config.disabled`
+   * (that is not an error). Callers can check this to surface a
+   * misconfiguration, e.g. `if (sdk.invalidConfig) { throw ... }`.
+   */
+  invalidConfig?: boolean;
   shutdown(): Promise<void>;
 }

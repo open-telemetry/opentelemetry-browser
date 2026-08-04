@@ -49,7 +49,15 @@ const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
 };
-const NOOP_SDK = { shutdown: () => Promise.resolve() };
+// Returned when the SDK is intentionally turned off via `config.disabled`.
+const NOOP_SDK: WebSdk = { shutdown: () => Promise.resolve() };
+// Returned when the SDK refuses to start because of an invalid configuration
+// (e.g. a bad export URL). `invalidConfig` lets callers tell this apart from an
+// intentional disable and surface the mistake.
+const INVALID_CONFIG_SDK: WebSdk = {
+  invalidConfig: true,
+  shutdown: () => Promise.resolve(),
+};
 
 /**
  * Combines different SDK factory functions into a single one
@@ -69,7 +77,6 @@ export function combineSdks<T extends SdkFactories>(
 
     if (config?.disabled) {
       diag.debug('Browser SDK disabled by configuration.');
-      // TODO: need to discuss with the SIG if it's better to return `undefined`
       return NOOP_SDK;
     }
 
@@ -101,8 +108,7 @@ export function combineSdks<T extends SdkFactories>(
       rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
     );
     if (!endpointUrl) {
-      // TODO: need to discuss with the SIG if it's better to return `undefined`
-      return NOOP_SDK;
+      return INVALID_CONFIG_SDK;
     }
     // Resolve each signal's config once so it can be validated here and reused
     // when starting the signals below.
@@ -117,7 +123,7 @@ export function combineSdks<T extends SdkFactories>(
       // signal URL inherits the (already validated) root endpoint, so it must
       // not block the SDK from starting.
       if (signalUrl && !parseExportUrl(signalUrl, scope)) {
-        return NOOP_SDK;
+        return INVALID_CONFIG_SDK;
       }
     }
 
