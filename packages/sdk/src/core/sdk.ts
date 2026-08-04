@@ -131,9 +131,10 @@ export function combineSdks<T extends SdkFactories>(
     if (factories.logs) {
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
-      // Propagate root configs to signal configs only when the signal does not
-      // have custom processors. When processors are provided, exportConfig and
-      // batchProcessorConfig are intentionally ignored per the LogsConfig docs.
+      // Propagate root configs to the signal only when it has no custom
+      // processors. A signal with its own processors manages its own exporter,
+      // so the root exportConfig / batchProcessorConfig are not pushed down —
+      // the signal's own exportConfig, if any, is still honored downstream.
       if (!logsConfig.processors) {
         if (!logsConfig.batchProcessorConfig) {
           logsConfig.batchProcessorConfig =
@@ -157,9 +158,10 @@ export function combineSdks<T extends SdkFactories>(
     if (factories.traces) {
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
-      // Propagate root configs to signal configs only when the signal does not
-      // have custom processors. When processors are provided, exportConfig and
-      // batchProcessorConfig are intentionally ignored per the TracesConfig docs.
+      // Propagate root configs to the signal only when it has no custom
+      // processors. A signal with its own processors manages its own exporter,
+      // so the root exportConfig / batchProcessorConfig are not pushed down —
+      // the signal's own exportConfig, if any, is still honored downstream.
       if (!tracesConfig.processors) {
         if (!tracesConfig.batchProcessorConfig) {
           tracesConfig.batchProcessorConfig =

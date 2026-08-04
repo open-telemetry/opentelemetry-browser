@@ -152,9 +152,12 @@ export type LogsConfig = CommonConfig & {
    */
   logRecordLimits?: LogRecordLimits;
   /**
-   * List of LogRecordProcessor for the logger provider. Setting this will make the SDK
-   * ignore `batchProcessorConfig` and `exportConfig` since no `BatchLogRecordProcessor` will
-   * be created.
+   * List of LogRecordProcessor for the logger provider. When set, these are
+   * used instead of the default OTLP `BatchLogRecordProcessor`. To also export
+   * over OTLP alongside them, additionally set `exportConfig` — this appends a
+   * `BatchLogRecordProcessor` (tuned by `batchProcessorConfig`). When
+   * `exportConfig` is omitted, no OTLP exporter is added and
+   * `batchProcessorConfig` has no effect.
    */
   processors?: LogRecordProcessor[];
 };
@@ -199,9 +202,12 @@ export type TracesConfig = CommonConfig & {
    */
   spanLimits?: SpanLimits;
   /**
-   * List of SpanProcessor for the tracer provider. Setting this will make the SDK
-   * ignore `processorConfig` and `exportConfig` since no `BatchSpanProcessor` will
-   * be created.
+   * List of SpanProcessor for the tracer provider. When set, these are used
+   * instead of the default OTLP `BatchSpanProcessor`. To also export over OTLP
+   * alongside them, additionally set `exportConfig` — this appends a
+   * `BatchSpanProcessor` (tuned by `batchProcessorConfig`). When `exportConfig`
+   * is omitted, no OTLP exporter is added and `batchProcessorConfig` has no
+   * effect.
    *
    * @defaultValue undefined
    */
