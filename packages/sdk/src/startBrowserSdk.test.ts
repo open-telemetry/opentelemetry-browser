@@ -111,6 +111,11 @@ describe('startBrowserSdk', () => {
 
     // Act
     browserSdk = startBrowserSdk({
+      // NOTE: short delay so a logs signal that wrongly started would flush
+      // within the wait below, which is what `fetchSpy` asserts against.
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
       traces: {
         processors: [
           new SimpleSpanProcessor({
