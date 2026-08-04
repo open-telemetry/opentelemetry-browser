@@ -275,8 +275,10 @@ Object containing configuraiton options for the HTTP log record exporter. These 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
 the option is defined at the top level and within the signal configuration the later wins.
 
-Note: an invalid `url` stops the SDK from starting — it logs a `diag.error` and returns a no-op SDK
-instead of starting and silently dropping the telemetry it cannot export.
+Note: an invalid `url` stops the whole browser SDK from starting, including the other signals and any
+`processors` they define. It logs a `diag.error` and returns a no-op SDK instead of starting and
+silently dropping the telemetry it cannot export. The `url` must be an absolute `http` or `https`
+URL.
 
 #### logRecordLimits
 
