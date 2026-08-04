@@ -61,6 +61,21 @@ export interface QuickStartConfig {
 }
 
 /**
+ * Builds a signal specific export URL. `combineSdks` only appends the signal
+ * path when the signal inherits the root endpoint, and setting signal
+ * `processors` opts out of that inheritance, so DEBUG mode builds it here.
+ * An unparseable URL is passed through so the SDK reports it.
+ */
+function signalExportUrl(rootUrl: string, pathname: string): string {
+  const url = URL.parse(rootUrl);
+  if (!url) {
+    return rootUrl;
+  }
+  url.pathname = pathname;
+  return url.href;
+}
+
+/**
  * This function does the same as `startBrowserSdk` but requiring
  * a much simpler configuration object.
  */
@@ -77,7 +92,9 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     },
   };
 
-  // Add console processors if the user wants to debug
+  // Add console processors if the user wants to debug. The signal `exportConfig`
+  // is repeated here because setting `processors` stops the root one from being
+  // propagated, which would otherwise drop OTLP export entirely.
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
@@ -85,11 +102,19 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
           exporter: new ConsoleLogRecordExporter(),
         }),
       ],
+      exportConfig: {
+        url: signalExportUrl(config.exportUrl, '/v1/logs'),
+        headers: config.exportHeaders,
+      },
     };
     sdkConfig.traces = {
       processors: [
         new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
       ],
+      exportConfig: {
+        url: signalExportUrl(config.exportUrl, '/v1/traces'),
+        headers: config.exportHeaders,
+      },
     };
   }
 

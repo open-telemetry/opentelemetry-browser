@@ -275,8 +275,21 @@ describe('quickStartBrowserSdk', () => {
     // Console exporters use SimpleProcessors, which export synchronously
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await browserSdk.shutdown();
 
     // Assert: the console exporters write to `console.dir`
     expect(consoleDirSpy).toHaveBeenCalled();
+    // ... and they are additive. `exportUrl` is required, so debugging must not
+    // silently turn OTLP export off.
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/traces',
+      ),
+    ).toBeDefined();
   });
 });
