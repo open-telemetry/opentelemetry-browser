@@ -19,8 +19,14 @@ import { diag } from '@opentelemetry/api';
  */
 export function parseExportUrl(url: string, scope = 'Browser SDK'): URL | null {
   const parsed = URL.parse(url);
-  if (!parsed) {
+  // `URL.parse` accepts any parseable URL, so a missing scheme slips through:
+  // `localhost:4318` parses with protocol `localhost:` and an opaque path.
+  if (
+    !parsed ||
+    (parsed.protocol !== 'http:' && parsed.protocol !== 'https:')
+  ) {
     diag.error(`Invalid OTLP export URL "${url}". ${scope} won't start.`);
+    return null;
   }
   return parsed;
 }
