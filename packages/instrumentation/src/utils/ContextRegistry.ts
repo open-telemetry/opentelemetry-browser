@@ -63,7 +63,7 @@ export abstract class ContextRegistry<TData, TLookup> {
       return;
     }
 
-    // Remove form the lookup map and from the global list
+    // Remove from the lookup map and from the global list
     // to keep size up to date
     this.removeByKey(key, ctx);
     const index = this._recordsList.findIndex((r) => {
