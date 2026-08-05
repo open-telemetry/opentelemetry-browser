@@ -2,8 +2,7 @@ name: Security Analysis with zizmor
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
   merge_group:
   workflow_dispatch:
@@ -12,13 +11,8 @@ permissions: {}
 
 jobs:
   zizmor:
-    runs-on: ubuntu-latest
+    name: Zizmor Security Analysis
     permissions:
-      contents: read
-      security-events: write # Required for upload-sarif (used by zizmor-action) to upload SARIF files.
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+      contents: read # for actions/checkout
+      security-events: write # for zizmor to upload SARIF results
+    uses: open-telemetry/shared-workflows/.github/workflows/zizmor.yml@62d5939b47144252763c5ff9fffe8c20d76cd806 # v0.4.0
