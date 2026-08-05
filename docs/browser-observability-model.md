@@ -19,6 +19,16 @@ This structure ensures that browser-related events can be consistently interpret
 
 ---
 
+## Design Principles
+
+- **Keep client bundle sizes small:** Clients care a lot about preserving limited client-side resources. Anything that creates more computational burden than necessary - e.g. keeping a span open for longer than it needs to, using a span when it could be a log - is discouraged. Let clients focus on emitting high fidelity events and defer any aggregation or computation to the backend.
+- **Don’t create client-side spans with ambiguous start or end times:** It is tempting to model client-side interactions as a trace where spans capture user behaviors (typing, scrolling, dragging etc.) and application timing (e.g. rendering), however, client-side web interactions are highly asynchronous and framework dependent which makes determining when to end a span difficult. In cases where attribution is ambiguous or it is difficult to determin when a span should end, prefer clearly reported log timing events.
+- **Work with browser constraints, strive for accuracy over approximation:**
+    - **Browsers lack native context propagation:** There is no native browser solution for maintaining context from a user click to an asynchronous promise (e.g. a network request). Current workarounds, like Zone.js, are clunky and intrusive. Because there’s no good way to solve the context propagation gap, user interactions will be captured as point-in-time events, and instead rely on timestamps for implicit user interaction/network request association.
+    - **Capture async events regardless of page visibility:** W3C browser timing/performance APIs are asynchronous. They capture detailed sub-millisecond durations for HTTP and page load milestones, but the event may be emitted with a slight lag. Strive to capture these events in a way that is resilient to the user navigating away from the page.
+
+---
+
 ## Current status
 
 All events listed below are implemented in this repository's [`@opentelemetry/browser-instrumentation`](https://github.com/open-telemetry/opentelemetry-browser/tree/main/packages/instrumentation) package as experimental subpath exports (`./experimental/*`).
