@@ -243,7 +243,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     this.logger.emit(logRecord);
   }
 
-  private _applyCustomLogRecordData(logRecord: LogRecord) {
+  private _applyCustomLogRecordData(logRecord: LogRecord): void {
     const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
     if (applyCustomLogRecordData) {
       safeExecuteInTheMiddle(

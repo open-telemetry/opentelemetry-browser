@@ -545,7 +545,7 @@ describe('NavigationTimingInstrumentation', () => {
 
   describe('applyCustomLogRecordData hook', () => {
     it('should allow hook to add custom attributes', () => {
-      const instrumentation = new NavigationTimingInstrumentation({
+      instrumentation = new NavigationTimingInstrumentation({
         enabled: false,
         applyCustomLogRecordData: (logRecord) => {
           logRecord.attributes = {
@@ -581,6 +581,17 @@ describe('NavigationTimingInstrumentation', () => {
         },
       });
 
+      const diagErrorSpy = vi
+        .spyOn(
+          (
+            instrumentation as unknown as {
+              _diag: { error: (...args: unknown[]) => void };
+            }
+          )._diag,
+          'error',
+        )
+        .mockImplementation(() => {});
+
       const entry = {
         name: 'https://example.test/',
         entryType: 'navigation',
@@ -598,6 +609,7 @@ describe('NavigationTimingInstrumentation', () => {
 
       const logs = getNavigationTimingLogs();
       expect(logs.length).toBe(1);
+      expect(diagErrorSpy).toHaveBeenCalled();
     });
   });
 });
