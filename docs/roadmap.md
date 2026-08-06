@@ -21,7 +21,7 @@ to discuss and work on it.
 
 * [Background: From Phase 1 to This Roadmap](#background-from-phase-1-to-this-roadmap)
 * [Package Consolidation](#package-consolidation)
-* [Event-Based Instrumentation](#event-based-instrumentation)
+* [Instrumentation](#instrumentation)
 * [Semantic Convention Stability](#semantic-convention-stability)
 * [Developer Experience: the Browser SDK](#developer-experience-the-browser-sdk)
 * [Browser Compatibility and Support](#browser-compatibility-and-support)
@@ -79,14 +79,7 @@ new packages will not depend on Zone.js, and the legacy span-based
 user-interaction instrumentation will be deprecated in favor of event-based
 user action telemetry.
 
-## Event-Based Instrumentation
-
-Browser telemetry in this repository is built on an event-based model,
-described in the
-[browser observability model](browser-observability-model.md). A coherent set
-of instrumentations emits well-defined events: navigation timing, resource
-timing, user actions, web vitals, exceptions, and network requests
-(fetch/XHR), with more to come (e.g., soft navigation, console).
+## Instrumentation
 
 Near-term instrumentation goals:
 
@@ -104,7 +97,7 @@ Near-term instrumentation goals:
 Beyond the core runtime set, instrumentation remains open-ended — the Phase 1
 charter identified long tasks and popular frameworks and libraries (React,
 Angular, Vue, and others) as candidates. We welcome pragmatic contributions
-in these areas, built on the event-based model.
+in these areas.
 
 ## Semantic Convention Stability
 
