@@ -542,4 +542,74 @@ describe('NavigationTimingInstrumentation', () => {
 
     addEventListenerSpy.mockRestore();
   });
+
+  describe('applyCustomLogRecordData hook', () => {
+    it('should allow hook to add custom attributes', () => {
+      instrumentation = new NavigationTimingInstrumentation({
+        enabled: false,
+        applyCustomLogRecordData: (logRecord) => {
+          logRecord.attributes = {
+            ...logRecord.attributes,
+            'custom.attribute': 'custom-value',
+          };
+        },
+      });
+
+      const entry = {
+        name: 'https://example.test/',
+        entryType: 'navigation',
+        startTime: 0,
+        duration: 123,
+        type: 'navigate',
+        loadEventEnd: 456,
+      };
+
+      getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+
+      instrumentation.enable();
+
+      const logs = getNavigationTimingLogs();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.attributes['custom.attribute']).toBe('custom-value');
+    });
+
+    it('should catch errors thrown by the hook and still emit', () => {
+      instrumentation = new NavigationTimingInstrumentation({
+        enabled: false,
+        applyCustomLogRecordData: () => {
+          throw new Error('hook error');
+        },
+      });
+
+      const diagErrorSpy = vi
+        .spyOn(
+          (
+            instrumentation as unknown as {
+              _diag: { error: (...args: unknown[]) => void };
+            }
+          )._diag,
+          'error',
+        )
+        .mockImplementation(() => {});
+
+      const entry = {
+        name: 'https://example.test/',
+        entryType: 'navigation',
+        startTime: 0,
+        duration: 123,
+        type: 'navigate',
+        loadEventEnd: 456,
+      };
+
+      getEntriesByTypeSpy.mockReturnValueOnce([entry]);
+
+      expect(() => {
+        instrumentation.enable();
+      }).not.toThrow();
+
+      const logs = getNavigationTimingLogs();
+      expect(logs.length).toBe(1);
+      expect(diagErrorSpy).toHaveBeenCalled();
+    });
+  });
 });
