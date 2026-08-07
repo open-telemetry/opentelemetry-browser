@@ -5,6 +5,7 @@
 
 import { diag, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -76,7 +77,8 @@ describe('startBrowserSdk', () => {
     trace.getTracer('traces-sdk-test').startSpan('test').end();
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
-    // Assert
+    // Assert: an intentional disable is not flagged as an invalid config
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(diagDebugSpy).toHaveBeenCalled();
     expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -98,9 +100,48 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
     expect(diagErrorSpy).toHaveBeenCalled();
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Browser SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not start for an invalid signal-specific URL even with custom processors', async () => {
+    // Arrange: the traces signal provides its own processors and an invalid
+    // export URL — the scenario the sandbox used to guard against by hand.
+    let exportCalled = false;
+
+    // Act
+    browserSdk = startBrowserSdk({
+      // NOTE: short delay so a logs signal that wrongly started would flush
+      // within the wait below, which is what `fetchSpy` asserts against.
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      traces: {
+        processors: [
+          new SimpleSpanProcessor({
+            exporter: {
+              export: () => (exportCalled = true),
+              shutdown: () => Promise.resolve(),
+            },
+          }),
+        ],
+        exportConfig: { url: 'this_is_not_an_URL' },
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(
+      /Invalid OTLP export URL "this_is_not_an_URL". Traces SDK won't start/,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(false);
   });
 
   it('should use the default configuration for batch processor', async () => {
@@ -116,6 +157,7 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(
       fetchSpy.mock.calls.find(
