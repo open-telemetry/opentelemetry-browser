@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.7.0...browser-instrumentation-v0.7.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **browser-instrumentation:** add max capacity to context registry ([#368](https://github.com/open-telemetry/opentelemetry-browser/issues/368)) ([ca9559a](https://github.com/open-telemetry/opentelemetry-browser/commit/ca9559a81662ce88d412d0fd9a40cd4f28bb4d7b))
+* **deps:** update dependencies ([#355](https://github.com/open-telemetry/opentelemetry-browser/issues/355)) ([a3f4018](https://github.com/open-telemetry/opentelemetry-browser/commit/a3f401856975844e47b563893f2fe7d76a933db4))
+
 ## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.6.0...browser-instrumentation-v0.7.0) (2026-07-29)
 
 
