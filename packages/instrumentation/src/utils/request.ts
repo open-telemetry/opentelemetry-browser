@@ -88,26 +88,34 @@ function _getBodyNonDestructively(body: ReadableStream): {
   }
 
   let length = 0;
-  let resolveLength: (l: number) => void;
-  const lengthPromise = new Promise<number>((resolve) => {
+  let resolveLength: (l: number | undefined) => void;
+  const lengthPromise = new Promise<number | undefined>((resolve) => {
     resolveLength = resolve;
   });
 
-  const transform = new TransformStream<Uint8Array, Uint8Array>({
-    start() {},
-    async transform(chunk, controller) {
-      const bytearray = await chunk;
-      length += bytearray.byteLength;
+  const bodyReader = (body as ReadableStream<Uint8Array>).getReader();
+  const bodyWrapper = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { value, done } = await bodyReader.read();
 
-      controller.enqueue(chunk);
+      length += value?.byteLength || 0;
+      if (done) {
+        controller.close();
+        bodyReader.releaseLock();
+        resolveLength(length);
+        return;
+      }
+      controller.enqueue(value);
     },
-    flush() {
-      resolveLength(length);
+    cancel(reason) {
+      resolveLength(undefined);
+      bodyReader.cancel(reason);
     },
   });
 
   return {
-    body: body.pipeThrough(transform),
+    // body: body.pipeThrough(transform),
+    body: bodyWrapper,
     length: lengthPromise,
   };
 }
