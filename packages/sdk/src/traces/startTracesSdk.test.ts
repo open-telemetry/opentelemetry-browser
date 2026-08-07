@@ -4,7 +4,10 @@
  */
 
 import { diag, trace } from '@opentelemetry/api';
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
+import {
+  AlwaysOffSampler,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { WebSdk } from '../core/types.ts';
 import { startTracesSdk } from './startTracesSdk.ts';
@@ -245,5 +248,23 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
+
+  it('should accept a Sampler from the user', async () => {
+    // Act
+    tracesSdk = startTracesSdk({
+      batchProcessorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+      serviceName: 'test-service',
+      serviceVersion: '1.0.0',
+      sampler: new AlwaysOffSampler(),
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

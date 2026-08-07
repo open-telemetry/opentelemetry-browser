@@ -2,9 +2,12 @@
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-
+import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import {
+  InstrumentationBase,
+  safeExecuteInTheMiddle,
+} from '@opentelemetry/instrumentation';
 import { getElementCSSSelector } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
@@ -82,7 +85,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       }
     }
 
-    this.logger.emit({
+    const logRecord: LogRecord = {
       severityNumber: SeverityNumber.INFO,
       eventName: CLICK_EVENT_NAME,
       attributes: {
@@ -93,7 +96,26 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
         [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
         [ATTR_CSS_SELECTOR]: cssSelector,
       },
-    });
+    };
+
+    this._applyCustomLogRecordData(logRecord);
+
+    this.logger.emit(logRecord);
+  }
+
+  private _applyCustomLogRecordData(logRecord: LogRecord) {
+    const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
+    if (applyCustomLogRecordData) {
+      safeExecuteInTheMiddle(
+        () => applyCustomLogRecordData(logRecord),
+        (error) => {
+          if (error) {
+            this._diag.error('applyCustomLogRecordData hook failed', error);
+          }
+        },
+        true,
+      );
+    }
   }
 
   override enable(): void {
