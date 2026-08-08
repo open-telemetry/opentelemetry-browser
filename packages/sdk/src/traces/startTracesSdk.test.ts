@@ -4,6 +4,7 @@
  */
 
 import { diag, trace } from '@opentelemetry/api';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
   AlwaysOffSampler,
   SimpleSpanProcessor,
@@ -13,6 +14,25 @@ import type { WebSdk } from '../core/types.ts';
 import { startTracesSdk } from './startTracesSdk.ts';
 
 const BSP_SCHEDULE_DELAY = 10;
+
+/**
+ * Creates a fake `Instrumentation` test double. `getConfig()` returns
+ * `{ enabled: false }` so `registerInstrumentations` calls `enable()` on it
+ * (it skips instrumentations that are already enabled).
+ */
+function createFakeInstrumentation(): Instrumentation {
+  return {
+    instrumentationName: 'test-instrumentation',
+    instrumentationVersion: '1.0.0',
+    enable: vi.fn(),
+    disable: vi.fn(),
+    setTracerProvider: vi.fn(),
+    setMeterProvider: vi.fn(),
+    setLoggerProvider: vi.fn(),
+    setConfig: vi.fn(),
+    getConfig: () => ({ enabled: false }),
+  };
+}
 
 describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
@@ -266,5 +286,47 @@ describe('startTracesSdk', () => {
 
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should register instrumentations on start and disable them on shutdown', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    tracesSdk = startTracesSdk({
+      instrumentations: [instrumentation],
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: the tracer provider is set and the instrumentation is enabled
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+
+    // Act
+    await tracesSdk.shutdown();
+    // Prevent the afterEach hook from shutting down the same SDK again
+    tracesSdk = { shutdown: () => Promise.resolve() };
+
+    // Assert: shutting down the SDK disables the instrumentation
+    expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when disabled by configuration', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    tracesSdk = startTracesSdk({
+      disabled: true,
+      instrumentations: [instrumentation],
+    });
+    await tracesSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,7 @@
  */
 
 import type { DiagLogLevel } from '@opentelemetry/api';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
   ConsoleLogRecordExporter,
   SimpleLogRecordProcessor,
@@ -58,6 +59,11 @@ export interface QuickStartConfig {
    * This is the place to add API keys or similar.
    */
   exportHeaders?: Record<string, string>;
+  /**
+   * List of instrumentations to be registered when the SDK starts.
+   * They are disabled when the SDK shuts down.
+   */
+  instrumentations?: Instrumentation[];
 }
 
 /**
@@ -70,6 +76,7 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     logLevel: config.logLevel,
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
+    instrumentations: config.instrumentations,
     // Explicit export configuration enables the Batch processors
     exportConfig: {
       url: config.exportUrl,

@@ -9,6 +9,7 @@ import type {
   DiagLogLevel,
   TextMapPropagator,
 } from '@opentelemetry/api';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import type {
   LogRecordLimits,
   LogRecordProcessor,
@@ -108,6 +109,14 @@ export interface CommonConfig {
    * @defaultValue undefined
    */
   resourceAttributes?: Attributes;
+  /**
+   * List of instrumentations to be registered when the SDK starts. They are
+   * disabled when the SDK shuts down. Use it to register third-party
+   * instrumentations from packages like `@opentelemetry/instrumentation-fetch`.
+   *
+   * @defaultValue undefined
+   */
+  instrumentations?: Instrumentation[];
 }
 
 /**

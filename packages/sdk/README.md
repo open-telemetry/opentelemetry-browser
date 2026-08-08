@@ -66,6 +66,7 @@ extended configuration object to tune some other component and also apply specif
 The following example sets some extra resource attributes and the limits for spans and log records.
 
 ```javascript
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
@@ -87,6 +88,12 @@ const sdk = startBrowserSdk({
     url: 'https://collector.mycompany.com',
     headers: { foo: 'bar' }
   },
+  // Optional - list of instrumentations to register when the SDK starts.
+  // They are disabled when the SDK shuts down. See the "Instrumentations"
+  // section below for more details.
+  instrumentations: [
+    new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
+  ],
   // Optional - logs signal configuration. Default empty empty. See below for more options
   logs: {
     logRecordLimits: { attributeCountLimit: 128 },
@@ -104,6 +111,34 @@ sdk.shutdown().then(
   (err) => console.log("Error shutting down SDK", err)
 );
 ```
+
+### Instrumentations
+
+You can register third-party instrumentations (e.g. `@opentelemetry/instrumentation-fetch`) or the
+[browser instrumentations from this repo](../instrumentation) by passing them through the
+`instrumentations` config option. The SDK registers them with
+[`registerInstrumentations`](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation)
+after the global providers are set, so the instrumentations receive the tracer and logger providers,
+and disables them when the SDK shuts down.
+
+The option is available in `quickStartBrowserSdk`, `startBrowserSdk` and in the standalone signal
+SDKs (`startLogsSdk` / `startTracesSdk`).
+
+```javascript
+import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
+
+const sdk = quickStartBrowserSdk({
+  exportUrl: 'https://collector.mycompany.com',
+  instrumentations: [
+    new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
+  ],
+});
+```
+
+> **Note:** don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
+call, or they will be registered twice.
+
 
 You can include the code in a separate file or in the main entry point of your application. Your bundler
 should pull the dependencies and set the final code in the build/dist folder. The first option is recomended

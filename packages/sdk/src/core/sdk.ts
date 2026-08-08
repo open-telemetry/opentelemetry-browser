@@ -4,6 +4,7 @@
  */
 
 import { diag } from '@opentelemetry/api';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { setSdkLogger } from './diag.ts';
 import type {
   CommonConfig,
@@ -148,8 +149,20 @@ export function combineSdks<T extends SdkFactories>(
       sdks.push(factories.traces(tracesConfig));
     }
 
+    // Register instrumentations now that the providers are set. They are not
+    // forwarded to the per-signal configs to avoid registering them twice.
+    let deregisterInstrumentations: (() => void) | undefined;
+    if (rootConfig.instrumentations?.length) {
+      deregisterInstrumentations = registerInstrumentations({
+        instrumentations: rootConfig.instrumentations,
+      });
+    }
+
     return {
       shutdown() {
+        // Disable instrumentations first so they stop capturing before the
+        // providers are shut down.
+        deregisterInstrumentations?.();
         return Promise.allSettled(sdks.map((s) => s.shutdown())).then(
           (results) => {
             const errors = [];

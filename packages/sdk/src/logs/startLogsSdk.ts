@@ -6,6 +6,7 @@
 import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -89,8 +90,20 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   });
   logs.setGlobalLoggerProvider(loggerProvider);
 
+  // Register instrumentations now that the logger provider is set. They are
+  // disabled on shutdown.
+  let deregisterInstrumentations: (() => void) | undefined;
+  if (config?.instrumentations?.length) {
+    deregisterInstrumentations = registerInstrumentations({
+      instrumentations: config.instrumentations,
+    });
+  }
+
   return {
     shutdown() {
+      // Disable instrumentations first so they stop capturing telemetry
+      // before the provider is shut down and flushed.
+      deregisterInstrumentations?.();
       return loggerProvider.shutdown();
     },
   };

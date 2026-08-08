@@ -6,6 +6,7 @@
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -91,8 +92,20 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     context.setGlobalContextManager(config.contextManager);
   }
 
+  // Register instrumentations now that the tracer provider is set. They are
+  // disabled on shutdown.
+  let deregisterInstrumentations: (() => void) | undefined;
+  if (config?.instrumentations?.length) {
+    deregisterInstrumentations = registerInstrumentations({
+      instrumentations: config.instrumentations,
+    });
+  }
+
   return {
     shutdown() {
+      // Disable instrumentations first so they stop capturing telemetry
+      // before the provider is shut down and flushed.
+      deregisterInstrumentations?.();
       return tracerProvider.shutdown();
     },
   };
