@@ -36,7 +36,8 @@
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
-    "./experimental/web-vitals": "./dist/web-vitals/index.js"
+    "./experimental/web-vitals": "./dist/web-vitals/index.js",
+    "./experimental/fetch": "./dist/fetch/index.js"
   },
   "sideEffects": false,
   "files": [
@@ -61,7 +62,10 @@
     "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "0.221.0"
+    "@opentelemetry/propagator-b3": "^2.8.0",
+    "@opentelemetry/sdk-logs": "0.221.0",
+    "@opentelemetry/sdk-trace-base": "2.7.1",
+    "msw": "2.14.6"
   },
   "publishConfig": {
     "access": "public"
