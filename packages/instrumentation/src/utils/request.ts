@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/* eslint-disable baseline-js/use-baseline */
-
 import { diag } from '@opentelemetry/api';
 
 const DIAG_LOGGER = diag.createComponentLogger({
@@ -58,9 +56,13 @@ export async function getFetchBodyLength(
     }
   } else {
     const info = args[0];
+    // Request.body has limited availability. ref: https://developer.mozilla.org/en-US/docs/Web/API/Request/body
+    // Accessing it here triggers a eslint error from the baseline plugin
+    /* eslint-disable baseline-js/use-baseline */
     if (!info?.body) {
       return undefined;
     }
+    /* eslint-enable baseline-js/use-baseline */
 
     const text = await info.clone().text();
     return getByteLength(text);
