@@ -64,7 +64,35 @@ Have a feature request or a bug to report?
 
 Look through [open issues](https://github.com/open-telemetry/opentelemetry-browser/issues) to see if one has already been filed. If so, feel free to react or add a comment.
 
-If not, create a new issue following the issue template. Examples, screenshots, clear questions, and highlighting decisions to make will make it easier for issue triage.
+If not, any of the following work:
+- Open an issue using one of the [issue templates](https://github.com/open-telemetry/opentelemetry-browser/issues/new/choose). Examples, screenshots, clear questions, and highlighting decisions to make will make issue triage easier. The Discussion template covers questions and points of consideration.
+- Start a thread it through in [#otel-browser](https://cloud-native.slack.com/archives/C093P0AMP0T) on the CNCF Slack ([create an account](https://slack.cncf.io/) if you need one).
+- Add it to the agenda in the [Browser SIG](https://github.com/open-telemetry/community/blob/main/sigs.md#browser) agenda.
+
+## SIG Operations
+
+This document includes processes and conventions used by the Browser SIG to get work done.
+
+### Meetings
+
+You can find all the SIG meetings on the main [OpenTelemetry Community](https://github.com/open-telemetry/community/tree/main) page.
+
+For this group, there are two relevant SIG meetings to attend:
+
+- **[Client Instrumentation](https://github.com/open-telemetry/community/blob/main/sigs.md#client-instrumentation):** Client Instrumentation is a cross cutting group for client-side telemetry. This group focuses on semantic conventions and other concerns common for all client-side telemetry (e.g. session management).
+- **[Browser](https://github.com/open-telemetry/community/blob/main/sigs.md#browser):** Browser is the main implementation SIG meeting focused on issues related to collecting telemetry for web applications.
+
+### Roadmap
+
+Check out what we are working on and where we are heading in our [roadmap](docs/roadmap.md)
+
+### Issue Triage
+
+TODO: Document how we triage incoming issues
+
+### Toolchain
+
+TODO: Document the toolchain that we recommend folks use.
 
 ## Next Steps
 
@@ -79,4 +107,5 @@ There is a lot more to learn for this Special Interest Group (SIG) and OpenTelem
 ### OpenTelemetry Browser Guides
 
 * [Browser events](docs/browser-observability-model.md) - provides a comprehensive list of browser events emitted by the instrumentation library.
-* [SIG Operations](docs/sig-operations.md) - documents the processes used by the browser SIG
+* [Navigation event](docs/navigation-event.md) - documents different types of navigation events and how they are captured.
+* [Browser roadmap](docs/roadmap.md) - provides a detailed description of what we are working on and where we are heading.

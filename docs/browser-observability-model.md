@@ -6,6 +6,18 @@ It focuses on the **purpose and description of each event**, rather than definin
 
 ---
 
+## Design Principles
+
+The browser environment differs from other clients significantly, and there are additional design principles to keep in mind. We've called them out here explicitly so that when working across clients contributors can be sure to keep these at top of mind when working specifically in a browser context.
+
+- **Keep client bundle sizes small:** Clients care a lot about preserving limited client-side resources. Anything that creates more computational burden than necessary - e.g. keeping a span open for longer than it needs to, using a span when it could be a log - is discouraged. Let clients focus on emitting high fidelity events and defer any aggregation or computation to the backend.
+- **Don’t create client-side spans with ambiguous start or end times:** It is tempting to model client-side interactions as a trace where spans capture user behaviors (typing, scrolling, dragging etc.) and application timing (e.g. rendering), however, client-side web interactions are highly asynchronous and framework dependent which makes determining when to end a span difficult. In cases where attribution is ambiguous or it is difficult to determin when a span should end, prefer clearly reported log timing events.
+- **Work with browser constraints, strive for accuracy over approximation:**
+    - **Browsers lack native context propagation:** There is no native browser solution for maintaining context from a user click to an asynchronous promise (e.g. a network request). Current workarounds, like Zone.js, are clunky and intrusive. Because there’s no good way to solve the context propagation gap, user interactions will be captured as point-in-time events, and instead rely on timestamps for implicit user interaction/network request association.
+    - **Capture async events regardless of page visibility:** W3C browser timing/performance APIs are asynchronous. They capture detailed sub-millisecond durations for HTTP and page load milestones, but the event may be emitted with a slight lag. Strive to capture these events in a way that is resilient to the user navigating away from the page.
+
+---
+
 ## Goals
 
 The purpose of this document is to:
@@ -16,16 +28,6 @@ The purpose of this document is to:
 - Clarify the **purpose of events without defining their individual attributes**, which are specified in their respective semantic convention documents.
 
 This structure ensures that browser-related events can be consistently interpreted across implementations.
-
----
-
-## Design Principles
-
-- **Keep client bundle sizes small:** Clients care a lot about preserving limited client-side resources. Anything that creates more computational burden than necessary - e.g. keeping a span open for longer than it needs to, using a span when it could be a log - is discouraged. Let clients focus on emitting high fidelity events and defer any aggregation or computation to the backend.
-- **Don’t create client-side spans with ambiguous start or end times:** It is tempting to model client-side interactions as a trace where spans capture user behaviors (typing, scrolling, dragging etc.) and application timing (e.g. rendering), however, client-side web interactions are highly asynchronous and framework dependent which makes determining when to end a span difficult. In cases where attribution is ambiguous or it is difficult to determin when a span should end, prefer clearly reported log timing events.
-- **Work with browser constraints, strive for accuracy over approximation:**
-    - **Browsers lack native context propagation:** There is no native browser solution for maintaining context from a user click to an asynchronous promise (e.g. a network request). Current workarounds, like Zone.js, are clunky and intrusive. Because there’s no good way to solve the context propagation gap, user interactions will be captured as point-in-time events, and instead rely on timestamps for implicit user interaction/network request association.
-    - **Capture async events regardless of page visibility:** W3C browser timing/performance APIs are asynchronous. They capture detailed sub-millisecond durations for HTTP and page load milestones, but the event may be emitted with a slight lag. Strive to capture these events in a way that is resilient to the user navigating away from the page.
 
 ---
 
