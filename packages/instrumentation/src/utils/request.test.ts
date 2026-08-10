@@ -11,14 +11,20 @@ import {
 } from './request.ts';
 
 const ENCODER = new TextEncoder();
-function textToReadableStream(msg: string) {
+function textToReadableStream(msg: string, split = false) {
+  const chunks: string[] = [];
+  if (split) {
+    const idx = Math.floor(msg.length / 2);
+    chunks.push(msg.slice(0, idx), msg.slice(idx));
+  } else {
+    chunks.push(msg);
+  }
   return new ReadableStream({
-    start: (controller) => {
-      controller.enqueue(ENCODER.encode(msg));
-      controller.close();
-    },
-    cancel: (controller) => {
-      controller.close();
+    async pull(controller) {
+      controller.enqueue(ENCODER.encode(chunks.shift()));
+      if (chunks.length === 0) {
+        controller.close();
+      }
     },
   });
 }
@@ -189,6 +195,43 @@ describe('getFetchBodyLength', () => {
     const length = await lengthPromise;
     expect(lengthResolved).toBe(true);
     expect(length).toBe(14);
+  });
+
+  it('should (non-destructively) read the body stream until its canceled and return undefined length', async () => {
+    const jsonString = JSON.stringify({
+      key1: 'true',
+      key2: 'hello world',
+    });
+    const requestParams = { body: textToReadableStream(jsonString, true) };
+    const lengthPromise = getFetchBodyLength(
+      'https://example.com',
+      requestParams,
+    );
+
+    // if we try to await lengthPromise here, we get a timeout
+
+    let lengthResolved = false;
+    lengthPromise.finally(() => (lengthResolved = true));
+
+    // length doesn't get read yet
+    expect(lengthResolved).toBe(false);
+
+    // the body is still readable
+    expect(requestParams.body.locked).toBe(false);
+
+    // AND the body is still correct
+    const bodyReader = requestParams.body.getReader();
+    const { value } = await bodyReader.read();
+    const decoder = new TextDecoder();
+    // We get only part of the body
+    expect(decoder.decode(value)).not.toStrictEqual(jsonString);
+
+    // Cancellation should resolve to undefined length
+    bodyReader.cancel();
+    // AND now length got read, and we got the correct length
+    const length = await lengthPromise;
+    expect(lengthResolved).toBe(true);
+    expect(length).toBe(undefined);
   });
 
   it('should handle readablestream objects without a pipeThrough method', async () => {

@@ -75,12 +75,10 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     return NOOP_SDK;
   }
   const tracerProvider = new TracerProvider({
-    // sampler: new TraceIdRatioBasedSampler(
-    //   typeof config?.sampleRate === "number" ? config?.sampleRate : 1,
-    // ),
     resource,
     spanLimits: config?.spanLimits,
     spanProcessors,
+    sampler: config?.sampler,
   });
   trace.setGlobalTracerProvider(tracerProvider);
 
