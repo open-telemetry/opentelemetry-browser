@@ -116,7 +116,6 @@ function _getBodyNonDestructively(body: ReadableStream): {
   });
 
   return {
-    // body: body.pipeThrough(transform),
     body: bodyWrapper,
     length: lengthPromise,
   };
