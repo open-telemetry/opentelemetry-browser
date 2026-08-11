@@ -56,7 +56,7 @@ export const handlers = [
   http.post('/api/post', () => {
     return HttpResponse.json({ ok: true });
   }),
-  // MSW does nt have a specific handler for query
+  // MSW does not have a specific handler for query
   http.all('/api/query', () => {
     return HttpResponse.json({ ok: true });
   }),
@@ -147,7 +147,7 @@ const doXhrRequest = (options: {
   url: string | URL;
   headers?: Record<string, string>;
   body?: Document | XMLHttpRequestBodyInit | null;
-}): Promise<{ json: () => Promise<any> }> => {
+}): Promise<{ request: XMLHttpRequest; json: () => Promise<any> }> => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(options.method, options.url);
@@ -159,14 +159,15 @@ const doXhrRequest = (options: {
 
     // Response like object to be returned
     const response = {
+      request: xhr,
       json() {
         return Promise.resolve(JSON.parse(xhr.responseText));
       },
     };
 
     xhr.send(options.body);
-    xhr.addEventListener('error', reject);
-    xhr.addEventListener('load', () => resolve(response));
+    xhr.onerror = reject;
+    xhr.onload = () => resolve(response);
   });
 };
 
@@ -278,7 +279,7 @@ describe('XhrInstrumentation', () => {
       XMLHttpRequest.prototype.send = originalSendFunction;
     });
 
-    it('should wrap global fetch when instantiated', () => {
+    it('should wrap XHR prototype when instantiated', () => {
       expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
       instrumentation = new XhrInstrumentation();
@@ -286,7 +287,7 @@ describe('XhrInstrumentation', () => {
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
     });
 
-    it('should not wrap global fetch when instantiated with `enabled: false`', () => {
+    it('should not wrap XHR prototype when instantiated with `enabled: false`', () => {
       expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
       instrumentation = new XhrInstrumentation({ enabled: false });
@@ -297,7 +298,7 @@ describe('XhrInstrumentation', () => {
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
     });
 
-    it('should not unwrap global fetch when disabled', () => {
+    it('should not unwrap XHR prototype when disabled', () => {
       expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
       instrumentation = new XhrInstrumentation();
@@ -308,16 +309,16 @@ describe('XhrInstrumentation', () => {
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
     });
 
-    describe('when the fetch property cannot be wrapped', () => {
+    describe('when the XHR prototype cannot be wrapped', () => {
       // Simulate the production failure mode (third-party scripts locking
-      // `globalThis.fetch` via `Object.defineProperty` with `writable: false,
+      // `XMLHttpRequest.prototype.send` via `Object.defineProperty` with `writable: false,
       // configurable: false`) by stubbing `_wrap` to throw the same TypeError
       // the browser would throw. We stub the method rather than actually
       // locking the property because a non-configurable slot is irreversible
       // within a realm, and the outer `afterEach` restores `globalThis.fetch`
       // via assignment, which would itself throw.
       const wrapError = new TypeError(
-        "Cannot assign to read only property 'fetch' of object '[object Window]'",
+        "Cannot assign to read only property 'send' of object '[object XMLHttpRequest.prototype]'",
       );
 
       beforeEach(() => {
@@ -366,6 +367,9 @@ describe('XhrInstrumentation', () => {
       injectSpy.mockReset();
     });
 
+    // NOTE: test of the former instrumentation also check for
+    // XHR opened with async=false. Doing such request here makes the test
+    // to timeout. This is probably because MSW handlers work in the same thread.
     it('should create spans for GET requests', async () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();
@@ -427,6 +431,78 @@ describe('XhrInstrumentation', () => {
       assertResourceRegistered({ span, url, startTime, endTime });
     });
 
+    it('should create spans for reused XHRs', async () => {
+      const firstUrl = getUrlForPath('/api/get');
+      const secondUrl = getUrlForPath('/api/query');
+      const response = await doXhrRequest({ method: 'GET', url: firstUrl });
+      const request = response.request;
+
+      // make another request with the same XHR
+      await new Promise((res, rej) => {
+        request.open('GET', secondUrl);
+        request.send();
+        request.onerror = rej;
+        request.onload = res;
+      });
+
+      // Both spans are exported
+      let span = await waitForSpan(firstUrl);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(firstUrl);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+      span = await waitForSpan(secondUrl);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(secondUrl);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+    });
+
+    it('should create spans for requests with relative URLs', async () => {
+      const url = '/api/get';
+      const startTime = performance.now();
+      await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
+      const endTime = performance.now();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should create spans for aborted requests', async () => {
+      const url = getUrlForPath('/api/get');
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      xhr.send();
+      xhr.abort();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+    });
+
     it('should record the exception for failed requests', async () => {
       const url = getUrlForPath('/api/error');
       const startTime = performance.now();
@@ -452,7 +528,7 @@ describe('XhrInstrumentation', () => {
     it('should record the exception for network errors', async () => {
       const url = getUrlForPath('/api/network-error');
       const startTime = performance.now();
-      // We know this is goint to throw
+      // We know this is goin to throw
       try {
         const response = await doXhrRequest({ method: 'GET', url });
         expect(response).not.toBeDefined(); // fail if we get a response
