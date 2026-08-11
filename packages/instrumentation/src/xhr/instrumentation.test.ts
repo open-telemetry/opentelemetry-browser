@@ -132,7 +132,7 @@ const doXhrRequest = (options: {
   url: string | URL;
   headers?: Record<string, string>;
   body?: Document | XMLHttpRequestBodyInit | null;
-}): Promise<{ request: XMLHttpRequest; json: () => Promise<any> }> => {
+}): Promise<{ request: XMLHttpRequest; json: () => Promise<unknown> }> => {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(options.method, options.url);
@@ -235,11 +235,12 @@ describe('XhrInstrumentation', () => {
     expect(registeredSpan?.spanContext()).toEqual(options.span.spanContext());
   };
 
+  type PropagationResponse = { request: { headers: Record<string, string> } };
   const assertPropagationHeaders = async (
-    response: { json: () => Promise<any> },
+    response: { json: () => Promise<unknown>; },
     span?: ReadableSpan,
   ): Promise<Record<string, string>> => {
-    const { request } = await response.json();
+    const { request } = (await response.json()) as PropagationResponse;
 
     if (span) {
       expect(request.headers[X_B3_TRACE_ID]).toEqual(
