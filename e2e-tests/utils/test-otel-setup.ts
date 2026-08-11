@@ -1,15 +1,15 @@
 import { context, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
-import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+import {
+  getDefaultContextManager,
+  startBrowserSdk,
+} from '@opentelemetry/browser-sdk';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
-import {
-  SimpleSpanProcessor,
-  StackContextManager,
-} from '@opentelemetry/sdk-trace-web';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import { COLLECTOR_URL, LOGS_COLLECTOR_URL } from './test-collector.ts';
 
 export interface TestSdkHandle {
@@ -28,9 +28,11 @@ export function testSdkSetup(
       ],
     },
     traces: {
-      contextManager: new StackContextManager().enable(),
+      contextManager: getDefaultContextManager().enable(),
       processors: [
-        new SimpleSpanProcessor(new OTLPTraceExporter({ url: COLLECTOR_URL })),
+        new SimpleSpanProcessor({
+          exporter: new OTLPTraceExporter({ url: COLLECTOR_URL }),
+        }),
       ],
     },
   });

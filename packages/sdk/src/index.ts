@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export { getDefaultContextManager } from './core/context.ts';
 export type {
   LogsConfig,
   RootConfig,
