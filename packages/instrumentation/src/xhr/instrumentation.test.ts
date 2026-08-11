@@ -237,7 +237,7 @@ describe('XhrInstrumentation', () => {
 
   type PropagationResponse = { request: { headers: Record<string, string> } };
   const assertPropagationHeaders = async (
-    response: { json: () => Promise<unknown>; },
+    response: { json: () => Promise<unknown> },
     span?: ReadableSpan,
   ): Promise<Record<string, string>> => {
     const { request } = (await response.json()) as PropagationResponse;
