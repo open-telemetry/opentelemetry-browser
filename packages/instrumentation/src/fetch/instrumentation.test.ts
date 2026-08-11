@@ -404,7 +404,7 @@ describe('FetchInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(500);
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Internal Server Error');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('500');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
@@ -430,9 +430,31 @@ describe('FetchInstrumentation', () => {
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
-      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Failed to fetch');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should not record an error when the request is intentionally aborted', async () => {
+      const url = getUrlForPath('/api/get');
+      const startTime = performance.now();
+      const controller = new AbortController();
+      const fetchPromise = fetch(url, { signal: controller.signal });
+      controller.abort();
+      await expect(fetchPromise).rejects.toThrow();
+      const endTime = performance.now();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
+      expect(span.attributes[ATTR_ERROR_TYPE]).toBeUndefined();
+      expect(span.status.code).toEqual(SpanStatusCode.UNSET);
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
