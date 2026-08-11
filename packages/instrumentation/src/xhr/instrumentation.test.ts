@@ -69,21 +69,6 @@ export const handlers = [
   http.get('/api/network-error', () => {
     return HttpResponse.error();
   }),
-  http.get(`${location.origin}/test.wasm`, () => {
-    // Minimal valid WASM binary: magic number + version only.
-    const wasmBytes = new Uint8Array([
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
-    ]);
-    return new HttpResponse(wasmBytes, {
-      headers: { 'Content-Type': 'application/wasm' },
-    });
-  }),
-  http.get('/no-such-path', () => {
-    return new HttpResponse(null, { status: 404 });
-  }),
-  http.get('/boom', () => {
-    return new HttpResponse(null, { status: 500 });
-  }),
   http.get('/null-body-204', () => {
     return new HttpResponse(null, { status: 204 });
   }),
@@ -491,6 +476,28 @@ describe('XhrInstrumentation', () => {
       xhr.open('GET', url);
       xhr.send();
       xhr.abort();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+    });
+
+    it('should create spans for timed out requests', async () => {
+      const timeout = 50;
+      const url = getUrlForPath('/api/stream');
+      const xhr = new XMLHttpRequest();
+      xhr.timeout = timeout;
+      xhr.open('GET', url);
+      xhr.send();
+
+      // wait till the timeout has passed
+      await new Promise((res) => setTimeout(res, timeout + 1));
 
       // Span is exported
       const span = await waitForSpan(url);
@@ -919,32 +926,6 @@ describe('XhrInstrumentation', () => {
             await assertPropagationHeaders(response, span);
           });
         });
-      });
-    });
-
-    // XXX: does this apply to XHR
-    describe.skip('long-lived streaming requests', () => {
-      it('should end the span when the stream completes', async () => {
-        const url = getUrlForPath('/api/stream');
-        const response = await fetch(url);
-
-        expect(response.body instanceof ReadableStream).toBeTruthy();
-
-        const reader = response.body?.getReader();
-        expect(reader).toBeTruthy();
-
-        const first = await reader!.read();
-        const text = new TextDecoder().decode(first.value);
-        expect(first.done).toBeFalsy();
-        expect(text).toMatch(/^data: \d+\n$/);
-
-        reader!.cancel('test-cancel');
-
-        // We increase here the timeout since the stream takes a bit more than 1sec.
-        // The instrumentation tracks completion via an eagerly-consumed clone;
-        // consumer-side cancellation does not propagate to the clone.
-        const span = await waitForSpan(url, 1500);
-        expect(span.ended).toBeTruthy();
       });
     });
   });

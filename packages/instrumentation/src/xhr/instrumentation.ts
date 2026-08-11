@@ -112,22 +112,30 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
         if (!instrumentation._isEnabled) {
           return original.apply(this, args);
         }
-        const method = args[0];
-        const url = typeof args[1] === 'string' ? args[1] : args[1].toString();
-        const shouldIgnoreUrl = matchesUrl(
-          url,
-          instrumentation.getConfig().ignoreUrls,
-        );
-        if (shouldIgnoreUrl) {
-          return original.apply(this, args);
-        }
+        try {
+          const method = args[0];
+          const url =
+            typeof args[1] === 'string' ? args[1] : args[1].toString();
+          const shouldIgnoreUrl = matchesUrl(
+            url,
+            instrumentation.getConfig().ignoreUrls,
+          );
+          if (shouldIgnoreUrl) {
+            return original.apply(this, args);
+          }
 
-        const span = instrumentation._createSpan(url, method);
-        instrumentation._xhrSpanMap.set(this, {
-          span,
-          url,
-          start: performance.now(),
-        });
+          const span = instrumentation._createSpan(url, method);
+          instrumentation._xhrSpanMap.set(this, {
+            span,
+            url,
+            start: performance.now(),
+          });
+        } catch (e: unknown) {
+          instrumentation._diag.error(
+            'Failed to instrument XmlHttpRequest.open',
+            e,
+          );
+        }
         return original.apply(this, args);
       } as XhrOpenFunction;
     };
@@ -219,7 +227,6 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
    * Finish span, add attributes, network events etc.
    */
   private _endSpan(xhr: XMLHttpRequest, errorType?: string) {
-    console.log('endSpan!!!!', xhr.status);
     const spanDetails = this._xhrSpanMap.get(xhr);
 
     if (spanDetails) {
@@ -278,17 +285,20 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     const sameOrigin = location.origin === urlOrigin;
     const shouldPropagate = sameOrigin || matchesUrl(url, urlsToPropagate);
 
-    console.log('shouldPropagate', shouldPropagate);
     if (shouldPropagate) {
       propagation.inject(ctx, xhr, {
         set: (x, k, v) => {
-          console.log('set', shouldPropagate);
-          x.setRequestHeader(k, String(v));
+          x.setRequestHeader(k, typeof v === 'string' ? v : String(v));
         },
       });
     } else {
       const headers: Partial<Record<string, unknown>> = {};
       propagation.inject(ctx, headers);
+      propagation.inject(ctx, headers, {
+        set: (h, k, v) => {
+          h[k] = v;
+        },
+      });
       if (Object.keys(headers).length > 0) {
         this._diag.debug('headers inject skipped due to CORS policy');
       }
