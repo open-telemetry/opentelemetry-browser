@@ -20,6 +20,7 @@ npm install @opentelemetry/browser-instrumentation
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
 - [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
 - [Errors](#errors) — automatic instrumentation for unhandled errors and promise rejections
+- [Long Task](#long-task) — automatic instrumentation for tasks that block the main thread
 - [Fetch](#fetch) — automatic instrumentation for request using the `fetch` API
 
 ## Usage
@@ -33,6 +34,7 @@ import {
 } from '@opentelemetry/sdk-logs';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+import { LongTaskInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-task';
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
@@ -49,6 +51,7 @@ logs.setGlobalLoggerProvider(logProvider);
 registerInstrumentations({
   instrumentations: [
     new ErrorsInstrumentation(),
+    new LongTaskInstrumentation(),
     new NavigationInstrumentation(),
     new NavigationTimingInstrumentation(),
     new ResourceTimingInstrumentation(),
@@ -57,6 +60,49 @@ registerInstrumentations({
   ],
 });
 ```
+
+---
+
+### Long Task
+
+```typescript
+import { LongTaskInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-task';
+```
+
+Emits a `browser.long_task` log for every task reported by the browser's [Long Tasks API](https://developer.mozilla.org/en-US/docs/Web/API/Long_Tasks_API). Long tasks block the main thread for 50 milliseconds or more and can make an application feel unresponsive.
+
+> [!NOTE]
+> The Long Tasks API is not available in every browser. The instrumentation remains inactive when the browser does not report `longtask` support through `PerformanceObserver`.
+
+#### Configuration
+
+```typescript
+new LongTaskInstrumentation({
+  applyCustomLogRecordData: (logRecord) => {
+    logRecord.attributes = {
+      ...logRecord.attributes,
+      'app.route.id': 'checkout',
+    };
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+#### Captured Attributes
+
+Each `browser.long_task` event includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `browser.long_task.name` | The name reported by the performance entry (for example, `self`). |
+| `browser.long_task.entry_type` | The performance entry type (`longtask`). |
+| `browser.long_task.duration` | Duration of the task in milliseconds. |
+| `browser.long_task.attribution` | Structured task-attribution entries, including container type, source, ID, and name when the browser provides them. |
+
+The log timestamp is the task's start time converted from the performance timeline to Unix epoch time.
 
 ---
 

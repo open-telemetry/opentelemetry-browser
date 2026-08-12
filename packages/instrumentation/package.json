@@ -32,6 +32,7 @@
   "exports": {
     "./experimental/console": "./dist/console/index.js",
     "./experimental/errors": "./dist/errors/index.js",
+    "./experimental/long-task": "./dist/long-task/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
