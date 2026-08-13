@@ -24,7 +24,7 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { HttpResponse, http } from 'msw';
+import { delay, HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
 import type { Mock } from 'vitest';
 import {
@@ -67,6 +67,10 @@ export const handlers = [
   }),
   http.get('/api/network-error', () => {
     return HttpResponse.error();
+  }),
+  http.get('/api/slow', async () => {
+    await delay(200);
+    return HttpResponse.json({ ok: true });
   }),
   http.get(`${location.origin}/test.wasm`, () => {
     // Minimal valid WASM binary: magic number + version only.
@@ -128,6 +132,16 @@ export const handlers = [
     });
 
     return response;
+  }),
+  http.get('/api/broken-stream', () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('partial'));
+        setTimeout(() => controller.error(new Error('stream broke')), 10);
+      },
+    });
+
+    return new HttpResponse(stream, { status: 200 });
   }),
   http.get('http://example.com/api/status.json', () => {
     return HttpResponse.json({ ok: true });
@@ -404,7 +418,7 @@ describe('FetchInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(500);
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Internal Server Error');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('500');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
@@ -430,12 +444,85 @@ describe('FetchInstrumentation', () => {
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
-      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Failed to fetch');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should not record an error when the request is intentionally aborted', async () => {
+      const url = getUrlForPath('/api/get');
+      const startTime = performance.now();
+      const controller = new AbortController();
+      const fetchPromise = fetch(url, { signal: controller.signal });
+      controller.abort();
+      await expect(fetchPromise).rejects.toThrow();
+      const endTime = performance.now();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
+      expect(span.attributes[ATTR_ERROR_TYPE]).toBeUndefined();
+      expect(span.status.code).toEqual(SpanStatusCode.UNSET);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should record an error when the request is aborted by AbortSignal.timeout', async () => {
+      const url = getUrlForPath('/api/slow');
+      const startTime = performance.now();
+      const fetchPromise = fetch(url, { signal: AbortSignal.timeout(10) });
+      await expect(fetchPromise).rejects.toThrow();
+      const endTime = performance.now();
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TimeoutError');
+      expect(span.status.code).toEqual(SpanStatusCode.ERROR);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
+    it('should record the real status and an error when the body stream fails mid-read', async () => {
+      // The browser relays the mocked stream's error from the Service Worker
+      // to the page as an unhandled rejection independent of our own promise
+      // chain, so it needs suppressing here the same way dispatched `error`
+      // events are suppressed in the errors instrumentation tests.
+      const suppress = (e: PromiseRejectionEvent) => e.preventDefault();
+      window.addEventListener('unhandledrejection', suppress);
+
+      try {
+        const url = getUrlForPath('/api/broken-stream');
+        const startTime = performance.now();
+        const response = await fetch(url);
+        await expect(response.text()).rejects.toThrow();
+        const endTime = performance.now();
+
+        // Span is exported
+        const span = await waitForSpan(url);
+        expect(span.name).toBe('GET');
+        expect(span.kind).toEqual(SpanKind.CLIENT);
+        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+        expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+        expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
+        expect(span.status.code).toEqual(SpanStatusCode.ERROR);
+
+        // Context has been registered for the resource
+        assertResourceRegistered({ span, url, startTime, endTime });
+      } finally {
+        window.removeEventListener('unhandledrejection', suppress);
+      }
     });
 
     it('204 (No Content) will correctly end the span', async () => {

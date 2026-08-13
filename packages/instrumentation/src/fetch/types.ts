@@ -7,11 +7,21 @@ import type { Span } from '@opentelemetry/api';
 import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 /**
- * Interface used to provide information to finish span on fetch response
+ * Interface used to provide information to finish span on fetch response.
+ * `status` is omitted when no HTTP response was ever received (e.g. a
+ * network error), per
+ * https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
  */
 export interface FetchResponse {
-  status: number;
-  statusText?: string;
+  status?: number;
+  /**
+   * Error identifier used as `error.type` (e.g. the exception's `name`).
+   * Not the HTTP status reason phrase. Also forces the span into an error
+   * state even if `status` is a non-error code.
+   */
+  error?: string;
+  /** Whether the request was intentionally cancelled by the caller (e.g. via AbortController). */
+  aborted?: boolean;
 }
 
 /**
@@ -20,6 +30,8 @@ export interface FetchResponse {
 export interface FetchError {
   status?: number;
   message: string;
+  /** The error's exception type (e.g. `TypeError`, `AbortError`), if available. */
+  name?: string;
 }
 
 export type FetchCustomAttributeFunction = (
