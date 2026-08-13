@@ -14,7 +14,12 @@ import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
  */
 export interface FetchResponse {
   status?: number;
-  statusText?: string;
+  /**
+   * Error identifier used as `error.type` (e.g. the exception's `name`).
+   * Not the HTTP status reason phrase. Also forces the span into an error
+   * state even if `status` is a non-error code.
+   */
+  error?: string;
   /** Whether the request was intentionally cancelled by the caller (e.g. via AbortController). */
   aborted?: boolean;
 }
@@ -23,6 +28,7 @@ export interface FetchResponse {
  * Interface used to provide information to finish span on fetch error
  */
 export interface FetchError {
+  status?: number;
   message: string;
   /** The error's exception type (e.g. `TypeError`, `AbortError`), if available. */
   name?: string;
