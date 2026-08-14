@@ -55,33 +55,30 @@ const getResourceTimingLogByUrl = (url: string) => {
 const xhrRequest = async (url: string) => {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', url);
-  return new Promise((resolve, reject) => {
-    // xhr.onload = resolve;
-    // xhr.onerror = reject;
-    // xhr.ontimeout = reject;
+  return new Promise((resolve) => {
     xhr.onloadend = resolve;
     xhr.send();
   });
 };
 
 // This test's own fake application endpoints, unrelated to the OTLP collector.
-const fetchHandlers = [
-  http.get('/e2e/fetch/get', () => HttpResponse.json({ ok: true })),
+const xhrHandlers = [
+  http.get('/e2e/xhr/get', () => HttpResponse.json({ ok: true })),
   http.get(
-    '/e2e/fetch/error',
+    '/e2e/xhr/error',
     () =>
       new HttpResponse(null, {
         status: 500,
         statusText: 'Internal Server Error',
       }),
   ),
-  http.get('/e2e/fetch/network-error', () => HttpResponse.error()),
-  http.get('/e2e/fetch/abort', () => HttpResponse.json({ ok: true })),
-  http.get('/e2e/fetch/child', () => HttpResponse.json({ ok: true })),
-  http.get('/e2e/fetch/resource-correlation', () =>
+  http.get('/e2e/xhr/network-error', () => HttpResponse.error()),
+  http.get('/e2e/xhr/abort', () => HttpResponse.json({ ok: true })),
+  http.get('/e2e/xhr/child', () => HttpResponse.json({ ok: true })),
+  http.get('/e2e/xhr/resource-correlation', () =>
     HttpResponse.json({ ok: true }),
   ),
-  http.get('/e2e/fetch/relative-resource-correlation', () =>
+  http.get('/e2e/xhr/relative-resource-correlation', () =>
     HttpResponse.json({ ok: true }),
   ),
 ];
@@ -90,7 +87,7 @@ describe('XhrInstrumentation', () => {
   let result: TestSdkHandle;
 
   beforeEach(() => {
-    mockServer.use(...fetchHandlers);
+    mockServer.use(...xhrHandlers);
   });
 
   afterEach(async () => {
@@ -100,7 +97,7 @@ describe('XhrInstrumentation', () => {
   it('creates a span for a XmlHttpRequest', async () => {
     result = testSdkSetup([new XhrInstrumentation()]);
 
-    const url = getUrlForPath('/e2e/fetch/get');
+    const url = getUrlForPath('/e2e/xhr/get');
     await xhrRequest(url);
 
     const span = await vi.waitFor(() => getSpanByUrl(url), { timeout: 2000 });
@@ -124,7 +121,7 @@ describe('XhrInstrumentation', () => {
   it('sets the span status to error for a non-2xx response', async () => {
     result = testSdkSetup([new XhrInstrumentation()]);
 
-    const url = getUrlForPath('/e2e/fetch/error');
+    const url = getUrlForPath('/e2e/xhr/error');
     await xhrRequest(url);
 
     const span = await vi.waitFor(() => getSpanByUrl(url), { timeout: 2000 });
@@ -146,7 +143,7 @@ describe('XhrInstrumentation', () => {
   it('ends the span with an error status when the request fails with a network error', async () => {
     result = testSdkSetup([new XhrInstrumentation()]);
 
-    const url = getUrlForPath('/e2e/fetch/network-error');
+    const url = getUrlForPath('/e2e/xhr/network-error');
     await xhrRequest(url);
 
     const span = await vi.waitFor(() => getSpanByUrl(url), { timeout: 2000 });
@@ -166,7 +163,7 @@ describe('XhrInstrumentation', () => {
   it('does not record an error when the request is intentionally aborted', async () => {
     result = testSdkSetup([new XhrInstrumentation()]);
 
-    const url = getUrlForPath('/e2e/fetch/abort');
+    const url = getUrlForPath('/e2e/xhr/abort');
     const xhr = new XMLHttpRequest();
     xhr.open('GET', url);
     xhr.send();
@@ -191,7 +188,7 @@ describe('XhrInstrumentation', () => {
     const parentSpan = trace
       .getTracer('fetch-e2e')
       .startSpan('parent-operation');
-    const url = getUrlForPath('/e2e/fetch/child');
+    const url = getUrlForPath('/e2e/xhr/child');
 
     await context.with(trace.setSpan(context.active(), parentSpan), () =>
       xhrRequest(url),
@@ -217,7 +214,7 @@ describe('XhrInstrumentation', () => {
       }),
     ]);
 
-    const url = getUrlForPath('/e2e/fetch/resource-correlation');
+    const url = getUrlForPath('/e2e/xhr/resource-correlation');
     await xhrRequest(url);
 
     const span = await vi.waitFor(() => getSpanByUrl(url), { timeout: 2000 });
@@ -241,7 +238,7 @@ describe('XhrInstrumentation', () => {
     // timing entries with the resolved absolute URL, so this only correlates
     // if FetchInstrumentation registers the network context under the same
     // absolute URL it resolves internally, rather than the raw relative input.
-    const relativeUrl = '/e2e/fetch/relative-resource-correlation';
+    const relativeUrl = '/e2e/xhr/relative-resource-correlation';
     const absoluteUrl = getUrlForPath(relativeUrl);
     await xhrRequest(relativeUrl);
 
