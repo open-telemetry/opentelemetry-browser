@@ -6,42 +6,53 @@ Welcome! We're excited you're here, and we'd love your help!
 
 If you haven't yet, you will need to get set up following the main [OpenTelemetry Contributor Guide](https://github.com/open-telemetry/community/blob/main/guides/contributor/README.md).
 
-Contributing to this project requires **Node.js >= 24** and **npm ^11.16.0**
+Node and npm versions are dictated by the `package.json` file's `packageManager` and `devEngines` sections.
 
-```bash
+The easiest way to make sure you are using compatible Node and npm versions is to leverage [nvm](https://www.nvmnode.com/guide/download.html) and the checked in `.nvmrc` file.
+
+```sh
+cd <cloned repo directory> 
+nvm install
+nvm use
 npm install -g npm@11
 ```
 
-You can also follow instructions from [Node JS](https://nodejs.org/en/download/) to download or upgrade node and npm.
-
 ## Quick Start
 
-1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this page
-1. Clone the repo forked and set the upstream
+1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this page. 
+2. Clone the repo forked and set the upstream
 
-```sh
-git clone https://github.com/$user/opentelemetry-browser.git
-cd opentelemetry-browser
-git remote add upstream https://github.com/open-telemetry/opentelemetry-browser.git
-```
+    ```sh
+    # Set to your GitHub username or organization where the repo was forked
+    export FORK_OWNER="<your-github-user-or-org>"
+    git clone https://github.com/$FORK_OWNER/opentelemetry-browser.git
+    cd opentelemetry-browser
+    git remote add upstream https://github.com/open-telemetry/opentelemetry-browser.git
+    ```
 
-1. Build and run tests
+3. Build and run tests
 
-```
-npm ci
-npm run build
-npm test
-```
+    ```sh
+    npm ci
+    npm run build
+    npm test
+    ```
 
-1. To keep your fork up to date
+4. **Prior to receiving review comments**, you can keep your branch up-to-date via rebase
 
-```
-git fetch upstream
-git checkout main
-git rebase upstream/main 
-```
+    ```sh
+    git fetch upstream
+    git checkout <your-branch-name>
+    git rebase upstream/main 
+    ```
 
-For a more detailed git walkthrough, read the [kubernetes github workflow](https://github.com/kubernetes/community/blob/main/contributors/guide/github-workflow.md)
+5. **After opening a PR and receiving comments**, use a merge commit to retain comment history
+
+   ```sh
+    git fetch upstream
+    git checkout <your-branch-name>
+    git merge upstream/main
+   ```
 
 ## Guidelines
 
@@ -71,7 +82,7 @@ If not, any of the following work:
 
 ## SIG Operations
 
-This document includes processes and conventions used by the Browser SIG to get work done.
+This section includes processes used by the Browser SIG to get work done.
 
 ### Meetings
 
@@ -79,8 +90,8 @@ You can find all the SIG meetings on the main [OpenTelemetry Community](https://
 
 For this group, there are two relevant SIG meetings to attend:
 
-- **[Client Instrumentation](https://github.com/open-telemetry/community/blob/main/sigs.md#client-instrumentation):** Client Instrumentation is a cross cutting group for client-side telemetry. This group focuses on semantic conventions and other concerns common for all client-side telemetry (e.g. session management).
 - **[Browser](https://github.com/open-telemetry/community/blob/main/sigs.md#browser):** Browser is the main implementation SIG meeting focused on issues related to collecting telemetry for web applications.
+- **[Client Instrumentation](https://github.com/open-telemetry/community/blob/main/sigs.md#client-instrumentation):** Client Instrumentation is a cross cutting group for client-side telemetry. This group focuses on semantic conventions and other concerns common for all client-side telemetry (e.g. session management).
 
 ### Roadmap
 
@@ -96,11 +107,11 @@ TODO: Document the toolchain that we recommend folks use.
 
 ## Next Steps
 
-There is a lot more to learn for this Special Interest Group (SIG) and OpenTelemetry in general. Here are some helpful links to contextualize the work you'll be doing.
+There is a lot more to learn for this SIG and OpenTelemetry in general. Here are some helpful links to contextualize the work you'll be doing.
 
 ### General OpenTelemetry Guides
 
-* [OpenTelemetry mission, vision, and values](https://github.com/open-telemetry/community/blob/main/mission-vision-values.md) - this guide will help you understand the direction OpenTelemetry as a whole is heading in and why.
+* [OpenTelemetry mission, vision, and values](https://github.com/open-telemetry/community/blob/main/mission-vision-values.md) - this guide helps you understand the direction OpenTelemetry as a whole is heading in and why.
 * [General Contribution Lifecycle and Processes](https://github.com/open-telemetry/community/blob/main/guides/contributor/processes.md) - this guide helps you understand how to find things to work on, get help, and how changes are merged and released.
 * [Membership, roles, and responsibilities](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md) - this guide helps the roles and responsibilities of contributors as well as how one advances beyond a member to a triager, approver, or maintainer.
 
