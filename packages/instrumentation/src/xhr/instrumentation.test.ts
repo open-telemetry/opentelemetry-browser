@@ -452,17 +452,19 @@ describe('XhrInstrumentation', () => {
     });
 
     it('should create spans for reused XHRs', async () => {
+      // @ts-expect-error access internal property for testing
+      const endSpanSpy = vi.spyOn(instrumentation, '_endSpan');
+
       const firstUrl = getUrlForPath('/api/get');
       const secondUrl = getUrlForPath('/api/query');
       const response = await doXhrRequest({ method: 'GET', url: firstUrl });
       const request = response.request;
 
       // make another request with the same XHR
-      await new Promise((res, rej) => {
+      await new Promise((resolve) => {
         request.open('GET', secondUrl);
         request.send();
-        request.onerror = rej;
-        request.onload = res;
+        request.onloadend = resolve;
       });
 
       // Both spans are exported
@@ -483,6 +485,10 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+
+      // `_endSpan` should be called once per span
+      expect(endSpanSpy).toHaveBeenCalledTimes(2);
+      endSpanSpy.mockReset();
     });
 
     it('should create spans for requests with relative URLs', async () => {

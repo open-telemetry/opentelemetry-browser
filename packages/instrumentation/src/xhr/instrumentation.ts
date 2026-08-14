@@ -37,6 +37,13 @@ import type { XhrInstrumentationConfig } from './types.ts';
 type XhrOpenFunction = typeof XMLHttpRequest.prototype.open;
 type XhrSendFunction = typeof XMLHttpRequest.prototype.send;
 type XhrEventName = 'abort' | 'timeout' | 'error' | 'load';
+type XhrRecord = {
+  method: string;
+  url: URL;
+  start?: number;
+  span?: Span;
+  listeners?: Record<XhrEventName, (...args: unknown[]) => unknown>;
+};
 
 export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationConfig> {
   // Note: Intentionally *not* using `_enabled` as the field name to avoid
@@ -50,10 +57,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
 
   // To keep references to span/xhr tuples across XHR events and stores
   // init data like URL and method
-  private _xhrSpanMap: WeakMap<
-    XMLHttpRequest,
-    { method: string; url: URL; start?: number; span?: Span }
-  > = new WeakMap();
+  private _xhrSpanMap: WeakMap<XMLHttpRequest, XhrRecord> = new WeakMap();
 
   constructor(config: XhrInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/xhr', version, config);
@@ -101,7 +105,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   }
 
   /**
-   * Patches the constructor of fetch
+   * Patches the "open" method of XmlHttpRequest
    */
   private _patchOpen(): (original: XhrOpenFunction) => XhrOpenFunction {
     return (original) => {
@@ -139,7 +143,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   }
 
   /**
-   * Patches the constructor of fetch
+   * Patches the "open" method of XmlHttpRequest
    */
   private _patchSend(): (original: XhrSendFunction) => XhrSendFunction {
     return (original) => {
@@ -169,16 +173,23 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
               }
             }
 
-            const onXhrEvent = (eventName: XhrEventName) => {
-              instrumentation._endSpan(this, eventName);
+            const onAbort = () => instrumentation._endSpan(this, 'abort');
+            const onError = () => instrumentation._endSpan(this, 'error');
+            const onTimeout = () => instrumentation._endSpan(this, 'timeout');
+            const onLoad = () => instrumentation._endSpan(this, 'load');
+            xhrRecord.listeners = {
+              abort: onAbort,
+              error: onError,
+              timeout: onTimeout,
+              load: onLoad,
             };
 
             const xhrContext = trace.setSpan(context.active(), span);
             context.with(xhrContext, () => {
-              this.addEventListener('abort', () => onXhrEvent('abort'));
-              this.addEventListener('error', () => onXhrEvent('error'));
-              this.addEventListener('timeout', () => onXhrEvent('timeout'));
-              this.addEventListener('load', () => onXhrEvent('load'));
+              this.addEventListener('abort', onAbort);
+              this.addEventListener('error', onError);
+              this.addEventListener('timeout', onTimeout);
+              this.addEventListener('load', onLoad);
               instrumentation._addHeaders(this, url, xhrContext);
             });
           } catch (e: unknown) {
@@ -196,7 +207,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   }
 
   /**
-   * Creates a new span when method "open" is called
+   * Creates a new span when method "send" is called
    */
   private _createSpan(url: URL, method: string): Span {
     const origMethod = method;
@@ -226,6 +237,15 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
    */
   private _endSpan(xhr: XMLHttpRequest, eventName: XhrEventName) {
     const xhrRecord = this._xhrSpanMap.get(xhr);
+
+    if (xhrRecord?.listeners) {
+      for (const k of Object.keys(xhrRecord.listeners)) {
+        xhr.removeEventListener(
+          k as XhrEventName,
+          xhrRecord.listeners[k as XhrEventName],
+        );
+      }
+    }
 
     if (xhrRecord?.span) {
       const { span, url, start } = xhrRecord;
