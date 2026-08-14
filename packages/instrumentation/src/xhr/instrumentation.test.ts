@@ -473,10 +473,12 @@ describe('XhrInstrumentation', () => {
 
     it('should not record an error when the request is intentionally aborted', async () => {
       const url = getUrlForPath('/api/get');
+      const startTime = performance.now();
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url);
       xhr.send();
       xhr.abort();
+      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
@@ -490,12 +492,14 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_ERROR_TYPE]).toBeUndefined();
       expect(span.status.code).toEqual(SpanStatusCode.UNSET);
 
-      // TODO: assert resource registered
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     it('should record an error when the request is aborted by a timeout', async () => {
       const timeout = 50;
       const url = getUrlForPath('/api/stream');
+      const startTime = performance.now();
       const xhr = new XMLHttpRequest();
       xhr.timeout = timeout;
       xhr.open('GET', url);
@@ -503,6 +507,7 @@ describe('XhrInstrumentation', () => {
 
       // wait till the timeout has passed
       await new Promise((res) => setTimeout(res, timeout + 1));
+      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
@@ -515,7 +520,9 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
       expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TimeoutError');
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      // TODO: assert resource registered
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     it('should record the exception for failed requests', async () => {
@@ -570,7 +577,9 @@ describe('XhrInstrumentation', () => {
 
     it('204 (No Content) will correctly end the span', async () => {
       const url = getUrlForPath('/null-body-204');
+      const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
+      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
@@ -581,11 +590,16 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(204);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     it('205 (Reset Content) will correctly end the span', async () => {
       const url = getUrlForPath('/null-body-205');
+      const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
+      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
@@ -596,11 +610,16 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(205);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     it('304 (Not Modified) will correctly end the span', async () => {
       const url = getUrlForPath('/null-body-304');
+      const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
+      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
@@ -611,6 +630,9 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(304);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     describe('with sanitizeUrl configuration', () => {
