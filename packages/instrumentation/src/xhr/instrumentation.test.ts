@@ -4,6 +4,7 @@
  */
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
+import { hrTime, hrTimeToMilliseconds } from '@opentelemetry/core';
 import { isWrapped } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
@@ -356,6 +357,39 @@ describe('XhrInstrumentation', () => {
     // NOTE: test of the former instrumentation also check for
     // XHR opened with async=false. Doing such request here makes the test
     // to timeout. This is probably because MSW handlers work in the same thread.
+    it.only('should create spans when the request is "sent"', async () => {
+      const delay = 50;
+      const url = getUrlForPath('/api/get');
+      const xhr = new XMLHttpRequest();
+      const openTime = hrTime(performance.now());
+      xhr.open('GET', url);
+
+      // Simulate some work between open and send
+      await new Promise((r) => setTimeout(r, delay));
+
+      const startTime = performance.now();
+      let endTime = 0;
+      xhr.send();
+      xhr.onload = () => (endTime = performance.now());
+
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
+      expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+      // Span is sterted after the delay between open and send
+      expect(
+        hrTimeToMilliseconds(span.startTime) - hrTimeToMilliseconds(openTime),
+      ).toBeGreaterThanOrEqual(delay);
+
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
+    });
+
     it('should create spans for GET requests', async () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();

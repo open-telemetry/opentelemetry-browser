@@ -48,10 +48,11 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   private declare _isEnabled: boolean;
   private declare _isXhrPatched: boolean;
 
-  // To keep references to span/xhr tuples across XHR events
+  // To keep references to span/xhr tuples across XHR events and stores
+  // init data like URL and method
   private _xhrSpanMap: WeakMap<
     XMLHttpRequest,
-    { span: Span; url: string; start: number }
+    { method: string; url: string; start?: number; span?: Span }
   > = new WeakMap();
 
   constructor(config: XhrInstrumentationConfig = {}) {
@@ -124,13 +125,13 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           if (shouldIgnoreUrl) {
             return original.apply(this, args);
           }
-
-          const span = instrumentation._createSpan(url, method);
-          instrumentation._xhrSpanMap.set(this, {
-            span,
-            url,
-            start: performance.now(),
-          });
+          instrumentation._xhrSpanMap.set(this, { method, url });
+          // const span = instrumentation._createSpan(url, method);
+          // instrumentation._xhrSpanMap.set(this, {
+          //   span,
+          //   url,
+          //   start: performance.now(),
+          // });
         } catch (e: unknown) {
           instrumentation._diag.error(
             'Failed to instrument XmlHttpRequest.open',
@@ -157,10 +158,14 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           return original.apply(this, args);
         }
 
-        const spanDetails = instrumentation._xhrSpanMap.get(this);
-        if (spanDetails) {
+        // Instrument the method if the XHR was previously picked in `open`
+        const xhrRecord = instrumentation._xhrSpanMap.get(this);
+        if (xhrRecord) {
           try {
-            const { span, url } = spanDetails;
+            const { method, url } = xhrRecord;
+            const span = instrumentation._createSpan(url, method);
+            xhrRecord.span = span;
+            xhrRecord.start = performance.now();
 
             if (instrumentation.getConfig().measureRequestSize && args?.[0]) {
               const bodyLength = getXHRBodyLength(args[0]);
@@ -226,10 +231,10 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
    * Finish span, add attributes, network events etc.
    */
   private _endSpan(xhr: XMLHttpRequest, eventName: XhrEventName) {
-    const spanDetails = this._xhrSpanMap.get(xhr);
+    const xhrRecord = this._xhrSpanMap.get(xhr);
 
-    if (spanDetails) {
-      const { span, url, start } = spanDetails;
+    if (xhrRecord?.span) {
+      const { span, url, start } = xhrRecord;
 
       // Status code only has a meaningful value if request got a response
       if (eventName === 'load') {
@@ -261,7 +266,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
 
       getNetworkContextRegistry().register(span, {
         key: url,
-        startPerfNow: start,
+        startPerfNow: Number(start),
         endPerfNow: performance.now(),
       });
     }
