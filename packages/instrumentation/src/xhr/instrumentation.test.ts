@@ -503,7 +503,7 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
 
       // Context has been registered for the resource
-      assertResourceRegistered({ span, url: fullUrl , startTime, endTime });
+      assertResourceRegistered({ span, url: fullUrl, startTime, endTime });
     });
 
     it('should not record an error when the request is intentionally aborted', async () => {

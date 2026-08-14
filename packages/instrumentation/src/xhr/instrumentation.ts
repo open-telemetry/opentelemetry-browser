@@ -52,7 +52,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   // init data like URL and method
   private _xhrSpanMap: WeakMap<
     XMLHttpRequest,
-    { method: string; url: string; start?: number; span?: Span }
+    { method: string; url: URL; start?: number; span?: Span }
   > = new WeakMap();
 
   constructor(config: XhrInstrumentationConfig = {}) {
@@ -116,10 +116,11 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
         }
         try {
           const method = args[0];
-          const url =
+          const urlArgument =
             typeof args[1] === 'string' ? args[1] : args[1].toString();
+          const url = parseUrl(urlArgument);
           const shouldIgnoreUrl = matchesUrl(
-            url,
+            url.href,
             instrumentation.getConfig().ignoreUrls,
           );
           if (shouldIgnoreUrl) {
@@ -197,8 +198,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   /**
    * Creates a new span when method "open" is called
    */
-  private _createSpan(url: string, method: string): Span {
-    const parsedUrl = parseUrl(url);
+  private _createSpan(url: URL, method: string): Span {
     const origMethod = method;
     const normMethod = normalizeHttpRequestMethod(method);
     const attributes = {} as Attributes;
@@ -209,10 +209,10 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       attributes[ATTR_HTTP_REQUEST_METHOD_ORIGINAL] = origMethod;
     }
     attributes[ATTR_URL_FULL] = sanitizeUrl
-      ? sanitizeUrl(parsedUrl.href)
-      : parsedUrl.href;
-    attributes[ATTR_SERVER_ADDRESS] = parsedUrl.hostname;
-    const serverPort = serverPortFromUrl(parsedUrl);
+      ? sanitizeUrl(url.href)
+      : url.href;
+    attributes[ATTR_SERVER_ADDRESS] = url.hostname;
+    const serverPort = serverPortFromUrl(url);
     if (serverPort) {
       attributes[ATTR_SERVER_PORT] = serverPort;
     }
@@ -261,7 +261,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       span.end();
 
       getNetworkContextRegistry().register(span, {
-        key: parseUrl(url).href,
+        key: url.href,
         startPerfNow: Number(start),
         endPerfNow: performance.now(),
       });
@@ -291,12 +291,11 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   /**
    * Adds custom headers to XMLHttpRequest
    */
-  private _addHeaders(xhr: XMLHttpRequest, url: string, ctx: Context) {
+  private _addHeaders(xhr: XMLHttpRequest, url: URL, ctx: Context) {
     // Propagate only if in request goes to same origin or is in the allow list
     const urlsToPropagate = this.getConfig().propagateTraceHeaderCorsUrls;
-    const urlOrigin = parseUrl(url).origin;
-    const sameOrigin = location.origin === urlOrigin;
-    const shouldPropagate = sameOrigin || matchesUrl(url, urlsToPropagate);
+    const sameOrigin = location.origin === url.origin;
+    const shouldPropagate = sameOrigin || matchesUrl(url.href, urlsToPropagate);
 
     if (shouldPropagate) {
       propagation.inject(ctx, xhr, {
