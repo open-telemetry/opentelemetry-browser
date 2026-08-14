@@ -14,7 +14,6 @@ The easiest way to make sure you are using compatible Node and npm versions is t
 cd <cloned repo directory> 
 nvm install
 nvm use
-npm install -g npm@11
 ```
 
 ## Quick Start
@@ -38,7 +37,7 @@ npm install -g npm@11
     npm test
     ```
 
-4. **Prior to receiving review comments**, you can keep your branch up-to-date via rebase
+4. **Prior to receiving review comments**, you can keep your branch up-to-date by using the "Update with rebase" button on Github.com. To rebase manually:
 
     ```sh
     git fetch upstream
@@ -46,7 +45,7 @@ npm install -g npm@11
     git rebase upstream/main 
     ```
 
-5. **After opening a PR and receiving comments**, use a merge commit to retain comment history
+5. **After opening a PR and receiving comments**, you can update your branch and retain comment history by clicking the "Update with merge commit" button on Github.com. To update manually:
 
    ```sh
     git fetch upstream
@@ -67,7 +66,7 @@ For detailed contribution guidelines, see the [OpenTelemetry JS Contributing Gui
 
 - Open the [Issues](https://github.com/open-telemetry/opentelemetry-browser/issues) tab
 - Filter down to label:"good first issue" or label:"available"
-- If you are having trouble finding an appropriately sized issue, reach out in the slack or ask in a SIG meeting
+- If you are having trouble finding an appropriately sized issue, reach out on Slack or ask in a SIG meeting
 
 ## Raising issues
 
@@ -77,7 +76,7 @@ Look through [open issues](https://github.com/open-telemetry/opentelemetry-brows
 
 If not, any of the following work:
 - Open an issue using one of the [issue templates](https://github.com/open-telemetry/opentelemetry-browser/issues/new/choose). Examples, screenshots, clear questions, and highlighting decisions to make will make issue triage easier. The Discussion template covers questions and points of consideration.
-- Start a thread it through in [#otel-browser](https://cloud-native.slack.com/archives/C093P0AMP0T) on the CNCF Slack ([create an account](https://slack.cncf.io/) if you need one).
+- Start a thread in [#otel-browser](https://cloud-native.slack.com/archives/C093P0AMP0T) on the CNCF Slack ([create an account](https://slack.cncf.io/) if you need one).
 - Add it to the agenda in the [Browser SIG](https://github.com/open-telemetry/community/blob/main/sigs.md#browser) agenda.
 
 ## SIG Operations
