@@ -126,12 +126,6 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
             return original.apply(this, args);
           }
           instrumentation._xhrSpanMap.set(this, { method, url });
-          // const span = instrumentation._createSpan(url, method);
-          // instrumentation._xhrSpanMap.set(this, {
-          //   span,
-          //   url,
-          //   start: performance.now(),
-          // });
         } catch (e: unknown) {
           instrumentation._diag.error(
             'Failed to instrument XmlHttpRequest.open',
@@ -267,7 +261,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       span.end();
 
       getNetworkContextRegistry().register(span, {
-        key: url,
+        key: parseUrl(url).href,
         startPerfNow: Number(start),
         endPerfNow: performance.now(),
       });

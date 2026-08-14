@@ -45,6 +45,12 @@ export default defineConfig({
             import.meta.url,
           ),
         ),
+      '@opentelemetry/browser-instrumentation/experimental/xhr': fileURLToPath(
+        new URL(
+          '../packages/instrumentation/src/xhr/index.ts',
+          import.meta.url,
+        ),
+      ),
       '@opentelemetry/browser-instrumentation/experimental/resource-timing':
         fileURLToPath(
           new URL(

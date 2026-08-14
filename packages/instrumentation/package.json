@@ -13,7 +13,9 @@
     "navigation-timing",
     "resource-timing",
     "user-action",
-    "web-vitals"
+    "web-vitals",
+    "fetch",
+    "xhr"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -37,7 +39,8 @@
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
-    "./experimental/fetch": "./dist/fetch/index.js"
+    "./experimental/fetch": "./dist/fetch/index.js",
+    "./experimental/xhr": "./dist/xhr/index.js"
   },
   "sideEffects": false,
   "files": [
