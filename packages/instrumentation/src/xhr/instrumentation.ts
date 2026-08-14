@@ -214,7 +214,9 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     if (normMethod !== origMethod) {
       attributes[ATTR_HTTP_REQUEST_METHOD_ORIGINAL] = origMethod;
     }
-    attributes[ATTR_URL_FULL] = sanitizeUrl ? sanitizeUrl(url) : url;
+    attributes[ATTR_URL_FULL] = sanitizeUrl
+      ? sanitizeUrl(parsedUrl.href)
+      : parsedUrl.href;
     attributes[ATTR_SERVER_ADDRESS] = parsedUrl.hostname;
     const serverPort = serverPortFromUrl(parsedUrl);
     if (serverPort) {

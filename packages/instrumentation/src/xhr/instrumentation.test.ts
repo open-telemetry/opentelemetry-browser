@@ -357,7 +357,7 @@ describe('XhrInstrumentation', () => {
     // NOTE: test of the former instrumentation also check for
     // XHR opened with async=false. Doing such request here makes the test
     // to timeout. This is probably because MSW handlers work in the same thread.
-    it.only('should create spans when the request is "sent"', async () => {
+    it('should create spans when the request is "sent"', async () => {
       const delay = 50;
       const url = getUrlForPath('/api/get');
       const xhr = new XMLHttpRequest();
@@ -487,16 +487,17 @@ describe('XhrInstrumentation', () => {
 
     it('should create spans for requests with relative URLs', async () => {
       const url = '/api/get';
+      const fullUrl = getUrlForPath(url);
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
       const endTime = performance.now();
 
       // Span is exported
-      const span = await waitForSpan(url);
+      const span = await waitForSpan(fullUrl);
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
-      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(fullUrl);
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
