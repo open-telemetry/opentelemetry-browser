@@ -38,6 +38,13 @@ export default defineConfig({
             import.meta.url,
           ),
         ),
+      '@opentelemetry/browser-instrumentation/experimental/element-timing':
+        fileURLToPath(
+          new URL(
+            '../packages/instrumentation/src/element-timing/index.ts',
+            import.meta.url,
+          ),
+        ),
       '@opentelemetry/browser-instrumentation/experimental/fetch':
         fileURLToPath(
           new URL(

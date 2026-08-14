@@ -12,6 +12,7 @@
     "navigation",
     "navigation-timing",
     "resource-timing",
+    "element-timing",
     "user-action",
     "web-vitals"
   ],
@@ -35,6 +36,7 @@
     "./experimental/navigation": "./dist/navigation/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
+    "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
     "./experimental/fetch": "./dist/fetch/index.js"
