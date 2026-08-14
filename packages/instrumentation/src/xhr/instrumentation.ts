@@ -36,6 +36,7 @@ import type { XhrInstrumentationConfig } from './types.ts';
 
 type XhrOpenFunction = typeof XMLHttpRequest.prototype.open;
 type XhrSendFunction = typeof XMLHttpRequest.prototype.send;
+type XhrEventName = 'abort' | 'timeout' | 'error' | 'load';
 
 export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationConfig> {
   // Note: Intentionally *not* using `_enabled` as the field name to avoid
@@ -168,18 +169,16 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
               }
             }
 
-            const onXhrEvent = (errorType?: string) => {
-              instrumentation._endSpan(this, errorType);
+            const onXhrEvent = (eventName: XhrEventName) => {
+              instrumentation._endSpan(this, eventName);
             };
 
             const xhrContext = trace.setSpan(context.active(), span);
             context.with(xhrContext, () => {
-              this.addEventListener('abort', () => onXhrEvent());
-              this.addEventListener('error', () => onXhrEvent('Request error'));
-              this.addEventListener('load', () => onXhrEvent());
-              this.addEventListener('timeout', () =>
-                onXhrEvent('Request timeout'),
-              );
+              this.addEventListener('abort', () => onXhrEvent('abort'));
+              this.addEventListener('error', () => onXhrEvent('error'));
+              this.addEventListener('timeout', () => onXhrEvent('timeout'));
+              this.addEventListener('load', () => onXhrEvent('load'));
               instrumentation._addHeaders(this, url, xhrContext);
             });
           } catch (e: unknown) {
@@ -226,23 +225,36 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   /**
    * Finish span, add attributes, network events etc.
    */
-  private _endSpan(xhr: XMLHttpRequest, errorType?: string) {
+  private _endSpan(xhr: XMLHttpRequest, eventName: XhrEventName) {
     const spanDetails = this._xhrSpanMap.get(xhr);
 
     if (spanDetails) {
       const { span, url, start } = spanDetails;
 
-      span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, xhr.status);
-      // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
-      const isErrorStatus = xhr.status < 200 || xhr.status >= 400;
-      if (isErrorStatus || errorType) {
-        span.setStatus({ code: SpanStatusCode.ERROR });
-        if (typeof xhr.statusText === 'string' && xhr.statusText) {
-          span.setAttribute(ATTR_ERROR_TYPE, xhr.statusText);
-        } else if (errorType) {
+      // Status code only has a meaningful value if request got a response
+      if (eventName === 'load') {
+        span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, xhr.status);
+      }
+
+      if (eventName !== 'abort') {
+        // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
+        // 1xx/2xx/3xx MUST be left unset UNLESS there was another error (e.g. a
+        // network error receiving the response body)
+        const isErrorStatus =
+          xhr.status >= 400 || eventName === 'error' || eventName === 'timeout';
+
+        if (isErrorStatus) {
+          span.setStatus({ code: SpanStatusCode.ERROR });
+          const errorType =
+            xhr.status >= 400
+              ? String(xhr.status)
+              : eventName === 'error'
+                ? 'Error'
+                : 'TimeoutError';
           span.setAttribute(ATTR_ERROR_TYPE, errorType);
         }
       }
+
       this._xhrSpanMap.delete(xhr);
       this._applyAttributesAfterSend(span, xhr);
       span.end();

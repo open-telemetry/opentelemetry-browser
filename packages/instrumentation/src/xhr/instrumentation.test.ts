@@ -471,7 +471,7 @@ describe('XhrInstrumentation', () => {
       assertResourceRegistered({ span, url, startTime, endTime });
     });
 
-    it('should create spans for aborted requests', async () => {
+    it('should not record an error when the request is intentionally aborted', async () => {
       const url = getUrlForPath('/api/get');
       const xhr = new XMLHttpRequest();
       xhr.open('GET', url);
@@ -486,10 +486,14 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
-      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
+      expect(span.attributes[ATTR_ERROR_TYPE]).toBeUndefined();
+      expect(span.status.code).toEqual(SpanStatusCode.UNSET);
+
+      // TODO: assert resource registered
     });
 
-    it('should create spans for timed out requests', async () => {
+    it('should record an error when the request is aborted by a timeout', async () => {
       const timeout = 50;
       const url = getUrlForPath('/api/stream');
       const xhr = new XMLHttpRequest();
@@ -508,7 +512,10 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
-      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TimeoutError');
+      expect(span.status.code).toEqual(SpanStatusCode.ERROR);
+      // TODO: assert resource registered
     });
 
     it('should record the exception for failed requests', async () => {
@@ -527,7 +534,7 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
       expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(500);
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Internal Server Error');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('500');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
@@ -553,9 +560,9 @@ describe('XhrInstrumentation', () => {
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
       expect(span.attributes[ATTR_SERVER_ADDRESS]).toEqual(VITEST_SERVER_NAME);
       expect(span.attributes[ATTR_SERVER_PORT]).toEqual(VITEST_SERVER_PORT);
-      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(0);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBeUndefined();
       expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Request error');
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('Error');
 
       // Context has been registered for the resource
       assertResourceRegistered({ span, url, startTime, endTime });
