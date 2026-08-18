@@ -79,7 +79,7 @@ describe('ElementTimingInstrumentation', () => {
     overrides: Partial<PerformanceElementTiming> = {},
   ): PerformanceElementTiming {
     return {
-      name: '',
+      name: 'image-paint',
       entryType: 'element',
       startTime: 200,
       duration: 0,
@@ -140,6 +140,44 @@ describe('ElementTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_ELEMENT_TIMING_NATURAL_HEIGHT]).toBe(800);
   });
 
+  it('should omit resource attributes for text-paint entries', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+
+    observerCallback(
+      createMockPerformanceObserverEntryList([
+        createMockElementEntry({
+          name: 'text-paint',
+          identifier: 'headline',
+          element: { tagName: 'P' } as Element,
+          loadTime: 0,
+          url: '',
+          naturalWidth: 0,
+          naturalHeight: 0,
+        }),
+      ]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+
+    const logs = getElementTimingLogs();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.attributes[ATTR_ELEMENT_TIMING_IDENTIFIER]).toBe(
+      'headline',
+    );
+    expect(logs[0]?.attributes[ATTR_ELEMENT_TIMING_ELEMENT]).toBe('p');
+    expect(logs[0]?.attributes[ATTR_ELEMENT_TIMING_START_TIME]).toBe(200);
+    expect(ATTR_ELEMENT_TIMING_URL in (logs[0]?.attributes ?? {})).toBe(false);
+    expect(ATTR_ELEMENT_TIMING_LOAD_TIME in (logs[0]?.attributes ?? {})).toBe(
+      false,
+    );
+    expect(
+      ATTR_ELEMENT_TIMING_NATURAL_WIDTH in (logs[0]?.attributes ?? {}),
+    ).toBe(false);
+    expect(
+      ATTR_ELEMENT_TIMING_NATURAL_HEIGHT in (logs[0]?.attributes ?? {}),
+    ).toBe(false);
+  });
+
   it('should set element attribute to undefined when entry.element is null', () => {
     instrumentation = new ElementTimingInstrumentation();
     instrumentation.enable();
@@ -198,6 +236,18 @@ describe('ElementTimingInstrumentation', () => {
     expect(PerformanceObserverMock).toHaveBeenCalledTimes(1);
   });
 
+  it('should not replay buffered entries when re-enabled', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+    instrumentation.disable();
+    instrumentation.enable();
+
+    expect(mockObserver.observe).toHaveBeenLastCalledWith({
+      type: 'element',
+      buffered: false,
+    });
+  });
+
   it('should bail early when PerformanceObserver is unsupported', () => {
     vi.stubGlobal('window', {});
     vi.stubGlobal('PerformanceObserver', undefined);
@@ -220,5 +270,27 @@ describe('ElementTimingInstrumentation', () => {
 
     instrumentation.disable();
     expect(mockObserver.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('should stay disabled after a failed enable so a later enable can retry', () => {
+    const supported = PerformanceObserverMock as unknown as {
+      supportedEntryTypes: string[];
+    };
+    supported.supportedEntryTypes = [];
+
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+    expect(PerformanceObserverMock).not.toHaveBeenCalled();
+
+    supported.supportedEntryTypes = ['element'];
+    instrumentation.enable();
+
+    expect(PerformanceObserverMock).toHaveBeenCalledTimes(1);
+
+    observerCallback(
+      createMockPerformanceObserverEntryList([createMockElementEntry()]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+    expect(getElementTimingLogs()).toHaveLength(1);
   });
 });

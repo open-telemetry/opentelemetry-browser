@@ -200,5 +200,30 @@ describe('performanceObserver utils', () => {
       const result = createPerformanceObserver('mark', () => {});
       expect(result).toBeNull();
     });
+
+    it('should log via diag when the observer constructor throws', () => {
+      class ThrowingPerformanceObserver {
+        public static supportedEntryTypes = ['mark'];
+        public constructor() {
+          throw new Error('constructor failed');
+        }
+      }
+      vi.stubGlobal('PerformanceObserver', ThrowingPerformanceObserver);
+
+      const errors: unknown[] = [];
+      const diag: DiagLogger = {
+        error: (_msg: string, err: unknown) => errors.push(err),
+        verbose: () => {},
+        debug: () => {},
+        info: () => {},
+        warn: () => {},
+      };
+
+      const result = createPerformanceObserver('mark', () => {}, { diag });
+
+      expect(result).toBeNull();
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as Error).message).toBe('constructor failed');
+    });
   });
 });
