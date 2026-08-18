@@ -86,9 +86,6 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       this._isXhrPatched = true;
       this._isEnabled = true;
     } catch (err) {
-      // make sure there is no wrapped functions
-      this._unwrap(XMLHttpRequest.prototype, 'open');
-      this._unwrap(XMLHttpRequest.prototype, 'send');
       this._diag.warn(
         'Failed to patch XMLHttpRequest.prototype methods; instrumentation will not be enabled. ' +
           'Another script may have locked XMLHttpRequest.prototype methods via Object.defineProperty.',
@@ -323,7 +320,6 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       });
     } else {
       const headers: Partial<Record<string, unknown>> = {};
-      propagation.inject(ctx, headers);
       propagation.inject(ctx, headers, {
         set: (h, k, v) => {
           h[k] = v;

@@ -226,7 +226,7 @@ describe('XhrInstrumentation', () => {
     expect(log.spanId).toBe(span.spanId);
   });
 
-  it.only('correlates the resource timing entry when XHR is called with a relative URL', async () => {
+  it('correlates the resource timing entry when XHR is called with a relative URL', async () => {
     result = testSdkSetup([
       new XhrInstrumentation(),
       new ResourceTimingInstrumentation({
