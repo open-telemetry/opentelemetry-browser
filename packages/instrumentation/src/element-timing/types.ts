@@ -15,15 +15,21 @@ export interface ElementTimingInstrumentationConfig
 
 /**
  * A PerformanceEntry produced by the Element Timing API.
- * Not yet part of the TypeScript DOM lib.
- * @see https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming
+ * Not yet part of the TypeScript DOM lib (checked against TypeScript 6.0).
+ * @see https://w3c.github.io/element-timing/#sec-performance-element-timing
  */
 export type PerformanceElementTiming = PerformanceEntry & {
-  identifier: string;
-  element: Element | null;
-  renderTime: number;
-  loadTime: number;
-  url: string;
-  naturalWidth: number;
-  naturalHeight: number;
+  readonly entryType: 'element';
+  readonly name: 'image-paint' | 'text-paint';
+  readonly identifier: string;
+  readonly element: Element | null;
+  readonly renderTime: DOMHighResTimeStamp;
+  /** Always 0 for `text-paint` entries. */
+  readonly loadTime: DOMHighResTimeStamp;
+  /** Always the empty string for `text-paint` entries. */
+  readonly url: string;
+  /** Always 0 for `text-paint` entries. */
+  readonly naturalWidth: number;
+  /** Always 0 for `text-paint` entries. */
+  readonly naturalHeight: number;
 };

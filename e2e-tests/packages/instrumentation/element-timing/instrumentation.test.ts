@@ -49,6 +49,13 @@ describe('ElementTimingInstrumentation', () => {
         });
         expect(attr('browser.element_timing.render_time')).toBeDefined();
         expect(attr('browser.element_timing.start_time')).toBeDefined();
+
+        // Text entries carry no resource, so the image-only attributes must be
+        // absent rather than reported as ""/0.
+        expect(attr('url.full')).toBeUndefined();
+        expect(attr('browser.element_timing.load_time')).toBeUndefined();
+        expect(attr('browser.element_timing.natural_width')).toBeUndefined();
+        expect(attr('browser.element_timing.natural_height')).toBeUndefined();
       },
       { timeout: 2000 },
     );

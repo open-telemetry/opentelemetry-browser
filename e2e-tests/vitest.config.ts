@@ -31,17 +31,17 @@ export default defineConfig({
             import.meta.url,
           ),
         ),
-      '@opentelemetry/browser-instrumentation/experimental/errors':
-        fileURLToPath(
-          new URL(
-            '../packages/instrumentation/src/errors/index.ts',
-            import.meta.url,
-          ),
-        ),
       '@opentelemetry/browser-instrumentation/experimental/element-timing':
         fileURLToPath(
           new URL(
             '../packages/instrumentation/src/element-timing/index.ts',
+            import.meta.url,
+          ),
+        ),
+      '@opentelemetry/browser-instrumentation/experimental/errors':
+        fileURLToPath(
+          new URL(
+            '../packages/instrumentation/src/errors/index.ts',
             import.meta.url,
           ),
         ),

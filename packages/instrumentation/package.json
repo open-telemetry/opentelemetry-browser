@@ -8,11 +8,11 @@
     "web",
     "instrumentation",
     "console",
+    "element-timing",
     "errors",
     "navigation",
     "navigation-timing",
     "resource-timing",
-    "element-timing",
     "user-action",
     "web-vitals"
   ],
@@ -32,11 +32,11 @@
   },
   "exports": {
     "./experimental/console": "./dist/console/index.js",
+    "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/errors": "./dist/errors/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
-    "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
     "./experimental/fetch": "./dist/fetch/index.js"
