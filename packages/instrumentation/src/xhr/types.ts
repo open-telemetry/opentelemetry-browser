@@ -9,12 +9,14 @@ import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 type XhrCustomAttributeFunction = (
   span: Span,
   xhr: XMLHttpRequest,
-  // XXX: fetch instrumentation has a result paranm here (should we align?)
+  // TODO: fetch instrumentation has a Response | FetchResult type
+  // check if we could do something similar here
 ) => void;
 
-// XXX: this configuration is very similar to fetch instrumentation config.
-// Given that this instrumentation and fetch are experimental. Could we
-// leverage this situation and provide a common configuration Type?
+// TODO: the only differences in config with `fetch` instrumentation are
+// - the custom attributes function has a different signature
+// - no `requestHook` is in this config although it could be implemented
+//   with similar signature `requestHook(span, xhr)
 export interface XhrInstrumentationConfig extends InstrumentationConfig {
   /** URLs which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
