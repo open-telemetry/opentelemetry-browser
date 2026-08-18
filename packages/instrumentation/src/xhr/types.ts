@@ -17,6 +17,7 @@ type XhrCustomAttributeFunction = (
 // - the custom attributes function has a different signature
 // - no `requestHook` is in this config although it could be implemented
 //   with similar signature `requestHook(span, xhr)
+// ISSUE: #400
 export interface XhrInstrumentationConfig extends InstrumentationConfig {
   /** URLs which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
