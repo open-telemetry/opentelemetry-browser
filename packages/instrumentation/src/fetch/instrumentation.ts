@@ -167,8 +167,9 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
           function endSpanOnError(span: Span, error: FetchError) {
             instrumentation._applyAttributesAfterFetch(span, options, error);
             instrumentation._endSpan(span, {
-              status: error.status || 0,
-              statusText: error.message,
+              status: error.status,
+              error: error.name || error.message,
+              aborted: error.name === 'AbortError',
             });
           }
 
@@ -207,11 +208,27 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
                           'Failed to finalize span after body read',
                           e,
                         );
-                        instrumentation._endSpan(span, { status: 0 });
+                        instrumentation._endSpan(span, {
+                          status: response.status,
+                        });
                       }
                     },
                     (error) => {
-                      endSpanOnError(span, error);
+                      try {
+                        endSpanOnError(span, {
+                          name: error?.name,
+                          message: error?.message,
+                          status: response.status,
+                        });
+                      } catch (e) {
+                        instrumentation._diag.error(
+                          'Failed to end span after body read rejected',
+                          e,
+                        );
+                        instrumentation._endSpan(span, {
+                          status: response.status,
+                        });
+                      }
                     },
                   );
                 };
@@ -221,14 +238,11 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
                 endSpanOnSuccess(span, response);
               }
             } catch (error) {
-              // Setup failed (e.g. clone() or getReader() threw).
               instrumentation._diag.error(
                 'Failed to read fetch response body',
                 error,
               );
-              instrumentation._endSpan(span, {
-                status: 0,
-              });
+              instrumentation._endSpan(span, { status: response.status });
             }
             return response;
           }
@@ -237,14 +251,13 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             try {
               endSpanOnError(span, error);
             } catch (e: unknown) {
-              // endSpanOnError failed — fall back to ending the span directly
+              // endSpanOnError failed — fall back to ending the span directly.
+              // No `status`: no response was ever received for this request.
               instrumentation._diag.error(
                 'Failed to end span on fetch error',
                 e,
               );
-              instrumentation._endSpan(span, {
-                status: error.status || 0,
-              });
+              instrumentation._endSpan(span, {});
             }
             throw error;
           }
@@ -319,16 +332,29 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
    * Finish span, add attributes, etc.
    */
   private _endSpan(span: Span, response: FetchResponse) {
-    span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, response.status);
+    if (response.status !== undefined) {
+      span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, response.status);
+    }
 
     // https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
-    const isErrorStatus = response.status < 200 || response.status >= 400;
-    if (isErrorStatus) {
-      span.setStatus({ code: SpanStatusCode.ERROR });
-      if (typeof response.statusText === 'string') {
-        span.setAttribute(ATTR_ERROR_TYPE, response.statusText);
+    // 1xx/2xx/3xx MUST be left unset UNLESS there was another error (e.g. a
+    // network error receiving the response body)
+    if (!response.aborted) {
+      const isErrorStatus =
+        response.status === undefined ||
+        response.status >= 400 ||
+        response.error !== undefined;
+      if (isErrorStatus) {
+        span.setStatus({ code: SpanStatusCode.ERROR });
+        const errorType =
+          response.error ??
+          (response.status !== undefined ? String(response.status) : undefined);
+        if (typeof errorType === 'string') {
+          span.setAttribute(ATTR_ERROR_TYPE, errorType);
+        }
       }
     }
+
     span.end();
 
     // Register the resource context for other instrumentations
