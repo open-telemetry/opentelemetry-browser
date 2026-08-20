@@ -1,0 +1,33 @@
+groups:
+  - id: span.browser.http.client
+    type: span
+    span_kind: client
+    stability: development
+    brief: >
+      This span represents an outbound HTTP request made from the browser through `fetch`.
+    note: >
+      This group describes the subset of the upstream
+      [HTTP client span](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
+      conventions that the fetch instrumentation records. It defines no attributes of its own; it
+      exists so that the upstream attributes the instrumentation uses are part of this registry.
+    attributes:
+      - ref: http.request.method
+        requirement_level: required
+      - ref: url.full
+        requirement_level: required
+      - ref: server.address
+        requirement_level: required
+      - ref: server.port
+        requirement_level:
+          conditionally_required: If the request URL carries a port.
+      - ref: http.request.method_original
+        requirement_level:
+          conditionally_required: If and only if it's different than `http.request.method`.
+      - ref: http.response.status_code
+        requirement_level:
+          conditionally_required: If and only if a response was received.
+      - ref: error.type
+        requirement_level:
+          conditionally_required: If the request failed or the response status code indicates an error.
+      - ref: http.request.body.size
+        requirement_level: opt_in

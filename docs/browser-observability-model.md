@@ -25,6 +25,8 @@ All events listed below are implemented in this repository's [`@opentelemetry/br
 
 In the [semantic-conventions](https://github.com/open-telemetry/semantic-conventions) repository, only `browser.web_vital` (development stability) and `exception` (stable) are currently defined. The earlier PRs proposing conventions for the remaining browser events were closed as stale; the attributes emitted by the instrumentations in this repository serve as the working definitions in the meantime. Longer term, a federated semantic conventions repository for end-user client applications is being discussed ([community #3594](https://github.com/open-telemetry/community/issues/3594)). Conventions shared across client platforms may move to that repository, while browser-specific conventions might remain in this repository.
 
+The attributes of these events are defined as a machine-readable semantic convention registry under [`semconv/`](https://github.com/open-telemetry/opentelemetry-browser/tree/main/semconv), which this document intentionally does not enumerate.
+
 ---
 
 ## Browser Events
