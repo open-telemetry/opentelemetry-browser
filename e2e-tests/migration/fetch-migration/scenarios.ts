@@ -19,6 +19,15 @@ export interface FetchMigrationHarness {
   runScenario: typeof runScenario;
 }
 
+// Set on every span via `applyCustomAttributesOnSpan` (see old.entry.ts /
+// new.entry.ts) so the test can tell old and new spans apart without relying
+// on the request URL -- which lets both fixtures hit the exact same URL per
+// scenario, so `url.full` is also directly comparable between the two.
+export const TEST_IMPL_ATTR = 'test.fetch_migration.impl';
+export type FetchMigrationImpl = 'old' | 'new';
+
+const BASE_URL = '/e2e/fetch-migration';
+
 const SCENARIO_PATHS: Record<ScenarioKey, string> = {
   success: 'get',
   serverError: 'error',
@@ -28,15 +37,12 @@ const SCENARIO_PATHS: Record<ScenarioKey, string> = {
   noBody: 'no-body',
 };
 
-export function urlForScenario(baseUrl: string, key: ScenarioKey): string {
-  return new URL(`${baseUrl}/${SCENARIO_PATHS[key]}`, location.href).href;
+export function urlForScenario(key: ScenarioKey): string {
+  return new URL(`${BASE_URL}/${SCENARIO_PATHS[key]}`, location.href).href;
 }
 
-export async function runScenario(
-  key: ScenarioKey,
-  baseUrl: string,
-): Promise<void> {
-  const url = urlForScenario(baseUrl, key);
+export async function runScenario(key: ScenarioKey): Promise<void> {
+  const url = urlForScenario(key);
 
   switch (key) {
     case 'success':

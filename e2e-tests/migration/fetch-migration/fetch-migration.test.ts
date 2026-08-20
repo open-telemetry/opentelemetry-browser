@@ -6,7 +6,6 @@
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
-  ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 import { delay, HttpResponse, http } from 'msw';
 import {
@@ -27,7 +26,7 @@ import {
   attrOf,
 } from './compare-spans.ts';
 import type { FetchMigrationHarness, ScenarioKey } from './scenarios.ts';
-import { urlForScenario } from './scenarios.ts';
+import { TEST_IMPL_ATTR } from './scenarios.ts';
 
 declare global {
   interface Window {
@@ -36,43 +35,34 @@ declare global {
   }
 }
 
-const OLD_BASE_URL = '/e2e/fetch-migration/old';
-const NEW_BASE_URL = '/e2e/fetch-migration/new';
-
 const fetchMigrationHandlers = [
-  http.get('/e2e/fetch-migration/:impl/get', () =>
-    HttpResponse.json({ ok: true }),
-  ),
+  http.get('/e2e/fetch-migration/get', () => HttpResponse.json({ ok: true })),
   http.get(
-    '/e2e/fetch-migration/:impl/error',
+    '/e2e/fetch-migration/error',
     () =>
       new HttpResponse(null, {
         status: 500,
         statusText: 'Internal Server Error',
       }),
   ),
-  http.get('/e2e/fetch-migration/:impl/network-error', () =>
-    HttpResponse.error(),
-  ),
-  http.get('/e2e/fetch-migration/:impl/abort', () =>
-    HttpResponse.json({ ok: true }),
-  ),
+  http.get('/e2e/fetch-migration/network-error', () => HttpResponse.error()),
+  http.get('/e2e/fetch-migration/abort', () => HttpResponse.json({ ok: true })),
   // Delayed well past the 50ms AbortSignal.timeout() used for the "timeout"
   // scenario, so the request is aborted before this ever resolves.
-  http.get('/e2e/fetch-migration/:impl/timeout', async () => {
+  http.get('/e2e/fetch-migration/timeout', async () => {
     await delay(1000);
     return HttpResponse.json({ ok: true });
   }),
   http.get(
-    '/e2e/fetch-migration/:impl/no-body',
+    '/e2e/fetch-migration/no-body',
     () => new HttpResponse(null, { status: 204 }),
   ),
 ];
 
-const getSpanByUrl = (url: string): OtlpSpan => {
+const getSpanByImpl = (impl: 'old' | 'new'): OtlpSpan => {
   const span = collector
     .getSpans()
-    .find((s) => attrOf(s, ATTR_URL_FULL)?.stringValue === url);
+    .find((s) => attrOf(s, TEST_IMPL_ATTR)?.stringValue === impl);
   expect(span).toBeDefined();
 
   // biome-ignore lint/style/noNonNullAssertion: expect(...).toBeDefined() above throws if undefined
@@ -108,6 +98,7 @@ async function loadFixtureIframe(
   if (!harness) {
     throw new Error(`${src} did not expose a harness`);
   }
+
   return { iframe, harness };
 }
 
@@ -138,25 +129,24 @@ describe('fetch instrumentation migration parity', () => {
   async function runBothAndGetSpans(
     key: ScenarioKey,
   ): Promise<{ oldSpan: OtlpSpan; newSpan: OtlpSpan }> {
-    const oldUrl = urlForScenario(OLD_BASE_URL, key);
-    const newUrl = urlForScenario(NEW_BASE_URL, key);
-
     await Promise.all([
-      oldHarness.runScenario(key, OLD_BASE_URL),
-      newHarness.runScenario(key, NEW_BASE_URL),
+      oldHarness.runScenario(key),
+      newHarness.runScenario(key),
     ]);
 
-    const oldSpan = await vi.waitFor(() => getSpanByUrl(oldUrl), {
+    const oldSpan = await vi.waitFor(() => getSpanByImpl('old'), {
       timeout: 2000,
     });
-    const newSpan = await vi.waitFor(() => getSpanByUrl(newUrl), {
+    const newSpan = await vi.waitFor(() => getSpanByImpl('new'), {
       timeout: 2000,
     });
+
     return { oldSpan, newSpan };
   }
 
   it('produces equivalent spans for a successful request', async () => {
     const { oldSpan, newSpan } = await runBothAndGetSpans('success');
+
     assertEquivalentRequestAttributes(oldSpan, newSpan);
     assertEquivalentOutcomeAttributes(oldSpan, newSpan);
     expect(newSpan.status.code).toBe(0); // SpanStatusCode.UNSET
@@ -164,6 +154,7 @@ describe('fetch instrumentation migration parity', () => {
 
   it('produces equivalent spans for a non-2xx server response', async () => {
     const { oldSpan, newSpan } = await runBothAndGetSpans('serverError');
+
     assertEquivalentRequestAttributes(oldSpan, newSpan);
     assertEquivalentOutcomeAttributes(oldSpan, newSpan);
     expect(newSpan.status.code).toBe(2); // SpanStatusCode.ERROR
@@ -171,6 +162,7 @@ describe('fetch instrumentation migration parity', () => {
 
   it('produces equivalent spans for a no-body (204) response', async () => {
     const { oldSpan, newSpan } = await runBothAndGetSpans('noBody');
+
     assertEquivalentRequestAttributes(oldSpan, newSpan);
     assertEquivalentOutcomeAttributes(oldSpan, newSpan);
     expect(newSpan.status.code).toBe(0); // SpanStatusCode.UNSET
@@ -178,6 +170,7 @@ describe('fetch instrumentation migration parity', () => {
 
   it('produces equivalent spans for an intentional abort', async () => {
     const { oldSpan, newSpan } = await runBothAndGetSpans('abort');
+
     assertEquivalentRequestAttributes(oldSpan, newSpan);
 
     // Both correctly leave the span UNSET with no error.type for an
@@ -196,6 +189,7 @@ describe('fetch instrumentation migration parity', () => {
 
   it('documents the known divergence for network errors (new correctly marks them as errors, old does not)', async () => {
     const { oldSpan, newSpan } = await runBothAndGetSpans('networkError');
+
     assertEquivalentRequestAttributes(oldSpan, newSpan);
 
     // Old: never classifies a network error as an error -- `_endSpan` only
@@ -217,6 +211,7 @@ describe('fetch instrumentation migration parity', () => {
 
   it('documents the known divergence for timeouts (new correctly marks them as errors, old treats them like an intentional abort)', async () => {
     const { oldSpan, newSpan } = await runBothAndGetSpans('timeout');
+
     assertEquivalentRequestAttributes(oldSpan, newSpan);
 
     // Old has no concept of a timeout distinct from an abort: both

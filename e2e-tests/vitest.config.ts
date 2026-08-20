@@ -20,7 +20,6 @@ export default defineConfig({
       '@opentelemetry/instrumentation-fetch',
       '@opentelemetry/resources',
       '@opentelemetry/sdk-trace',
-      '@opentelemetry/sdk-trace-web',
       '@opentelemetry/semantic-conventions',
     ],
   },

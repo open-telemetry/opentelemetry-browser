@@ -7,14 +7,12 @@
     "@opentelemetry/api-logs": "^0.221.0",
     "@opentelemetry/browser-instrumentation": "file:../packages/instrumentation",
     "@opentelemetry/browser-sdk": "file:../packages/sdk",
-    "@opentelemetry/core": "^2.10.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.221.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/instrumentation": "^0.221.0",
     "@opentelemetry/instrumentation-fetch": "^0.221.0",
     "@opentelemetry/sdk-logs": "^0.221.0",
     "@opentelemetry/sdk-trace": "^2.10.0",
-    "@opentelemetry/sdk-trace-web": "^2.10.0",
     "msw": "^2.15.0"
   }
 }
