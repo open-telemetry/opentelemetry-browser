@@ -347,6 +347,52 @@ Each `fetch` Span includes:
 | `http.response.status_code` | HTTP response status code. |
 | `error.type` | If request failed. Describes a class of error the operation ended with. |
 
+---
+
+### XHR (XmlHttpRequest)
+
+```typescript
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
+```
+
+Emits a Span for every HTTP request made using the `window.XmlHttpRequest` browser API. This instrumentation also propagates the context for distributed traces.
+
+#### Configuration
+
+```typescript
+new XhrInstrumentation({
+  ignoreUrls: ['https://example.com/api'],
+  propagateTraceHeaderCorsUrls: [/domain.com\/api.*/],
+  measureRequestSize: true,
+  applyCustomAttributesOnSpan: (span, xhr) => {
+    span.setAttribute('foo', 'bar');
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
+| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
+| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
+| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+
+#### Captured Attributes
+
+Each `fetch` Span includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
+| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address` | The hostmane of the request's URL. |
+| `server.port` | The port of the request's URL. |
+| `http.response.status_code` | HTTP response status code. |
+| `error.type` | If request failed. Describes a class of error the operation ended with. |
+
+
 ## Useful links
 
 - For more information on OpenTelemetry, visit: <https://opentelemetry.io/>
