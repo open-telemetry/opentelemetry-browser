@@ -295,41 +295,55 @@ describe('XhrInstrumentation', () => {
       expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
       expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
     });
+    const wrappedMethods = ['open', 'send'];
+    // Same behavior regardless the method that has the error
+    wrappedMethods.forEach((method) => {
+      describe(`when the XHR prototype "${method}" cannot be wrapped`, () => {
+        // Simulate the production failure mode (third-party scripts locking
+        // `XMLHttpRequest.prototype.send` via `Object.defineProperty` with `writable: false,
+        // configurable: false`) by stubbing `_wrap` to throw the same TypeError
+        // the browser would throw. We stub the method rather than actually
+        // locking the property because a non-configurable slot is irreversible
+        // within a realm, and the outer `afterEach` restores `globalThis.fetch`
+        // via assignment, which would itself throw.
+        const wrapError = new TypeError(
+          `Cannot assign to read only property '${method}' of object '[object XMLHttpRequest.prototype]'`,
+        );
 
-    describe('when the XHR prototype cannot be wrapped', () => {
-      // Simulate the production failure mode (third-party scripts locking
-      // `XMLHttpRequest.prototype.send` via `Object.defineProperty` with `writable: false,
-      // configurable: false`) by stubbing `_wrap` to throw the same TypeError
-      // the browser would throw. We stub the method rather than actually
-      // locking the property because a non-configurable slot is irreversible
-      // within a realm, and the outer `afterEach` restores `globalThis.fetch`
-      // via assignment, which would itself throw.
-      const wrapError = new TypeError(
-        "Cannot assign to read only property 'send' of object '[object XMLHttpRequest.prototype]'",
-      );
+        beforeEach(() => {
+          // Construct with `enabled: false` so the stub is in place before
+          // `enable()` runs — `_wrap` is an instance-level field inherited
+          // from `InstrumentationBase`, not a prototype method.
+          instrumentation = new XhrInstrumentation({ enabled: false });
+          // @ts-expect-error access internal property for testing
+          vi.spyOn(instrumentation, '_wrap').mockImplementation(
+            // @ts-expect-error TS does not get the type properly
+            (_target: unknown, prop: string) => {
+              if (prop === method) {
+                throw wrapError;
+              }
+            },
+          );
+        });
 
-      beforeEach(() => {
-        // Construct with `enabled: false` so the stub is in place before
-        // `enable()` runs — `_wrap` is an instance-level field inherited
-        // from `InstrumentationBase`, not a prototype method.
-        instrumentation = new XhrInstrumentation({ enabled: false });
-        // @ts-expect-error access internal property for testing
-        vi.spyOn(instrumentation, '_wrap').mockThrow(wrapError);
-      });
+        it('should not throw when _wrap fails', () => {
+          expect(() => instrumentation.enable()).not.toThrow();
+        });
 
-      it('should not throw when _wrap fails', () => {
-        expect(() => instrumentation.enable()).not.toThrow();
-      });
+        it('should leave XHR prototype unwrapped when _wrap fails', () => {
+          instrumentation.enable();
+          expect(
+            isWrapped(globalThis.XMLHttpRequest.prototype.open),
+          ).toBeFalsy();
+          expect(
+            isWrapped(globalThis.XMLHttpRequest.prototype.send),
+          ).toBeFalsy();
+        });
 
-      it('should leave XHR prototype unwrapped when _wrap fails', () => {
-        instrumentation.enable();
-        expect(isWrapped(globalThis.XMLHttpRequest.prototype.open)).toBeFalsy();
-        expect(isWrapped(globalThis.XMLHttpRequest.prototype.send)).toBeFalsy();
-      });
-
-      it('should allow enable() to be retried after _wrap fails', () => {
-        instrumentation.enable();
-        expect(() => instrumentation.enable()).not.toThrow();
+        it('should allow enable() to be retried after _wrap fails', () => {
+          instrumentation.enable();
+          expect(() => instrumentation.enable()).not.toThrow();
+        });
       });
     });
   });

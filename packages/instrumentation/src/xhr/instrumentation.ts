@@ -78,17 +78,29 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       return;
     }
 
+    // `_wrap` throws if a third-party script has locked the target methods via
+    // Object.defineProperty(XMLHttpRequest.prototype, 'open', { writable: false, ... }).
     try {
-      // `_wrap` throws if a third-party script has locked globalThis.fetch via
-      // Object.defineProperty(XMLHttpRequest.prototype, 'open', { writable: false, ... }).
       this._wrap(XMLHttpRequest.prototype, 'open', this._patchOpen());
+    } catch (err) {
+      this._diag.warn(
+        'Failed to patch XMLHttpRequest.prototype.open; instrumentation will not be enabled. ' +
+          'Another script may have locked XMLHttpRequest.prototype.open via Object.defineProperty.',
+        err,
+      );
+    }
+
+    // If 1st patch has succeded try the second. Unpatch `open` if error
+    // here to avoid having multiple patches of `open`
+    try {
       this._wrap(XMLHttpRequest.prototype, 'send', this._patchSend());
       this._isXhrPatched = true;
       this._isEnabled = true;
     } catch (err) {
+      this._unwrap(XMLHttpRequest.prototype, 'open');
       this._diag.warn(
-        'Failed to patch XMLHttpRequest.prototype methods; instrumentation will not be enabled. ' +
-          'Another script may have locked XMLHttpRequest.prototype methods via Object.defineProperty.',
+        'Failed to patch XMLHttpRequest.prototype.send; instrumentation will not be enabled. ' +
+          'Another script may have locked XMLHttpRequest.prototype.send via Object.defineProperty.',
         err,
       );
     }
