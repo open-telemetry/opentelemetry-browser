@@ -88,6 +88,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           'Another script may have locked XMLHttpRequest.prototype.open via Object.defineProperty.',
         err,
       );
+      return;
     }
 
     // If 1st patch has succeded try the second. Unpatch `open` if error
