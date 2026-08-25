@@ -28,10 +28,12 @@
   },
   "type": "module",
   "imports": {
+    "#instrumentation-base": "./src/InstrumentationBase/index.ts",
     "#utils": "./src/utils/index.ts",
     "#utils/test": "./src/utils/test/index.ts"
   },
   "exports": {
+    "./experimental/instrumentation-base": "./dist/InstrumentationBase/index.js",
     "./experimental/console": "./dist/console/index.js",
     "./experimental/errors": "./dist/errors/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",

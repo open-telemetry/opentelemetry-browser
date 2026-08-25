@@ -4,7 +4,7 @@
  */
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -42,17 +42,13 @@ const MAX_RETRIES = 5;
  * This class automatically instruments navigation timing within the browser.
  */
 export class NavigationTimingInstrumentation extends InstrumentationBase<NavigationTimingInstrumentationConfig> {
-  private _lastEntry?: PerformanceNavigationTiming;
-  private _completeDelayTimeoutId?: number;
+  private _lastEntry: PerformanceNavigationTiming | undefined;
+  private _completeDelayTimeoutId: number | undefined;
   private _retryCount = 0;
+  // Not reset by disable(): one page load gets one record.
   private _didEmit = false;
-
-  // Use `declare` to prevent JS class field initializers from running after
-  // super(), which would reset values set by the enable() call that
-  // InstrumentationBase makes during its constructor.
-  declare private _isEnabled: boolean;
-  declare private _onLoad: () => void;
-  declare private _onPageHide: () => void;
+  private _onLoad = (): void => this._tryEmitOrSchedule();
+  private _onPageHide = (): void => this._handleUnload();
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super(
@@ -62,17 +58,8 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     );
   }
 
-  protected override init() {
-    return [];
-  }
-
-  override enable(): void {
-    if (this._isEnabled) {
-      return;
-    }
-    this._isEnabled = true;
-    this._onLoad = () => this._tryEmitOrSchedule();
-    this._onPageHide = () => this._handleUnload();
+  protected override _onEnable(): void {
+    this._retryCount = 0;
 
     // Try emitting immediately (e.g. when enabled after load),
     // otherwise schedule for `load` or fall back to unload.
@@ -84,12 +71,8 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
     window.addEventListener('pagehide', this._onPageHide);
   }
 
-  override disable(): void {
-    this._isEnabled = false;
+  protected override _onDisable(): void {
     this._unsubscribeAll();
-    this._lastEntry = undefined;
-    this._didEmit = false;
-    this._retryCount = 0;
   }
 
   private _getLatestNavigationEntry(): PerformanceNavigationTiming | undefined {
@@ -115,7 +98,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
    * - If the page is already loaded but the entry is not finalized yet, schedules one
    *   deferred re-check (to allow the browser to populate the timing fields).
    *
-   * This method can be called multiple times (from `enable()`, the load handler, or the
+   * This method can be called multiple times (from `_onEnable()`, the load handler, or the
    * deferred timeout), so it must be safe to re-enter.
    */
   private _tryEmitOrSchedule(): void {
@@ -191,7 +174,9 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
     this._didEmit = true;
 
-    this._emitNavigationTiming(entry);
+    this._runHook('failed to record navigation timing', () =>
+      this._emitNavigationTiming(entry),
+    );
     this._lastEntry = undefined;
     this._unsubscribeAll();
   }

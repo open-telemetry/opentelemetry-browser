@@ -12,10 +12,6 @@ import {
   trace,
 } from '@opentelemetry/api';
 import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_REQUEST_METHOD_ORIGINAL,
@@ -24,12 +20,15 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
+import { assertPerformanceObserver } from '../utils/assertPerformanceObserver.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getFetchBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
+import { toError } from '../utils/toError.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type {
@@ -38,18 +37,7 @@ import type {
   FetchResponse,
 } from './types.ts';
 
-const hasBrowserPerformanceAPI = typeof PerformanceObserver !== 'undefined';
-
 export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentationConfig> {
-  // Note: Intentionally *not* using `_enabled` as the field name to avoid
-  // any possible confusion with the `_enabled` field used on the *Node.js*
-  // InstrumentationBase class.
-  // Also not initializing the fields to `false` because the base class
-  // constructor already call `enable` modifying their values and it will
-  // set the instrumentations in a base state (enabled, patched but with flags set to false)
-  declare private _isEnabled: boolean;
-  declare private _isFetchPatched: boolean;
-
   // To keep track of the resources
   private _spanResources: Map<Span, PerformanceResourceTiming> = new Map();
 
@@ -57,56 +45,23 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     super('@opentelemetry/browser-instrumentation/fetch', version, config);
   }
 
-  protected override init() {
-    return [];
-  }
-
-  override enable(): void {
-    if (!hasBrowserPerformanceAPI) {
-      this._diag.warn(
-        'this instrumentation is intended for web usage only, it does not instrument server-side fetch()',
-      );
-      return;
-    }
-
-    if (this._isEnabled) {
-      return;
-    }
-
-    if (this._isFetchPatched) {
-      this._diag.debug('fetch constructor already patched');
-      this._isEnabled = true;
-      return;
-    }
+  protected override _init(): void {
+    assertPerformanceObserver();
 
     try {
       // `_wrap` throws if a third-party script has locked globalThis.fetch via
-      // Object.defineProperty(window, 'fetch', { writable: false, ... }).
+      // Object.defineProperty(window, 'fetch', { configurable: false, ... }).
       this._wrap(globalThis, 'fetch', this._patchConstructor());
-      this._isFetchPatched = true;
-      this._isEnabled = true;
     } catch (err) {
-      this._diag.warn(
-        'Failed to patch globalThis.fetch; instrumentation will not be enabled. ' +
-          'Another script may have locked globalThis.fetch via Object.defineProperty.',
-        err,
+      throw new Error(
+        `Failed to patch globalThis.fetch: ${toError(err).message}`,
+        { cause: err },
       );
     }
   }
 
-  override disable(): void {
-    if (!hasBrowserPerformanceAPI) {
-      return;
-    }
-
-    if (!this._isEnabled) {
-      return;
-    }
-    this._isEnabled = false;
-  }
-
   /**
-   * Patches the constructor of fetch
+   * Returns the wrapper for `globalThis.fetch`.
    */
   private _patchConstructor(): (original: typeof fetch) => typeof fetch {
     return (original) => {
@@ -116,7 +71,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         this: typeof globalThis,
         ...args: Parameters<typeof fetch>
       ): Promise<Response> {
-        if (!instrumentation._isEnabled) {
+        if (!instrumentation.isEnabled()) {
           return original.apply(this, args);
         }
 
@@ -377,15 +332,8 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     const applyCustomAttributesOnSpan =
       this.getConfig().applyCustomAttributesOnSpan;
     if (applyCustomAttributesOnSpan) {
-      safeExecuteInTheMiddle(
-        () => applyCustomAttributesOnSpan(span, request, result),
-        (error) => {
-          if (!error) {
-            return;
-          }
-          this._diag.error('applyCustomAttributesOnSpan', error);
-        },
-        true,
+      this._runHook('applyCustomAttributesOnSpan hook failed', () =>
+        applyCustomAttributesOnSpan(span, request, result),
       );
     }
   }
@@ -397,15 +345,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     const requestHook = this.getConfig().requestHook;
 
     if (requestHook) {
-      safeExecuteInTheMiddle(
-        () => requestHook(span, request),
-        (error) => {
-          if (error) {
-            this._diag.error('requestHook', error);
-          }
-        },
-        true,
-      );
+      this._runHook('requestHook failed', () => requestHook(span, request));
     }
   }
 

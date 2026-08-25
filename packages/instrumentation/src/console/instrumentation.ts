@@ -5,7 +5,7 @@
 
 import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 import type { ConsoleInstrumentationConfig, ConsoleMethod } from './types.ts';
@@ -38,27 +38,33 @@ function defaultMessageSerializer(args: unknown[]): string {
           return JSON.stringify(arg);
         } catch {
           // Circular reference or other error, fallback to String
-          return String(arg);
+          return safeString(arg);
         }
       }
-      return String(arg);
+      return safeString(arg);
     })
     .join(' ');
+}
+
+function safeString(value: unknown): string {
+  try {
+    return String(value);
+  } catch {
+    // `String()` throws on values like `Object.create(null)`.
+    return Object.prototype.toString.call(value);
+  }
 }
 
 /**
  * OpenTelemetry instrumentation that captures console calls and emits them as OpenTelemetry logs.
  */
 export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumentationConfig> {
-  declare private _isPatched: boolean;
-  declare private _active: boolean;
+  // Console calls made while recording one (a console-backed diag logger, an
+  // exporter that logs) are not recorded, or a failure could recurse forever.
+  private _isRecording = false;
 
   constructor(config: ConsoleInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/console', version, config);
-  }
-
-  protected override init() {
-    return [];
   }
 
   private _getMessageSerializer(): (args: unknown[]) => string {
@@ -77,22 +83,16 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
     return function patchConsoleMethod(original: Console[ConsoleMethod]) {
       return function (this: Console, ...args: unknown[]) {
         if (
-          instrumentation._active &&
+          !instrumentation._isRecording &&
+          instrumentation.isEnabled() &&
           instrumentation._getLogMethods().includes(method)
         ) {
-          const logContext = context.active();
-          const body = instrumentation._getMessageSerializer()(args);
-
-          instrumentation.logger.emit({
-            body,
-            eventName: CONSOLE_LOG_EVENT_NAME,
-            severityNumber: SEVERITY_MAP[method],
-            severityText: method,
-            context: logContext,
-            attributes: {
-              [ATTR_CONSOLE_METHOD]: method,
-            },
-          });
+          instrumentation._isRecording = true;
+          try {
+            instrumentation._record(method, args);
+          } finally {
+            instrumentation._isRecording = false;
+          }
         }
 
         return original.apply(this, args);
@@ -100,20 +100,26 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
     };
   }
 
-  override enable(): void {
-    this._active = true;
-    if (this._isPatched) {
-      return;
-    }
-    this._isPatched = true;
+  private _record(method: ConsoleMethod, args: unknown[]): void {
+    this._runHook('failed to record console call', () => {
+      this.logger.emit({
+        body: this._getMessageSerializer()(args),
+        eventName: CONSOLE_LOG_EVENT_NAME,
+        severityNumber: SEVERITY_MAP[method],
+        severityText: method,
+        context: context.active(),
+        attributes: {
+          [ATTR_CONSOLE_METHOD]: method,
+        },
+      });
+    });
+  }
+
+  protected override _init(): void {
     for (const method of DEFAULT_LOG_METHODS) {
       if (typeof console[method] === 'function') {
         this._wrap(console, method, this._patchConsoleMethod(method));
       }
     }
-  }
-
-  override disable(): void {
-    this._active = false;
   }
 }

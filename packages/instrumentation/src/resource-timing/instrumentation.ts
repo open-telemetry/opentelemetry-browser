@@ -5,8 +5,8 @@
 
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
-import { getNetworkContextRegistry } from '#utils';
+import { InstrumentationBase } from '#instrumentation-base';
+import { assertPerformanceObserver, getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
@@ -58,16 +58,14 @@ const MIN_QUEUE_SIZE = 1;
  * processing happens during idle periods.
  */
 export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceTimingInstrumentationConfig> {
-  private _observer?: PerformanceObserver;
   private _pendingEntries: PerformanceResourceTiming[] = [];
-  private _idleHandle?: IdleCallbackHandle;
-
-  // Use `declare` to prevent JS class field initializers from running after
-  // super(), which would reset values set by the enable() call that
-  // InstrumentationBase makes during its constructor.
-  declare private _isEnabled: boolean;
-  declare private _loadHandler: (() => void) | undefined;
-  declare private _visibilityChangeHandler: (() => void) | undefined;
+  private _observer: PerformanceObserver | undefined;
+  // The buffer still holds entries that were already reported. Replaying it
+  // on a later enable would emit them again.
+  private _hasReplayedBuffer = false;
+  private _idleHandle: IdleCallbackHandle | undefined;
+  private _loadHandler: (() => void) | undefined;
+  private _visibilityChangeHandler: (() => void) | undefined;
 
   constructor(config: ResourceTimingInstrumentationConfig = {}) {
     super(
@@ -77,28 +75,24 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     );
   }
 
-  protected override init() {
-    return [];
+  protected override _init(): void {
+    assertPerformanceObserver();
+    if (!PerformanceObserver.supportedEntryTypes?.includes('resource')) {
+      throw new Error(
+        'PerformanceObserver does not support the "resource" entry type in this browser.',
+      );
+    }
   }
 
-  override enable(): void {
-    if (this._isEnabled) {
-      return;
-    }
-
-    if (!('PerformanceObserver' in window)) {
-      this._diag.debug(
-        'PerformanceObserver is not supported, resource timings will not be collected',
-      );
-      return;
-    }
-
-    this._isEnabled = true;
-
+  protected override _onEnable(): void {
     if (document.readyState === 'complete') {
       this._setupObserver();
     } else {
-      this._loadHandler = () => this._setupObserver();
+      // Runs outside the lifecycle, so a throw here cannot roll back enable().
+      this._loadHandler = () =>
+        this._runHook('Failed to start resource PerformanceObserver', () =>
+          this._setupObserver(),
+        );
       window.addEventListener('load', this._loadHandler, { once: true });
     }
 
@@ -113,8 +107,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     );
   }
 
-  override disable(): void {
-    this._isEnabled = false;
+  protected override _onDisable(): void {
     this._flush();
     this._observer?.disconnect();
     this._observer = undefined;
@@ -132,12 +125,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   private _setupObserver(): void {
-    if (!this._isEnabled) {
-      return;
-    }
-
     const observer = new PerformanceObserver((list) => {
-      if (!this._isEnabled) {
+      // Fires asynchronously, so it can outlive disable().
+      if (!this.isEnabled()) {
         return;
       }
 
@@ -172,14 +162,12 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       }
     });
 
+    observer.observe({
+      type: 'resource',
+      buffered: !this._hasReplayedBuffer,
+    });
     this._observer = observer;
-
-    try {
-      observer.observe({ type: 'resource', buffered: true });
-    } catch (e) {
-      this._diag.error('Failed to start resource PerformanceObserver', e);
-      this._observer = undefined;
-    }
+    this._hasReplayedBuffer = true;
   }
 
   private _scheduleProcessing(): void {
@@ -199,7 +187,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _processChunk(deadline: IdleDeadline): void {
     this._idleHandle = undefined;
-    if (!this._isEnabled || this._pendingEntries.length === 0) {
+    if (!this.isEnabled() || this._pendingEntries.length === 0) {
       return;
     }
 

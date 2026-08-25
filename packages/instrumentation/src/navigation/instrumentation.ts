@@ -5,10 +5,7 @@
 
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,
@@ -54,41 +51,32 @@ interface NavigationApi {
 }
 
 export class NavigationInstrumentation extends InstrumentationBase<NavigationInstrumentationConfig> {
-  // Use `declare` to prevent JS class field initializers from running after
-  // super(), which would reset values set by the enable() call that
-  // InstrumentationBase makes during its constructor.
-  declare private _isEnabled: boolean;
-  declare private _isHistoryPatched: boolean;
-  declare private _hasProcessedInitialLoad: boolean;
-  declare private _lastUrl: string;
-  declare private _onDOMContentLoaded?: () => void;
-  declare private _onPopState?: (event: PopStateEvent) => void;
-  declare private _onCurrentEntryChange?: (event: NavigationApiEvent) => void;
+  private _hasProcessedInitialLoad = false;
+  private _lastUrl = '';
+  // Chosen once in `_init()`, so `setConfig()` cannot switch the mode later.
+  private _navigationApi: NavigationApi | undefined;
+  private _onDOMContentLoaded: (() => void) | undefined;
+  private _onPopState: ((event: PopStateEvent) => void) | undefined;
+  private _onCurrentEntryChange:
+    | ((event: NavigationApiEvent) => void)
+    | undefined;
 
   constructor(config: NavigationInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/navigation', version, config);
-    this._lastUrl = location.href;
   }
 
-  protected override init() {
-    return [];
-  }
-
-  override enable(): void {
-    if (this._isEnabled) {
-      return;
-    }
-    this._isEnabled = true;
-
-    const navigationApi = this._getNavigationApi();
-
-    // Only patch history API if Navigation API is not being used.
-    if (!navigationApi && !this._isHistoryPatched) {
+  protected override _init(): void {
+    this._navigationApi = this._getNavigationApi();
+    // `currententrychange` already reports pushState and replaceState, so
+    // patching history as well would record them twice.
+    if (!this._navigationApi) {
       this._patchHistoryApi();
-      this._isHistoryPatched = true;
     }
+  }
 
-    this._waitForPageLoad();
+  protected override _onEnable(): void {
+    const navigationApi = this._navigationApi;
+    this._lastUrl = location.href;
 
     if (navigationApi) {
       this._onCurrentEntryChange = (event) => {
@@ -104,14 +92,12 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
       };
       window.addEventListener('popstate', this._onPopState);
     }
+
+    // Last: the page-load emit runs user hooks, which may navigate or call disable().
+    this._waitForPageLoad();
   }
 
-  override disable(): void {
-    if (!this._isEnabled) {
-      return;
-    }
-    this._isEnabled = false;
-
+  protected override _onDisable(): void {
     if (this._onDOMContentLoaded) {
       document.removeEventListener(
         'DOMContentLoaded',
@@ -123,16 +109,13 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
       window.removeEventListener('popstate', this._onPopState);
       this._onPopState = undefined;
     }
-    if (this._onCurrentEntryChange) {
-      const navigationApi = this._getNavigationApi();
-      navigationApi?.removeEventListener(
+    if (this._onCurrentEntryChange && this._navigationApi) {
+      this._navigationApi.removeEventListener(
         'currententrychange',
         this._onCurrentEntryChange,
       );
       this._onCurrentEntryChange = undefined;
     }
-    // Reset the initial-load flag so it can be processed again if re-enabled.
-    this._hasProcessedInitialLoad = false;
   }
 
   private _getNavigationApi(): NavigationApi | undefined {
@@ -144,20 +127,22 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   }
 
   private _onHardNavigation(): void {
-    const cfg = this.getConfig();
-    const logRecord: LogRecord = {
-      eventName: BROWSER_NAVIGATION_EVENT_NAME,
-      severityNumber: SeverityNumber.INFO,
-      attributes: {
-        [ATTR_URL_FULL]: cfg.sanitizeUrl
-          ? cfg.sanitizeUrl(document.documentURI)
-          : document.documentURI,
-        [ATTR_BROWSER_NAVIGATION_SAME_DOCUMENT]: false,
-        [ATTR_BROWSER_NAVIGATION_HASH_CHANGE]: false,
-      },
-    };
-    this._applyCustomLogRecordData(logRecord);
-    this.logger.emit(logRecord);
+    this._runHook('failed to record the page load', () => {
+      const cfg = this.getConfig();
+      const logRecord: LogRecord = {
+        eventName: BROWSER_NAVIGATION_EVENT_NAME,
+        severityNumber: SeverityNumber.INFO,
+        attributes: {
+          [ATTR_URL_FULL]: cfg.sanitizeUrl
+            ? cfg.sanitizeUrl(document.documentURI)
+            : document.documentURI,
+          [ATTR_BROWSER_NAVIGATION_SAME_DOCUMENT]: false,
+          [ATTR_BROWSER_NAVIGATION_HASH_CHANGE]: false,
+        },
+      };
+      this._applyCustomLogRecordData(logRecord);
+      this.logger.emit(logRecord);
+    });
   }
 
   private _onSoftNavigation(
@@ -175,31 +160,36 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
       return;
     }
 
-    const navType = this._mapChangeStateToType(changeState, navigationEvent);
-    const sameDocument = this._determineSameDocument(referrerUrl, currentUrl);
-    const hashChange = isHashChange(referrerUrl, currentUrl);
-    const cfg = this.getConfig();
-
-    const logRecord: LogRecord = {
-      eventName: BROWSER_NAVIGATION_EVENT_NAME,
-      severityNumber: SeverityNumber.INFO,
-      attributes: {
-        [ATTR_URL_FULL]: cfg.sanitizeUrl
-          ? cfg.sanitizeUrl(currentUrl)
-          : currentUrl,
-        [ATTR_BROWSER_NAVIGATION_SAME_DOCUMENT]: sameDocument,
-        [ATTR_BROWSER_NAVIGATION_HASH_CHANGE]: hashChange,
-        ...(navType ? { [ATTR_BROWSER_NAVIGATION_TYPE]: navType } : {}),
-      },
-    };
-    this._applyCustomLogRecordData(logRecord);
-    this.logger.emit(logRecord);
-
     this._lastUrl = currentUrl;
+    this._runHook('failed to record a navigation', () => {
+      const navType = this._mapChangeStateToType(changeState, navigationEvent);
+      const sameDocument = this._determineSameDocument(referrerUrl, currentUrl);
+      const hashChange = isHashChange(referrerUrl, currentUrl);
+      const cfg = this.getConfig();
+
+      const logRecord: LogRecord = {
+        eventName: BROWSER_NAVIGATION_EVENT_NAME,
+        severityNumber: SeverityNumber.INFO,
+        attributes: {
+          [ATTR_URL_FULL]: cfg.sanitizeUrl
+            ? cfg.sanitizeUrl(currentUrl)
+            : currentUrl,
+          [ATTR_BROWSER_NAVIGATION_SAME_DOCUMENT]: sameDocument,
+          [ATTR_BROWSER_NAVIGATION_HASH_CHANGE]: hashChange,
+          ...(navType ? { [ATTR_BROWSER_NAVIGATION_TYPE]: navType } : {}),
+        },
+      };
+      this._applyCustomLogRecordData(logRecord);
+      this.logger.emit(logRecord);
+    });
   }
 
   private _waitForPageLoad(): void {
-    if (document.readyState === 'complete' && !this._hasProcessedInitialLoad) {
+    if (this._hasProcessedInitialLoad) {
+      return;
+    }
+    // Past `loading`, DOMContentLoaded has already fired and will not fire again.
+    if (document.readyState !== 'loading') {
       this._hasProcessedInitialLoad = true;
       this._onHardNavigation();
       return;
@@ -230,7 +220,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
         this: History,
         ...args: Parameters<History['pushState' | 'replaceState']>
       ) {
-        if (!plugin._isEnabled) {
+        if (!plugin.isEnabled()) {
           return original.apply(this, args);
         }
         const result = original.apply(this, args);
@@ -248,14 +238,8 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
     if (!hook) {
       return;
     }
-    safeExecuteInTheMiddle(
-      () => hook(logRecord),
-      (error) => {
-        if (error) {
-          this._diag.error('applyCustomLogRecordData hook failed', error);
-        }
-      },
-      true,
+    this._runHook('applyCustomLogRecordData hook failed', () =>
+      hook(logRecord),
     );
   }
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Logger } from '@opentelemetry/api-logs';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -11,10 +12,15 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
-import { setupTestLogExporter } from '#utils/test';
+import {
+  registerForTest,
+  setupTestDiagLogger,
+  setupTestLogExporter,
+} from '#utils/test';
 import { WebVitalsInstrumentation } from './instrumentation.ts';
 import {
   ATTR_WEB_VITAL_DELTA,
@@ -25,6 +31,37 @@ import {
   ATTR_WEB_VITAL_VALUE,
   WEB_VITAL_EVENT_NAME,
 } from './semconv.ts';
+
+// Passes through to the real library, but can make one subscriber throw.
+const webVitalsMock = vi.hoisted(() => ({
+  failing: undefined as string | undefined,
+  calls: [] as string[],
+}));
+
+vi.mock('web-vitals/attribution', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('web-vitals/attribution')>();
+  const track =
+    <Args extends unknown[]>(
+      name: string,
+      subscribe: (...args: Args) => void,
+    ) =>
+    (...args: Args) => {
+      webVitalsMock.calls.push(name);
+      if (webVitalsMock.failing === name) {
+        throw new Error(`${name} subscribe failed`);
+      }
+      subscribe(...args);
+    };
+  return {
+    ...actual,
+    onCLS: track('CLS', actual.onCLS),
+    onINP: track('INP', actual.onINP),
+    onLCP: track('LCP', actual.onLCP),
+    onFCP: track('FCP', actual.onFCP),
+    onTTFB: track('TTFB', actual.onTTFB),
+  };
+});
 
 describe('WebVitalsInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
@@ -108,6 +145,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('INP metric', () => {
     it('should emit INP after user interaction', async () => {
       instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
       createButton('Click me');
 
       await triggerINP('Click me');
@@ -127,6 +165,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('CLS metric', () => {
     it('should emit CLS after layout shift', async () => {
       instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
 
       const shifter = document.createElement('div');
       shifter.id = 'shifter';
@@ -161,6 +200,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('enable/disable', () => {
     it('should not emit metrics when disabled', async () => {
       instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
       instrumentation.disable();
 
       const button = document.createElement('button');
@@ -177,8 +217,11 @@ describe('WebVitalsInstrumentation', () => {
       expect(logs.length).toBe(0);
     });
 
-    it('should resume emitting after re-enable', async () => {
+    it('should resume emitting after re-enable, without duplicate listeners', async () => {
       instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
+      instrumentation.disable();
+      instrumentation.enable();
       instrumentation.disable();
       instrumentation.enable();
 
@@ -187,6 +230,45 @@ describe('WebVitalsInstrumentation', () => {
 
       const inpLog = await waitForMetric('inp');
       expect(inpLog.attributes[ATTR_WEB_VITAL_NAME]).toBe('inp');
+      // Listeners cannot be removed, so registering again on each enable would
+      // report every metric more than once.
+      await new Promise((r) => setTimeout(r, 200));
+      const inpLogs = getWebVitalLogs().filter(
+        (log) => log.attributes[ATTR_WEB_VITAL_NAME] === 'inp',
+      );
+      expect(inpLogs).toHaveLength(1);
+    });
+
+    it('should not emit through registerInstrumentations with `enabled: false` until enable()', async () => {
+      instrumentation = new WebVitalsInstrumentation({ enabled: false });
+      registerForTest(instrumentation);
+
+      expect(instrumentation.isEnabled()).toBe(false);
+
+      instrumentation.enable();
+      expect(instrumentation.isEnabled()).toBe(true);
+
+      createButton('Enabled later');
+      await triggerINP('Enabled later');
+      await waitForMetric('inp');
+    });
+
+    it('should stay off and warn when PerformanceObserver is not available', () => {
+      const { warn } = setupTestDiagLogger();
+      vi.stubGlobal('PerformanceObserver', undefined);
+      onTestFinished(() => {
+        vi.unstubAllGlobals();
+      });
+
+      instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
+
+      expect(instrumentation.isEnabled()).toBe(false);
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringMatching(/PerformanceObserver is not available/),
+        expect.any(Error),
+      );
     });
   });
 
@@ -195,6 +277,7 @@ describe('WebVitalsInstrumentation', () => {
       instrumentation = new WebVitalsInstrumentation({
         includeRawAttribution: true,
       });
+      registerForTest(instrumentation);
 
       createButton('Attribution test');
       await triggerINP('Attribution test');
@@ -203,6 +286,109 @@ describe('WebVitalsInstrumentation', () => {
       expect(inpLog.body).toBeDefined();
       const parsed = JSON.parse(inpLog.body as string);
       expect(parsed).toHaveProperty('interactionTime');
+    });
+  });
+
+  describe('enabled after an `enabled: false` registration', () => {
+    it('should still report TTFB', async () => {
+      instrumentation = new WebVitalsInstrumentation({ enabled: false });
+      registerForTest(instrumentation);
+      // TTFB is reported once. A subscription made while nothing is emitted
+      // would receive it and drop it.
+      await new Promise((r) => setTimeout(r, 200));
+
+      instrumentation.enable();
+
+      const ttfbLog = await waitForMetric('ttfb');
+      expect(ttfbLog.attributes[ATTR_WEB_VITAL_NAME]).toBe('ttfb');
+    });
+  });
+
+  describe('setConfig', () => {
+    it('should apply includeRawAttribution set after construction', async () => {
+      instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
+      instrumentation.setConfig({ includeRawAttribution: true });
+
+      createButton('Late attribution test');
+      await triggerINP('Late attribution test');
+
+      const inpLog = await waitForMetric('inp');
+      expect(inpLog.body).toBeDefined();
+    });
+
+    it('should apply an applyCustomLogRecordData hook set after construction', async () => {
+      instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
+      instrumentation.setConfig({
+        applyCustomLogRecordData: (logRecord) => {
+          if (logRecord.attributes) {
+            logRecord.attributes['custom.late'] = true;
+          }
+        },
+      });
+
+      createButton('Late hook test');
+      await triggerINP('Late hook test');
+
+      const inpLog = await waitForMetric('inp');
+      expect(inpLog.attributes['custom.late']).toBe(true);
+    });
+  });
+
+  describe('emit failure', () => {
+    it('should not let a failed emit reach the page as an uncaught error', async () => {
+      instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
+      // Stands in for a log processor that throws from onEmit.
+      const emitSpy = vi
+        .spyOn(
+          (instrumentation as unknown as { logger: Logger }).logger,
+          'emit',
+        )
+        .mockImplementation(() => {
+          throw new Error('processor broke');
+        });
+      const pageErrors: unknown[] = [];
+      const onPageError = (event: ErrorEvent) => {
+        pageErrors.push(event.error);
+        event.preventDefault();
+      };
+      window.addEventListener('error', onPageError);
+      onTestFinished(() => window.removeEventListener('error', onPageError));
+
+      createButton('Emit failure test');
+      await triggerINP('Emit failure test');
+      await vi.waitFor(() => expect(emitSpy).toHaveBeenCalled());
+
+      expect(pageErrors).toEqual([]);
+    });
+  });
+
+  describe('subscription failure', () => {
+    it('should subscribe the other metrics and warn when one subscriber throws', () => {
+      const { warn } = setupTestDiagLogger();
+      webVitalsMock.failing = 'INP';
+      webVitalsMock.calls.length = 0;
+      onTestFinished(() => {
+        webVitalsMock.failing = undefined;
+      });
+
+      instrumentation = new WebVitalsInstrumentation();
+      registerForTest(instrumentation);
+
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(webVitalsMock.calls).toEqual(['CLS', 'INP', 'LCP', 'FCP', 'TTFB']);
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        'could not subscribe to INP',
+        expect.any(Error),
+      );
+
+      instrumentation.disable();
+      instrumentation.enable();
+
+      expect(webVitalsMock.calls).toHaveLength(5);
     });
   });
 
@@ -216,6 +402,7 @@ describe('WebVitalsInstrumentation', () => {
       instrumentation = new WebVitalsInstrumentation({
         applyCustomLogRecordData: errorHook,
       });
+      registerForTest(instrumentation);
 
       createButton('Hook error test');
       await triggerINP('Hook error test');
@@ -233,6 +420,7 @@ describe('WebVitalsInstrumentation', () => {
       instrumentation = new WebVitalsInstrumentation({
         applyCustomLogRecordData: customHook,
       });
+      registerForTest(instrumentation);
 
       createButton('Custom attr test');
       await triggerINP('Custom attr test');

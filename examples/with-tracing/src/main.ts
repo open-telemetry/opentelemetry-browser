@@ -68,7 +68,7 @@ const logProvider = new LoggerProvider({
 });
 logs.setGlobalLoggerProvider(logProvider);
 
-// --- Span-based instrumentations (opentelemetry-js / opentelemetry-js-contrib) ---
+// --- Span-based instrumentations (this repository) ---
 const tracerProvider = new TracerProvider({
   resource,
   spanProcessors: [

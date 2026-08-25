@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
@@ -14,7 +15,12 @@ import {
   expect,
   it,
 } from 'vitest';
-import { setupTestLogExporter } from '#utils/test';
+import {
+  getWrapDepth,
+  registerForTest,
+  setupTestDiagLogger,
+  setupTestLogExporter,
+} from '#utils/test';
 import { ConsoleInstrumentation } from './instrumentation.ts';
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 
@@ -25,14 +31,6 @@ describe('ConsoleInstrumentation', () => {
 
   beforeAll(() => {
     originalConsole = globalThis.console;
-    globalThis.console = {
-      error: () => {},
-      log: () => {},
-      info: () => {},
-      warn: () => {},
-      trace: () => {},
-      debug: () => {},
-    } as unknown as Console;
     inMemoryExporter = setupTestLogExporter();
   });
 
@@ -41,8 +39,20 @@ describe('ConsoleInstrumentation', () => {
   });
 
   beforeEach(() => {
+    // Start every test from a fresh, unwrapped console. Patches are never
+    // removed, so reusing one mocked console across tests would accumulate
+    // wraps from each test's instance and leak emissions between tests.
+    globalThis.console = {
+      error: () => {},
+      log: () => {},
+      info: () => {},
+      warn: () => {},
+      trace: () => {},
+      debug: () => {},
+    } as unknown as Console;
     inMemoryExporter.reset();
     instrumentation = new ConsoleInstrumentation();
+    registerForTest(instrumentation);
   });
 
   afterEach(() => {
@@ -122,9 +132,9 @@ describe('ConsoleInstrumentation', () => {
       instrumentation.disable();
       inMemoryExporter.reset();
       instrumentation = new ConsoleInstrumentation({
-        enabled: true,
         logMethods: ['error', 'warn'],
       });
+      registerForTest(instrumentation);
 
       console.log('log message');
       console.info('info message');
@@ -143,9 +153,9 @@ describe('ConsoleInstrumentation', () => {
       instrumentation.disable();
       inMemoryExporter.reset();
       instrumentation = new ConsoleInstrumentation({
-        enabled: true,
         logMethods: [],
       });
+      registerForTest(instrumentation);
 
       console.log('log message');
       console.warn('warn message');
@@ -218,10 +228,10 @@ describe('ConsoleInstrumentation', () => {
     it('should use custom serializer when provided', () => {
       instrumentation.disable();
       instrumentation = new ConsoleInstrumentation({
-        enabled: true,
         messageSerializer: (args) =>
           args.map((arg) => `[${typeof arg}]`).join('-'),
       });
+      registerForTest(instrumentation);
 
       console.log('hello', 123, { test: true });
 
@@ -256,6 +266,7 @@ describe('ConsoleInstrumentation', () => {
       };
 
       instrumentation = new ConsoleInstrumentation();
+      registerForTest(instrumentation);
 
       console.log('test');
 
@@ -263,6 +274,69 @@ describe('ConsoleInstrumentation', () => {
 
       instrumentation.disable();
       console.log = originalLog;
+    });
+  });
+
+  describe('host safety', () => {
+    afterEach(() => {
+      diag.disable();
+    });
+
+    it('calls the original method when the serializer throws', () => {
+      const received: unknown[][] = [];
+      console.log = (...args: unknown[]) => {
+        received.push(args);
+      };
+      const diagLogger = setupTestDiagLogger();
+      instrumentation.disable();
+      instrumentation = new ConsoleInstrumentation({
+        messageSerializer: () => {
+          throw new Error('serializer broke');
+        },
+      });
+      registerForTest(instrumentation);
+
+      expect(() => console.log('hello')).not.toThrow();
+
+      expect(received).toEqual([['hello']]);
+      expect(diagLogger.error).toHaveBeenCalled();
+    });
+
+    it('records a value the default serializer cannot convert', () => {
+      const value = Object.create(null);
+      value.self = value;
+
+      expect(() => console.log(value)).not.toThrow();
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.body).toBe('[object Object]');
+    });
+
+    it('does not recurse when a failure report writes to the console', () => {
+      // A console-backed diag logger calls our patched console.error.
+      diag.setLogger(
+        {
+          error: (...args: unknown[]) => console.error(...args),
+          warn: () => {},
+          info: () => {},
+          debug: () => {},
+          verbose: () => {},
+        },
+        { suppressOverrideMessage: true },
+      );
+      let serializerCalls = 0;
+      instrumentation.disable();
+      instrumentation = new ConsoleInstrumentation({
+        messageSerializer: () => {
+          serializerCalls += 1;
+          throw new Error('serializer broke');
+        },
+      });
+      registerForTest(instrumentation);
+
+      expect(() => console.error('boom')).not.toThrow();
+      expect(serializerCalls).toBe(1);
     });
   });
 
@@ -317,6 +391,21 @@ describe('ConsoleInstrumentation', () => {
       const logs = inMemoryExporter.getFinishedLogRecords();
       expect(logs.length).toBe(1);
       expect(logs[0]?.body).toBe('single log message');
+    });
+
+    it('should stay off and not re-wrap after a method fails to patch', () => {
+      Object.defineProperty(console, 'warn', {
+        value: () => {},
+        configurable: false,
+      });
+      const locked = new ConsoleInstrumentation();
+
+      registerForTest(locked);
+      locked.enable();
+
+      expect(locked.isEnabled()).toBe(false);
+      // One layer from the `instrumentation` built in beforeEach, one from `locked`.
+      expect(getWrapDepth(console.log)).toBe(2);
     });
   });
 });
