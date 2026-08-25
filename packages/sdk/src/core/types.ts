@@ -24,8 +24,9 @@ import type {
  */
 export interface ExportConfig {
   /**
-   * URL to send the data. For signal specific exports you might need to
-   * specify the signal path like `/v1/traces`. Default values depend on where
+   * URL to send the data. A URL set in a signal config is used as is, so it
+   * must include the signal path. When a signal config omits it the root URL
+   * is used with the signal path set on it. Default values depend on where
    * this config is defined:
    * - globally: the default is http://localhost:4318
    * - logs: the default is http://localhost:4318/v1/logs
@@ -72,10 +73,10 @@ export interface BatchProcessorConfig {
 }
 
 /**
- * The common configuration properties regardles of the SDK being
+ * The common configuration properties regardless of the SDK being
  * started. Any signal SDK should accept it and when SDKs are combined
  * these properties belong to the root configuration and not to
- * the sginal specific config.
+ * the signal specific config.
  */
 export interface CommonConfig {
   /**
@@ -120,14 +121,15 @@ export interface CommonConfig {
 export type RootConfig = CommonConfig & {
   /**
    * Configuration for processors. If defined it will be applied to
-   * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless signal
-   * specific configuration is set for the signal.
+   * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless the signal sets
+   * its own `batchProcessorConfig` or `processors`.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
    * Configuration for exporters. If defined it will be applied to the
-   * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`
-   * unless signal specific configuration is set for the signal.
+   * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor` unless
+   * the signal sets its own `exportConfig` or `processors`. The signal path is
+   * set on the URL for each signal.
    */
   exportConfig?: ExportConfig;
   // TODO: to be discussed in Browser SIG
@@ -140,11 +142,14 @@ export type RootConfig = CommonConfig & {
 
 export type LogsConfig = CommonConfig & {
   /**
-   * Configuration for the LogRecord processor.
+   * Configuration for the `BatchLogRecordProcessor`, used whenever one is
+   * created for this signal.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
-   * Configuration for the LogRecord exporter.
+   * Configuration for the LogRecord exporter. Setting this config creates a
+   * `BatchLogRecordProcessor`, with the defaults for batch and queue size and
+   * export schedule and timeouts unless `batchProcessorConfig` is set.
    */
   exportConfig?: ExportConfig;
   /**
@@ -152,9 +157,10 @@ export type LogsConfig = CommonConfig & {
    */
   logRecordLimits?: LogRecordLimits;
   /**
-   * List of LogRecordProcessor for the logger provider. Setting this will make the SDK
-   * ignore `batchProcessorConfig`, and stops the root `exportConfig` from being
-   * propagated when signals are combined. An `exportConfig` set here is still honored:
+   * List of LogRecordProcessor for the logger provider. Setting this stops the root
+   * `batchProcessorConfig` and `exportConfig` from being propagated to this signal
+   * when SDKs are combined. Without a signal `exportConfig` no
+   * `BatchLogRecordProcessor` is created, so nothing is exported over OTLP. With one,
    * a `BatchLogRecordProcessor` is created in addition to the processors listed.
    */
   processors?: LogRecordProcessor[];
@@ -163,7 +169,7 @@ export type LogsConfig = CommonConfig & {
 export type TracesConfig = CommonConfig & {
   // Context and Propagation
   /**
-   * Manager use to carry context accross function boundaries
+   * Manager used to carry context across function boundaries
    *
    * @defaultValue undefined
    */
@@ -176,23 +182,21 @@ export type TracesConfig = CommonConfig & {
    */
   propagators?: TextMapPropagator[];
   /**
-   * Sampler to be used by tracer to decide if a Span os sampled or not.
+   * Sampler to be used by tracer to decide if a Span is sampled or not.
    *
    * @defaultValue undefined
    */
   sampler?: Sampler;
   /**
-   * Configuration for the Span processor. Setting this
-   * config will enable a `BatchSpanProcessor` whith an exporter
-   * that has the default configuration or the one set in `exportConfig`
-   * option.
+   * Configuration for the `BatchSpanProcessor`, used whenever one is created for
+   * this signal. Its exporter takes the default configuration or the one set in
+   * the `exportConfig` option.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
-   * Configuration for the Span exporter. Setting this
-   * config will enable a `BatchSpanProcessor` whith the default
-   * options for batch and queue size and export schedule and timeouts
-   * unless the `batchProcessorConfig` option is set.
+   * Configuration for the Span exporter. Setting this config creates a
+   * `BatchSpanProcessor`, with the defaults for batch and queue size and export
+   * schedule and timeouts unless the `batchProcessorConfig` option is set.
    */
   exportConfig?: ExportConfig;
   /**
@@ -200,10 +204,11 @@ export type TracesConfig = CommonConfig & {
    */
   spanLimits?: SpanLimits;
   /**
-   * List of SpanProcessor for the tracer provider. Setting this will make the SDK
-   * ignore `batchProcessorConfig`, and stops the root `exportConfig` from being
-   * propagated when signals are combined. An `exportConfig` set here is still honored:
-   * a `BatchSpanProcessor` is created in addition to the processors listed.
+   * List of SpanProcessor for the tracer provider. Setting this stops the root
+   * `batchProcessorConfig` and `exportConfig` from being propagated to this signal
+   * when SDKs are combined. Without a signal `exportConfig` no `BatchSpanProcessor`
+   * is created, so nothing is exported over OTLP. With one, a `BatchSpanProcessor`
+   * is created in addition to the processors listed.
    *
    * @defaultValue undefined
    */

@@ -50,12 +50,11 @@ describe('startBrowserSdk', () => {
   const diagDebugSpy = vi.spyOn(diag, 'debug');
   let browserSdk: WebSdk;
 
-  // NOTE: we mock the registration of the logger/tracer provider because
-  // the APIs only allow to register once. With the mock we can use
-  // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
   });
+  // NOTE: the logs and trace APIs only accept one provider registration, so
+  // they are disabled after each test to let the next one register its own
   afterEach(async () => {
     await browserSdk?.shutdown();
     fetchSpy.mockClear();
@@ -182,14 +181,10 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy = vi.spyOn(diag, 'debug');
   });
   afterEach(async () => {
-    // A test may already have shut the SDK down to flush its batch
-    // processors; ignore the resulting "already shutdown" error so the
-    // provider globals are always reset for the next test.
-    try {
-      await browserSdk?.shutdown();
-    } catch {
-      /* already shut down within the test */
-    }
+    // Tests shut the SDK down themselves to flush their batch processors. A
+    // second `shutdown()` only warns and resolves, so a rejection here is a
+    // real export failure and must fail the test.
+    await browserSdk?.shutdown();
     fetchSpy.mockRestore();
     consoleDirSpy.mockRestore();
     diagDebugSpy.mockRestore();

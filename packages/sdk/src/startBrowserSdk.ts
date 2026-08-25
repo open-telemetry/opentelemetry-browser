@@ -17,7 +17,7 @@ import { startLogsSdk } from './logs/startLogsSdk.ts';
 import { startTracesSdk } from './traces/startTracesSdk.ts';
 
 /**
- * Combination of all singal SDKs into one. A shorthand for users to
+ * Combination of all signal SDKs into one. A shorthand for users to
  * start with all signals allowing them to pass some global configuration
  * options.
  */
@@ -50,7 +50,8 @@ export interface QuickStartConfig {
    */
   serviceVersion?: string;
   /**
-   * Target URL for the SDK to send traces and logs.
+   * Target URL for the SDK to send traces and logs. The signal path (`/v1/logs`,
+   * `/v1/traces`) is set on it for each signal, replacing any path given here.
    */
   exportUrl: string;
   /**
@@ -77,10 +78,9 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     },
   };
 
-  // Add console processors if the user wants to debug. The signal `exportConfig`
-  // is repeated because setting `processors` stops the root one from being
-  // propagated, which would otherwise drop OTLP export entirely. Its `url` is
-  // left out so `combineSdks` fills in the signal path.
+  // Console processors need a signal `exportConfig` next to them, since setting
+  // `processors` stops the root one from propagating and OTLP export would be
+  // dropped. Leaving out its `url` lets `combineSdks` set the signal path.
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
