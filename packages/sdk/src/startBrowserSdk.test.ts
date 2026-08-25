@@ -270,13 +270,35 @@ describe('quickStartBrowserSdk', () => {
     // Act
     browserSdk = quickStartBrowserSdk({
       exportUrl: 'http://otlp-signal-endpoint:4318',
+      exportHeaders: { bar: 'baz' },
       logLevel: 'DEBUG',
     });
-    // Console exporters use SimpleProcessors, which export synchronously
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    // The console exporters use SimpleProcessors and have already exported here,
+    // the OTLP batch processors need the flush
+    await browserSdk.shutdown();
 
-    // Assert: the console exporters write to `console.dir`
-    expect(consoleDirSpy).toHaveBeenCalled();
+    // Assert: both console exporters write to `console.dir`
+    expect(consoleDirSpy).toHaveBeenCalledTimes(2);
+    // Console processors are additive: `exportUrl` is required, so debugging must
+    // not silently turn OTLP export off, nor export a signal twice
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/traces',
+      ),
+    ).toBeDefined();
+    fetchSpy.mock.calls.forEach((args) => {
+      expect(args[1]).containSubset({
+        method: 'POST',
+        headers: { bar: 'baz' },
+      });
+    });
   });
 });

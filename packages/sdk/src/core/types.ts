@@ -153,8 +153,9 @@ export type LogsConfig = CommonConfig & {
   logRecordLimits?: LogRecordLimits;
   /**
    * List of LogRecordProcessor for the logger provider. Setting this will make the SDK
-   * ignore `batchProcessorConfig` and `exportConfig` since no `BatchLogRecordProcessor` will
-   * be created.
+   * ignore `batchProcessorConfig`, and stops the root `exportConfig` from being
+   * propagated when signals are combined. An `exportConfig` set here is still honored:
+   * a `BatchLogRecordProcessor` is created in addition to the processors listed.
    */
   processors?: LogRecordProcessor[];
 };
@@ -200,8 +201,9 @@ export type TracesConfig = CommonConfig & {
   spanLimits?: SpanLimits;
   /**
    * List of SpanProcessor for the tracer provider. Setting this will make the SDK
-   * ignore `processorConfig` and `exportConfig` since no `BatchSpanProcessor` will
-   * be created.
+   * ignore `batchProcessorConfig`, and stops the root `exportConfig` from being
+   * propagated when signals are combined. An `exportConfig` set here is still honored:
+   * a `BatchSpanProcessor` is created in addition to the processors listed.
    *
    * @defaultValue undefined
    */

@@ -77,7 +77,10 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     },
   };
 
-  // Add console processors if the user wants to debug
+  // Add console processors if the user wants to debug. The signal `exportConfig`
+  // is repeated because setting `processors` stops the root one from being
+  // propagated, which would otherwise drop OTLP export entirely. Its `url` is
+  // left out so `combineSdks` fills in the signal path.
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
@@ -85,11 +88,17 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
           exporter: new ConsoleLogRecordExporter(),
         }),
       ],
+      exportConfig: {
+        headers: config.exportHeaders,
+      },
     };
     sdkConfig.traces = {
       processors: [
         new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
       ],
+      exportConfig: {
+        headers: config.exportHeaders,
+      },
     };
   }
 
