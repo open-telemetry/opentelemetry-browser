@@ -4,11 +4,8 @@
  */
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import { getElementCSSSelector } from '#utils';
+import { InstrumentationBase } from '#instrumentation-base';
+import { getElementCSSSelector, safeExecuteInTheMiddle } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_CSS_SELECTOR,
@@ -40,10 +37,6 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       version,
       config,
     );
-  }
-
-  protected override init() {
-    return [];
   }
 
   private _getMouseButtonFromMouseEvent(event: MouseEvent): MouseButton {

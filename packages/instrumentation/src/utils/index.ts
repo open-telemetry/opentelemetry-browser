@@ -11,4 +11,5 @@ export {
   getNetworkContextRegistry,
   NetworkContextRegistry,
 } from './NetworkContextRegistry.ts';
+export { safeExecuteInTheMiddle } from './safeExecuteInTheMiddle.ts';
 export { defaultSanitizeUrl } from './url.ts';

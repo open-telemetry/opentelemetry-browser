@@ -12,10 +12,6 @@ import {
   trace,
 } from '@opentelemetry/api';
 import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_REQUEST_METHOD_ORIGINAL,
@@ -24,6 +20,8 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
+import { safeExecuteInTheMiddle } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
@@ -54,6 +52,11 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   // set the instrumentaitons in a base state (enabled, patched but with flags set to false)
   private declare _isEnabled: boolean;
   private declare _isXhrPatched: boolean;
+  // Tracks the `open` patch on its own because `_isXhrPatched` is only set once
+  // *both* methods are wrapped. Without it, an `enable()` retry after a `send`
+  // failure would wrap `open` a second time, and unwrapping is not available to
+  // undo the first (see InstrumentationBase).
+  private declare _isOpenPatched: boolean;
 
   // To keep references to span/xhr tuples across XHR events and stores
   // init data like URL and method
@@ -61,10 +64,6 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
 
   constructor(config: XhrInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/xhr', version, config);
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {
@@ -80,25 +79,28 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
 
     // `_wrap` throws if a third-party script has locked the target methods via
     // Object.defineProperty(XMLHttpRequest.prototype, 'open', { writable: false, ... }).
-    try {
-      this._wrap(XMLHttpRequest.prototype, 'open', this._patchOpen());
-    } catch (err) {
-      this._diag.warn(
-        'Failed to patch XMLHttpRequest.prototype.open; instrumentation will not be enabled. ' +
-          'Another script may have locked XMLHttpRequest.prototype.open via Object.defineProperty.',
-        err,
-      );
-      return;
+    if (!this._isOpenPatched) {
+      try {
+        this._wrap(XMLHttpRequest.prototype, 'open', this._patchOpen());
+        this._isOpenPatched = true;
+      } catch (err) {
+        this._diag.warn(
+          'Failed to patch XMLHttpRequest.prototype.open; instrumentation will not be enabled. ' +
+            'Another script may have locked XMLHttpRequest.prototype.open via Object.defineProperty.',
+          err,
+        );
+        return;
+      }
     }
 
-    // If 1st patch has succeded try the second. Unpatch `open` if error
-    // here to avoid having multiple patches of `open`
+    // If the 1st patch succeeded try the second. The `open` patch is left
+    // installed on failure: unwrapping is disallowed (see InstrumentationBase),
+    // and since `_isEnabled` stays false the patch is a permanent pass-through.
     try {
       this._wrap(XMLHttpRequest.prototype, 'send', this._patchSend());
       this._isXhrPatched = true;
       this._isEnabled = true;
     } catch (err) {
-      this._unwrap(XMLHttpRequest.prototype, 'open');
       this._diag.warn(
         'Failed to patch XMLHttpRequest.prototype.send; instrumentation will not be enabled. ' +
           'Another script may have locked XMLHttpRequest.prototype.send via Object.defineProperty.',
