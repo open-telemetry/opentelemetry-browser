@@ -18,7 +18,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#utils/test';
+import { registerForTest, setupTestLogExporter } from '#utils/test';
 import { ErrorsInstrumentation } from './instrumentation.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
@@ -110,21 +110,22 @@ describe('ErrorsInstrumentation', () => {
 
   describe('lifecycle', () => {
     it('should create an instance', () => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation();
       expect(instrumentation).toBeInstanceOf(ErrorsInstrumentation);
     });
 
     it('should enable and disable without errors', () => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      const subject = new ErrorsInstrumentation();
+      instrumentation = subject;
       expect(() => {
-        instrumentation?.enable();
-        instrumentation?.disable();
+        registerForTest(subject);
+        subject.disable();
       }).not.toThrow();
     });
 
     it('should not emit after disable', () => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new ErrorsInstrumentation();
+      registerForTest(instrumentation);
       instrumentation.disable();
 
       dispatchErrorEvent(new Error('after disable'));
@@ -133,10 +134,10 @@ describe('ErrorsInstrumentation', () => {
     });
 
     it('should not double-subscribe when enabling twice', () => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
+      instrumentation = new ErrorsInstrumentation();
       const addSpy = vi.spyOn(window, 'addEventListener');
 
-      instrumentation.enable();
+      registerForTest(instrumentation);
       instrumentation.enable();
 
       const errorCalls = addSpy.mock.calls.filter((c) => c[0] === 'error');
@@ -150,8 +151,8 @@ describe('ErrorsInstrumentation', () => {
 
   describe('error events', () => {
     beforeEach(() => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new ErrorsInstrumentation();
+      registerForTest(instrumentation);
     });
 
     it('should emit an exception event when an Error is thrown', () => {
@@ -241,8 +242,8 @@ describe('ErrorsInstrumentation', () => {
 
   describe('unhandled rejection events', () => {
     beforeEach(() => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new ErrorsInstrumentation();
+      registerForTest(instrumentation);
     });
 
     it('should emit an exception event when a promise is rejected with an Error', () => {
@@ -299,7 +300,6 @@ describe('ErrorsInstrumentation', () => {
   describe('applyCustomAttributes', () => {
     it('should merge custom attributes for Error objects', () => {
       instrumentation = new ErrorsInstrumentation({
-        enabled: false,
         applyCustomAttributes: (error) => ({
           'app.custom.exception':
             error instanceof Error
@@ -307,7 +307,7 @@ describe('ErrorsInstrumentation', () => {
               : error.toLocaleUpperCase(),
         }),
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       dispatchErrorEvent(new ValidationError('Something happened!'));
 
@@ -321,7 +321,6 @@ describe('ErrorsInstrumentation', () => {
 
     it('should merge custom attributes for string errors', () => {
       instrumentation = new ErrorsInstrumentation({
-        enabled: false,
         applyCustomAttributes: (error) => ({
           'app.custom.exception':
             typeof error === 'string'
@@ -329,7 +328,7 @@ describe('ErrorsInstrumentation', () => {
               : error.message.toLocaleUpperCase(),
         }),
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       dispatchErrorEvent(STRING_ERROR);
 
@@ -343,7 +342,6 @@ describe('ErrorsInstrumentation', () => {
 
     it('should merge custom attributes on the event.message fallback path', () => {
       instrumentation = new ErrorsInstrumentation({
-        enabled: false,
         applyCustomAttributes: (error) => ({
           'app.custom.exception':
             typeof error === 'string'
@@ -351,7 +349,7 @@ describe('ErrorsInstrumentation', () => {
               : error.message.toLocaleUpperCase(),
         }),
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       dispatchErrorEvent(undefined, 'Script error.');
 
@@ -363,12 +361,11 @@ describe('ErrorsInstrumentation', () => {
 
     it('should let custom attributes override the message on the fallback path', () => {
       instrumentation = new ErrorsInstrumentation({
-        enabled: false,
         applyCustomAttributes: () => ({
           [ATTR_EXCEPTION_MESSAGE]: 'overridden',
         }),
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       dispatchErrorEvent(undefined, 'Script error.');
 
@@ -379,12 +376,11 @@ describe('ErrorsInstrumentation', () => {
 
     it('should still emit standard attributes when the hook throws', () => {
       instrumentation = new ErrorsInstrumentation({
-        enabled: false,
         applyCustomAttributes: () => {
           throw new Error('hook boom');
         },
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       expect(() =>
         dispatchErrorEvent(new ValidationError('Something happened!')),
@@ -401,8 +397,8 @@ describe('ErrorsInstrumentation', () => {
 
   describe('failure containment', () => {
     beforeEach(() => {
-      instrumentation = new ErrorsInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new ErrorsInstrumentation();
+      registerForTest(instrumentation);
     });
 
     it('should contain a throwing LogRecordProcessor and surface it via diag', () => {

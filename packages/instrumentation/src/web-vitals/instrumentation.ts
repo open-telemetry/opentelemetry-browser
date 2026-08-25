@@ -6,17 +6,16 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
+import { InstrumentationBase } from '#instrumentation-base';
+import { assertPerformanceObserver } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
+import { toError } from '../utils/toError.ts';
 import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
@@ -37,61 +36,44 @@ import type { WebVitalsInstrumentationConfig } from './types.ts';
  * listeners remain active. Calling `enable()` again will resume emission.
  */
 export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstrumentationConfig> {
-  // Using `declare` is required here: InstrumentationBase calls enable() during
-  // construction, and standard field initialization would reset this flag after
-  // super() returns, breaking the duplicate-registration guard.
-  declare private _isEnabled: boolean;
-  declare private _listenersRegistered: boolean;
-  private _applyCustomLogRecordData?: (logRecord: LogRecord) => void;
-  private _includeRawAttribution: boolean;
+  private _hasSubscribed = false;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
-    this._applyCustomLogRecordData = config.applyCustomLogRecordData;
-    this._includeRawAttribution = config.includeRawAttribution ?? false;
   }
 
-  protected override init() {
-    return [];
+  protected override _init(): void {
+    assertPerformanceObserver();
   }
 
-  /**
-   * Enables the instrumentation and registers web-vitals listeners.
-   * Listeners are registered only once. If disabled, subsequent calls resume emission.
-   */
-  override enable(): void {
-    if (typeof PerformanceObserver === 'undefined') {
-      this._diag.debug(
-        'PerformanceObserver not supported, web vitals will not be collected',
-      );
+  // Subscribes on the first enable, not in `_init()`: the library reports some
+  // metrics only once, so a subscription made while nothing is emitted loses them.
+  protected override _onEnable(): void {
+    if (this._hasSubscribed) {
       return;
     }
-
-    this._isEnabled = true;
-
-    if (this._listenersRegistered) {
-      this._diag.debug('Listeners already registered, resuming emission');
-      return;
-    }
-
-    this._listenersRegistered = true;
-    this._diag.debug(`Registering listeners`);
+    this._diag.debug('Registering listeners');
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
-    onCLS((metric) => this._emitWebVital(metric));
-    onINP((metric) => this._emitWebVital(metric));
-    onLCP((metric) => this._emitWebVital(metric));
-    onFCP((metric) => this._emitWebVital(metric));
-    onTTFB((metric) => this._emitWebVital(metric));
-  }
-
-  /**
-   * Disables the instrumentation, pausing log emission.
-   * Listeners remain active due to web-vitals library limitations.
-   */
-  override disable(): void {
-    this._isEnabled = false;
-    this._diag.debug('Instrumentation disabled, pausing emission');
+    const subscribers = [
+      ['CLS', onCLS],
+      ['INP', onINP],
+      ['LCP', onLCP],
+      ['FCP', onFCP],
+      ['TTFB', onTTFB],
+    ] as const;
+    for (const [name, subscribe] of subscribers) {
+      // Not retried: web-vitals cannot unsubscribe, so a retry would double
+      // the metrics that did subscribe.
+      try {
+        subscribe((metric: MetricWithAttribution) =>
+          this._emitWebVital(metric),
+        );
+      } catch (err) {
+        this._diag.warn(`could not subscribe to ${name}`, toError(err));
+      }
+    }
+    this._hasSubscribed = true;
   }
 
   /**
@@ -118,9 +100,16 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
   }
 
   private _emitWebVital(metric: MetricWithAttribution): void {
-    if (!this._isEnabled) {
+    if (!this.isEnabled()) {
       return;
     }
+    // A throw here would surface from the library's observer as a page error.
+    this._runHook('failed to record a web vital', () =>
+      this._recordWebVital(metric),
+    );
+  }
+
+  private _recordWebVital(metric: MetricWithAttribution): void {
     const attributes: Attributes = {
       [ATTR_WEB_VITAL_NAME]: metric.name.toLowerCase(),
       [ATTR_WEB_VITAL_VALUE]: metric.value,
@@ -132,26 +121,22 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     };
 
     const timestamp = this._getTimestampForMetric(metric);
+    const { applyCustomLogRecordData, includeRawAttribution } =
+      this.getConfig();
 
     const logRecord: LogRecord = {
       eventName: WEB_VITAL_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       attributes,
-      ...(this._includeRawAttribution
+      ...(includeRawAttribution
         ? { body: JSON.stringify(metric.attribution) }
         : {}),
       ...(timestamp !== undefined ? { timestamp } : {}),
     };
 
-    if (this._applyCustomLogRecordData) {
-      safeExecuteInTheMiddle(
-        () => this._applyCustomLogRecordData?.(logRecord),
-        (error) => {
-          if (error) {
-            this._diag.error('applyCustomLogRecordData hook failed', error);
-          }
-        },
-        true,
+    if (applyCustomLogRecordData) {
+      this._runHook('applyCustomLogRecordData hook failed', () =>
+        applyCustomLogRecordData(logRecord),
       );
     }
 

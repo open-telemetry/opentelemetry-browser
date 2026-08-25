@@ -5,7 +5,7 @@
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { hrTimeToMilliseconds, millisToHrTime } from '@opentelemetry/core';
-import { isWrapped } from '@opentelemetry/instrumentation';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -27,7 +27,7 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
-import type { Mock } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 import {
   afterAll,
   afterEach,
@@ -39,7 +39,12 @@ import {
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
-import { setupTestSpanExporter } from '#utils/test';
+import {
+  getWrapDepth,
+  registerForTest,
+  setupTestDiagLogger,
+  setupTestSpanExporter,
+} from '#utils/test';
 import { XhrInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 
@@ -266,35 +271,82 @@ describe('XhrInstrumentation', () => {
       XMLHttpRequest.prototype.send = originalSendFunction;
     });
 
-    it('should wrap XHR prototype when instantiated', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+    it('should wrap XHR prototype at registration, not when instantiated or on an earlier enable()', () => {
       instrumentation = new XhrInstrumentation();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+
+      instrumentation.enable();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+      expect(instrumentation.isEnabled()).toBe(false);
+
+      registerForTest(instrumentation);
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
 
-    it('should not wrap XHR prototype when instantiated with `enabled: false`', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+    it('should patch but not emit through registerInstrumentations with `enabled: false`', async () => {
       instrumentation = new XhrInstrumentation({ enabled: false });
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      const url = getUrlForPath('/api/get');
+
+      registerInstrumentations({ instrumentations: [instrumentation] });
+
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
+      expect(instrumentation.isEnabled()).toBe(false);
+      await doXhrRequest({ method: 'GET', url });
+      expect(getXhrSpans()).toHaveLength(0);
+
       instrumentation.enable();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      await doXhrRequest({ method: 'GET', url });
+      await waitForSpan(url);
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(getXhrSpans()).toHaveLength(1);
     });
 
     it('should not unwrap XHR prototype when disabled', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
       instrumentation = new XhrInstrumentation();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      registerForTest(instrumentation);
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
       instrumentation.disable();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
+    it('should not re-wrap XHR prototype across a disable/enable cycle', () => {
+      instrumentation = new XhrInstrumentation();
+      registerForTest(instrumentation);
+      const wrappedOpen = XMLHttpRequest.prototype.open;
+      const wrappedSend = XMLHttpRequest.prototype.send;
+
+      instrumentation.disable();
+      instrumentation.enable();
+
+      // Re-wrapping would stack a layer that, with no unwrap available, could
+      // never be removed.
+      expect(XMLHttpRequest.prototype.open).toBe(wrappedOpen);
+      expect(XMLHttpRequest.prototype.send).toBe(wrappedSend);
+    });
+
+    it('should stop and resume emitting spans across a disable/enable cycle', async () => {
+      instrumentation = new XhrInstrumentation();
+      registerForTest(instrumentation);
+      const url = getUrlForPath('/api/get');
+
+      instrumentation.disable();
+      await doXhrRequest({ method: 'GET', url });
+      expect(getXhrSpans()).toHaveLength(0);
+
+      instrumentation.enable();
+      await doXhrRequest({ method: 'GET', url });
+      await waitForSpan(url);
+      expect(getXhrSpans()).toHaveLength(1);
+    });
+
     const wrappedMethods = ['open', 'send'];
     // Same behavior regardless the method that has the error
     wrappedMethods.forEach((method) => {
@@ -304,51 +356,150 @@ describe('XhrInstrumentation', () => {
         // configurable: false`) by stubbing `_wrap` to throw the same TypeError
         // the browser would throw. We stub the method rather than actually
         // locking the property because a non-configurable slot is irreversible
-        // within a realm, and the outer `afterEach` restores `globalThis.fetch`
-        // via assignment, which would itself throw.
+        // within a realm, and the outer `afterEach` restores the prototype
+        // methods via assignment, which would itself throw.
         const wrapError = new TypeError(
           `Cannot assign to read only property '${method}' of object '[object XMLHttpRequest.prototype]'`,
         );
 
+        let wrapSpy: MockInstance;
+
         beforeEach(() => {
-          // Construct with `enabled: false` so the stub is in place before
-          // `enable()` runs — `_wrap` is an instance-level field inherited
-          // from `InstrumentationBase`, not a prototype method.
-          instrumentation = new XhrInstrumentation({ enabled: false });
-          vi.spyOn(instrumentation, '_wrap').mockImplementation(
-            (_target: unknown, prop: string) => {
+          instrumentation = new XhrInstrumentation();
+          // Shadows the inherited prototype method with an own property.
+          wrapSpy = vi
+            .spyOn(instrumentation, '_wrap')
+            .mockImplementation((_target: unknown, prop: string) => {
               if (prop === method) {
                 throw wrapError;
               }
-            },
-          );
+            });
         });
 
         it('should not throw when _wrap fails', () => {
-          expect(() => instrumentation.enable()).not.toThrow();
+          expect(() => registerForTest(instrumentation)).not.toThrow();
         });
 
         it('should leave XHR prototype unwrapped when _wrap fails', () => {
-          instrumentation.enable();
-          expect(
-            isWrapped(globalThis.XMLHttpRequest.prototype.open),
-          ).toBeFalsy();
-          expect(
-            isWrapped(globalThis.XMLHttpRequest.prototype.send),
-          ).toBeFalsy();
+          registerForTest(instrumentation);
+          expect(globalThis.XMLHttpRequest.prototype.open).toBe(
+            originalOpenFunction,
+          );
+          expect(globalThis.XMLHttpRequest.prototype.send).toBe(
+            originalSendFunction,
+          );
         });
 
-        it('should allow enable() to be retried after _wrap fails', () => {
-          instrumentation.enable();
+        it('should not retry _wrap after it fails', () => {
+          registerForTest(instrumentation);
+          wrapSpy.mockClear();
           expect(() => instrumentation.enable()).not.toThrow();
+          instrumentation.enable();
+
+          expect(wrapSpy).not.toHaveBeenCalled();
+          expect(instrumentation.isEnabled()).toBe(false);
         });
+
+        it('should warn with the cause message', () => {
+          const { warn } = setupTestDiagLogger();
+          registerForTest(instrumentation);
+
+          // Component loggers forward to `diag.warn(namespace, message, error)`.
+          const error = warn.mock.calls[0]?.[2] as Error | undefined;
+          expect(error?.message).toContain(
+            `Failed to patch XMLHttpRequest.prototype.${method}: ${wrapError.message}`,
+          );
+          expect(error?.cause).toBe(wrapError);
+        });
+      });
+    });
+
+    // The partial-patch path, where `open` is really wrapped and `send` then
+    // really fails. The stubbed-`_wrap` blocks above never patch anything, so
+    // they cannot show what the orphaned `open` patch does.
+    describe('when "send" fails after "open" was wrapped', () => {
+      const OriginalXhr = globalThis.XMLHttpRequest;
+
+      beforeEach(() => {
+        // `_wrap` uses defineProperty, so only `configurable: false`
+        // defeats it. That is irreversible, hence a throwaway subclass
+        // prototype rather than the real XMLHttpRequest.prototype.
+        class LockedXhr extends OriginalXhr {}
+        Object.defineProperty(LockedXhr.prototype, 'send', {
+          value: originalSendFunction,
+          writable: false,
+          configurable: false,
+        });
+        globalThis.XMLHttpRequest = LockedXhr;
+      });
+
+      afterEach(() => {
+        globalThis.XMLHttpRequest = OriginalXhr;
+      });
+
+      it('should leave the "open" patch in place', () => {
+        instrumentation = new XhrInstrumentation();
+        registerForTest(instrumentation);
+
+        expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+        expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+      });
+
+      it('should not stack another "open" patch on later enable() calls', () => {
+        // A second wrap could never be undone, which is why a failed init is final.
+        instrumentation = new XhrInstrumentation();
+        registerForTest(instrumentation);
+        expect(getWrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
+
+        instrumentation.enable();
+        instrumentation.enable();
+
+        expect(getWrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
+      });
+
+      it('should warn with the descriptive error', () => {
+        const { warn } = setupTestDiagLogger();
+        instrumentation = new XhrInstrumentation();
+        registerForTest(instrumentation);
+
+        // Component loggers forward to `diag.warn(namespace, message, error)`.
+        const error = warn.mock.calls[0]?.[2] as Error | undefined;
+        const cause = error?.cause as Error | undefined;
+        expect(cause).toBeInstanceOf(Error);
+        expect(error?.message).toBe(
+          `Failed to patch XMLHttpRequest.prototype.send: ${cause?.message}. The open patch stays in place and passes calls through.`,
+        );
+      });
+
+      it('should keep the orphaned "open" patch inert', async () => {
+        instrumentation = new XhrInstrumentation();
+        registerForTest(instrumentation);
+
+        const { request } = await doXhrRequest({
+          method: 'GET',
+          url: getUrlForPath('/api/get'),
+        });
+
+        // The failed init left `isEnabled()` false, so `patchedOpen`
+        // passes straight through: the request works and emits nothing.
+        expect(request.status).toBe(200);
+        expect(getXhrSpans()).toHaveLength(0);
       });
     });
   });
 
   describe('instrumentation', () => {
+    let unregister: () => void;
+
     beforeAll(() => {
       instrumentation = new XhrInstrumentation();
+      unregister = registerInstrumentations({
+        instrumentations: [instrumentation],
+      });
+    });
+
+    afterAll(() => {
+      unregister();
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {
@@ -734,7 +885,7 @@ describe('XhrInstrumentation', () => {
         await doXhrRequest({ method: 'GET', url });
 
         // No spans to export
-        await expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });

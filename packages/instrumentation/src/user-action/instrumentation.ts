@@ -4,10 +4,7 @@
  */
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { getElementCSSSelector } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
@@ -32,7 +29,7 @@ const OTEL_ELEMENT_ATTRIBUTE_PREFIX = 'data-otel-';
  * This class automatically instruments different User Actions within the browser.
  */
 export class UserActionInstrumentation extends InstrumentationBase<UserActionInstrumentationConfig> {
-  declare private _onClickHandler?: (event: MouseEvent) => void;
+  private _onClickHandler: ((event: MouseEvent) => void) | undefined;
 
   constructor(config: UserActionInstrumentationConfig = {}) {
     super(
@@ -40,10 +37,6 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       version,
       config,
     );
-  }
-
-  protected override init() {
-    return [];
   }
 
   private _getMouseButtonFromMouseEvent(event: MouseEvent): MouseButton {
@@ -106,33 +99,28 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
   private _applyCustomLogRecordData(logRecord: LogRecord) {
     const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
     if (applyCustomLogRecordData) {
-      safeExecuteInTheMiddle(
-        () => applyCustomLogRecordData(logRecord),
-        (error) => {
-          if (error) {
-            this._diag.error('applyCustomLogRecordData hook failed', error);
-          }
-        },
-        true,
+      this._runHook('applyCustomLogRecordData hook failed', () =>
+        applyCustomLogRecordData(logRecord),
       );
     }
   }
 
-  override enable(): void {
+  protected override _onEnable(): void {
     const autoCapturedActions =
       this._config.autoCapturedActions ?? DEFAULT_AUTO_CAPTURED_ACTIONS;
-    if (!this._onClickHandler) {
-      this._onClickHandler = this.onClick.bind(this);
-    }
 
     if (autoCapturedActions.includes('click')) {
+      // A throw in a listener is reported as an uncaught page error.
+      this._onClickHandler = (event) =>
+        this._runHook('failed to record a click', () => this.onClick(event));
       document.addEventListener('click', this._onClickHandler, true);
     }
   }
 
-  override disable(): void {
+  protected override _onDisable(): void {
     if (this._onClickHandler) {
       document.removeEventListener('click', this._onClickHandler, true);
+      this._onClickHandler = undefined;
     }
   }
 }
