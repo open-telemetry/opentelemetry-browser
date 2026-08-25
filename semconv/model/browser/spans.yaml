@@ -4,30 +4,17 @@ groups:
     span_kind: client
     stability: development
     brief: >
-      This span represents an outbound HTTP request made from the browser through `fetch`.
+      This span represents an outbound HTTP request made from the browser through `fetch` or
+      `XMLHttpRequest`.
     note: >
-      This group describes the subset of the upstream
+      The fetch and XHR instrumentations record the same attributes, so they share this group.
+      Both follow the upstream
       [HTTP client span](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
-      conventions that the fetch instrumentation records. It defines no attributes of its own; it
-      exists so that the upstream attributes the instrumentation uses are part of this registry.
+      conventions. The attributes they record from those conventions are stable, so the
+      instrumentations import their constants directly from
+      `@opentelemetry/semantic-conventions` and this registry does not restate them.
+      This group exists only to declare the attributes the instrumentations record that are
+      not yet stable upstream, and for which the package therefore exports no stable constant.
     attributes:
-      - ref: http.request.method
-        requirement_level: required
-      - ref: url.full
-        requirement_level: required
-      - ref: server.address
-        requirement_level: required
-      - ref: server.port
-        requirement_level:
-          conditionally_required: If the request URL carries a port.
-      - ref: http.request.method_original
-        requirement_level:
-          conditionally_required: If and only if it's different than `http.request.method`.
-      - ref: http.response.status_code
-        requirement_level:
-          conditionally_required: If and only if a response was received.
-      - ref: error.type
-        requirement_level:
-          conditionally_required: If the request failed or the response status code indicates an error.
       - ref: http.request.body.size
         requirement_level: opt_in

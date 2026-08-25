@@ -8,8 +8,15 @@ The semantic-conventions [CONTRIBUTING guide](https://github.com/open-telemetry/
 corresponding repository, and most of the conventions below are browser-only.
 
 Names already covered upstream are deliberately not redefined. The `browser.web_vital` and
-`exception` events are imported from the dependency registry by name, and the `error.*`, `http.*`,
-`server.*`, `session.*`, and `url.*` attributes we emit are referenced from it.
+`exception` events are imported from the dependency registry by name, and the `http.request.body.size`,
+`session.id`, and `url.full` attributes we emit are referenced from it.
+
+Upstream conventions that are already stable are not modelled here at all. Their constants ship in
+the root export of [`@opentelemetry/semantic-conventions`](https://www.npmjs.com/package/@opentelemetry/semantic-conventions),
+so the instrumentations import them directly and this registry has nothing to add. What it does
+cover is the attributes we emit that upstream has not stabilised, which the package exports only
+from its `/incubating` entry point — today `http.request.body.size` on the fetch and XHR spans,
+and `session.id` on everything the SDK emits.
 
 ## Layout
 
@@ -19,7 +26,7 @@ model/
 └── browser/
     ├── registry.yaml      # attributes defined by this repository
     ├── events.yaml        # our events, plus imports of upstream events
-    ├── spans.yaml         # the HTTP client span the fetch instrumentation records
+    ├── spans.yaml         # non-stable attributes the HTTP client instrumentations record
     └── common.yaml        # attributes the SDK adds to all telemetry it emits
 ```
 
