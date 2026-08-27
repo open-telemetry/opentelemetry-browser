@@ -161,7 +161,25 @@ describe('FetchInstrumentation', () => {
 
   const msWorker = setupWorker(...handlers);
 
+  // The browser relays a mocked stream's error from the Service Worker to the
+  // page as an unhandled rejection independent of our own promise chain, and it
+  // can land after the test that triggered it has already finished. Suppress it
+  // for the whole file rather than around a single test, so the listener always
+  // outlives the rejection.
+  const suppressBrokenStreamRejection = (e: PromiseRejectionEvent) => {
+    if (
+      e.reason instanceof TypeError &&
+      e.reason.message === 'Failed to fetch'
+    ) {
+      e.preventDefault();
+    }
+  };
+
   beforeAll(async () => {
+    window.addEventListener(
+      'unhandledrejection',
+      suppressBrokenStreamRejection,
+    );
     await msWorker.start();
     inMemoryExporter = setupTestSpanExporter();
   });
@@ -178,6 +196,10 @@ describe('FetchInstrumentation', () => {
 
   afterAll(() => {
     msWorker.stop();
+    window.removeEventListener(
+      'unhandledrejection',
+      suppressBrokenStreamRejection,
+    );
   });
 
   const getUrlForPath = (path: string) => {
@@ -495,34 +517,23 @@ describe('FetchInstrumentation', () => {
     });
 
     it('should record the real status and an error when the body stream fails mid-read', async () => {
-      // The browser relays the mocked stream's error from the Service Worker
-      // to the page as an unhandled rejection independent of our own promise
-      // chain, so it needs suppressing here the same way dispatched `error`
-      // events are suppressed in the errors instrumentation tests.
-      const suppress = (e: PromiseRejectionEvent) => e.preventDefault();
-      window.addEventListener('unhandledrejection', suppress);
+      const url = getUrlForPath('/api/broken-stream');
+      const startTime = performance.now();
+      const response = await fetch(url);
+      await expect(response.text()).rejects.toThrow();
+      const endTime = performance.now();
 
-      try {
-        const url = getUrlForPath('/api/broken-stream');
-        const startTime = performance.now();
-        const response = await fetch(url);
-        await expect(response.text()).rejects.toThrow();
-        const endTime = performance.now();
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
+      expect(span.status.code).toEqual(SpanStatusCode.ERROR);
 
-        // Span is exported
-        const span = await waitForSpan(url);
-        expect(span.name).toBe('GET');
-        expect(span.kind).toEqual(SpanKind.CLIENT);
-        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
-        expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
-        expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
-        expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-
-        // Context has been registered for the resource
-        assertResourceRegistered({ span, url, startTime, endTime });
-      } finally {
-        window.removeEventListener('unhandledrejection', suppress);
-      }
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     it('204 (No Content) will correctly end the span', async () => {
