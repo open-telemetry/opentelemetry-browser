@@ -117,13 +117,8 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 ## Contributing
 
-### Prerequisites
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Contributing to this project requires **Node.js >= 24** and **npm ^11.9.0**
-
-```bash
-npm install -g npm@11
-```
 
 ### Maintainers
 
