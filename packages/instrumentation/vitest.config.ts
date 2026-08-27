@@ -9,14 +9,18 @@ export default defineConfig({
           name: 'unit',
           environment: 'jsdom',
           include: ['src/**/*.test.ts'],
-          exclude: ['src/fetch/**', 'src/web-vitals/**'],
+          exclude: ['src/fetch/**', 'src/web-vitals/**', 'src/xhr/**'],
           browser: { enabled: false },
         },
       },
       {
         test: {
           name: 'browser',
-          include: ['src/fetch/**/*.test.ts', 'src/web-vitals/**/*.test.ts'],
+          include: [
+            'src/fetch/**/*.test.ts',
+            'src/web-vitals/**/*.test.ts',
+            'src/xhr/**/*.test.ts',
+          ],
           browser: {
             provider: playwright(),
             enabled: true,
