@@ -4,7 +4,7 @@
  */
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
-import { hrTime, hrTimeToMilliseconds } from '@opentelemetry/core';
+import { hrTimeToMilliseconds, millisToHrTime } from '@opentelemetry/core';
 import { isWrapped } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
@@ -375,7 +375,11 @@ describe('XhrInstrumentation', () => {
       const delay = 50;
       const url = getUrlForPath('/api/get');
       const xhr = new XMLHttpRequest();
-      const openTime = hrTime(performance.now());
+      // NOTE: read the same clock the SDK uses for the span start time
+      // (`Date.now()`, truncated to whole milliseconds). Mixing it with a
+      // `performance.now()` reading makes the delay check below flaky, since
+      // the two clocks can differ by up to a millisecond.
+      const openTime = millisToHrTime(Date.now());
       xhr.open('GET', url);
 
       // Simulate some work between open and send
