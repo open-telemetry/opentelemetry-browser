@@ -12,8 +12,10 @@ import {
 } from '@opentelemetry/resources';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
+import { getDefaultContextManager } from '../core/context.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
+import { getDefaultPropagators } from '../core/propagation.ts';
 import type { TracesConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
@@ -87,14 +89,12 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   });
   trace.setGlobalTracerProvider(tracerProvider);
 
-  if (config?.propagators) {
-    const { propagators } = config;
-    propagation.setGlobalPropagator(new CompositePropagator({ propagators }));
-  }
+  const propagators = config?.propagators ?? getDefaultPropagators();
+  propagation.setGlobalPropagator(new CompositePropagator({ propagators }));
 
-  if (config?.contextManager) {
-    context.setGlobalContextManager(config.contextManager);
-  }
+  const contextManager = config?.contextManager ?? getDefaultContextManager();
+  contextManager.enable();
+  context.setGlobalContextManager(contextManager);
 
   return {
     shutdown() {
