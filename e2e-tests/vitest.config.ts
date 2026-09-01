@@ -38,6 +38,26 @@ export default defineConfig({
             import.meta.url,
           ),
         ),
+      '@opentelemetry/browser-instrumentation/experimental/fetch':
+        fileURLToPath(
+          new URL(
+            '../packages/instrumentation/src/fetch/index.ts',
+            import.meta.url,
+          ),
+        ),
+      '@opentelemetry/browser-instrumentation/experimental/xhr': fileURLToPath(
+        new URL(
+          '../packages/instrumentation/src/xhr/index.ts',
+          import.meta.url,
+        ),
+      ),
+      '@opentelemetry/browser-instrumentation/experimental/resource-timing':
+        fileURLToPath(
+          new URL(
+            '../packages/instrumentation/src/resource-timing/index.ts',
+            import.meta.url,
+          ),
+        ),
       '@opentelemetry/browser-sdk': fileURLToPath(
         new URL('../packages/sdk/src/index.ts', import.meta.url),
       ),
@@ -45,6 +65,7 @@ export default defineConfig({
   },
   test: {
     include: ['e2e-tests/**/*.test.ts'],
+    setupFiles: ['e2e-tests/utils/e2e-setup.ts'],
     browser: {
       provider: playwright(),
       enabled: true,

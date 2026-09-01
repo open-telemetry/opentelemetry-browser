@@ -4,15 +4,7 @@
  */
 
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
-import {
-  afterAll,
-  afterEach,
-  beforeAll,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { collector } from '../../../utils/test-collector.ts';
 import type { TestSdkHandle } from '../../../utils/test-otel-setup.ts';
 import { testSdkSetup } from '../../../utils/test-otel-setup.ts';
@@ -44,17 +36,8 @@ const dispatchUnhandledRejection = (reason: Error | string) => {
 describe('ErrorsInstrumentation', () => {
   let result: TestSdkHandle;
 
-  beforeAll(async () => {
-    await collector.start();
-  });
-
-  afterAll(() => {
-    collector.stop();
-  });
-
   afterEach(async () => {
     await result.shutdown();
-    collector.reset();
   });
 
   it('emits a log record with exception attributes when an Error is thrown', async () => {

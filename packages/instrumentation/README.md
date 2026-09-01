@@ -20,6 +20,7 @@ npm install @opentelemetry/browser-instrumentation
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
 - [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
 - [Errors](#errors) — automatic instrumentation for unhandled errors and promise rejections
+- [Fetch](#fetch) — automatic instrumentation for request using the `fetch` API
 
 ## Usage
 
@@ -299,6 +300,98 @@ Each `exception` event includes:
 | `exception.type` | The error's `name` (omitted when the thrown value is a string). |
 | `exception.message` | The error's `message`, or the thrown string itself. |
 | `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string). |
+
+---
+
+### Fetch
+
+```typescript
+import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
+```
+
+Emits a Span for every HTTP request made using the `window.fetch` browser API. This instrumentation also propagates the context for distributed traces.
+
+#### Configuration
+
+```typescript
+new FetchInstrumentation({
+  ignoreUrls: ['https://example.com/api'],
+  propagateTraceHeaderCorsUrls: [/domain.com\/api.*/],
+  measureRequestSize: true,
+  applyCustomAttributesOnSpan: (span, request, result) => {
+    span.setAttribute('foo', 'bar');
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
+| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
+| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
+| `requestHook` | `(span: Span, request: Request) => void` | — | Function that allows you to interact with the Span and the Request object before the request starts. |
+| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+
+#### Captured Attributes
+
+Each `fetch` Span includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
+| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address` | The hostmane of the request's URL. |
+| `server.port` | The port of the request's URL. |
+| `http.response.status_code` | HTTP response status code. |
+| `error.type` | If request failed. Describes a class of error the operation ended with. |
+
+---
+
+### XHR (XmlHttpRequest)
+
+```typescript
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
+```
+
+Emits a Span for every HTTP request made using the `window.XmlHttpRequest` browser API. This instrumentation also propagates the context for distributed traces.
+
+#### Configuration
+
+```typescript
+new XhrInstrumentation({
+  ignoreUrls: ['https://example.com/api'],
+  propagateTraceHeaderCorsUrls: [/domain.com\/api.*/],
+  measureRequestSize: true,
+  applyCustomAttributesOnSpan: (span, xhr) => {
+    span.setAttribute('foo', 'bar');
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
+| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
+| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
+| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+
+#### Captured Attributes
+
+Each `fetch` Span includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
+| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address` | The hostmane of the request's URL. |
+| `server.port` | The port of the request's URL. |
+| `http.response.status_code` | HTTP response status code. |
+| `error.type` | If request failed. Describes a class of error the operation ended with. |
+
 
 ## Useful links
 

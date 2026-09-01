@@ -3,7 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag, trace } from '@opentelemetry/api';
+import type { ContextManager, TextMapPropagator } from '@opentelemetry/api';
+import {
+  context,
+  diag,
+  propagation,
+  ROOT_CONTEXT,
+  trace,
+} from '@opentelemetry/api';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
   AlwaysOffSampler,
@@ -51,6 +58,8 @@ describe('startTracesSdk', () => {
     fetchSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start if disabled by configuration', async () => {
@@ -328,5 +337,41 @@ describe('startTracesSdk', () => {
     // Assert
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
+
+  it('should install default context manager and propagators when none are provided', () => {
+    tracesSdk = startTracesSdk({
+      batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+    });
+
+    expect(context.active()).toBe(ROOT_CONTEXT);
+    expect(propagation.fields()).toEqual(
+      expect.arrayContaining(['traceparent', 'tracestate', 'baggage']),
+    );
+  });
+
+  it('should use the provided context manager and propagators', () => {
+    const enableSpy = vi.fn().mockReturnThis();
+    const customContextManager: ContextManager = {
+      active: () => ROOT_CONTEXT,
+      with: (_ctx, fn, thisArg, ...args) => fn.call(thisArg, ...args),
+      bind: (_ctx, target) => target,
+      enable: enableSpy,
+      disable: vi.fn().mockReturnThis(),
+    };
+    const customPropagator: TextMapPropagator = {
+      inject: vi.fn(),
+      extract: (_ctx, _carrier, _getter) => _ctx,
+      fields: () => ['x-custom-trace'],
+    };
+
+    tracesSdk = startTracesSdk({
+      batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+      contextManager: customContextManager,
+      propagators: [customPropagator],
+    });
+
+    expect(enableSpy).toHaveBeenCalledOnce();
+    expect(propagation.fields()).toEqual(['x-custom-trace']);
   });
 });

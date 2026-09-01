@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-instrumentation",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "OpenTelemetry browser instrumentations.",
   "keywords": [
     "opentelemetry",
@@ -13,7 +13,9 @@
     "navigation-timing",
     "resource-timing",
     "user-action",
-    "web-vitals"
+    "web-vitals",
+    "fetch",
+    "xhr"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -36,7 +38,9 @@
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",
     "./experimental/resource-timing": "./dist/resource-timing/index.js",
     "./experimental/user-action": "./dist/user-action/index.js",
-    "./experimental/web-vitals": "./dist/web-vitals/index.js"
+    "./experimental/web-vitals": "./dist/web-vitals/index.js",
+    "./experimental/fetch": "./dist/fetch/index.js",
+    "./experimental/xhr": "./dist/xhr/index.js"
   },
   "sideEffects": false,
   "files": [
@@ -52,16 +56,19 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.221.0",
-    "@opentelemetry/core": "^2.10.0",
     "@opentelemetry/instrumentation": "^0.221.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
-    "web-vitals": "^6.0.1"
+    "web-vitals": "^6.2.1"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.1"
   },
   "devDependencies": {
-    "@opentelemetry/sdk-logs": "0.221.0"
+    "@opentelemetry/core": "2.10.0",
+    "@opentelemetry/propagator-b3": "2.10.0",
+    "@opentelemetry/sdk-logs": "0.221.0",
+    "@opentelemetry/sdk-trace-base": "2.10.0",
+    "msw": "2.15.0"
   },
   "publishConfig": {
     "access": "public"

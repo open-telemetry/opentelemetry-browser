@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.8.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.7.0...browser-instrumentation-v0.8.0) (2026-08-27)
+
+
+### Features
+
+* add e2e tests for fetch instrumentation ([#392](https://github.com/open-telemetry/opentelemetry-browser/issues/392)) ([0ccb6df](https://github.com/open-telemetry/opentelemetry-browser/commit/0ccb6df0eeaadbe17353dd33d42a0f6bcb783c26))
+* **browser-instrumentation:** add fetch instrumentation ([#281](https://github.com/open-telemetry/opentelemetry-browser/issues/281)) ([7bba31f](https://github.com/open-telemetry/opentelemetry-browser/commit/7bba31fe3ab5ddc516a5e3e27030e9e0c3c9de7a))
+* **browser-instrumentation:** add XHR instrumentation ([#367](https://github.com/open-telemetry/opentelemetry-browser/issues/367)) ([aee02e4](https://github.com/open-telemetry/opentelemetry-browser/commit/aee02e45ce7e1b87dba8c9145d971dde0816643c))
+
+
+### Bug Fixes
+
+* **browser-instrumentation:** add max capacity to context registry ([#368](https://github.com/open-telemetry/opentelemetry-browser/issues/368)) ([ca9559a](https://github.com/open-telemetry/opentelemetry-browser/commit/ca9559a81662ce88d412d0fd9a40cd4f28bb4d7b))
+* **deps:** update dependencies ([#355](https://github.com/open-telemetry/opentelemetry-browser/issues/355)) ([a3f4018](https://github.com/open-telemetry/opentelemetry-browser/commit/a3f401856975844e47b563893f2fe7d76a933db4))
+* **deps:** update dependencies ([#383](https://github.com/open-telemetry/opentelemetry-browser/issues/383)) ([743c6c0](https://github.com/open-telemetry/opentelemetry-browser/commit/743c6c092cfd43561dcd0004f929b4b26e9c4ec9))
+* **deps:** update dependencies ([#406](https://github.com/open-telemetry/opentelemetry-browser/issues/406)) ([a324f0b](https://github.com/open-telemetry/opentelemetry-browser/commit/a324f0b75bb90b660df7f5b01aaf63d26f324055))
+
 ## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.6.0...browser-instrumentation-v0.7.0) (2026-07-29)
 
 
