@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.2.0...browser-sdk-v0.3.0) (2026-08-27)
+
+
+### Features
+
+* **browser-sdk:** wire default context manager and propagators into startTracesSdk ([#393](https://github.com/open-telemetry/opentelemetry-browser/issues/393)) ([063dddd](https://github.com/open-telemetry/opentelemetry-browser/commit/063dddd00fdc64cdfbe0532b55b10278341710d0))
+
 ## [0.2.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.1.0...browser-sdk-v0.2.0) (2026-07-29)
 
 
