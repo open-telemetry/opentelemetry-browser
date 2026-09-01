@@ -69,16 +69,6 @@ export async function initOtel(
   customAttrs: Record<string, string> = {},
   { onSpan, onLog }: InitOtelOptions = {},
 ): Promise<OtelHandle> {
-  // ── Validate export endpoints ───────────────────────────────────────────────
-  // startBrowserSdk logs a diag.error and silently skips the OTLP exporter for
-  // an invalid URL, so guard here and throw to surface the failure through the
-  // caller's error handling instead of reporting "SDK ready".
-  for (const url of [config.tracesUrl, config.logsUrl]) {
-    if (!URL.parse(url)) {
-      throw new Error(`Invalid OTLP export URL: "${url}"`);
-    }
-  }
-
   // ── Sessions ────────────────────────────────────────────────────────────────
   // The session processors must run BEFORE the export processors so the
   // session.id attribute is set on each span / log record before it is exported.
@@ -123,7 +113,7 @@ export async function initOtel(
   // The traces `contextManager` and `propagators` reproduce what
   // `WebTracerProvider.register()` used to wire up by default, so context
   // propagation and W3C trace-context header injection keep working.
-  startBrowserSdk({
+  const sdk = startBrowserSdk({
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
     resourceAttributes: { ...customAttrs },
@@ -143,6 +133,19 @@ export async function initOtel(
       batchProcessorConfig: BATCH_PROCESSOR_CONFIG,
     },
   });
+
+  // startBrowserSdk returns a no-op SDK flagged with `invalidConfig` when it
+  // refuses to start because of a bad configuration (e.g. an invalid export
+  // URL or no usable processors). Surface that as an error instead of wiring
+  // the instrumentations below to no-op providers, which would leave the
+  // sandbox reporting "SDK ready" while inert. The SDK already logged the
+  // specific cause via diag.error, so keep this message cause-agnostic.
+  if (sdk.invalidConfig) {
+    throw new Error(
+      'Browser SDK failed to start due to an invalid configuration — ' +
+        'see the preceding SDK diag.error logs for the specific cause.',
+    );
+  }
 
   // ── Auto-instrumentations ───────────────────────────────────────────────────
   registerInstrumentations({
