@@ -124,6 +124,24 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 
 Provides automatic instrumentation for [Navigation Timing](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming) in web applications.
 
+#### Configuration
+
+```typescript
+new NavigationTimingInstrumentation({
+  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  applyCustomLogRecordData: (logRecord) => {
+    logRecord.attributes = {
+      ...logRecord.attributes,
+      'app.environment': 'production',
+    };
+  },
+});
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
 ---
 
 ### Resource Timing
