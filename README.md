@@ -56,11 +56,6 @@ registerInstrumentations({
 
 For detailed configuration options, see the [instrumentation package README](./packages/instrumentation/README.md).
 
-> **Using the Browser SDK?** If you initialize telemetry with
-> [`@opentelemetry/browser-sdk`](./packages/sdk), you can pass instrumentations directly to the SDK
-> via the `instrumentations` config option instead of calling `registerInstrumentations` yourself.
-> The SDK registers them after setting the providers and disables them on `shutdown()`.
-
 ### More examples
 
 For a more complete setup combining event-based instrumentations from this repository with span-based instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib), see the [examples](./examples/) directory.

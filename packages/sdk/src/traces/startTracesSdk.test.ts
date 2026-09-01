@@ -22,11 +22,6 @@ import { startTracesSdk } from './startTracesSdk.ts';
 
 const BSP_SCHEDULE_DELAY = 10;
 
-/**
- * Creates a fake `Instrumentation` test double. `getConfig()` returns
- * `{ enabled: false }` so `registerInstrumentations` calls `enable()` on it
- * (it skips instrumentations that are already enabled).
- */
 function createFakeInstrumentation(): Instrumentation {
   return {
     instrumentationName: 'test-instrumentation',

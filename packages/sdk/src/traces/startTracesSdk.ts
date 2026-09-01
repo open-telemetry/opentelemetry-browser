@@ -92,8 +92,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   contextManager.enable();
   context.setGlobalContextManager(contextManager);
 
-  // Register instrumentations now that the tracer provider is set. They are
-  // disabled on shutdown.
+  // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;
   if (config?.instrumentations?.length) {
     deregisterInstrumentations = registerInstrumentations({
@@ -103,8 +102,6 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
 
   return {
     shutdown() {
-      // Disable instrumentations first so they stop capturing telemetry
-      // before the provider is shut down and flushed.
       deregisterInstrumentations?.();
       return tracerProvider.shutdown();
     },

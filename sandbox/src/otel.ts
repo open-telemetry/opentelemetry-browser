@@ -141,8 +141,7 @@ export async function initOtel(
       exportConfig: { url: config.logsUrl, headers: {} },
       batchProcessorConfig: BATCH_PROCESSOR_CONFIG,
     },
-    // The SDK registers these via `registerInstrumentations` after the
-    // providers are set and disables them when the SDK shuts down.
+
     instrumentations: [
       new ErrorsInstrumentation(),
       new NavigationTimingInstrumentation(),

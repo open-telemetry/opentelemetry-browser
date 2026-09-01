@@ -110,9 +110,7 @@ export interface CommonConfig {
    */
   resourceAttributes?: Attributes;
   /**
-   * List of instrumentations to be registered when the SDK starts. They are
-   * disabled when the SDK shuts down. Use it to register third-party
-   * instrumentations from packages like `@opentelemetry/instrumentation-fetch`.
+   * List of instrumentations to be registered when the SDK starts
    *
    * @defaultValue undefined
    */

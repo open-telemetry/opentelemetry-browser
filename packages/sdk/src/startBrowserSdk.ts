@@ -60,8 +60,7 @@ export interface QuickStartConfig {
    */
   exportHeaders?: Record<string, string>;
   /**
-   * List of instrumentations to be registered when the SDK starts.
-   * They are disabled when the SDK shuts down.
+   * List of instrumentations to be registered when the SDK starts
    */
   instrumentations?: Instrumentation[];
 }
