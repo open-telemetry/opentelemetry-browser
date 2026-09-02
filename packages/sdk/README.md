@@ -66,6 +66,7 @@ extended configuration object to tune some other component and also apply specif
 The following example sets some extra resource attributes and the limits for spans and log records.
 
 ```javascript
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
@@ -87,6 +88,10 @@ const sdk = startBrowserSdk({
     url: 'https://collector.mycompany.com',
     headers: { foo: 'bar' }
   },
+  // Optional - list of instrumentations to register when the SDK starts
+  instrumentations: [
+    new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
+  ],
   // Optional - logs signal configuration. Default empty empty. See below for more options
   logs: {
     logRecordLimits: { attributeCountLimit: 128 },
@@ -208,6 +213,33 @@ tracesSdk.shutdown().then(
   (err) => console.log("Error shutting down SDK", err)
 );
 ```
+
+### Instrumentations
+
+Register third-party instrumentations or the
+[browser instrumentations from this repo](../instrumentation) by passing them to the
+`instrumentations` config option. The SDK registers them with
+[`registerInstrumentations`](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation)
+after the global providers are set, so the instrumentations receive the tracer and logger providers,
+and disables them when the SDK shuts down.
+
+The option is available in `quickStartBrowserSdk`, `startBrowserSdk`, and in the standalone signal
+SDKs (`startLogsSdk` / `startTracesSdk`).
+
+```javascript
+import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
+
+const sdk = quickStartBrowserSdk({
+  exportUrl: 'https://collector.mycompany.com',
+  instrumentations: [
+    new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
+  ],
+});
+```
+
+Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
+call.
 
 ## Configuration
 
