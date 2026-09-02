@@ -1,0 +1,175 @@
+# Events defined in dependency registries are imported by name so that later code generation can
+# emit constants for them from this registry, rather than redefining them here.
+imports:
+  events:
+    - browser.web_vital
+    - exception
+
+groups:
+  - id: event.browser.console
+    type: event
+    name: browser.console
+    stability: development
+    brief: >
+      This event represents a message written to the browser console.
+    note: >
+      The body of the event is the serialized console arguments.
+    attributes:
+      - ref: browser.console.method
+        requirement_level: required
+
+  - id: event.browser.navigation
+    type: event
+    name: browser.navigation
+    stability: development
+    brief: >
+      This event represents a navigation to a page, either a full document load or a
+      same-document navigation performed by the application.
+    attributes:
+      - ref: url.full
+        requirement_level: required
+        brief: The URL navigated to.
+      - ref: browser.navigation.same_document
+        requirement_level: required
+      - ref: browser.navigation.hash_change
+        requirement_level: required
+      - ref: browser.navigation.type
+        requirement_level:
+          conditionally_required: >
+            If the type of the navigation can be determined. It is not reported for the initial
+            document load.
+
+  - id: event.browser.navigation_timing
+    type: event
+    name: browser.navigation_timing
+    stability: development
+    brief: >
+      This event represents the timing milestones the browser recorded while loading the current
+      document, as reported by the
+      [PerformanceNavigationTiming](https://developer.mozilla.org/docs/Web/API/PerformanceNavigationTiming)
+      API.
+    note: >
+      `PerformanceNavigationTiming` extends `PerformanceResourceTiming`, so this event reports the
+      inherited timings and transfer sizes using the same `browser.resource_timing.*` attributes as
+      the `browser.resource_timing` event.
+    attributes:
+      - ref: url.full
+        requirement_level: required
+        brief: The URL of the document.
+      - ref: browser.navigation_timing.type
+        requirement_level: required
+      - ref: browser.navigation_timing.dom_interactive
+        requirement_level: required
+      - ref: browser.navigation_timing.dom_content_loaded_event_start
+        requirement_level: required
+      - ref: browser.navigation_timing.dom_content_loaded_event_end
+        requirement_level: required
+      - ref: browser.navigation_timing.dom_complete
+        requirement_level: required
+      - ref: browser.navigation_timing.load_event_start
+        requirement_level: required
+      - ref: browser.navigation_timing.load_event_end
+        requirement_level: required
+      - ref: browser.navigation_timing.unload_event_start
+        requirement_level: required
+      - ref: browser.navigation_timing.unload_event_end
+        requirement_level: required
+      - ref: browser.navigation_timing.redirect_count
+        requirement_level: required
+      - ref: browser.resource_timing.duration
+        requirement_level: required
+      - ref: browser.resource_timing.fetch_start
+        requirement_level: required
+      - ref: browser.resource_timing.domain_lookup_start
+        requirement_level: required
+      - ref: browser.resource_timing.domain_lookup_end
+        requirement_level: required
+      - ref: browser.resource_timing.connect_start
+        requirement_level: required
+      - ref: browser.resource_timing.connect_end
+        requirement_level: required
+      - ref: browser.resource_timing.secure_connection_start
+        requirement_level: required
+      - ref: browser.resource_timing.request_start
+        requirement_level: required
+      - ref: browser.resource_timing.response_start
+        requirement_level: required
+      - ref: browser.resource_timing.response_end
+        requirement_level: required
+      - ref: browser.resource_timing.transfer_size
+        requirement_level: required
+      - ref: browser.resource_timing.encoded_body_size
+        requirement_level: required
+      - ref: browser.resource_timing.decoded_body_size
+        requirement_level: required
+
+  - id: event.browser.resource_timing
+    type: event
+    name: browser.resource_timing
+    stability: development
+    brief: >
+      This event represents the loading of a single resource by the page, as reported by the
+      [PerformanceResourceTiming](https://developer.mozilla.org/docs/Web/API/PerformanceResourceTiming)
+      API.
+    attributes:
+      - ref: url.full
+        requirement_level: required
+        brief: The URL of the resource.
+      - ref: browser.resource_timing.initiator_type
+        requirement_level: required
+      - ref: browser.resource_timing.duration
+        requirement_level: required
+      - ref: browser.resource_timing.worker_start
+        requirement_level: required
+      - ref: browser.resource_timing.redirect_start
+        requirement_level: required
+      - ref: browser.resource_timing.redirect_end
+        requirement_level: required
+      - ref: browser.resource_timing.fetch_start
+        requirement_level: required
+      - ref: browser.resource_timing.domain_lookup_start
+        requirement_level: required
+      - ref: browser.resource_timing.domain_lookup_end
+        requirement_level: required
+      - ref: browser.resource_timing.connect_start
+        requirement_level: required
+      - ref: browser.resource_timing.connect_end
+        requirement_level: required
+      - ref: browser.resource_timing.secure_connection_start
+        requirement_level: required
+      - ref: browser.resource_timing.request_start
+        requirement_level: required
+      - ref: browser.resource_timing.response_start
+        requirement_level: required
+      - ref: browser.resource_timing.response_end
+        requirement_level: required
+      - ref: browser.resource_timing.transfer_size
+        requirement_level: required
+      - ref: browser.resource_timing.encoded_body_size
+        requirement_level: required
+      - ref: browser.resource_timing.decoded_body_size
+        requirement_level: required
+      - ref: browser.resource_timing.next_hop_protocol
+        requirement_level: recommended
+      - ref: browser.resource_timing.render_blocking_status
+        requirement_level: recommended
+
+  - id: event.browser.user_action.click
+    type: event
+    name: browser.user_action.click
+    stability: development
+    brief: >
+      This event represents a click by the user on an element of the page.
+    attributes:
+      - ref: browser.css_selector
+        requirement_level: required
+      - ref: browser.tag_name
+        requirement_level: required
+      - ref: browser.mouse_event.button
+        requirement_level: required
+      - ref: browser.page.x
+        requirement_level: required
+      - ref: browser.page.y
+        requirement_level: required
+      - ref: browser.element.attributes
+        requirement_level: required
