@@ -224,7 +224,7 @@ after the global providers are set, so the instrumentations receive the tracer a
 and disables them when the SDK shuts down.
 
 The option is available in `quickStartBrowserSdk`, `startBrowserSdk`, and in the standalone signal
-SDKs (`startLogsSdk` / `startTracesSdk`).
+SDKs (`startLogsSdk` / `startTracesSdk`). For example, to register the `FetchInstrumentation` with the SDK:
 
 ```javascript
 import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
