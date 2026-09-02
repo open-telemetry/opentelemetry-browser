@@ -3,5 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export type { Instrumentation } from '@opentelemetry/instrumentation';
 export type { TracesConfig, WebSdk } from '../core/types.ts';
 export { startTracesSdk } from './startTracesSdk.ts';

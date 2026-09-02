@@ -4,6 +4,7 @@
  */
 
 import { diag } from '@opentelemetry/api';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { setSdkLogger } from './diag.ts';
 import type {
   CommonConfig,
@@ -148,8 +149,17 @@ export function combineSdks<T extends SdkFactories>(
       sdks.push(factories.traces(tracesConfig));
     }
 
+    // Register instrumentations
+    let deregisterInstrumentations: (() => void) | undefined;
+    if (rootConfig.instrumentations?.length) {
+      deregisterInstrumentations = registerInstrumentations({
+        instrumentations: rootConfig.instrumentations,
+      });
+    }
+
     return {
       shutdown() {
+        deregisterInstrumentations?.();
         return Promise.allSettled(sdks.map((s) => s.shutdown())).then(
           (results) => {
             const errors = [];
