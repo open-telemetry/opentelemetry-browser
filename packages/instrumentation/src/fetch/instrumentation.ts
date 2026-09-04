@@ -12,10 +12,6 @@ import {
   trace,
 } from '@opentelemetry/api';
 import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_REQUEST_METHOD_ORIGINAL,
@@ -24,6 +20,8 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
+import { safeExecuteInTheMiddle } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
@@ -55,10 +53,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
 
   constructor(config: FetchInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/fetch', version, config);
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {

@@ -5,7 +5,6 @@
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { hrTimeToMilliseconds, millisToHrTime } from '@opentelemetry/core';
-import { isWrapped } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -267,33 +266,33 @@ describe('XhrInstrumentation', () => {
     });
 
     it('should wrap XHR prototype when instantiated', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
       instrumentation = new XhrInstrumentation();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
 
     it('should not wrap XHR prototype when instantiated with `enabled: false`', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
       instrumentation = new XhrInstrumentation({ enabled: false });
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
       instrumentation.enable();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
 
     it('should not unwrap XHR prototype when disabled', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
       instrumentation = new XhrInstrumentation();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
       instrumentation.disable();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
     const wrappedMethods = ['open', 'send'];
     // Same behavior regardless the method that has the error
@@ -332,18 +331,86 @@ describe('XhrInstrumentation', () => {
 
         it('should leave XHR prototype unwrapped when _wrap fails', () => {
           instrumentation.enable();
-          expect(
-            isWrapped(globalThis.XMLHttpRequest.prototype.open),
-          ).toBeFalsy();
-          expect(
-            isWrapped(globalThis.XMLHttpRequest.prototype.send),
-          ).toBeFalsy();
+          expect(globalThis.XMLHttpRequest.prototype.open).toBe(
+            originalOpenFunction,
+          );
+          expect(globalThis.XMLHttpRequest.prototype.send).toBe(
+            originalSendFunction,
+          );
         });
 
         it('should allow enable() to be retried after _wrap fails', () => {
           instrumentation.enable();
           expect(() => instrumentation.enable()).not.toThrow();
         });
+      });
+    });
+
+    // The partial-patch path, where `open` is really wrapped and `send` then
+    // really fails. The stubbed-`_wrap` blocks above never patch anything, so
+    // they cannot show what the orphaned `open` patch does.
+    describe('when "send" fails after "open" was wrapped', () => {
+      beforeEach(() => {
+        // `writable: false` makes `_wrap`'s assignment throw the way a
+        // third-party lock would. Unlike the fully locked slot described above,
+        // `configurable: true` keeps this reversible, so afterEach can undo it.
+        Object.defineProperty(XMLHttpRequest.prototype, 'send', {
+          value: originalSendFunction,
+          writable: false,
+        });
+      });
+
+      afterEach(() => {
+        // Runs before the enclosing afterEach, which restores `send` by
+        // assignment and would throw while the slot is non-writable.
+        Object.defineProperty(XMLHttpRequest.prototype, 'send', {
+          value: originalSendFunction,
+          writable: true,
+        });
+      });
+
+      it('should leave the "open" patch installed', () => {
+        instrumentation = new XhrInstrumentation();
+
+        expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+        expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+      });
+
+      it('should not stack another "open" patch when enable() is retried', () => {
+        // Counts `_wrap` layers by walking the `__original` chain. Retries must
+        // not add layers: `_wrap` is install-only, so a second wrap could never
+        // be undone.
+        const wrapDepth = (fn: unknown): number => {
+          let depth = 0;
+          let current = fn as { __original?: unknown } | undefined;
+          while (current && typeof current.__original === 'function') {
+            depth += 1;
+            current = current.__original as { __original?: unknown };
+          }
+          return depth;
+        };
+
+        instrumentation = new XhrInstrumentation();
+        expect(wrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
+
+        instrumentation.enable();
+        instrumentation.enable();
+
+        expect(wrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
+      });
+
+      it('should keep the orphaned "open" patch inert', async () => {
+        instrumentation = new XhrInstrumentation();
+
+        const { request } = await doXhrRequest({
+          method: 'GET',
+          url: getUrlForPath('/api/get'),
+        });
+
+        // `enable()` bailed before setting `_isEnabled`, so `patchedOpen`
+        // passes straight through: the request works and emits nothing.
+        expect(request.status).toBe(200);
+        expect(getXhrSpans()).toHaveLength(0);
       });
     });
   });
