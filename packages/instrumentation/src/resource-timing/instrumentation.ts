@@ -5,7 +5,7 @@
 
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import { matchesUrl } from '../utils/url.ts';
@@ -75,10 +75,6 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       version,
       config,
     );
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {

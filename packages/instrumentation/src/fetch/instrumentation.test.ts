@@ -4,7 +4,6 @@
  */
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
-import { isWrapped } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -285,25 +284,25 @@ describe('FetchInstrumentation', () => {
     });
 
     it('should wrap global fetch when instantiated', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation = new FetchInstrumentation();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
     });
 
     it('should not wrap global fetch when instantiated with `enabled: false`', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation = new FetchInstrumentation({ enabled: false });
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation.enable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
     });
 
     it('should not unwrap global fetch when disabled', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation = new FetchInstrumentation();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
       instrumentation.disable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
     });
 
     describe('when the fetch property cannot be wrapped', () => {
@@ -333,7 +332,7 @@ describe('FetchInstrumentation', () => {
 
       it('should leave fetch unwrapped when _wrap fails', () => {
         instrumentation.enable();
-        expect(isWrapped(globalThis.fetch)).toBeFalsy();
+        expect(globalThis.fetch).toBe(originalFetchFunction);
       });
 
       it('should allow enable() to be retried after _wrap fails', () => {

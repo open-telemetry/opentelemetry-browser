@@ -7,14 +7,12 @@ import type { Attributes } from '@opentelemetry/api';
 import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import {
   ATTR_EXCEPTION_MESSAGE,
   ATTR_EXCEPTION_STACKTRACE,
   ATTR_EXCEPTION_TYPE,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
+import { safeExecuteInTheMiddle } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import type { ErrorsInstrumentationConfig } from './types.ts';
 
@@ -31,10 +29,6 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
 
   constructor(config: ErrorsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/errors', version, config);
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {

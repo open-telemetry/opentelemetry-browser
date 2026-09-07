@@ -5,7 +5,7 @@
 
 import { context } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 import type { ConsoleInstrumentationConfig, ConsoleMethod } from './types.ts';
@@ -55,10 +55,6 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
 
   constructor(config: ConsoleInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/console', version, config);
-  }
-
-  protected override init() {
-    return [];
   }
 
   private _getMessageSerializer(): (args: unknown[]) => string {

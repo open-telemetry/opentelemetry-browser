@@ -6,16 +6,14 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
+import { InstrumentationBase } from '#instrumentation-base';
+import { safeExecuteInTheMiddle } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_WEB_VITAL_DELTA,
@@ -49,10 +47,6 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
     this._applyCustomLogRecordData = config.applyCustomLogRecordData;
     this._includeRawAttribution = config.includeRawAttribution ?? false;
-  }
-
-  protected override init() {
-    return [];
   }
 
   /**

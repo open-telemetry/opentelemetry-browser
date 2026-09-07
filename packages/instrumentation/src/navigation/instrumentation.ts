@@ -5,10 +5,8 @@
 
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
+import { safeExecuteInTheMiddle } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,
@@ -68,10 +66,6 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   constructor(config: NavigationInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/navigation', version, config);
     this._lastUrl = location.href;
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {

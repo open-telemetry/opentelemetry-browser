@@ -4,7 +4,7 @@
  */
 
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -60,10 +60,6 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       version,
       config,
     );
-  }
-
-  protected override init() {
-    return [];
   }
 
   override enable(): void {

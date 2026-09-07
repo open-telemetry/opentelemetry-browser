@@ -25,14 +25,6 @@ describe('ConsoleInstrumentation', () => {
 
   beforeAll(() => {
     originalConsole = globalThis.console;
-    globalThis.console = {
-      error: () => {},
-      log: () => {},
-      info: () => {},
-      warn: () => {},
-      trace: () => {},
-      debug: () => {},
-    } as unknown as Console;
     inMemoryExporter = setupTestLogExporter();
   });
 
@@ -41,6 +33,17 @@ describe('ConsoleInstrumentation', () => {
   });
 
   beforeEach(() => {
+    // Start every test from a fresh, unwrapped console. Patches are install-only
+    // (no unwrap), so reusing one mocked console across tests would accumulate
+    // wraps from each test's instance and leak emissions between tests.
+    globalThis.console = {
+      error: () => {},
+      log: () => {},
+      info: () => {},
+      warn: () => {},
+      trace: () => {},
+      debug: () => {},
+    } as unknown as Console;
     inMemoryExporter.reset();
     instrumentation = new ConsoleInstrumentation();
   });
