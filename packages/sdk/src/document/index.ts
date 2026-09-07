@@ -1,0 +1,7 @@
+/*
+ * Copyright The OpenTelemetry Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+export { ATTR_BROWSER_DOCUMENT_URL_FULL } from './semconv.ts';
+export type { DocumentProvider } from './types/DocumentProvider.ts';
