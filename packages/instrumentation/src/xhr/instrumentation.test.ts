@@ -734,7 +734,7 @@ describe('XhrInstrumentation', () => {
         await doXhrRequest({ method: 'GET', url });
 
         // No spans to export
-        expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(async () => await waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });
