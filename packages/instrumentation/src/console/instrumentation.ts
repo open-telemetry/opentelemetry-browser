@@ -50,8 +50,8 @@ function defaultMessageSerializer(args: unknown[]): string {
  * OpenTelemetry instrumentation that captures console calls and emits them as OpenTelemetry logs.
  */
 export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumentationConfig> {
-  private declare _isPatched: boolean;
-  private declare _active: boolean;
+  declare private _isPatched: boolean;
+  declare private _active: boolean;
 
   constructor(config: ConsoleInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/console', version, config);
