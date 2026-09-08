@@ -323,7 +323,6 @@ describe('FetchInstrumentation', () => {
         // `enable()` runs — `_wrap` is an instance-level field inherited
         // from `InstrumentationBase`, not a prototype method.
         instrumentation = new FetchInstrumentation({ enabled: false });
-        // @ts-expect-error access internal property for testing
         vi.spyOn(instrumentation, '_wrap').mockThrow(wrapError);
       });
 
