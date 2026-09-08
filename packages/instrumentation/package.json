@@ -50,6 +50,7 @@
     "build": "tsdown",
     "watch": "tsdown --watch --no-clean",
     "check-types": "tsc",
+    "msw:init": "msw init public --save",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
@@ -72,5 +73,10 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
