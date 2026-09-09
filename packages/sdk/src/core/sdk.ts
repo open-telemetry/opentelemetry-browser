@@ -5,6 +5,7 @@
 
 import { diag } from '@opentelemetry/api';
 import { setSdkLogger } from './diag.ts';
+import { parseExportUrl } from './exportUrl.ts';
 import type {
   CommonConfig,
   LogsConfig,
@@ -32,12 +33,31 @@ type ExtractConfigs<T> = Partial<{
     : never;
 }>;
 
+/**
+ * Concrete view of the config used inside `startSdk`. It is structurally a
+ * superset of `RootConfig & ExtractConfigs<T>` for any `T`, so the returned
+ * function stays assignable to the precise, factory-derived public type while
+ * the body can read each signal's config without casting.
+ */
+type CombinedConfig = RootConfig & {
+  logs?: RemoveCommonProps<LogsConfig>;
+  traces?: RemoveCommonProps<TracesConfig>;
+};
+
 const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
 };
-const NOOP_SDK = { shutdown: () => Promise.resolve() };
+// Returned when the SDK is intentionally turned off via `config.disabled`.
+const NOOP_SDK: WebSdk = { shutdown: () => Promise.resolve() };
+// Returned when the SDK refuses to start because of an invalid configuration
+// (e.g. a bad export URL). `invalidConfig` lets callers tell this apart from an
+// intentional disable and surface the mistake.
+const INVALID_CONFIG_SDK: WebSdk = {
+  invalidConfig: true,
+  shutdown: () => Promise.resolve(),
+};
 
 /**
  * Combines different SDK factory functions into a single one
@@ -48,7 +68,7 @@ export function combineSdks<T extends SdkFactories>(
 ): WebSdkFactory<RootConfig & ExtractConfigs<T>> {
   // The returned function will transform some of the global
   // configuration options to signal specific ones if the SDK is available
-  return function startSdk(config?: RootConfig & ExtractConfigs<T>) {
+  return function startSdk(config?: CombinedConfig) {
     // Check the global config and set defaults
     const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
@@ -57,7 +77,6 @@ export function combineSdks<T extends SdkFactories>(
 
     if (config?.disabled) {
       diag.debug('Browser SDK disabled by configuration.');
-      // TODO: need to discuss with the SIG if it's better to return `undefined`
       return NOOP_SDK;
     }
 
@@ -82,26 +101,40 @@ export function combineSdks<T extends SdkFactories>(
     };
 
     const sdks: WebSdk[] = [];
-    const endpointUrl = URL.parse(
+
+    // Validate every export URL before starting any signal SDK, so an invalid
+    // URL cannot leave one signal exporting while the other refuses to start.
+    const endpointUrl = parseExportUrl(
       rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
     );
-
     if (!endpointUrl) {
-      diag.error(
-        `Invalid export URL "${rootConfig.exportConfig.url}". Browser SDK won't start.`,
-      );
-      // TODO: need to discuss with the SIG if it's better to return `undefined`
-      return NOOP_SDK;
+      return INVALID_CONFIG_SDK;
+    }
+    // Resolve each signal's config once so it can be validated here and reused
+    // when starting the signals below.
+    const logsConfig: LogsConfig = config?.logs || {};
+    const tracesConfig: TracesConfig = config?.traces || {};
+    const signalExportUrls: [string, string | undefined][] = [
+      ['Logs SDK', logsConfig.exportConfig?.url],
+      ['Traces SDK', tracesConfig.exportConfig?.url],
+    ];
+    for (const [scope, signalUrl] of signalExportUrls) {
+      // Only bail out when a signal explicitly sets an invalid URL. An unset
+      // signal URL inherits the (already validated) root endpoint, so it must
+      // not block the SDK from starting.
+      if (signalUrl && !parseExportUrl(signalUrl, scope)) {
+        return INVALID_CONFIG_SDK;
+      }
     }
 
     // Start logs
     if (factories.logs) {
-      const logsConfig = (config?.logs || {}) as LogsConfig;
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
-      // Propagate root configs to signal configs only when the signal does not
-      // have custom processors. When processors are provided, exportConfig and
-      // batchProcessorConfig are intentionally ignored per the LogsConfig docs.
+      // Propagate root configs to the signal only when it has no custom
+      // processors. A signal with its own processors manages its own exporter,
+      // so the root exportConfig / batchProcessorConfig are not pushed down —
+      // the signal's own exportConfig, if any, is still honored downstream.
       if (!logsConfig.processors) {
         if (!logsConfig.batchProcessorConfig) {
           logsConfig.batchProcessorConfig =
@@ -123,12 +156,12 @@ export function combineSdks<T extends SdkFactories>(
 
     // Start traces
     if (factories.traces) {
-      const tracesConfig = (config?.traces || {}) as TracesConfig;
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
-      // Propagate root configs to signal configs only when the signal does not
-      // have custom processors. When processors are provided, exportConfig and
-      // batchProcessorConfig are intentionally ignored per the TracesConfig docs.
+      // Propagate root configs to the signal only when it has no custom
+      // processors. A signal with its own processors manages its own exporter,
+      // so the root exportConfig / batchProcessorConfig are not pushed down —
+      // the signal's own exportConfig, if any, is still honored downstream.
       if (!tracesConfig.processors) {
         if (!tracesConfig.batchProcessorConfig) {
           tracesConfig.batchProcessorConfig =
