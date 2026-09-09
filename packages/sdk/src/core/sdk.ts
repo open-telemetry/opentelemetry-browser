@@ -23,7 +23,7 @@ interface SdkFactories {
 }
 
 /**
- * Utility functions to extract the configurations from the factory
+ * Utility types to extract the configurations from the factory
  * functions and remove the common properties (which will be already
  * available at the config root)
  */
@@ -61,8 +61,8 @@ const INVALID_CONFIG_SDK: WebSdk = {
 };
 
 /**
- * Combines different SDK factory functions into a single one
- * which accepts a global configuration along
+ * Combines different SDK factory functions into a single one which accepts a
+ * root configuration shared by every signal
  */
 export function combineSdks<T extends SdkFactories>(
   factories: T,
