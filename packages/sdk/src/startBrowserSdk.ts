@@ -14,6 +14,7 @@ import {
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
 import { combineSdks } from './core/sdk.ts';
+import type { ExportConfig } from './core/types.ts';
 import { startLogsSdk } from './logs/startLogsSdk.ts';
 import { startTracesSdk } from './traces/startTracesSdk.ts';
 
@@ -71,20 +72,22 @@ export interface QuickStartConfig {
  * a much simpler configuration object.
  */
 export function quickStartBrowserSdk(config: QuickStartConfig) {
+  const exportConfig: ExportConfig = {
+    url: config.exportUrl,
+    headers: config.exportHeaders,
+  };
   const sdkConfig: Parameters<typeof startBrowserSdk>[0] = {
     disabled: config.disabled,
     logLevel: config.logLevel,
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
     instrumentations: config.instrumentations,
-    // Explicit export configuration enables the Batch processors
-    exportConfig: {
-      url: config.exportUrl,
-      headers: config.exportHeaders,
-    },
+    exportConfig,
   };
 
-  // Add console processors if the user wants to debug
+  // Setting `processors` stops the root `exportConfig` from propagating, so repeat
+  // it here or DEBUG would drop the OTLP export. Each signal needs its own object
+  // with no `url`: `combineSdks` writes the root URL plus the signal path into it.
   if (config.logLevel === 'DEBUG') {
     sdkConfig.logs = {
       processors: [
@@ -92,11 +95,13 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
           exporter: new ConsoleLogRecordExporter(),
         }),
       ],
+      exportConfig: { ...exportConfig, url: undefined },
     };
     sdkConfig.traces = {
       processors: [
         new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
       ],
+      exportConfig: { ...exportConfig, url: undefined },
     };
   }
 

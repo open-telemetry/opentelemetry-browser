@@ -71,12 +71,17 @@ describe('startBrowserSdk', () => {
   // NOTE: the logs and trace APIs only accept one provider registration, so
   // they are disabled after each test to let the next one register its own
   afterEach(async () => {
-    await browserSdk?.shutdown();
-    fetchSpy.mockClear();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
+    // `finally` so a failed shutdown still fails the test without leaking the
+    // spy and the registered providers into the next one
+    try {
+      await browserSdk?.shutdown();
+    } finally {
+      fetchSpy.mockClear();
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
+    }
   });
 
   it('should not start disabled by configuration', async () => {
@@ -260,21 +265,21 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy = vi.spyOn(diag, 'debug');
   });
   afterEach(async () => {
-    // A test may already have shut the SDK down to flush its batch
-    // processors; ignore the resulting "already shutdown" error so the
-    // provider globals are always reset for the next test.
+    // Tests shut the SDK down themselves to flush their batch processors. A
+    // second `shutdown()` replays the result of the first, so a rejection here
+    // is a real failure and must fail the test. The `finally` keeps the next
+    // test clean when that happens.
     try {
       await browserSdk?.shutdown();
-    } catch {
-      /* already shut down within the test */
+    } finally {
+      fetchSpy.mockRestore();
+      consoleDirSpy.mockRestore();
+      diagDebugSpy.mockRestore();
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
     }
-    fetchSpy.mockRestore();
-    consoleDirSpy.mockRestore();
-    diagDebugSpy.mockRestore();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {
@@ -350,14 +355,36 @@ describe('quickStartBrowserSdk', () => {
     // Act
     browserSdk = quickStartBrowserSdk({
       exportUrl: 'http://otlp-signal-endpoint:4318',
+      exportHeaders: { bar: 'baz' },
       logLevel: 'DEBUG',
     });
-    // Console exporters use SimpleProcessors, which export synchronously
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    // The console exporters use SimpleProcessors and have already exported.
+    // The OTLP batch processors need this flush.
+    await browserSdk.shutdown();
 
-    // Assert: the console exporters write to `console.dir`
-    expect(consoleDirSpy).toHaveBeenCalled();
+    // Assert: both console exporters write to `console.dir`
+    expect(consoleDirSpy).toHaveBeenCalledTimes(2);
+    // Console processors are additive: `exportUrl` is required, so debugging must
+    // not silently turn OTLP export off, nor export a signal twice
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/traces',
+      ),
+    ).toBeDefined();
+    fetchSpy.mock.calls.forEach((args) => {
+      expect(args[1]).containSubset({
+        method: 'POST',
+        headers: { bar: 'baz' },
+      });
+    });
   });
 
   it('should forward instrumentations to the SDK', async () => {
