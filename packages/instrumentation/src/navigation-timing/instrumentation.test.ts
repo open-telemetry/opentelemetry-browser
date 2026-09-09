@@ -63,12 +63,13 @@ describe('NavigationTimingInstrumentation', () => {
   afterEach(() => {
     instrumentation.disable();
     inMemoryExporter.reset();
-    getEntriesByTypeSpy.mockRestore();
     document.body.innerHTML = '';
     restoreReadyState?.();
     restoreReadyState = undefined;
     restoreGetEntriesByType?.();
     restoreGetEntriesByType = undefined;
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('should create an instance of NavigationTimingInstrumentation', () => {
@@ -292,7 +293,6 @@ describe('NavigationTimingInstrumentation', () => {
       vi.runOnlyPendingTimers();
     }
 
-    setTimeoutSpy.mockRestore();
     vi.useRealTimers();
   });
 
@@ -503,9 +503,6 @@ describe('NavigationTimingInstrumentation', () => {
       'pagehide',
       expect.any(Function),
     );
-
-    addEventListenerSpy.mockRestore();
-    removeEventListenerSpy.mockRestore();
   });
 
   it('should not subscribe multiple listeners when calling enable() consecutively', () => {
@@ -539,7 +536,5 @@ describe('NavigationTimingInstrumentation', () => {
       (call) => call[0] === 'load',
     );
     expect(loadCalls.length).toBe(1);
-
-    addEventListenerSpy.mockRestore();
   });
 });
