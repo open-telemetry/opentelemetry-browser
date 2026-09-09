@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.3.0...browser-sdk-v0.4.0) (2026-09-09)
+
+
+### Features
+
+* **sdk:** populate browser.document.url.full on all spans and log records ([#421](https://github.com/open-telemetry/opentelemetry-browser/issues/421)) ([a2b4cf8](https://github.com/open-telemetry/opentelemetry-browser/commit/a2b4cf8305eec57422045bd0b47aa42eafacffd8))
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#419](https://github.com/open-telemetry/opentelemetry-browser/issues/419)) ([d1f765d](https://github.com/open-telemetry/opentelemetry-browser/commit/d1f765d08bbcdd120396ef8a82b3864ec92c82cc))
+
 ## [0.3.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.2.0...browser-sdk-v0.3.0) (2026-08-27)
 
 
