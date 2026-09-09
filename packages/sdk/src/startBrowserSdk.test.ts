@@ -65,12 +65,11 @@ describe('startBrowserSdk', () => {
   const diagDebugSpy = vi.spyOn(diag, 'debug');
   let browserSdk: WebSdk;
 
-  // NOTE: we mock the registration of the logger/tracer provider because
-  // the APIs only allow to register once. With the mock we can use
-  // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
   });
+  // NOTE: the logs and trace APIs only accept one provider registration, so
+  // they are disabled after each test to let the next one register its own
   afterEach(async () => {
     await browserSdk?.shutdown();
     fetchSpy.mockClear();
