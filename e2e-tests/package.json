@@ -2,6 +2,9 @@
   "name": "e2e-tests",
   "private": true,
   "type": "module",
+  "scripts": {
+    "msw:init": "msw init public --save"
+  },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/api-logs": "^0.222.0",
@@ -14,5 +17,10 @@
     "@opentelemetry/sdk-logs": "^0.222.0",
     "@opentelemetry/sdk-trace": "^2.11.0",
     "msw": "^2.15.0"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }

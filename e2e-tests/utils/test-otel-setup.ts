@@ -1,4 +1,4 @@
-import { context, trace } from '@opentelemetry/api';
+import { context, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
@@ -42,6 +42,7 @@ export function testSdkSetup(
       logs.disable();
       trace.disable();
       context.disable();
+      propagation.disable();
     },
   };
 }

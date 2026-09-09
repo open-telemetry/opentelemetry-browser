@@ -65,9 +65,9 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   // Use `declare` to prevent JS class field initializers from running after
   // super(), which would reset values set by the enable() call that
   // InstrumentationBase makes during its constructor.
-  private declare _isEnabled: boolean;
-  private declare _loadHandler: (() => void) | undefined;
-  private declare _visibilityChangeHandler: (() => void) | undefined;
+  declare private _isEnabled: boolean;
+  declare private _loadHandler: (() => void) | undefined;
+  declare private _visibilityChangeHandler: (() => void) | undefined;
 
   constructor(config: ResourceTimingInstrumentationConfig = {}) {
     super(
