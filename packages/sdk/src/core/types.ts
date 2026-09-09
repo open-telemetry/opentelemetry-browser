@@ -129,7 +129,8 @@ export type RootConfig = CommonConfig & {
   /**
    * Configuration for processors. If defined it will be applied to
    * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless the signal sets
-   * its own `batchProcessorConfig` or `processors`.
+   * its own `batchProcessorConfig`. It follows any batch processor the SDK
+   * creates, including the one a signal gets from its own `exportConfig`.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
@@ -170,7 +171,8 @@ export type LogsConfig = CommonConfig & {
    * over OTLP alongside them, additionally set `exportConfig` — this appends a
    * `BatchLogRecordProcessor` (tuned by `batchProcessorConfig`). When
    * `exportConfig` is omitted, no OTLP exporter is added and
-   * `batchProcessorConfig` has no effect.
+   * `batchProcessorConfig` has no effect; the SDK warns when a root export URL
+   * was set.
    */
   processors?: LogRecordProcessor[];
 };
@@ -218,7 +220,7 @@ export type TracesConfig = CommonConfig & {
    * alongside them, additionally set `exportConfig` — this appends a
    * `BatchSpanProcessor` (tuned by `batchProcessorConfig`). When `exportConfig`
    * is omitted, no OTLP exporter is added and `batchProcessorConfig` has no
-   * effect.
+   * effect; the SDK warns when a root export URL was set.
    *
    * @defaultValue undefined
    */

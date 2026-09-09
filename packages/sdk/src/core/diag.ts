@@ -12,7 +12,11 @@ import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 let loggerSet = false;
 export function setSdkLogger(level: keyof typeof DiagLogLevel = 'INFO') {
   if (loggerSet) {
-    diag.debug('Logger for SDKs already set.');
+    // `warn` and not `debug`: the level being ignored here may be the one that
+    // would have made this message visible
+    diag.warn(
+      `Logger for SDKs already set. The log level "${level}" is ignored.`,
+    );
     return;
   }
   // Although the types will error if user pass a wrong value

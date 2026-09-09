@@ -6,6 +6,10 @@
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
+import {
+  ConsoleLogRecordExporter,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -63,6 +67,8 @@ describe('startBrowserSdk', () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
+  let consoleDirSpy: MockInstance | undefined;
   let browserSdk: WebSdk;
 
   afterAll(() => {
@@ -77,6 +83,9 @@ describe('startBrowserSdk', () => {
       await browserSdk?.shutdown();
     } finally {
       fetchSpy.mockClear();
+      diagWarnSpy.mockClear();
+      consoleDirSpy?.mockRestore();
+      consoleDirSpy = undefined;
       logs.disable();
       trace.disable();
       context.disable();
@@ -239,6 +248,103 @@ describe('startBrowserSdk', () => {
     // Assert
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
+
+  it('should warn when a signal opts out of the root export config', async () => {
+    // Arrange
+    consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: logs opted out of OTLP, traces still export, and the user is told
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      'http://otlp-signal-endpoint:4318/v1/traces',
+    );
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        /"logs" config sets `processors`/.test(args[0]),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should warn when the export URL path is replaced by the signal path', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318/otlp',
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: the `/otlp` prefix is dropped, which is easy to miss without a warning
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        /path "\/otlp" is replaced/.test(args[0]),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should propagate the root batch config to a signal that sets processors and exportConfig', async () => {
+    // Arrange
+    consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+        exportConfig: {},
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: exporting within the short delay proves the root schedule was
+    // used. The 1000ms default for logs would not have flushed yet.
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
   });
 });
 
