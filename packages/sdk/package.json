@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-sdk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",
@@ -32,6 +32,10 @@
     "./traces": {
       "types": "./dist/traces/index.d.ts",
       "default": "./dist/traces/index.js"
+    },
+    "./document": {
+      "types": "./dist/document/index.d.ts",
+      "default": "./dist/document/index.js"
     },
     "./session": {
       "types": "./dist/session/index.d.ts",
