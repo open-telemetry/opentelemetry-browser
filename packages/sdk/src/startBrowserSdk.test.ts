@@ -6,6 +6,10 @@
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
+import {
+  ConsoleLogRecordExporter,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -63,21 +67,30 @@ describe('startBrowserSdk', () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
+  let consoleDirSpy: MockInstance | undefined;
   let browserSdk: WebSdk;
 
-  // NOTE: we mock the registration of the logger/tracer provider because
-  // the APIs only allow to register once. With the mock we can use
-  // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
   });
+  // NOTE: the logs and trace APIs only accept one provider registration, so
+  // they are disabled after each test to let the next one register its own
   afterEach(async () => {
-    await browserSdk?.shutdown();
-    fetchSpy.mockClear();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
+    // `finally` so a failed shutdown still fails the test without leaking the
+    // spy and the registered providers into the next one
+    try {
+      await browserSdk?.shutdown();
+    } finally {
+      fetchSpy.mockClear();
+      diagWarnSpy.mockClear();
+      consoleDirSpy?.mockRestore();
+      consoleDirSpy = undefined;
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
+    }
   });
 
   it('should not start disabled by configuration', async () => {
@@ -236,6 +249,103 @@ describe('startBrowserSdk', () => {
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
   });
+
+  it('should warn when a signal opts out of the root export config', async () => {
+    // Arrange
+    consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: logs opted out of OTLP, traces still export, and the user is told
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      'http://otlp-signal-endpoint:4318/v1/traces',
+    );
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        /"logs" config sets `processors`/.test(args[0]),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should warn when the export URL path is replaced by the signal path', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318/otlp',
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: the `/otlp` prefix is dropped, which is easy to miss without a warning
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        /path "\/otlp" is replaced/.test(args[0]),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should propagate the root batch config to a signal that sets processors and exportConfig', async () => {
+    // Arrange
+    consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+        exportConfig: {},
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: exporting within the short delay proves the root schedule was
+    // used. The 1000ms default for logs would not have flushed yet.
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+  });
 });
 
 describe('quickStartBrowserSdk', () => {
@@ -261,21 +371,21 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy = vi.spyOn(diag, 'debug');
   });
   afterEach(async () => {
-    // A test may already have shut the SDK down to flush its batch
-    // processors; ignore the resulting "already shutdown" error so the
-    // provider globals are always reset for the next test.
+    // Tests shut the SDK down themselves to flush their batch processors. A
+    // second `shutdown()` replays the result of the first, so a rejection here
+    // is a real failure and must fail the test. The `finally` keeps the next
+    // test clean when that happens.
     try {
       await browserSdk?.shutdown();
-    } catch {
-      /* already shut down within the test */
+    } finally {
+      fetchSpy.mockRestore();
+      consoleDirSpy.mockRestore();
+      diagDebugSpy.mockRestore();
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
     }
-    fetchSpy.mockRestore();
-    consoleDirSpy.mockRestore();
-    diagDebugSpy.mockRestore();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {
@@ -351,14 +461,36 @@ describe('quickStartBrowserSdk', () => {
     // Act
     browserSdk = quickStartBrowserSdk({
       exportUrl: 'http://otlp-signal-endpoint:4318',
+      exportHeaders: { bar: 'baz' },
       logLevel: 'DEBUG',
     });
-    // Console exporters use SimpleProcessors, which export synchronously
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    // The console exporters use SimpleProcessors and have already exported.
+    // The OTLP batch processors need this flush.
+    await browserSdk.shutdown();
 
-    // Assert: the console exporters write to `console.dir`
-    expect(consoleDirSpy).toHaveBeenCalled();
+    // Assert: both console exporters write to `console.dir`
+    expect(consoleDirSpy).toHaveBeenCalledTimes(2);
+    // Console processors are additive: `exportUrl` is required, so debugging must
+    // not silently turn OTLP export off, nor export a signal twice
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/traces',
+      ),
+    ).toBeDefined();
+    fetchSpy.mock.calls.forEach((args) => {
+      expect(args[1]).containSubset({
+        method: 'POST',
+        headers: { bar: 'baz' },
+      });
+    });
   });
 
   it('should forward instrumentations to the SDK', async () => {

@@ -83,7 +83,11 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     spanProcessors,
     sampler: config?.sampler,
   });
-  trace.setGlobalTracerProvider(tracerProvider);
+  if (!trace.setGlobalTracerProvider(tracerProvider)) {
+    diag.error(
+      'A global TracerProvider is already registered. This SDK instance will not receive any spans. Call `shutdown()` on the previous SDK before starting a new one.',
+    );
+  }
 
   const propagators = config?.propagators ?? getDefaultPropagators();
   propagation.setGlobalPropagator(new CompositePropagator({ propagators }));
