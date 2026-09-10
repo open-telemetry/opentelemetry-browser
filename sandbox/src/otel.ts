@@ -28,7 +28,6 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import {
@@ -155,10 +154,7 @@ export async function initOtel(
       exportConfig: { url: config.logsUrl, headers: {} },
       batchProcessorConfig: BATCH_PROCESSOR_CONFIG,
     },
-  });
 
-  // ── Auto-instrumentations ───────────────────────────────────────────────────
-  registerInstrumentations({
     instrumentations: [
       new ErrorsInstrumentation(),
       new NavigationTimingInstrumentation(),
