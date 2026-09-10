@@ -47,8 +47,8 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   // Also not initializing the fields to `false` because the base class
   // constructor already call `enable` modifying their values and it will
   // set the instrumentations in a base state (enabled, patched but with flags set to false)
-  private declare _isEnabled: boolean;
-  private declare _isFetchPatched: boolean;
+  declare private _isEnabled: boolean;
+  declare private _isFetchPatched: boolean;
 
   // To keep track of the resources
   private _spanResources: Map<Span, PerformanceResourceTiming> = new Map();

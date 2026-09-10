@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag, trace } from '@opentelemetry/api';
+import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import type { MockInstance } from 'vitest';
@@ -76,6 +76,8 @@ describe('startBrowserSdk', () => {
     fetchSpy.mockClear();
     logs.disable();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start disabled by configuration', async () => {
@@ -272,6 +274,8 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy.mockRestore();
     logs.disable();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {

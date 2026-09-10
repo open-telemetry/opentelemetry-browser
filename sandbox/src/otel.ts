@@ -11,6 +11,11 @@ import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentatio
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import type { TracesConfig } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+import {
+  createDocumentLogRecordProcessor,
+  createDocumentSpanProcessor,
+  createLocationDocumentProvider,
+} from '@opentelemetry/browser-sdk/document';
 import type { SessionManager } from '@opentelemetry/browser-sdk/session';
 import {
   createDefaultSessionIdGenerator,
@@ -90,11 +95,18 @@ export async function initOtel(
   });
   await sessionManager.start();
 
+  // ── Document context ────────────────────────────────────────────────────────
+  // Reads `location.href` as each span starts and each log record is emitted,
+  // so `browser.document.url.full` follows soft navigations with no bookkeeping.
+  const documentProvider = createLocationDocumentProvider();
+
   // ── Span processors ───────────────────────────────────────────────────────
-  // session (first, so session.id is set) → console → optional UI mirror.
+  // context first (so session.id and browser.document.url.full are set)
+  // → console → optional UI mirror.
   // The batching OTLP exporter is appended by startBrowserSdk (see below).
   const spanProcessors = [
     createSessionSpanProcessor(sessionManager),
+    createDocumentSpanProcessor(documentProvider),
     new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
   ];
   if (onSpan) {
@@ -106,6 +118,7 @@ export async function initOtel(
   // ── Log record processors ─────────────────────────────────────────────────
   const logProcessors = [
     createSessionLogRecordProcessor(sessionManager),
+    createDocumentLogRecordProcessor(documentProvider),
     new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ];
   if (onLog) {
