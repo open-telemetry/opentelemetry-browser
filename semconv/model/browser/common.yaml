@@ -1,0 +1,12 @@
+groups:
+  - id: attributes.browser.session
+    type: attribute_group
+    stability: development
+    brief: >
+      Session attributes that the browser SDK adds to the telemetry it emits.
+    note: >
+      When session tracking is enabled, the SDK sets `session.id` on every span and log record it
+      produces, including the events defined in this registry.
+    attributes:
+      - ref: session.id
+        requirement_level: recommended
