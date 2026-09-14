@@ -1,0 +1,20 @@
+groups:
+  - id: span.browser.http.client
+    type: span
+    span_kind: client
+    stability: development
+    brief: >
+      This span represents an outbound HTTP request made from the browser through `fetch` or
+      `XMLHttpRequest`.
+    note: >
+      The fetch and XHR instrumentations record the same attributes, so they share this group.
+      Both follow the upstream
+      [HTTP client span](https://opentelemetry.io/docs/specs/semconv/http/http-spans/)
+      conventions. The attributes they record from those conventions are stable, so the
+      instrumentations import their constants directly from
+      `@opentelemetry/semantic-conventions` and this registry does not restate them.
+      This group exists only to declare the attributes the instrumentations record that are
+      not yet stable upstream, and for which the package therefore exports no stable constant.
+    attributes:
+      - ref: http.request.body.size
+        requirement_level: opt_in

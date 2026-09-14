@@ -1,0 +1,422 @@
+groups:
+  - id: registry.browser.semconv
+    type: attribute_group
+    display_name: Browser Attributes
+    brief: >
+      Browser attributes emitted by the instrumentations in this repository that are not currently
+      defined by upstream OpenTelemetry semantic conventions.
+    stability: development
+    attributes:
+      # Console
+
+      - id: browser.console.method
+        type:
+          members:
+            - id: log
+              value: "log"
+              stability: development
+              brief: "`console.log` was called."
+            - id: info
+              value: "info"
+              stability: development
+              brief: "`console.info` was called."
+            - id: warn
+              value: "warn"
+              stability: development
+              brief: "`console.warn` was called."
+            - id: error
+              value: "error"
+              stability: development
+              brief: "`console.error` was called."
+            - id: debug
+              value: "debug"
+              stability: development
+              brief: "`console.debug` was called."
+        stability: development
+        brief: >
+          The console method that was called.
+        examples: ["error"]
+
+      # Navigation
+
+      - id: browser.navigation.same_document
+        type: boolean
+        stability: development
+        brief: >
+          Whether the navigation happened within the same document, without a full document load.
+        note: >
+          Soft navigations performed by a single-page application through the History or Navigation
+          API are same-document navigations; the initial page load is not.
+        examples: [true, false]
+
+      - id: browser.navigation.hash_change
+        type: boolean
+        stability: development
+        brief: >
+          Whether the navigation only changed the fragment of the URL.
+        examples: [true, false]
+
+      - id: browser.navigation.type
+        type:
+          members:
+            - id: push
+              value: "push"
+              stability: development
+              brief: A new entry was added to the history, e.g. by `history.pushState()`.
+            - id: replace
+              value: "replace"
+              stability: development
+              brief: The current history entry was replaced, e.g. by `history.replaceState()`.
+            - id: reload
+              value: "reload"
+              stability: development
+              brief: The current history entry was reloaded.
+            - id: traverse
+              value: "traverse"
+              stability: development
+              brief: An existing history entry was navigated to, e.g. by the back or forward button.
+        stability: development
+        brief: >
+          The type of the navigation, as reported by the
+          [Navigation API](https://developer.mozilla.org/docs/Web/API/NavigateEvent/navigationType).
+        examples: ["push"]
+
+      # Navigation timing
+      #
+      # Sourced from the
+      # [PerformanceNavigationTiming](https://developer.mozilla.org/docs/Web/API/PerformanceNavigationTiming)
+      # API. `PerformanceNavigationTiming` extends `PerformanceResourceTiming`, so the timings and
+      # transfer sizes it inherits are described by the `browser.resource_timing.*` attributes
+      # below rather than duplicated here.
+
+      - id: browser.navigation_timing.type
+        type:
+          members:
+            - id: navigate
+              value: "navigate"
+              stability: development
+              brief: Navigation started by clicking a link, entering a URL, a form submission, or a script operation.
+            - id: reload
+              value: "reload"
+              stability: development
+              brief: Navigation through a reload operation or a `Location.reload()` call.
+            - id: back_forward
+              value: "back_forward"
+              stability: development
+              brief: Navigation through the browser's history traversal, e.g. the back or forward button.
+            - id: prerender
+              value: "prerender"
+              stability: development
+              brief: Navigation to a page that was prerendered.
+        stability: development
+        brief: >
+          The type of the navigation, as reported by
+          [`PerformanceNavigationTiming.type`](https://developer.mozilla.org/docs/Web/API/PerformanceNavigationTiming/type).
+        examples: ["navigate"]
+
+      - id: browser.navigation_timing.dom_interactive
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, at which the parser
+          finished its work on the main document.
+        examples: [124.5]
+
+      - id: browser.navigation_timing.dom_content_loaded_event_start
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, immediately before the
+          `DOMContentLoaded` event handlers of the document start to run.
+        examples: [128.0]
+
+      - id: browser.navigation_timing.dom_content_loaded_event_end
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, immediately after the
+          `DOMContentLoaded` event handlers of the document finish running.
+        examples: [131.2]
+
+      - id: browser.navigation_timing.dom_complete
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, at which the document and
+          all of its subresources finished loading.
+        examples: [520.7]
+
+      - id: browser.navigation_timing.load_event_start
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, immediately before the
+          `load` event handlers of the document start to run.
+        examples: [521.0]
+
+      - id: browser.navigation_timing.load_event_end
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, immediately after the
+          `load` event handlers of the document finish running.
+        examples: [523.4]
+
+      - id: browser.navigation_timing.unload_event_start
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, immediately before the
+          `unload` event handlers of the previous document start to run.
+        note: >
+          Zero if there was no previous document, or if the previous document has a different
+          origin.
+        examples: [0.0]
+
+      - id: browser.navigation_timing.unload_event_end
+        type: double
+        stability: development
+        brief: >
+          Time, in milliseconds relative to the start of the navigation, immediately after the
+          `unload` event handlers of the previous document finish running.
+        note: >
+          Zero if there was no previous document, or if the previous document has a different
+          origin.
+        examples: [0.0]
+
+      - id: browser.navigation_timing.redirect_count
+        type: int
+        stability: development
+        brief: >
+          The number of redirects since the last non-redirect navigation in the current browsing
+          context.
+        examples: [0, 2]
+
+      # Resource timing
+      #
+      # Sourced from the
+      # [PerformanceResourceTiming](https://developer.mozilla.org/docs/Web/API/PerformanceResourceTiming)
+      # API. Timings are milliseconds relative to the start of the navigation.
+
+      - id: browser.resource_timing.initiator_type
+        type: string
+        stability: development
+        brief: >
+          The type of the resource that initiated the performance entry, as reported by
+          [`PerformanceResourceTiming.initiatorType`](https://developer.mozilla.org/docs/Web/API/PerformanceResourceTiming/initiatorType).
+        examples: ["script", "link", "img", "fetch", "xmlhttprequest"]
+
+      - id: browser.resource_timing.duration
+        type: double
+        stability: development
+        brief: >
+          The total time, in milliseconds, taken to fetch the resource.
+        examples: [42.3]
+
+      - id: browser.resource_timing.worker_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately before the request is dispatched to a service worker.
+        note: >
+          Zero if the request is not intercepted by a service worker.
+        examples: [0.0, 12.1]
+
+      - id: browser.resource_timing.redirect_start
+        type: double
+        stability: development
+        brief: >
+          Time of the start of the fetch that initiated the first redirect.
+        note: >
+          Zero if there was no redirect, or if a redirect is not same-origin.
+        examples: [0.0]
+
+      - id: browser.resource_timing.redirect_end
+        type: double
+        stability: development
+        brief: >
+          Time immediately after receiving the last byte of the response of the last redirect.
+        note: >
+          Zero if there was no redirect, or if a redirect is not same-origin.
+        examples: [0.0]
+
+      - id: browser.resource_timing.fetch_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately before the browser starts to fetch the resource.
+        examples: [1.2]
+
+      - id: browser.resource_timing.domain_lookup_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately before the browser starts the domain name lookup for the resource.
+        examples: [1.4]
+
+      - id: browser.resource_timing.domain_lookup_end
+        type: double
+        stability: development
+        brief: >
+          Time immediately after the browser finishes the domain name lookup for the resource.
+        examples: [3.6]
+
+      - id: browser.resource_timing.connect_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately before the browser starts to establish the connection to the server.
+        examples: [3.6]
+
+      - id: browser.resource_timing.connect_end
+        type: double
+        stability: development
+        brief: >
+          Time immediately after the browser finishes establishing the connection to the server.
+        examples: [12.8]
+
+      - id: browser.resource_timing.secure_connection_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately before the browser starts the handshake process to secure the
+          connection.
+        note: >
+          Zero if the resource is not fetched over a secure connection.
+        examples: [6.0]
+
+      - id: browser.resource_timing.request_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately before the browser starts requesting the resource from the server.
+        examples: [12.9]
+
+      - id: browser.resource_timing.response_start
+        type: double
+        stability: development
+        brief: >
+          Time immediately after the browser receives the first byte of the response.
+        examples: [38.1]
+
+      - id: browser.resource_timing.response_end
+        type: double
+        stability: development
+        brief: >
+          Time immediately after the browser receives the last byte of the resource, or immediately
+          before the transport connection is closed, whichever comes first.
+        examples: [43.5]
+
+      - id: browser.resource_timing.transfer_size
+        type: int
+        stability: development
+        brief: >
+          The size, in bytes, of the fetched resource, including the response header fields and the
+          response payload body.
+        examples: [4096]
+
+      - id: browser.resource_timing.encoded_body_size
+        type: int
+        stability: development
+        brief: >
+          The size, in bytes, of the payload body as received from the network, before removing any
+          applied content encoding.
+        examples: [3840]
+
+      - id: browser.resource_timing.decoded_body_size
+        type: int
+        stability: development
+        brief: >
+          The size, in bytes, of the message body after removing any applied content encoding.
+        examples: [10240]
+
+      - id: browser.resource_timing.next_hop_protocol
+        type: string
+        stability: development
+        brief: >
+          The network protocol used to fetch the resource, as identified by the
+          [ALPN Protocol ID](https://www.rfc-editor.org/rfc/rfc7301.html).
+        note: >
+          Empty for cross-origin resources that are not served with a `Timing-Allow-Origin`
+          response header field.
+        examples: ["http/1.1", "h2", "h3"]
+
+      - id: browser.resource_timing.render_blocking_status
+        type:
+          members:
+            - id: blocking
+              value: "blocking"
+              stability: development
+              brief: The resource blocked rendering.
+            - id: non_blocking
+              value: "non-blocking"
+              stability: development
+              brief: The resource did not block rendering.
+        stability: development
+        brief: >
+          The render-blocking status of the resource, as reported by
+          [`PerformanceResourceTiming.renderBlockingStatus`](https://developer.mozilla.org/docs/Web/API/PerformanceResourceTiming/renderBlockingStatus).
+        examples: ["blocking"]
+
+      # User action
+
+      - id: browser.mouse_event.button
+        type:
+          members:
+            - id: left
+              value: "left"
+              stability: development
+              brief: The primary button, usually the left button.
+            - id: middle
+              value: "middle"
+              stability: development
+              brief: The auxiliary button, usually the mouse wheel button.
+            - id: right
+              value: "right"
+              stability: development
+              brief: The secondary button, usually the right button.
+        stability: development
+        brief: >
+          The mouse button that was pressed, as reported by
+          [`MouseEvent.button`](https://developer.mozilla.org/docs/Web/API/MouseEvent/button).
+        examples: ["left"]
+
+      - id: browser.page.x
+        type: double
+        stability: development
+        brief: >
+          The horizontal coordinate of the event relative to the whole document, in CSS pixels.
+        examples: [10.0, 131.5]
+
+      - id: browser.page.y
+        type: double
+        stability: development
+        brief: >
+          The vertical coordinate of the event relative to the whole document, in CSS pixels.
+        examples: [10.0, 99.5]
+
+      - id: browser.tag_name
+        type: string
+        stability: development
+        brief: >
+          The tag name of the element the event is relevant for, as reported by
+          [`Element.tagName`](https://developer.mozilla.org/docs/Web/API/Element/tagName).
+        examples: ["BUTTON", "A"]
+
+      - id: browser.css_selector
+        type: string
+        stability: development
+        brief: >
+          A CSS selector identifying the element the event is relevant for.
+        examples: ["#main > div:nth-child(2) > button.submit"]
+
+      - id: browser.element.attributes
+        type: any
+        stability: development
+        brief: >
+          Custom attributes read from the element the event is relevant for.
+        note: >
+          A map of string keys to string values, collected from the element's `data-otel-*`
+          attributes with the `data-otel-` prefix removed. For example, an element carrying
+          `data-otel-id="123"` contributes the entry `id` with the value `123`. The map is empty
+          when the element carries no such attributes.
