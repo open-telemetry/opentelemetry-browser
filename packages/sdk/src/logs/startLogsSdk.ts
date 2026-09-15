@@ -88,7 +88,13 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     logRecordLimits: config?.logRecordLimits,
     processors,
   });
-  logs.setGlobalLoggerProvider(loggerProvider);
+  // Unlike the trace API this returns a provider, not a boolean: on conflict it
+  // hands back the one already registered
+  if (logs.setGlobalLoggerProvider(loggerProvider) !== loggerProvider) {
+    diag.error(
+      'A global LoggerProvider is already registered. This SDK instance will not receive any logs. Call `shutdown()` on the previous SDK before starting a new one.',
+    );
+  }
 
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;

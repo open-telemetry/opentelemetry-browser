@@ -49,6 +49,7 @@ const sdk = quickStartBrowserSdk({
   // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
   disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  // 'DEBUG' also prints every log and span to the console, next to the OTLP export
   logLevel: 'DEBUG',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',

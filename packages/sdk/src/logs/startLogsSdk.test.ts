@@ -305,4 +305,29 @@ describe('startLogsSdk', () => {
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
   });
+
+  it('should report a second SDK that cannot register its provider', async () => {
+    // Arrange: the first SDK owns the global provider
+    logsSdk = startLogsSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+    });
+    diagErrorSpy.mockClear();
+
+    // Act
+    const secondSdk = startLogsSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: the second SDK receives nothing, so it must say so
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(
+      /global LoggerProvider is already registered/,
+    );
+
+    await secondSdk.shutdown();
+  });
 });
