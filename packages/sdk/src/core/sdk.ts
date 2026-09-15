@@ -22,7 +22,7 @@ interface SdkFactories {
 }
 
 /**
- * Utility functions to extract the configurations from the factory
+ * Utility types to extract the configurations from the factory
  * functions and remove the common properties (which will be already
  * available at the config root)
  */
@@ -41,8 +41,8 @@ const DEFAULT_CONFIG: RootConfig = {
 const NOOP_SDK = { shutdown: () => Promise.resolve() };
 
 /**
- * Combines different SDK factory functions into a single one
- * which accepts a global configuration along
+ * Combines different SDK factory functions into a single one which accepts a
+ * root configuration shared by every signal
  */
 export function combineSdks<T extends SdkFactories>(
   factories: T,
@@ -100,9 +100,10 @@ export function combineSdks<T extends SdkFactories>(
       const logsConfig = (config?.logs || {}) as LogsConfig;
       const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
-      // Propagate root configs to signal configs only when the signal does not
-      // have custom processors. When processors are provided, exportConfig and
-      // batchProcessorConfig are intentionally ignored per the LogsConfig docs.
+      // Propagate root configs to the signal only when it has no custom
+      // processors. A signal with its own processors manages its own exporter,
+      // so the root exportConfig / batchProcessorConfig are not pushed down —
+      // the signal's own exportConfig, if any, is still honored downstream.
       if (!logsConfig.processors) {
         if (!logsConfig.batchProcessorConfig) {
           logsConfig.batchProcessorConfig =
@@ -127,9 +128,10 @@ export function combineSdks<T extends SdkFactories>(
       const tracesConfig = (config?.traces || {}) as TracesConfig;
       const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
-      // Propagate root configs to signal configs only when the signal does not
-      // have custom processors. When processors are provided, exportConfig and
-      // batchProcessorConfig are intentionally ignored per the TracesConfig docs.
+      // Propagate root configs to the signal only when it has no custom
+      // processors. A signal with its own processors manages its own exporter,
+      // so the root exportConfig / batchProcessorConfig are not pushed down —
+      // the signal's own exportConfig, if any, is still honored downstream.
       if (!tracesConfig.processors) {
         if (!tracesConfig.batchProcessorConfig) {
           tracesConfig.batchProcessorConfig =
