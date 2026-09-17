@@ -60,6 +60,23 @@ For detailed configuration options, see the [instrumentation package README](./p
 
 For a more complete setup combining event-based instrumentations from this repository with span-based instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib), see the [examples](./examples/) directory.
 
+### Sandbox
+
+Interactive playground for testing OpenTelemetry browser instrumentations. Configure the SDK, trigger actions (fetch, XHR, errors, navigation…), and inspect exported spans and logs in real time.
+
+#### Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+This starts the sandbox with hot-reload via Vite at `http://localhost:5173`.
+
+#### GitHub Pages
+
+The sandbox is automatically deployed to GitHub Pages on every push to `main` via the `deploy-sandbox.yml` workflow. The live site is available at [open-telemetry.github.io/opentelemetry-browser](https://open-telemetry.github.io/opentelemetry-browser/).
+
 ## Documentation
 
 - [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in session support.
@@ -106,13 +123,8 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 ## Contributing
 
-### Prerequisites
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Contributing to this project requires **Node.js >= 24** and **npm ^11.9.0**
-
-```bash
-npm install -g npm@11
-```
 
 ### Maintainers
 
@@ -126,6 +138,7 @@ For more information about the maintainer role, see the [community repository](h
 
 ### Approvers
 
+- [Maxime Quentin](https://github.com/mquentin), Datadog
 
 For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 

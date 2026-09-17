@@ -46,6 +46,7 @@ describe('NavigationInstrumentation', () => {
     inMemoryExporter.reset();
     restoreReadyState?.();
     restoreReadyState = undefined;
+    vi.restoreAllMocks();
   });
 
   const getNavigationLogs = () =>
@@ -95,8 +96,6 @@ describe('NavigationInstrumentation', () => {
         (c) => c[0] === 'popstate',
       );
       expect(popstateCalls).toHaveLength(1);
-
-      addSpy.mockRestore();
     });
   });
 

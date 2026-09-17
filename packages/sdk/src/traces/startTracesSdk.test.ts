@@ -3,13 +3,38 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag, trace } from '@opentelemetry/api';
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
+import type { ContextManager, TextMapPropagator } from '@opentelemetry/api';
+import {
+  context,
+  diag,
+  propagation,
+  ROOT_CONTEXT,
+  trace,
+} from '@opentelemetry/api';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
+import {
+  AlwaysOffSampler,
+  SimpleSpanProcessor,
+} from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { WebSdk } from '../core/types.ts';
 import { startTracesSdk } from './startTracesSdk.ts';
 
 const BSP_SCHEDULE_DELAY = 10;
+
+function createFakeInstrumentation(): Instrumentation {
+  return {
+    instrumentationName: 'test-instrumentation',
+    instrumentationVersion: '1.0.0',
+    enable: vi.fn(),
+    disable: vi.fn(),
+    setTracerProvider: vi.fn(),
+    setMeterProvider: vi.fn(),
+    setLoggerProvider: vi.fn(),
+    setConfig: vi.fn(),
+    getConfig: () => ({ enabled: false }),
+  };
+}
 
 describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
@@ -28,6 +53,8 @@ describe('startTracesSdk', () => {
     fetchSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start if disabled by configuration', async () => {
@@ -245,5 +272,101 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
+
+  it('should accept a Sampler from the user', async () => {
+    // Act
+    tracesSdk = startTracesSdk({
+      batchProcessorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+      serviceName: 'test-service',
+      serviceVersion: '1.0.0',
+      sampler: new AlwaysOffSampler(),
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should register instrumentations on start and disable them on shutdown', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    tracesSdk = startTracesSdk({
+      instrumentations: [instrumentation],
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: the tracer provider is set and the instrumentation is enabled
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+
+    // Act
+    await tracesSdk.shutdown();
+    // Prevent the afterEach hook from shutting down the same SDK again
+    tracesSdk = { shutdown: () => Promise.resolve() };
+
+    // Assert: shutting down the SDK disables the instrumentation
+    expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when disabled by configuration', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    tracesSdk = startTracesSdk({
+      disabled: true,
+      instrumentations: [instrumentation],
+    });
+    await tracesSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
+
+  it('should install default context manager and propagators when none are provided', () => {
+    tracesSdk = startTracesSdk({
+      batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+    });
+
+    expect(context.active()).toBe(ROOT_CONTEXT);
+    expect(propagation.fields()).toEqual(
+      expect.arrayContaining(['traceparent', 'tracestate', 'baggage']),
+    );
+  });
+
+  it('should use the provided context manager and propagators', () => {
+    const enableSpy = vi.fn().mockReturnThis();
+    const customContextManager: ContextManager = {
+      active: () => ROOT_CONTEXT,
+      with: (_ctx, fn, thisArg, ...args) => fn.call(thisArg, ...args),
+      bind: (_ctx, target) => target,
+      enable: enableSpy,
+      disable: vi.fn().mockReturnThis(),
+    };
+    const customPropagator: TextMapPropagator = {
+      inject: vi.fn(),
+      extract: (_ctx, _carrier, _getter) => _ctx,
+      fields: () => ['x-custom-trace'],
+    };
+
+    tracesSdk = startTracesSdk({
+      batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+      contextManager: customContextManager,
+      propagators: [customPropagator],
+    });
+
+    expect(enableSpy).toHaveBeenCalledOnce();
+    expect(propagation.fields()).toEqual(['x-custom-trace']);
   });
 });

@@ -1,5 +1,64 @@
 # Changelog
 
+## [0.8.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.0...browser-instrumentation-v0.8.1) (2026-09-09)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#411](https://github.com/open-telemetry/opentelemetry-browser/issues/411)) ([97b2333](https://github.com/open-telemetry/opentelemetry-browser/commit/97b2333712576854e999f2b3c7fd284fc60f6986))
+* **deps:** update opentelemetry ([#419](https://github.com/open-telemetry/opentelemetry-browser/issues/419)) ([d1f765d](https://github.com/open-telemetry/opentelemetry-browser/commit/d1f765d08bbcdd120396ef8a82b3864ec92c82cc))
+
+## [0.8.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.7.0...browser-instrumentation-v0.8.0) (2026-08-27)
+
+
+### Features
+
+* add e2e tests for fetch instrumentation ([#392](https://github.com/open-telemetry/opentelemetry-browser/issues/392)) ([0ccb6df](https://github.com/open-telemetry/opentelemetry-browser/commit/0ccb6df0eeaadbe17353dd33d42a0f6bcb783c26))
+* **browser-instrumentation:** add fetch instrumentation ([#281](https://github.com/open-telemetry/opentelemetry-browser/issues/281)) ([7bba31f](https://github.com/open-telemetry/opentelemetry-browser/commit/7bba31fe3ab5ddc516a5e3e27030e9e0c3c9de7a))
+* **browser-instrumentation:** add XHR instrumentation ([#367](https://github.com/open-telemetry/opentelemetry-browser/issues/367)) ([aee02e4](https://github.com/open-telemetry/opentelemetry-browser/commit/aee02e45ce7e1b87dba8c9145d971dde0816643c))
+
+
+### Bug Fixes
+
+* **browser-instrumentation:** add max capacity to context registry ([#368](https://github.com/open-telemetry/opentelemetry-browser/issues/368)) ([ca9559a](https://github.com/open-telemetry/opentelemetry-browser/commit/ca9559a81662ce88d412d0fd9a40cd4f28bb4d7b))
+* **deps:** update dependencies ([#355](https://github.com/open-telemetry/opentelemetry-browser/issues/355)) ([a3f4018](https://github.com/open-telemetry/opentelemetry-browser/commit/a3f401856975844e47b563893f2fe7d76a933db4))
+* **deps:** update dependencies ([#383](https://github.com/open-telemetry/opentelemetry-browser/issues/383)) ([743c6c0](https://github.com/open-telemetry/opentelemetry-browser/commit/743c6c092cfd43561dcd0004f929b4b26e9c4ec9))
+* **deps:** update dependencies ([#406](https://github.com/open-telemetry/opentelemetry-browser/issues/406)) ([a324f0b](https://github.com/open-telemetry/opentelemetry-browser/commit/a324f0b75bb90b660df7f5b01aaf63d26f324055))
+
+## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.6.0...browser-instrumentation-v0.7.0) (2026-07-29)
+
+
+### Features
+
+* **user-action:** add callback function to create custom attributes in user action logs ([#358](https://github.com/open-telemetry/opentelemetry-browser/issues/358)) ([c0bcfb9](https://github.com/open-telemetry/opentelemetry-browser/commit/c0bcfb98be8f1e98efed46b739008600bc436403))
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#363](https://github.com/open-telemetry/opentelemetry-browser/issues/363)) ([533fcdf](https://github.com/open-telemetry/opentelemetry-browser/commit/533fcdf72db5eed6158b9e2bc42deb2452236d98))
+
+## [0.6.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.5.2...browser-instrumentation-v0.6.0) (2026-07-13)
+
+
+### Features
+
+* add NetworkContextManager proposal for cross-instrumentation OTel context sharing ([#329](https://github.com/open-telemetry/opentelemetry-browser/issues/329)) ([4adcc9a](https://github.com/open-telemetry/opentelemetry-browser/commit/4adcc9ab2e6b3a164c04f70b702ef574004908ac))
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#294](https://github.com/open-telemetry/opentelemetry-browser/issues/294)) ([f5c9711](https://github.com/open-telemetry/opentelemetry-browser/commit/f5c97112f3ff76b1c2790ec679e793ece805caee))
+* **deps:** update dependency @opentelemetry/semantic-conventions to ^1.43.0 ([#350](https://github.com/open-telemetry/opentelemetry-browser/issues/350)) ([6c5650d](https://github.com/open-telemetry/opentelemetry-browser/commit/6c5650d62f5cc03e25b89a644cdc11c909576c6a))
+* **deps:** update opentelemetry ([#318](https://github.com/open-telemetry/opentelemetry-browser/issues/318)) ([89b8e27](https://github.com/open-telemetry/opentelemetry-browser/commit/89b8e271bf00669cc3d94ed2895a870516034b78))
+* **deps:** update opentelemetry ([#338](https://github.com/open-telemetry/opentelemetry-browser/issues/338)) ([bc54414](https://github.com/open-telemetry/opentelemetry-browser/commit/bc54414f6278e41c32d68bd72109643f75ff2878))
+* **errors:** contain throwing LogRecordProcessor to prevent error-event loop ([#303](https://github.com/open-telemetry/opentelemetry-browser/issues/303)) ([06275ee](https://github.com/open-telemetry/opentelemetry-browser/commit/06275ee58b7fa4a4367b964b9ef9fa443f4d2d51))
+* **errors:** emit ErrorEvent.message when the error object is null ([#301](https://github.com/open-telemetry/opentelemetry-browser/issues/301)) ([771b77d](https://github.com/open-telemetry/opentelemetry-browser/commit/771b77d30181022aa21b203001e7292efff7abe9))
+
+
+### Performance Improvements
+
+* **instrumentation:** declare package side-effect free for tree-shaking ([#316](https://github.com/open-telemetry/opentelemetry-browser/issues/316)) ([942bce1](https://github.com/open-telemetry/opentelemetry-browser/commit/942bce19f038b3f996a070a7eb03cf2b328299bf))
+
 ## [0.5.2](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.5.1...browser-instrumentation-v0.5.2) (2026-05-18)
 
 

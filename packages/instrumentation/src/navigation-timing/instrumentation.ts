@@ -50,9 +50,9 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
   // Use `declare` to prevent JS class field initializers from running after
   // super(), which would reset values set by the enable() call that
   // InstrumentationBase makes during its constructor.
-  private declare _isEnabled: boolean;
-  private declare _onLoad: () => void;
-  private declare _onPageHide: () => void;
+  declare private _isEnabled: boolean;
+  declare private _onLoad: () => void;
+  declare private _onPageHide: () => void;
 
   constructor(config: NavigationTimingInstrumentationConfig = {}) {
     super(

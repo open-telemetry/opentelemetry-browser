@@ -100,6 +100,7 @@ describe('ErrorsInstrumentation', () => {
     instrumentation?.disable();
     instrumentation = undefined;
     inMemoryExporter.reset();
+    vi.restoreAllMocks();
   });
 
   const getErrorLogs = () =>
@@ -144,8 +145,6 @@ describe('ErrorsInstrumentation', () => {
       );
       expect(errorCalls).toHaveLength(1);
       expect(rejectionCalls).toHaveLength(1);
-
-      addSpy.mockRestore();
     });
   });
 
@@ -203,8 +202,6 @@ describe('ErrorsInstrumentation', () => {
         'ignored error event with no error and no message',
         undefined,
       );
-
-      diagSpy.mockRestore();
     });
 
     it('should emit using event.message when event.error is missing', () => {
@@ -229,8 +226,6 @@ describe('ErrorsInstrumentation', () => {
         'ignored error event with no error and no message',
         undefined,
       );
-
-      diagSpy.mockRestore();
     });
 
     it('should prefer event.error over event.message when both are present', () => {
@@ -282,8 +277,6 @@ describe('ErrorsInstrumentation', () => {
         'ignored unhandledrejection event with no reason',
         null,
       );
-
-      diagSpy.mockRestore();
     });
 
     it('should not fall back to event.message for rejections even when one is present', () => {
@@ -300,8 +293,6 @@ describe('ErrorsInstrumentation', () => {
         'ignored unhandledrejection event with no reason',
         null,
       );
-
-      diagSpy.mockRestore();
     });
   });
 

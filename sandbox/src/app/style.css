@@ -172,6 +172,10 @@ input {
 .prop {
   color: #89dceb;
 }
+.com {
+  color: #6c7086;
+  font-style: italic;
+}
 
 /* ── Event log ──────────────────────────────────────────────────────────────── */
 

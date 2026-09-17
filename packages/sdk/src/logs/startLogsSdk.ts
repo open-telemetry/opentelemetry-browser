@@ -6,6 +6,7 @@
 import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -89,8 +90,17 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   });
   logs.setGlobalLoggerProvider(loggerProvider);
 
+  // Register instrumentations
+  let deregisterInstrumentations: (() => void) | undefined;
+  if (config?.instrumentations?.length) {
+    deregisterInstrumentations = registerInstrumentations({
+      instrumentations: config.instrumentations,
+    });
+  }
+
   return {
     shutdown() {
+      deregisterInstrumentations?.();
       return loggerProvider.shutdown();
     },
   };

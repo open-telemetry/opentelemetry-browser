@@ -45,6 +45,7 @@ describe('WebVitalsInstrumentation', () => {
     instrumentation?.disable();
     inMemoryExporter.reset();
     testContainer?.remove();
+    vi.restoreAllMocks();
   });
 
   const getWebVitalLogs = () =>
@@ -207,9 +208,7 @@ describe('WebVitalsInstrumentation', () => {
 
   describe('applyCustomLogRecordData hook', () => {
     it('should catch and log errors from hook without crashing', async () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
       const errorHook = vi.fn(() => {
         throw new Error('Hook error');
       });
@@ -224,8 +223,6 @@ describe('WebVitalsInstrumentation', () => {
       const inpLog = await waitForMetric('inp');
       expect(inpLog.attributes[ATTR_WEB_VITAL_NAME]).toBe('inp');
       expect(errorHook).toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
     });
 
     it('should allow hook to add custom attributes', async () => {
