@@ -315,9 +315,7 @@ describe('XhrInstrumentation', () => {
           // `enable()` runs — `_wrap` is an instance-level field inherited
           // from `InstrumentationBase`, not a prototype method.
           instrumentation = new XhrInstrumentation({ enabled: false });
-          // @ts-expect-error access internal property for testing
           vi.spyOn(instrumentation, '_wrap').mockImplementation(
-            // @ts-expect-error TS does not get the type properly
             (_target: unknown, prop: string) => {
               if (prop === method) {
                 throw wrapError;
@@ -470,7 +468,6 @@ describe('XhrInstrumentation', () => {
     });
 
     it('should create spans for reused XHRs', async () => {
-      // @ts-expect-error access internal property for testing
       const endSpanSpy = vi.spyOn(instrumentation, '_endSpan');
 
       const firstUrl = getUrlForPath('/api/get');
@@ -737,7 +734,7 @@ describe('XhrInstrumentation', () => {
         await doXhrRequest({ method: 'GET', url });
 
         // No spans to export
-        expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(async () => await waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });

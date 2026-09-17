@@ -17,6 +17,7 @@ export default defineConfig({
     // not discover them dynamically mid-run and force a reload.
     include: [
       '@opentelemetry/core',
+      '@opentelemetry/instrumentation-fetch',
       '@opentelemetry/resources',
       '@opentelemetry/sdk-trace',
       '@opentelemetry/semantic-conventions',

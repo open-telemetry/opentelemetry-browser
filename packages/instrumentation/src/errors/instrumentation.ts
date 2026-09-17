@@ -24,8 +24,8 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
   // Use `declare` to prevent JS class field initializers from running after
   // super(), which would reset values set by the enable() call that
   // InstrumentationBase makes during its constructor.
-  private declare _isEnabled: boolean;
-  private declare _onErrorHandler?: (
+  declare private _isEnabled: boolean;
+  declare private _onErrorHandler?: (
     event: ErrorEvent | PromiseRejectionEvent,
   ) => void;
 

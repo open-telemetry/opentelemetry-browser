@@ -52,8 +52,8 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   // Also not initializing the fields to `false` because the base class
   // constructor already call `enable` modifying their values and it will
   // set the instrumentaitons in a base state (enabled, patched but with flags set to false)
-  private declare _isEnabled: boolean;
-  private declare _isXhrPatched: boolean;
+  declare private _isEnabled: boolean;
+  declare private _isXhrPatched: boolean;
 
   // To keep references to span/xhr tuples across XHR events and stores
   // init data like URL and method

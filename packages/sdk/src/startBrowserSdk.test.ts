@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag, trace } from '@opentelemetry/api';
+import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
@@ -44,6 +45,20 @@ function resourceAttributesFromBody(
   return attributes;
 }
 
+function createFakeInstrumentation(): Instrumentation {
+  return {
+    instrumentationName: 'test-instrumentation',
+    instrumentationVersion: '1.0.0',
+    enable: vi.fn(),
+    disable: vi.fn(),
+    setTracerProvider: vi.fn(),
+    setMeterProvider: vi.fn(),
+    setLoggerProvider: vi.fn(),
+    setConfig: vi.fn(),
+    getConfig: () => ({ enabled: false }),
+  };
+}
+
 describe('startBrowserSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
@@ -62,6 +77,8 @@ describe('startBrowserSdk', () => {
     fetchSpy.mockClear();
     logs.disable();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start disabled by configuration', async () => {
@@ -199,6 +216,68 @@ describe('startBrowserSdk', () => {
       });
     });
   });
+
+  it('should register instrumentations on start and disable them on shutdown', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations: [instrumentation],
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: providers are set and the instrumentation is enabled
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+    expect(instrumentation.setMeterProvider).toHaveBeenCalled();
+    expect(instrumentation.setLoggerProvider).toHaveBeenCalled();
+
+    // Act
+    await browserSdk.shutdown();
+    // Prevent the afterEach hook from shutting down the same SDK again
+    browserSdk = { shutdown: () => Promise.resolve() };
+
+    // Assert: shutting down the SDK disables the instrumentations
+    expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when disabled by configuration', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      disabled: true,
+      instrumentations: [instrumentation],
+    });
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when an invalid URL is provided', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'this_is_not_an_URL',
+      },
+      instrumentations: [instrumentation],
+    });
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
 });
 
 describe('quickStartBrowserSdk', () => {
@@ -237,6 +316,8 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy.mockRestore();
     logs.disable();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {
@@ -320,5 +401,26 @@ describe('quickStartBrowserSdk', () => {
 
     // Assert: the console exporters write to `console.dir`
     expect(consoleDirSpy).toHaveBeenCalled();
+  });
+
+  it('should forward instrumentations to the SDK', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'http://otlp-signal-endpoint:4318',
+      instrumentations: [instrumentation],
+    });
+
+    // Assert: the SDK registers and enables the instrumentation
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+
+    // Act
+    await browserSdk.shutdown();
+
+    // Assert: shutting down the SDK disables the instrumentation
+    expect(instrumentation.disable).toHaveBeenCalled();
   });
 });

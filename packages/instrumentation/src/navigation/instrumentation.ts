@@ -57,13 +57,13 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   // Use `declare` to prevent JS class field initializers from running after
   // super(), which would reset values set by the enable() call that
   // InstrumentationBase makes during its constructor.
-  private declare _isEnabled: boolean;
-  private declare _isHistoryPatched: boolean;
-  private declare _hasProcessedInitialLoad: boolean;
-  private declare _lastUrl: string;
-  private declare _onDOMContentLoaded?: () => void;
-  private declare _onPopState?: (event: PopStateEvent) => void;
-  private declare _onCurrentEntryChange?: (event: NavigationApiEvent) => void;
+  declare private _isEnabled: boolean;
+  declare private _isHistoryPatched: boolean;
+  declare private _hasProcessedInitialLoad: boolean;
+  declare private _lastUrl: string;
+  declare private _onDOMContentLoaded?: () => void;
+  declare private _onPopState?: (event: PopStateEvent) => void;
+  declare private _onCurrentEntryChange?: (event: NavigationApiEvent) => void;
 
   constructor(config: NavigationInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/navigation', version, config);
