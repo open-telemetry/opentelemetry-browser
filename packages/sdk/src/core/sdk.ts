@@ -105,8 +105,10 @@ export function combineSdks<T extends SdkFactories>(
 
     // Validate every export URL before starting any signal SDK, so an invalid
     // URL cannot leave one signal exporting while the other refuses to start.
+    // `??` and not `||`: an empty `url` is a mistake, usually an unset env var,
+    // so it must fail loudly instead of falling back to the local collector
     const endpointUrl = parseExportUrl(
-      rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
+      rootConfig.exportConfig?.url ?? DEFAULT_OTLP_ENDPOINT,
     );
     if (!endpointUrl) {
       return INVALID_CONFIG_SDK;

@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DiagLogLevel } from '@opentelemetry/api';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
+import { DiagLogLevel } from '@opentelemetry/api';
 import {
   ConsoleLogRecordExporter,
   SimpleLogRecordProcessor,
@@ -14,6 +13,7 @@ import {
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
 import { combineSdks } from './core/sdk.ts';
+import type { CommonConfig } from './core/types.ts';
 import { startLogsSdk } from './logs/startLogsSdk.ts';
 import { startTracesSdk } from './traces/startTracesSdk.ts';
 
@@ -27,31 +27,20 @@ export const startBrowserSdk = combineSdks({
   traces: startTracesSdk,
 });
 
-export interface QuickStartConfig {
+export type QuickStartConfig = Pick<
+  CommonConfig,
+  'disabled' | 'serviceName' | 'serviceVersion' | 'instrumentations'
+> & {
   /**
-   * Set `disabled: true` to disable the SDK
-   *
-   * @defaultValue undefined
-   */
-  disabled?: boolean;
-  /**
-   * Log level for SDK's internal logger
+   * Log level for SDK's internal logger. `DEBUG` and above also print every
+   * span and log record to the console.
    *
    * @defaultValue DiagLogLevel.INFO
    */
   logLevel?: keyof typeof DiagLogLevel;
   /**
-   * Sets the value of the `service.name` resource attribute
-   */
-  serviceName?: string;
-  /**
-   * Sets the value of the `service.version` resource attribute
-   *
-   * @defaultValue undefined
-   */
-  serviceVersion?: string;
-  /**
-   * Target URL for the SDK to send traces and logs.
+   * Target URL for the SDK to send traces and logs. The signal path (`/v1/logs`,
+   * `/v1/traces`) is set on it for each signal, replacing any path given here.
    */
   exportUrl: string;
   /**
@@ -59,11 +48,7 @@ export interface QuickStartConfig {
    * This is the place to add API keys or similar.
    */
   exportHeaders?: Record<string, string>;
-  /**
-   * List of instrumentations to be registered when the SDK starts
-   */
-  instrumentations?: Instrumentation[];
-}
+};
 
 /**
  * This function does the same as `startBrowserSdk` but requiring
@@ -83,8 +68,10 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     },
   };
 
-  // Add console processors if the user wants to debug
-  if (config.logLevel === 'DEBUG') {
+  // A threshold and not `=== 'DEBUG'`: `VERBOSE` and `ALL` are louder levels,
+  // so they must not print less than `DEBUG` does
+  const logLevel = config.logLevel && DiagLogLevel[config.logLevel];
+  if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
     sdkConfig.logs = {
       processors: [
         new SimpleLogRecordProcessor({
