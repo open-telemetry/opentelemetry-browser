@@ -6,6 +6,10 @@
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
+import {
+  ConsoleLogRecordExporter,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
@@ -64,21 +68,30 @@ describe('startBrowserSdk', () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
+  let consoleDirSpy: MockInstance | undefined;
   let browserSdk: WebSdk;
 
-  // NOTE: we mock the registration of the logger/tracer provider because
-  // the APIs only allow to register once. With the mock we can use
-  // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
   });
+  // NOTE: the logs and trace APIs only accept one provider registration, so
+  // they are disabled after each test to let the next one register its own
   afterEach(async () => {
-    await browserSdk?.shutdown();
-    fetchSpy.mockClear();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
+    // `finally` so a failed shutdown still fails the test without leaking the
+    // spy and the registered providers into the next one
+    try {
+      await browserSdk?.shutdown();
+    } finally {
+      fetchSpy.mockClear();
+      diagWarnSpy.mockClear();
+      consoleDirSpy?.mockRestore();
+      consoleDirSpy = undefined;
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
+    }
   });
 
   it('should not start disabled by configuration', async () => {
@@ -278,6 +291,208 @@ describe('startBrowserSdk', () => {
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
   });
+
+  it('should warn when a signal opts out of the root export config', async () => {
+    // Arrange
+    consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: logs opted out of OTLP, traces still export, and the user is told
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      'http://otlp-signal-endpoint:4318/v1/traces',
+    );
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        /"logs" config sets `processors`/.test(args[0]),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should warn when the export URL path is replaced by the signal path', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318/otlp',
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: the `/otlp` prefix is dropped, which is easy to miss without a warning
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        /path "\/otlp" is replaced/.test(args[0]),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should propagate the root batch config to a signal that sets processors and exportConfig', async () => {
+    // Arrange
+    consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
+
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+        exportConfig: {},
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: exporting within the short delay proves the root schedule was
+    // used. The 1000ms default for logs would not have flushed yet.
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+      ),
+    ).toBeDefined();
+  });
+
+  it('should propagate the root export headers to a signal that sets its own exportConfig', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+        headers: { 'x-api-key': 'secret' },
+      },
+      logs: {
+        exportConfig: {},
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: the root URL already propagated here, so dropping the headers
+    // would send authenticated telemetry unauthenticated and get it rejected
+    const logsCall = fetchSpy.mock.calls.find(
+      (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+    );
+    expect(logsCall).toBeDefined();
+    expect(logsCall?.[1]).containSubset({
+      headers: { 'x-api-key': 'secret' },
+    });
+  });
+
+  it('should warn when a signal drops a root export set with headers only', async () => {
+    // Act: no root `url`, so the default endpoint applies, but setting headers
+    // is still the user configuring an export
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        headers: { 'x-api-key': 'secret' },
+      },
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+      },
+    });
+
+    // Assert
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        String(args[0]).includes('the root `exportConfig` is not propagated'),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should not warn when no root export config was set at all', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      logs: {
+        processors: [
+          new SimpleLogRecordProcessor({
+            exporter: new ConsoleLogRecordExporter(),
+          }),
+        ],
+      },
+    });
+
+    // Assert: nothing was dropped, the default endpoint was never asked for
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        String(args[0]).includes('the root `exportConfig` is not propagated'),
+      ),
+    ).toBeUndefined();
+  });
+
+  it('should report invalidConfig when a signal refuses to start', async () => {
+    // Act: an empty `processors` array leaves the signal with no processor at all
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      traces: {
+        processors: [],
+      },
+    });
+
+    // Assert: the signal logs its own reason, but the combined SDK is the only
+    // thing the caller holds
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
+  });
+
+  it('should not warn about the SDK logger on a plain start', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+    });
+
+    // Assert: each signal re-enters `setSdkLogger` internally, which must stay
+    // quiet. A level the user never set is not something they can act on.
+    expect(
+      diagWarnSpy.mock.calls.find((args) =>
+        String(args[0]).includes('Logger for SDKs already set'),
+      ),
+    ).toBeUndefined();
+  });
 });
 
 describe('quickStartBrowserSdk', () => {
@@ -303,21 +518,21 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy = vi.spyOn(diag, 'debug');
   });
   afterEach(async () => {
-    // A test may already have shut the SDK down to flush its batch
-    // processors; ignore the resulting "already shutdown" error so the
-    // provider globals are always reset for the next test.
+    // Tests shut the SDK down themselves to flush their batch processors. A
+    // second `shutdown()` replays the result of the first, so a rejection here
+    // is a real failure and must fail the test. The `finally` keeps the next
+    // test clean when that happens.
     try {
       await browserSdk?.shutdown();
-    } catch {
-      /* already shut down within the test */
+    } finally {
+      fetchSpy.mockRestore();
+      consoleDirSpy.mockRestore();
+      diagDebugSpy.mockRestore();
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
     }
-    fetchSpy.mockRestore();
-    consoleDirSpy.mockRestore();
-    diagDebugSpy.mockRestore();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {
@@ -401,6 +616,23 @@ describe('quickStartBrowserSdk', () => {
 
     // Assert: the console exporters write to `console.dir`
     expect(consoleDirSpy).toHaveBeenCalled();
+  });
+
+  it('should not start for an invalid export URL in DEBUG', async () => {
+    // Act: DEBUG is the only quick start path that sets `processors`, so it
+    // reaches the signals differently and needs its own check
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'not_an_url',
+      logLevel: 'DEBUG',
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await browserSdk.shutdown();
+
+    // Assert: a console-only SDK would look alive while exporting nothing
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(consoleDirSpy).not.toHaveBeenCalled();
   });
 
   it('should forward instrumentations to the SDK', async () => {

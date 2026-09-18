@@ -88,14 +88,31 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     spanProcessors,
     sampler: config?.sampler,
   });
-  trace.setGlobalTracerProvider(tracerProvider);
+  if (!trace.setGlobalTracerProvider(tracerProvider)) {
+    diag.error(
+      'A global TracerProvider is already registered. This SDK instance will not receive any spans. Call `shutdown()` on the previous SDK before starting a new one.',
+    );
+  }
 
   const propagators = config?.propagators ?? getDefaultPropagators();
-  propagation.setGlobalPropagator(new CompositePropagator({ propagators }));
+  if (
+    !propagation.setGlobalPropagator(new CompositePropagator({ propagators }))
+  ) {
+    diag.error(
+      'A global propagator is already registered. The `propagators` of this SDK instance are dropped. Call `shutdown()` on the previous SDK before starting a new one.',
+    );
+  }
 
   const contextManager = config?.contextManager ?? getDefaultContextManager();
   contextManager.enable();
-  context.setGlobalContextManager(contextManager);
+  if (!context.setGlobalContextManager(contextManager)) {
+    // Undo `enable()`: a manager that is not registered still patches the
+    // async APIs, and `shutdown()` below never disables it
+    contextManager.disable();
+    diag.error(
+      'A global context manager is already registered. The `contextManager` of this SDK instance is dropped. Call `shutdown()` on the previous SDK before starting a new one.',
+    );
+  }
 
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;

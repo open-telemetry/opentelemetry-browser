@@ -35,7 +35,7 @@ to do manual instrumentation of your web application.
 
 The Browser SDK should be loaded and started as soon as possible for better measurements
 and to avoid any other library to patch or modify browser APIs used by the SDK and the instrumentations.
-Loading the SDK after some library has pacthed Browser's API may affect the behavior of the internal
+Loading the SDK after some library has patched Browser's API may affect the behavior of the internal
 components, like exporters, and instrumentations in unexpected ways.
 
 This example shows how to setup the SDK exporting logs and traces to a specific OTLP endpoint URL with
@@ -49,6 +49,7 @@ const sdk = quickStartBrowserSdk({
   // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
   disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  // 'DEBUG' also prints every log and span to the console, next to the OTLP export
   logLevel: 'DEBUG',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
@@ -251,12 +252,12 @@ be in signal specific configuration. See the example below.
 
 ```javascript
 // Signal SDK accepts some configs
-startLogsSdk({ serviceName: 'my-serivce' });
+startLogsSdk({ serviceName: 'my-service' });
 
 // When starting all at once...
 startBrowserSdk({
-  // this option goes on top (so it's aplied for all signals)
-  serviceName: 'my-serivce',
+  // this option goes on top (so it's applied for all signals)
+  serviceName: 'my-service',
   logs: {
     // there is no need to specify `serviceName` here
   },
@@ -285,7 +286,7 @@ Key-value pairs to be used as resource attributes.
 
 ### Logs configuration
 
-#### processorConfig
+#### batchProcessorConfig
 
 Object containing configuration options for the batch processing of log records. These options are:
 
@@ -299,13 +300,16 @@ the option is defined at the top level and within the signal configuration the l
 
 #### exportConfig
 
-Object containing configuraiton options for the HTTP log record exporter. These options are:
+Object containing configuration options for the HTTP log record exporter. These options are:
 
 - `url`: Target to which the exporter is going to send logs.
 - `headers`: Key-value pairs to be used as headers associated with HTTP requests.
 
-Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
-the option is defined at the top level and within the signal configuration the later wins.
+Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. The
+signal configuration overrides the top level option by option, so root options it does not set, such
+as `headers`, still apply. The `url` is used, with the signal path set on it, whenever the signal
+`exportConfig` has no `url` of its own. A signal that sets `processors` and no `exportConfig` gets
+none of this, and the SDK warns when that drops a root export you configured.
 
 Note: an invalid `url` stops the whole browser SDK from starting, including the other signals and any
 `processors` they define. It logs a `diag.error` and returns a no-op SDK (with `invalidConfig: true`,
@@ -314,7 +318,7 @@ The `url` must be an absolute `http` or `https` URL.
 
 #### logRecordLimits
 
-Object containing configuraiton options log record limits. These options are:
+Object containing configuration options log record limits. These options are:
 
 - `attributeValueLengthLimit`: Maximum allowed attribute value size.
 - `attributeCountLimit`: Maximum allowed attribute count.
@@ -324,13 +328,14 @@ Object containing configuraiton options log record limits. These options are:
 List of LogRecordProcessor for the logger provider. When set, these are used instead of the default
 OTLP `BatchLogRecordProcessor`. To also export over OTLP alongside them, additionally set `exportConfig`
 — this appends a `BatchLogRecordProcessor` (tuned by `batchProcessorConfig`). When `exportConfig` is
-omitted, no OTLP exporter is added and `batchProcessorConfig` has no effect.
+omitted, no OTLP exporter is added and `batchProcessorConfig` has no effect. `startBrowserSdk` warns
+when this drops a root `exportConfig` you set.
 
 ### Traces configuration
 
-#### processorConfig
+#### batchProcessorConfig
 
-Object containing configuraiton options for the batch processing of spans. These options are:
+Object containing configuration options for the batch processing of spans. These options are:
 
 - `scheduledDelayMillis`: Delay interval (in milliseconds) between two consecutive exports.
 - `exportTimeoutMillis`: Maximum allowed time (in milliseconds) to export data.
@@ -342,21 +347,25 @@ the option is defined at the top level and within the `traces` signal configurat
 
 #### exportConfig
 
-Object containing configuraiton options for the HTTP span exporter. These options are:
+Object containing configuration options for the HTTP span exporter. These options are:
 
 - `url`: Target to which the exporter is going to send traces.
 - `headers`: Key-value pairs to be used as headers associated with HTTP requests.
 
-Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
-the option is defined at the top level and within the `traces` signal configuration the later wins.
+Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. The
+signal configuration overrides the top level option by option, so root options it does not set, such
+as `headers`, still apply. The `url` is used, with the signal path set on it, whenever the signal
+`exportConfig` has no `url` of its own. A signal that sets `processors` and no `exportConfig` gets
+none of this, and the SDK warns when that drops a root export you configured.
 
-Note: an invalid `url` stops the SDK from starting — it logs a `diag.error` and returns a no-op SDK
-(with `invalidConfig: true`, so callers can detect it) instead of starting and silently dropping the
-telemetry it cannot export.
+Note: an invalid `url` stops the whole browser SDK from starting, including the other signals and any
+`processors` they define. It logs a `diag.error` and returns a no-op SDK (with `invalidConfig: true`,
+so callers can detect it) instead of starting and silently dropping the telemetry it cannot export.
+The `url` must be an absolute `http` or `https` URL.
 
 #### spanLimits
 
-Object containing configuraiton options span limits. These options are:
+Object containing configuration options span limits. These options are:
 
 - `attributeValueLengthLimit`: Maximum allowed attribute value size.
 - `attributeCountLimit`: Maximum allowed attribute count.
@@ -370,7 +379,8 @@ Object containing configuraiton options span limits. These options are:
 List of SpanProcessor for the tracer provider. When set, these are used instead of the default OTLP
 `BatchSpanProcessor`. To also export over OTLP alongside them, additionally set `exportConfig` — this
 appends a `BatchSpanProcessor` (tuned by `batchProcessorConfig`). When `exportConfig` is omitted, no
-OTLP exporter is added and `batchProcessorConfig` has no effect.
+OTLP exporter is added and `batchProcessorConfig` has no effect. `startBrowserSdk` warns when this
+drops a root `exportConfig` you set.
 
 #### contextManager
 
