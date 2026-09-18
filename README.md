@@ -77,6 +77,12 @@ This starts the sandbox with hot-reload via Vite at `http://localhost:5173`.
 
 The sandbox is automatically deployed to GitHub Pages on every push to `main` via the `deploy-sandbox.yml` workflow. The live site is available at [open-telemetry.github.io/opentelemetry-browser](https://open-telemetry.github.io/opentelemetry-browser/).
 
+## Documentation
+
+- [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in session support.
+- [Browser Events](./docs/browser-observability-model.md) — catalog of browser telemetry events.
+- [Navigation event](./docs/navigation-event.md) — deep dive on the `browser.navigation` event.
+
 ## Browser Packages
 
 The following tables list browser-related packages across all OpenTelemetry JS repositories.
