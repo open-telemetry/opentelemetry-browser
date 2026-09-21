@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.4.0...browser-sdk-v0.5.0) (2026-09-21)
+
+
+### Features
+
+* **sdk:** add `instrumentations` config option to the SDK ([#415](https://github.com/open-telemetry/opentelemetry-browser/issues/415)) ([c0df3d6](https://github.com/open-telemetry/opentelemetry-browser/commit/c0df3d63b5ed1e8474a50759c5d1138f7fc4a22b))
+* **sdk:** validate all export URLs before starting the SDK ([#357](https://github.com/open-telemetry/opentelemetry-browser/issues/357)) ([b27fad9](https://github.com/open-telemetry/opentelemetry-browser/commit/b27fad96e70840cfae01b71fec40661c64f416a3))
+
 ## [0.4.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.3.0...browser-sdk-v0.4.0) (2026-09-09)
 
 
