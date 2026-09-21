@@ -118,6 +118,13 @@ export interface CommonConfig {
 }
 
 /**
+ * Utility functions to extract the configurations from the factory
+ * functions and remove the common properties (which will be already
+ * available at the config root)
+ */
+export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
+
+/**
  * Root configuration options when SDKs are combined into a single
  * one. This type is enhanced
  * by the `combineSdks` function by adding a key for each
