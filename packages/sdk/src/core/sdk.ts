@@ -61,6 +61,66 @@ const INVALID_CONFIG_SDK: WebSdk = {
 };
 
 /**
+ * Propagates the root config into a signal config and sets the signal path on
+ * the export URL. A signal that opts out of an export URL the user set is
+ * reported through `diag`, so a dropped OTLP export is not silent.
+ */
+function propagateRootConfig(
+  signalConfig: LogsConfig | TracesConfig,
+  rootConfig: RootConfig,
+  rootEndpoint: URL,
+  signal: 'logs' | 'traces',
+  rootExportIsFromUser: boolean,
+) {
+  const signalPath = `/v1/${signal}`;
+  const isGenericEndpoint = !signalConfig.exportConfig?.url;
+
+  // A batch processor is created when the signal has no `processors` of its own
+  // and also when it sets `exportConfig`, so its config must follow in both cases
+  if (
+    !signalConfig.batchProcessorConfig &&
+    (!signalConfig.processors || signalConfig.exportConfig)
+  ) {
+    signalConfig.batchProcessorConfig = rootConfig.batchProcessorConfig || {};
+  }
+  if (!signalConfig.processors && !signalConfig.exportConfig) {
+    // Copy: the signal path below is written to this object, so sharing it
+    // would leak one signal's URL into the other
+    signalConfig.exportConfig = { ...rootConfig.exportConfig };
+  } else if (signalConfig.exportConfig) {
+    // Root options the signal did not set still apply. `headers` carries the
+    // collector auth, so dropping it exports to the right URL and gets a 401
+    signalConfig.exportConfig = {
+      ...rootConfig.exportConfig,
+      ...signalConfig.exportConfig,
+    };
+  }
+
+  if (signalConfig.processors && !signalConfig.exportConfig) {
+    if (rootExportIsFromUser) {
+      diag.warn(
+        `The "${signal}" config sets \`processors\`, so the root \`exportConfig\` is not propagated and the SDK exports nothing over OTLP. Set \`${signal}.exportConfig\` to keep the OTLP export next to your processors.`,
+      );
+    }
+    return;
+  }
+
+  if (isGenericEndpoint && signalConfig.exportConfig) {
+    // Copy: writing the signal path into the shared root URL would leak it
+    // into the next signal
+    const endpointUrl = new URL(rootEndpoint.href);
+
+    if (endpointUrl.pathname !== '/') {
+      diag.warn(
+        `The export URL path "${endpointUrl.pathname}" is replaced by "${signalPath}". To keep it, use \`startBrowserSdk\` and set \`${signal}.exportConfig.url\` with the full path.`,
+      );
+    }
+    endpointUrl.pathname = signalPath;
+    signalConfig.exportConfig.url = endpointUrl.href;
+  }
+}
+
+/**
  * Combines different SDK factory functions into a single one
  * which accepts a global configuration along
  */
@@ -74,7 +134,9 @@ export function combineSdks<T extends SdkFactories>(
     const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
     // Set the logger
-    setSdkLogger(rootConfig?.logLevel);
+    // The user's value, not `rootConfig`'s: the default would look like a level
+    // they chose and warn about being ignored on a second start
+    setSdkLogger(config?.logLevel);
 
     if (config?.disabled) {
       diag.debug('Browser SDK disabled by configuration.');
@@ -95,7 +157,10 @@ export function combineSdks<T extends SdkFactories>(
         rootConfig.serviceVersion;
     }
 
-    // Export
+    // Export. Record whether the user set any export option before the default
+    // hides it: only then is a dropped export worth warning about. Headers
+    // alone count, since they configure an export just as much as a URL does
+    const rootExportIsFromUser = !!config?.exportConfig;
     rootConfig.exportConfig = {
       url: DEFAULT_OTLP_ENDPOINT,
       ...rootConfig.exportConfig,
@@ -130,54 +195,26 @@ export function combineSdks<T extends SdkFactories>(
 
     // Start logs
     if (factories.logs) {
-      const isGenericEndpoint = !logsConfig.exportConfig?.url;
-
-      // Propagate root configs to the signal only when it has no custom
-      // processors. A signal with its own processors manages its own exporter,
-      // so the root exportConfig / batchProcessorConfig are not pushed down —
-      // the signal's own exportConfig, if any, is still honored downstream.
-      if (!logsConfig.processors) {
-        if (!logsConfig.batchProcessorConfig) {
-          logsConfig.batchProcessorConfig =
-            rootConfig.batchProcessorConfig || {};
-        }
-        if (!logsConfig.exportConfig) {
-          logsConfig.exportConfig = rootConfig.exportConfig || {};
-        }
-      }
-
-      // Set the path if endpoint comes from general config
-      if (isGenericEndpoint && logsConfig.exportConfig) {
-        endpointUrl.pathname = '/v1/logs';
-        logsConfig.exportConfig.url = endpointUrl.href;
-      }
+      propagateRootConfig(
+        logsConfig,
+        rootConfig,
+        endpointUrl,
+        'logs',
+        rootExportIsFromUser,
+      );
       logsConfig.resourceAttributes = rootConfig.resourceAttributes;
       sdks.push(factories.logs(logsConfig));
     }
 
     // Start traces
     if (factories.traces) {
-      const isGenericEndpoint = !tracesConfig.exportConfig?.url;
-
-      // Propagate root configs to the signal only when it has no custom
-      // processors. A signal with its own processors manages its own exporter,
-      // so the root exportConfig / batchProcessorConfig are not pushed down —
-      // the signal's own exportConfig, if any, is still honored downstream.
-      if (!tracesConfig.processors) {
-        if (!tracesConfig.batchProcessorConfig) {
-          tracesConfig.batchProcessorConfig =
-            rootConfig.batchProcessorConfig || {};
-        }
-        if (!tracesConfig.exportConfig) {
-          tracesConfig.exportConfig = rootConfig.exportConfig || {};
-        }
-      }
-
-      // Set the path if endpoint comes from general config
-      if (isGenericEndpoint && tracesConfig.exportConfig) {
-        endpointUrl.pathname = '/v1/traces';
-        tracesConfig.exportConfig.url = endpointUrl.href;
-      }
+      propagateRootConfig(
+        tracesConfig,
+        rootConfig,
+        endpointUrl,
+        'traces',
+        rootExportIsFromUser,
+      );
       tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
       sdks.push(factories.traces(tracesConfig));
     }
@@ -191,6 +228,9 @@ export function combineSdks<T extends SdkFactories>(
     }
 
     return {
+      // A signal that refused to start already logged the reason, but the flag
+      // is the only way a caller can detect it from the combined SDK
+      invalidConfig: sdks.some((sdk) => sdk.invalidConfig) || undefined,
       shutdown() {
         deregisterInstrumentations?.();
         return Promise.allSettled(sdks.map((s) => s.shutdown())).then(

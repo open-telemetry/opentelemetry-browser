@@ -11,6 +11,10 @@ import {
   ROOT_CONTEXT,
   trace,
 } from '@opentelemetry/api';
+import {
+  CompositePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
   AlwaysOffSampler,
@@ -120,6 +124,62 @@ describe('startTracesSdk', () => {
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(false);
+  });
+
+  it('should report a propagator that is dropped by an existing registration', async () => {
+    // Arrange: a propagator already registered, as a second SDK start would find
+    propagation.setGlobalPropagator(
+      new CompositePropagator({ propagators: [] }),
+    );
+
+    // Act
+    tracesSdk = startTracesSdk({
+      propagators: [new W3CTraceContextPropagator()],
+    });
+
+    // Assert: the user's `propagators` never take effect, so saying nothing
+    // would leave them debugging missing trace headers
+    expect(
+      diagErrorSpy.mock.calls.find((args) =>
+        String(args[0]).includes('global propagator is already registered'),
+      ),
+    ).toBeDefined();
+  });
+
+  it('should disable a context manager that is dropped by an existing registration', async () => {
+    // Arrange
+    const disable = vi.fn();
+    const fakeManager: ContextManager = {
+      active: () => ROOT_CONTEXT,
+      with: (_ctx, fn, thisArg, ...args) => fn.call(thisArg, ...args),
+      bind: (_ctx, target) => target,
+      enable: vi.fn(function (this: ContextManager) {
+        return this;
+      }),
+      disable: vi.fn(function (this: ContextManager) {
+        disable();
+        return this;
+      }),
+    };
+    context.setGlobalContextManager({
+      ...fakeManager,
+      enable: () => fakeManager,
+      disable: () => fakeManager,
+    });
+
+    // Act
+    tracesSdk = startTracesSdk({ contextManager: fakeManager });
+
+    // Assert: an enabled manager that nothing registered still patches the
+    // async APIs, and `shutdown()` does not disable it
+    expect(
+      diagErrorSpy.mock.calls.find((args) =>
+        String(args[0]).includes(
+          'global context manager is already registered',
+        ),
+      ),
+    ).toBeDefined();
+    expect(disable).toHaveBeenCalled();
   });
 
   it('should use the default configuration for exporters', async () => {
