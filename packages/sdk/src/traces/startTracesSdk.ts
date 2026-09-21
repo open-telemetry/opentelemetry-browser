@@ -13,6 +13,7 @@ import {
 } from '@opentelemetry/resources';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
+import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
 import { getDefaultContextManager } from '../core/context.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
@@ -20,14 +21,6 @@ import { getDefaultPropagators } from '../core/propagation.ts';
 import type { TracesConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
-// Returned when the signal is intentionally turned off via `config.disabled`.
-const NOOP_SDK: WebSdk = { shutdown: () => Promise.resolve() };
-// Returned when the signal refuses to start because of an invalid configuration
-// (e.g. a bad export URL or no usable processors).
-const INVALID_CONFIG_SDK: WebSdk = {
-  invalidConfig: true,
-  shutdown: () => Promise.resolve(),
-};
 
 export function startTracesSdk(config?: TracesConfig): WebSdk {
   // Set the logger
