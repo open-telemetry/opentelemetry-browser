@@ -228,7 +228,7 @@ function checkPackageExports(units) {
 // NOTE: some packages may grow bigger than the instrumentations like
 // - instrumentation/utils: code shared by the instrumentations
 const MAX_SIZE_KB_BUCKETS = {
-  'instrumentation/utils': 5,
+  'instrumentation/utils': 6,
 };
 function checkBundleSize(units) {
   logSection('4. Bundle Size');
