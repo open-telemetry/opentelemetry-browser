@@ -4,7 +4,7 @@
  */
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
-import { isWrapped } from '@opentelemetry/instrumentation';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -26,7 +26,7 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { delay, HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
-import type { Mock } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 import {
   afterAll,
   afterEach,
@@ -35,10 +35,15 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
-import { setupTestSpanExporter } from '#utils/test';
+import {
+  registerForTest,
+  setupTestDiagLogger,
+  setupTestSpanExporter,
+} from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 
@@ -284,26 +289,147 @@ describe('FetchInstrumentation', () => {
       globalThis.fetch = originalFetchFunction;
     });
 
-    it('should wrap global fetch when instantiated', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+    it('should wrap global fetch at registration, not when instantiated or on an earlier enable()', () => {
       instrumentation = new FetchInstrumentation();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
+
+      instrumentation.enable();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
+      expect(instrumentation.isEnabled()).toBe(false);
+
+      registerForTest(instrumentation);
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
     });
 
-    it('should not wrap global fetch when instantiated with `enabled: false`', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
-      instrumentation = new FetchInstrumentation({ enabled: false });
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+    it('should keep a wrapper added on top of ours working across disable and enable', async () => {
+      instrumentation = new FetchInstrumentation();
+      registerForTest(instrumentation);
+      const ours = globalThis.fetch;
+      let thirdPartyCalls = 0;
+      globalThis.fetch = function (this: typeof globalThis, ...args) {
+        thirdPartyCalls += 1;
+        return ours.apply(this, args);
+      };
+      const offUrl = getUrlForPath('/api/get?phase=off');
+      const onUrl = getUrlForPath('/api/get?phase=on');
+
+      instrumentation.disable();
+      await fetch(offUrl);
+      expect(thirdPartyCalls).toBe(1);
+
       instrumentation.enable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      await fetch(onUrl);
+      await waitForSpan(onUrl);
+      expect(thirdPartyCalls).toBe(2);
+      // A fetch span ends when the body has fully downloaded, which is after
+      // `await fetch()` returns. So wait for the later span, then check both.
+      expect(
+        getFetchSpans().map((span) => span.attributes[ATTR_URL_FULL]),
+      ).toEqual([onUrl]);
+    });
+
+    it('should patch but not emit through registerInstrumentations with `enabled: false` until enable()', async () => {
+      instrumentation = new FetchInstrumentation({ enabled: false });
+      const url = getUrlForPath('/api/get');
+
+      onTestFinished(
+        registerInstrumentations({ instrumentations: [instrumentation] }),
+      );
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
+      expect(instrumentation.isEnabled()).toBe(false);
+      await fetch(url);
+      expect(getFetchSpans()).toHaveLength(0);
+
+      instrumentation.enable();
+      await fetch(url);
+      await waitForSpan(url);
+      expect(getFetchSpans()).toHaveLength(1);
     });
 
     it('should not unwrap global fetch when disabled', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation = new FetchInstrumentation();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      registerForTest(instrumentation);
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
       instrumentation.disable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
+    });
+
+    it('should not re-wrap global fetch across a disable/enable cycle', () => {
+      instrumentation = new FetchInstrumentation();
+      registerForTest(instrumentation);
+      const wrappedFetch = globalThis.fetch;
+
+      instrumentation.disable();
+      instrumentation.enable();
+
+      // Re-wrapping would stack a layer that, with no unwrap available, could
+      // never be removed.
+      expect(globalThis.fetch).toBe(wrappedFetch);
+    });
+
+    it('should stop and resume emitting spans across a disable/enable cycle', async () => {
+      instrumentation = new FetchInstrumentation();
+      registerForTest(instrumentation);
+      const offUrl = getUrlForPath('/api/get?phase=off');
+      const onUrl = getUrlForPath('/api/get?phase=on');
+
+      instrumentation.disable();
+      await fetch(offUrl);
+
+      instrumentation.enable();
+      await fetch(onUrl);
+      await waitForSpan(onUrl);
+      // A fetch span ends when the body has fully downloaded, which is after
+      // `await fetch()` returns. So wait for the later span, then check both.
+      expect(
+        getFetchSpans().map((span) => span.attributes[ATTR_URL_FULL]),
+      ).toEqual([onUrl]);
+    });
+
+    it('should stay off and warn when PerformanceObserver is not available', () => {
+      const { warn } = setupTestDiagLogger();
+      vi.stubGlobal('PerformanceObserver', undefined);
+      onTestFinished(() => {
+        vi.unstubAllGlobals();
+      });
+
+      instrumentation = new FetchInstrumentation();
+      registerForTest(instrumentation);
+
+      expect(instrumentation.isEnabled()).toBe(false);
+      expect(globalThis.fetch).toBe(originalFetchFunction);
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringMatching(/PerformanceObserver is not available/),
+        expect.any(Error),
+      );
+    });
+
+    describe('when the fetch slot is non-writable', () => {
+      afterEach(() => {
+        Object.defineProperty(globalThis, 'fetch', {
+          value: originalFetchFunction,
+          writable: true,
+          configurable: true,
+        });
+      });
+
+      it('should still patch fetch', () => {
+        // `_wrap` redefines the slot, so `writable: false` alone does not block it.
+        Object.defineProperty(globalThis, 'fetch', {
+          value: originalFetchFunction,
+          writable: false,
+          configurable: true,
+        });
+
+        instrumentation = new FetchInstrumentation();
+        registerForTest(instrumentation);
+
+        expect(globalThis.fetch).not.toBe(originalFetchFunction);
+        expect(instrumentation.isEnabled()).toBe(true);
+      });
     });
 
     describe('when the fetch property cannot be wrapped', () => {
@@ -318,33 +444,60 @@ describe('FetchInstrumentation', () => {
         "Cannot assign to read only property 'fetch' of object '[object Window]'",
       );
 
+      let wrapSpy: MockInstance;
+
       beforeEach(() => {
-        // Construct with `enabled: false` so the stub is in place before
-        // `enable()` runs — `_wrap` is an instance-level field inherited
-        // from `InstrumentationBase`, not a prototype method.
-        instrumentation = new FetchInstrumentation({ enabled: false });
-        vi.spyOn(instrumentation, '_wrap').mockThrow(wrapError);
+        instrumentation = new FetchInstrumentation();
+        // Shadows the inherited prototype method with an own property.
+        wrapSpy = vi.spyOn(instrumentation, '_wrap').mockImplementation(() => {
+          throw wrapError;
+        });
       });
 
       it('should not throw when _wrap fails', () => {
-        expect(() => instrumentation.enable()).not.toThrow();
+        expect(() => registerForTest(instrumentation)).not.toThrow();
       });
 
       it('should leave fetch unwrapped when _wrap fails', () => {
-        instrumentation.enable();
-        expect(isWrapped(globalThis.fetch)).toBeFalsy();
+        registerForTest(instrumentation);
+        expect(globalThis.fetch).toBe(originalFetchFunction);
       });
 
-      it('should allow enable() to be retried after _wrap fails', () => {
-        instrumentation.enable();
+      it('should not retry _wrap after it fails', () => {
+        registerForTest(instrumentation);
         expect(() => instrumentation.enable()).not.toThrow();
+        instrumentation.enable();
+
+        expect(wrapSpy).toHaveBeenCalledTimes(1);
+        expect(instrumentation.isEnabled()).toBe(false);
+      });
+
+      it('should warn with the descriptive error', () => {
+        const { warn } = setupTestDiagLogger();
+        registerForTest(instrumentation);
+
+        // Component loggers forward to `diag.warn(namespace, message, error)`.
+        const error = warn.mock.calls[0]?.[2] as Error | undefined;
+        expect(error?.message).toBe(
+          `Failed to patch globalThis.fetch: ${wrapError.message}`,
+        );
+        expect(error?.cause).toBe(wrapError);
       });
     });
   });
 
   describe('instrumentation', () => {
+    let unregister: () => void;
+
     beforeAll(() => {
       instrumentation = new FetchInstrumentation();
+      unregister = registerInstrumentations({
+        instrumentations: [instrumentation],
+      });
+    });
+
+    afterAll(() => {
+      unregister();
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {
@@ -633,7 +786,7 @@ describe('FetchInstrumentation', () => {
         await fetch(url);
 
         // No spans to export
-        await expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });

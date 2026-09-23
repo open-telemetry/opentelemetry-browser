@@ -7,53 +7,32 @@ import type { Attributes } from '@opentelemetry/api';
 import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import {
   ATTR_EXCEPTION_MESSAGE,
   ATTR_EXCEPTION_STACKTRACE,
   ATTR_EXCEPTION_TYPE,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import type { ErrorsInstrumentationConfig } from './types.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
 
 export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumentationConfig> {
-  // Use `declare` to prevent JS class field initializers from running after
-  // super(), which would reset values set by the enable() call that
-  // InstrumentationBase makes during its constructor.
-  declare private _isEnabled: boolean;
-  declare private _onErrorHandler?: (
-    event: ErrorEvent | PromiseRejectionEvent,
-  ) => void;
+  private _onErrorHandler:
+    | ((event: ErrorEvent | PromiseRejectionEvent) => void)
+    | undefined;
 
   constructor(config: ErrorsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/errors', version, config);
   }
 
-  protected override init() {
-    return [];
-  }
-
-  override enable(): void {
-    if (this._isEnabled) {
-      return;
-    }
-    this._isEnabled = true;
-
+  protected override _onEnable(): void {
     this._onErrorHandler = (event) => this._onError(event);
     window.addEventListener('error', this._onErrorHandler);
     window.addEventListener('unhandledrejection', this._onErrorHandler);
   }
 
-  override disable(): void {
-    if (!this._isEnabled) {
-      return;
-    }
-    this._isEnabled = false;
-
+  protected override _onDisable(): void {
     if (this._onErrorHandler) {
       window.removeEventListener('error', this._onErrorHandler);
       window.removeEventListener('unhandledrejection', this._onErrorHandler);
@@ -104,36 +83,28 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     // re-trigger the listener and loop. Both attribute extraction (a rejection
     // can carry a value whose `stack` getter throws) and emit (a broken
     // LogRecordProcessor) can throw, so contain the whole path.
-    safeExecuteInTheMiddle(
-      () => {
-        let errorAttributes: AnyValueMap;
-        if (typeof capturedError === 'string') {
-          errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: capturedError };
-        } else {
-          errorAttributes = {
-            [ATTR_EXCEPTION_TYPE]: capturedError.name,
-            [ATTR_EXCEPTION_MESSAGE]: capturedError.message,
-            [ATTR_EXCEPTION_STACKTRACE]: capturedError.stack,
-          };
-        }
-
-        const customAttributes = this._applyCustomAttributes(capturedError);
-
-        const logRecord: LogRecord = {
-          eventName: EXCEPTION_EVENT_NAME,
-          severityNumber: SeverityNumber.ERROR,
-          attributes: { ...errorAttributes, ...customAttributes },
+    this._safeExecute('failed to record exception', () => {
+      let errorAttributes: AnyValueMap;
+      if (typeof capturedError === 'string') {
+        errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: capturedError };
+      } else {
+        errorAttributes = {
+          [ATTR_EXCEPTION_TYPE]: capturedError.name,
+          [ATTR_EXCEPTION_MESSAGE]: capturedError.message,
+          [ATTR_EXCEPTION_STACKTRACE]: capturedError.stack,
         };
+      }
 
-        this.logger.emit(logRecord);
-      },
-      (err) => {
-        if (err) {
-          this._diag.error('failed to record exception', err);
-        }
-      },
-      true,
-    );
+      const customAttributes = this._applyCustomAttributes(capturedError);
+
+      const logRecord: LogRecord = {
+        eventName: EXCEPTION_EVENT_NAME,
+        severityNumber: SeverityNumber.ERROR,
+        attributes: { ...errorAttributes, ...customAttributes },
+      };
+
+      this.logger.emit(logRecord);
+    });
   }
 
   private _applyCustomAttributes(error: Error | string): Attributes {
@@ -141,18 +112,10 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     if (!hook) {
       return {};
     }
-    let result: Attributes = {};
-    safeExecuteInTheMiddle(
-      () => {
-        result = hook(error);
-      },
-      (err) => {
-        if (err) {
-          this._diag.error('applyCustomAttributes hook failed', err);
-        }
-      },
-      true,
+    return (
+      this._safeExecute('applyCustomAttributes hook failed', () =>
+        hook(error),
+      ) ?? {}
     );
-    return result;
   }
 }

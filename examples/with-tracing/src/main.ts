@@ -1,8 +1,10 @@
 import './style.css';
 import { logs } from '@opentelemetry/api-logs';
+import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
 import {
   createDefaultSessionIdGenerator,
   createLocalStorageSessionStore,
@@ -11,8 +13,6 @@ import {
   createSessionSpanProcessor,
 } from '@opentelemetry/browser-sdk/session';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
 import {
   detectResources,
@@ -61,7 +61,7 @@ const logProvider = new LoggerProvider({
 });
 logs.setGlobalLoggerProvider(logProvider);
 
-// --- Span-based instrumentations (opentelemetry-js / opentelemetry-js-contrib) ---
+// --- Span-based instrumentations (this repository) ---
 const provider = new WebTracerProvider({
   resource,
   spanProcessors: [
@@ -80,7 +80,7 @@ registerInstrumentations({
     new WebVitalsInstrumentation(),
     // Span-based
     new FetchInstrumentation(),
-    new XMLHttpRequestInstrumentation(),
+    new XhrInstrumentation(),
   ],
 });
 

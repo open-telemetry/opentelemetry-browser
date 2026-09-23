@@ -12,10 +12,6 @@ import {
   trace,
 } from '@opentelemetry/api';
 import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_REQUEST_METHOD_ORIGINAL,
@@ -24,12 +20,14 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getXHRBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
+import { toError } from '../utils/toError.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type { XhrInstrumentationConfig } from './types.ts';
@@ -46,15 +44,6 @@ type XhrRecord = {
 };
 
 export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationConfig> {
-  // Note: Intentionally *not* using `_enabled` as the field name to avoid
-  // any possible confusion with the `_enabled` field used on the *Node.js*
-  // InstrumentationBase class.
-  // Also not initializing the fields to `false` because the base class
-  // constructor already call `enable` modifying their values and it will
-  // set the instrumentaitons in a base state (enabled, patched but with flags set to false)
-  declare private _isEnabled: boolean;
-  declare private _isXhrPatched: boolean;
-
   // To keep references to span/xhr tuples across XHR events and stores
   // init data like URL and method
   private _xhrSpanMap: WeakMap<XMLHttpRequest, XhrRecord> = new WeakMap();
@@ -63,55 +52,26 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     super('@opentelemetry/browser-instrumentation/xhr', version, config);
   }
 
-  protected override init() {
-    return [];
-  }
-
-  override enable(): void {
-    if (this._isEnabled) {
-      return;
-    }
-
-    if (this._isXhrPatched) {
-      this._diag.debug('XMLHttpRequest prototype already patched');
-      this._isEnabled = true;
-      return;
-    }
-
+  protected override _init(): void {
     // `_wrap` throws if a third-party script has locked the target methods via
-    // Object.defineProperty(XMLHttpRequest.prototype, 'open', { writable: false, ... }).
+    // Object.defineProperty(XMLHttpRequest.prototype, 'open', { configurable: false, ... }).
     try {
       this._wrap(XMLHttpRequest.prototype, 'open', this._patchOpen());
     } catch (err) {
-      this._diag.warn(
-        'Failed to patch XMLHttpRequest.prototype.open; instrumentation will not be enabled. ' +
-          'Another script may have locked XMLHttpRequest.prototype.open via Object.defineProperty.',
-        err,
+      throw new Error(
+        `Failed to patch XMLHttpRequest.prototype.open: ${toError(err).message}`,
+        { cause: err },
       );
-      return;
     }
 
-    // If 1st patch has succeded try the second. Unpatch `open` if error
-    // here to avoid having multiple patches of `open`
     try {
       this._wrap(XMLHttpRequest.prototype, 'send', this._patchSend());
-      this._isXhrPatched = true;
-      this._isEnabled = true;
     } catch (err) {
-      this._unwrap(XMLHttpRequest.prototype, 'open');
-      this._diag.warn(
-        'Failed to patch XMLHttpRequest.prototype.send; instrumentation will not be enabled. ' +
-          'Another script may have locked XMLHttpRequest.prototype.send via Object.defineProperty.',
-        err,
+      throw new Error(
+        `Failed to patch XMLHttpRequest.prototype.send: ${toError(err).message}. The open patch stays in place and passes calls through.`,
+        { cause: err },
       );
     }
-  }
-
-  override disable(): void {
-    if (!this._isEnabled) {
-      return;
-    }
-    this._isEnabled = false;
   }
 
   /**
@@ -125,7 +85,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
         this: XMLHttpRequest,
         ...args: Parameters<XhrOpenFunction>
       ): ReturnType<XhrOpenFunction> {
-        if (!instrumentation._isEnabled) {
+        if (!instrumentation.isEnabled()) {
           return original.apply(this, args);
         }
         try {
@@ -153,7 +113,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
   }
 
   /**
-   * Patches the "open" method of XmlHttpRequest
+   * Patches the "send" method of XmlHttpRequest
    */
   private _patchSend(): (original: XhrSendFunction) => XhrSendFunction {
     return (original) => {
@@ -163,7 +123,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
         this: XMLHttpRequest,
         ...args: Parameters<XhrSendFunction>
       ): ReturnType<XhrSendFunction> {
-        if (!instrumentation._isEnabled) {
+        if (!instrumentation.isEnabled()) {
           return original.apply(this, args);
         }
 
@@ -205,7 +165,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           } catch (e: unknown) {
             // failed to instrument request, remove span
             instrumentation._diag.error(
-              'Failed to instrument fetch request',
+              'Failed to instrument XMLHttpRequest.send',
               e,
             );
             instrumentation._xhrSpanMap.delete(this);
@@ -303,15 +263,8 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     const applyCustomAttributesOnSpan =
       this.getConfig().applyCustomAttributesOnSpan;
     if (applyCustomAttributesOnSpan) {
-      safeExecuteInTheMiddle(
-        () => applyCustomAttributesOnSpan(span, xhr),
-        (error) => {
-          if (!error) {
-            return;
-          }
-          this._diag.error('applyCustomAttributesOnSpan', error);
-        },
-        true,
+      this._safeExecute('applyCustomAttributesOnSpan hook failed', () =>
+        applyCustomAttributesOnSpan(span, xhr),
       );
     }
   }

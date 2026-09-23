@@ -11,10 +11,11 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl } from '#utils';
-import { setupTestLogExporter } from '#utils/test';
+import { registerForTest, setupTestLogExporter } from '#utils/test';
 
 import { NavigationInstrumentation } from './instrumentation.ts';
 import {
@@ -72,24 +73,25 @@ describe('NavigationInstrumentation', () => {
 
   describe('lifecycle', () => {
     it('should create an instance', () => {
-      instrumentation = new NavigationInstrumentation({ enabled: false });
+      instrumentation = new NavigationInstrumentation();
       expect(instrumentation).toBeInstanceOf(NavigationInstrumentation);
     });
 
     it('should enable and disable without errors', () => {
-      instrumentation = new NavigationInstrumentation({ enabled: false });
+      const inst = new NavigationInstrumentation();
+      instrumentation = inst;
       expect(() => {
-        instrumentation?.enable();
-        instrumentation?.disable();
+        registerForTest(inst);
+        inst.disable();
       }).not.toThrow();
     });
 
     it('should not double-subscribe when enabling twice', () => {
       setReadyState('loading');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
+      instrumentation = new NavigationInstrumentation();
       const addSpy = vi.spyOn(window, 'addEventListener');
 
-      instrumentation.enable();
+      registerForTest(instrumentation);
       instrumentation.enable();
 
       const popstateCalls = addSpy.mock.calls.filter(
@@ -102,8 +104,8 @@ describe('NavigationInstrumentation', () => {
   describe('hard navigation', () => {
     it('should emit immediately when readyState is complete', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
 
       const logs = getNavigationLogs();
       expect(logs).toHaveLength(1);
@@ -117,8 +119,8 @@ describe('NavigationInstrumentation', () => {
 
     it('should emit on DOMContentLoaded when readyState is loading', () => {
       setReadyState('loading');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       expect(getNavigationLogs()).toHaveLength(0);
 
       document.dispatchEvent(new Event('DOMContentLoaded'));
@@ -130,10 +132,47 @@ describe('NavigationInstrumentation', () => {
       );
     });
 
+    it('should emit immediately when readyState is interactive', () => {
+      // DOMContentLoaded has already fired, so waiting for it would miss the page load.
+      setReadyState('interactive');
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
+
+      expect(getNavigationLogs()).toHaveLength(1);
+    });
+
+    it('should not emit the page load again after disable and enable', () => {
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
+      instrumentation.disable();
+      instrumentation.enable();
+
+      expect(getNavigationLogs()).toHaveLength(1);
+    });
+
+    it('should stay on when sanitizeUrl throws for the initial page', () => {
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation({
+        sanitizeUrl: (url) => {
+          if (!url.includes('/next')) {
+            throw new Error('sanitizer broke');
+          }
+          return url;
+        },
+      });
+
+      registerForTest(instrumentation);
+      window.history.pushState({}, '', '/next');
+
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(getNavigationLogs()).toHaveLength(1);
+    });
+
     it('should not emit a duplicate initial event if DOMContentLoaded fires twice', () => {
       setReadyState('loading');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
 
       document.dispatchEvent(new Event('DOMContentLoaded'));
       document.dispatchEvent(new Event('DOMContentLoaded'));
@@ -145,8 +184,8 @@ describe('NavigationInstrumentation', () => {
   describe('history API patching', () => {
     it('should emit a push event when history.pushState is called', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/new-path');
@@ -164,8 +203,8 @@ describe('NavigationInstrumentation', () => {
 
     it('should emit a replace event when history.replaceState is called', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.replaceState({}, '', '/replaced');
@@ -177,8 +216,8 @@ describe('NavigationInstrumentation', () => {
 
     it('should not emit when pushState is called twice with the same URL', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/same');
@@ -188,10 +227,39 @@ describe('NavigationInstrumentation', () => {
       expect(getNavigationLogs()).toHaveLength(1);
     });
 
+    it('should not break pushState when sanitizeUrl throws', () => {
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation({
+        sanitizeUrl: (url) => {
+          if (url.includes('/boom')) {
+            throw new Error('sanitizer broke');
+          }
+          return url;
+        },
+      });
+      registerForTest(instrumentation);
+
+      expect(() => window.history.pushState({}, '', '/boom')).not.toThrow();
+      expect(location.pathname).toBe('/boom');
+    });
+
+    it('should use the URL at registration, not at construction, as the referrer', () => {
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation();
+      // History is not patched until registration, so this change is not observed.
+      window.history.replaceState({}, '', '/before-enable');
+      registerForTest(instrumentation);
+      inMemoryExporter.reset();
+
+      window.history.pushState({}, '', '/before-enable');
+
+      expect(getNavigationLogs()).toHaveLength(0);
+    });
+
     it('should still call the original pushState', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
 
       window.history.pushState({ foo: 'bar' }, '', '/original-ran');
 
@@ -201,22 +269,20 @@ describe('NavigationInstrumentation', () => {
   });
 
   describe('popstate', () => {
-    it('should emit a traverse event on popstate', () => {
+    it('should emit a traverse event on popstate', async () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
 
-      // Advance URL so the plugin's tracked lastUrl is /page-a.
       window.history.pushState({}, '', '/page-a');
-
-      // Simulate the browser going back: URL flips before popstate fires.
-      // Disable the plugin around the URL change so lastUrl stays at /page-a.
-      instrumentation.disable();
-      window.history.replaceState({}, '', '/');
-      instrumentation.enable();
       inMemoryExporter.reset();
 
-      window.dispatchEvent(new PopStateEvent('popstate'));
+      // A real traversal: the browser changes the URL, then fires popstate.
+      const popped = new Promise((resolve) =>
+        window.addEventListener('popstate', resolve, { once: true }),
+      );
+      window.history.back();
+      await popped;
 
       const logs = getNavigationLogs();
       expect(logs).toHaveLength(1);
@@ -229,8 +295,8 @@ describe('NavigationInstrumentation', () => {
   describe('hash change', () => {
     it('should mark hash_change=true when only hash is added', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/#section1');
@@ -244,8 +310,8 @@ describe('NavigationInstrumentation', () => {
 
     it('should mark hash_change=false when path changes', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/new-path');
@@ -257,11 +323,34 @@ describe('NavigationInstrumentation', () => {
     });
   });
 
+  describe('partial history patch', () => {
+    it('should not wrap replaceState again after pushState fails', () => {
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation();
+      const wrapped: string[] = [];
+      // Stubbed rather than locking `history.pushState` for real, because a
+      // non-configurable slot cannot be undone and would break later tests.
+      vi.spyOn(instrumentation, '_wrap').mockImplementation((_nodule, name) => {
+        if (name === 'pushState') {
+          throw new TypeError('Cannot redefine property: pushState');
+        }
+        wrapped.push(String(name));
+      });
+
+      registerForTest(instrumentation);
+      instrumentation.enable();
+      instrumentation.enable();
+
+      expect(instrumentation.isEnabled()).toBe(false);
+      expect(wrapped).toEqual(['replaceState']);
+    });
+  });
+
   describe('disable', () => {
     it('should not emit for history changes after disable', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
       instrumentation.disable();
 
@@ -272,8 +361,8 @@ describe('NavigationInstrumentation', () => {
 
     it('should not emit on popstate after disable', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
       instrumentation.disable();
 
@@ -286,8 +375,8 @@ describe('NavigationInstrumentation', () => {
   describe('sanitizeUrl', () => {
     it('should not sanitize by default', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({ enabled: false });
-      instrumentation.enable();
+      instrumentation = new NavigationInstrumentation();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/path?api_key=secret');
@@ -299,10 +388,9 @@ describe('NavigationInstrumentation', () => {
     it('should apply defaultSanitizeUrl when provided', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         sanitizeUrl: defaultSanitizeUrl,
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/path?api_key=secret&normal=value');
@@ -316,10 +404,9 @@ describe('NavigationInstrumentation', () => {
     it('should apply a custom sanitizeUrl function', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         sanitizeUrl: (url) => url.replace('secret', 'CUSTOM'),
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/path?token=secret');
@@ -333,13 +420,12 @@ describe('NavigationInstrumentation', () => {
     it('should invoke the hook and allow attribute mutations', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         applyCustomLogRecordData: (logRecord) => {
           (logRecord.attributes as Record<string, unknown>)['custom.key'] =
             'custom.value';
         },
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       const logs = getNavigationLogs();
       expect(logs[0]?.attributes['custom.key']).toBe('custom.value');
@@ -348,7 +434,6 @@ describe('NavigationInstrumentation', () => {
     it('should catch errors thrown by the hook and still emit', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         applyCustomLogRecordData: () => {
           throw new Error('hook boom');
         },
@@ -364,7 +449,7 @@ describe('NavigationInstrumentation', () => {
         )
         .mockImplementation(() => {});
 
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       expect(getNavigationLogs()).toHaveLength(1);
       expect(diagErrorSpy).toHaveBeenCalled();
@@ -395,10 +480,9 @@ describe('NavigationInstrumentation', () => {
       const origPushState = window.history.pushState;
 
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         useNavigationApiIfAvailable: true,
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
 
       expect(window.history.pushState).toBe(origPushState);
       restore();
@@ -413,10 +497,9 @@ describe('NavigationInstrumentation', () => {
       const restore = installNavigationApi(stub);
 
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         useNavigationApiIfAvailable: true,
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       const event = new Event('currententrychange') as Event & {
@@ -435,6 +518,76 @@ describe('NavigationInstrumentation', () => {
       restore();
     });
 
+    it('should remove the Navigation API listener on disable after setConfig', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: true,
+      });
+      registerForTest(instrumentation);
+
+      // Replaces the whole config, so `useNavigationApiIfAvailable` is dropped.
+      instrumentation.setConfig({});
+      instrumentation.disable();
+      inMemoryExporter.reset();
+      stub.dispatchEvent(new Event('currententrychange'));
+
+      expect(getNavigationLogs()).toHaveLength(0);
+    });
+
+    it('should keep the init-time mode when setConfig drops the flag', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: true,
+      });
+      registerForTest(instrumentation);
+
+      instrumentation.setConfig({});
+      instrumentation.disable();
+      instrumentation.enable();
+      inMemoryExporter.reset();
+      stub.dispatchEvent(new Event('currententrychange'));
+
+      expect(getNavigationLogs()).toHaveLength(1);
+    });
+
+    it('should record a navigation that a hook makes during the page load', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+      let isPageLoad = true;
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: true,
+        applyCustomLogRecordData: () => {
+          if (isPageLoad) {
+            isPageLoad = false;
+            // A same-document replaceState fires this event synchronously.
+            stub.dispatchEvent(new Event('currententrychange'));
+          }
+        },
+      });
+
+      registerForTest(instrumentation);
+
+      const urls = getNavigationLogs().map(
+        (log) => log.attributes[ATTR_URL_FULL],
+      );
+      expect(urls).toHaveLength(2);
+      expect(urls).toContain('http://localhost/nav-api-path');
+    });
+
     it('should fall back to history patching when window.navigation is undefined', () => {
       setReadyState('complete');
       // Ensure navigation is NOT defined (jsdom default)
@@ -443,10 +596,9 @@ describe('NavigationInstrumentation', () => {
       ).toBeUndefined();
 
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         useNavigationApiIfAvailable: true,
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/fallback');
@@ -465,10 +617,9 @@ describe('NavigationInstrumentation', () => {
       const restore = installNavigationApi(stub);
 
       instrumentation = new NavigationInstrumentation({
-        enabled: false,
         useNavigationApiIfAvailable: true,
       });
-      instrumentation.enable();
+      registerForTest(instrumentation);
       inMemoryExporter.reset();
 
       const event = new Event('currententrychange') as Event & {
@@ -489,12 +640,12 @@ describe('NavigationInstrumentation', () => {
   describe('multi-instance', () => {
     it('should not throw when two instances are enabled and disabled', () => {
       setReadyState('complete');
-      const a = new NavigationInstrumentation({ enabled: false });
-      const b = new NavigationInstrumentation({ enabled: false });
+      const a = new NavigationInstrumentation();
+      const b = new NavigationInstrumentation();
 
       expect(() => {
-        a.enable();
-        b.enable();
+        registerForTest(a);
+        registerForTest(b);
         window.history.pushState({}, '', '/dual');
         a.disable();
         b.disable();
