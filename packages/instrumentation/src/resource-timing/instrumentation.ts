@@ -90,7 +90,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     } else {
       // Runs outside the lifecycle, so a throw here cannot roll back enable().
       this._loadHandler = () =>
-        this._runHook('Failed to start resource PerformanceObserver', () =>
+        this._safeExecute('Failed to start resource PerformanceObserver', () =>
           this._setupObserver(),
         );
       window.addEventListener('load', this._loadHandler, { once: true });

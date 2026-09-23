@@ -174,7 +174,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
     this._didEmit = true;
 
-    this._runHook('failed to record navigation timing', () =>
+    this._safeExecute('failed to record navigation timing', () =>
       this._emitNavigationTiming(entry),
     );
     this._lastEntry = undefined;

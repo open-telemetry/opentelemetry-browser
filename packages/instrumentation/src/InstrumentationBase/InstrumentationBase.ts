@@ -318,7 +318,7 @@ export abstract class InstrumentationBase<
    * If `fn` throws or returns a promise that rejects, logs `errorMessage` with
    * `diag.error`, so a broken hook or emit path cannot break the host call.
    */
-  protected _runHook<T>(errorMessage: string, fn: () => T): T | undefined {
+  protected _safeExecute<T>(errorMessage: string, fn: () => T): T | undefined {
     try {
       const result = fn();
       if (isPromiseLike(result)) {

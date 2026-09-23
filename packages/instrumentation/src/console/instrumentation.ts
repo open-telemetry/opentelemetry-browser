@@ -101,7 +101,7 @@ export class ConsoleInstrumentation extends InstrumentationBase<ConsoleInstrumen
   }
 
   private _record(method: ConsoleMethod, args: unknown[]): void {
-    this._runHook('failed to record console call', () => {
+    this._safeExecute('failed to record console call', () => {
       this.logger.emit({
         body: this._getMessageSerializer()(args),
         eventName: CONSOLE_LOG_EVENT_NAME,

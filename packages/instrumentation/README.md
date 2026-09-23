@@ -499,7 +499,7 @@ promise counts as failed.
 
 Patches are never removed. So a patch must check `isEnabled()`, and pass the
 call through when it is false. Run user hooks and emit code through
-`_runHook()`, so that a throw does not break the page.
+`_safeExecute()`, so that a throw does not break the page.
 
 ```typescript
 import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
@@ -544,7 +544,7 @@ export class RouteInstrumentation extends InstrumentationBase {
   }
 
   private _record(): void {
-    this._runHook('failed to record a route change', () => {
+    this._safeExecute('failed to record a route change', () => {
       this.logger.emit({
         eventName: 'example.route_change',
         attributes: { 'url.full': location.href },

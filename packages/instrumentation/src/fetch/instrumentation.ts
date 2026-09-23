@@ -332,7 +332,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     const applyCustomAttributesOnSpan =
       this.getConfig().applyCustomAttributesOnSpan;
     if (applyCustomAttributesOnSpan) {
-      this._runHook('applyCustomAttributesOnSpan hook failed', () =>
+      this._safeExecute('applyCustomAttributesOnSpan hook failed', () =>
         applyCustomAttributesOnSpan(span, request, result),
       );
     }
@@ -345,7 +345,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     const requestHook = this.getConfig().requestHook;
 
     if (requestHook) {
-      this._runHook('requestHook failed', () => requestHook(span, request));
+      this._safeExecute('requestHook failed', () => requestHook(span, request));
     }
   }
 
