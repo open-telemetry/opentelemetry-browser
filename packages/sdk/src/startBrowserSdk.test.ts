@@ -367,6 +367,9 @@ describe('quickStartBrowserSdk', () => {
         headers: { bar: 'baz' },
       });
     });
+    // Console output belongs to DEBUG and above. Without this, making the
+    // console processors unconditional would leave every test green.
+    expect(consoleDirSpy).not.toHaveBeenCalled();
   });
 
   it('should propagate service name and version as resource attributes', async () => {
@@ -401,6 +404,30 @@ describe('quickStartBrowserSdk', () => {
 
     // Assert: the console exporters write to `console.dir`
     expect(consoleDirSpy).toHaveBeenCalled();
+  });
+
+  it('should add console processors for log levels above DEBUG', async () => {
+    // Act: `VERBOSE` is louder than `DEBUG`, so it must not print less
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'http://otlp-signal-endpoint:4318',
+      logLevel: 'VERBOSE',
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    // Assert
+    expect(consoleDirSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('should not fall back to the default endpoint for an empty export URL', async () => {
+    // Act: `exportUrl` is required, so an empty value is an unset variable
+    browserSdk = quickStartBrowserSdk({ exportUrl: '' });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should forward instrumentations to the SDK', async () => {
