@@ -127,7 +127,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   }
 
   private _onHardNavigation(): void {
-    this._runHook('failed to record the page load', () => {
+    this._safeExecute('failed to record the page load', () => {
       const cfg = this.getConfig();
       const logRecord: LogRecord = {
         eventName: BROWSER_NAVIGATION_EVENT_NAME,
@@ -161,7 +161,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
     }
 
     this._lastUrl = currentUrl;
-    this._runHook('failed to record a navigation', () => {
+    this._safeExecute('failed to record a navigation', () => {
       const navType = this._mapChangeStateToType(changeState, navigationEvent);
       const sameDocument = this._determineSameDocument(referrerUrl, currentUrl);
       const hashChange = isHashChange(referrerUrl, currentUrl);
@@ -238,7 +238,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
     if (!hook) {
       return;
     }
-    this._runHook('applyCustomLogRecordData hook failed', () =>
+    this._safeExecute('applyCustomLogRecordData hook failed', () =>
       hook(logRecord),
     );
   }

@@ -104,7 +104,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       return;
     }
     // A throw here would surface from the library's observer as a page error.
-    this._runHook('failed to record a web vital', () =>
+    this._safeExecute('failed to record a web vital', () =>
       this._recordWebVital(metric),
     );
   }
@@ -135,7 +135,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     };
 
     if (applyCustomLogRecordData) {
-      this._runHook('applyCustomLogRecordData hook failed', () =>
+      this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );
     }

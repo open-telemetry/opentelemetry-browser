@@ -83,7 +83,7 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     // re-trigger the listener and loop. Both attribute extraction (a rejection
     // can carry a value whose `stack` getter throws) and emit (a broken
     // LogRecordProcessor) can throw, so contain the whole path.
-    this._runHook('failed to record exception', () => {
+    this._safeExecute('failed to record exception', () => {
       let errorAttributes: AnyValueMap;
       if (typeof capturedError === 'string') {
         errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: capturedError };
@@ -113,8 +113,9 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
       return {};
     }
     return (
-      this._runHook('applyCustomAttributes hook failed', () => hook(error)) ??
-      {}
+      this._safeExecute('applyCustomAttributes hook failed', () =>
+        hook(error),
+      ) ?? {}
     );
   }
 }

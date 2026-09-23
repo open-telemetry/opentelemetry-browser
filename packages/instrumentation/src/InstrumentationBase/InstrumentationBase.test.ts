@@ -176,8 +176,11 @@ class WrapProbe extends InstrumentationBase {
     this._wrap(nodule, name, wrapper);
   }
 
-  public runHook<T>(errorMessage: string, fn: () => T): T | undefined {
-    return this._runHook(errorMessage, fn);
+  public exposedSafeExecute<T>(
+    errorMessage: string,
+    fn: () => T,
+  ): T | undefined {
+    return this._safeExecute(errorMessage, fn);
   }
 
   public exposedTracer(): Tracer {
@@ -918,15 +921,15 @@ describe('InstrumentationBase', () => {
     });
   });
 
-  describe('_runHook', () => {
+  describe('_safeExecute', () => {
     it('returns the result, or undefined and a diag error on throw', () => {
       const probe = new WrapProbe('test', '1.0.0', {});
 
-      expect(probe.runHook('hook failed', () => 42)).toBe(42);
+      expect(probe.exposedSafeExecute('hook failed', () => 42)).toBe(42);
 
       const thrown = new Error('boom');
       expect(
-        probe.runHook('hook failed', () => {
+        probe.exposedSafeExecute('hook failed', () => {
           throw thrown;
         }),
       ).toBeUndefined();
@@ -943,7 +946,7 @@ describe('InstrumentationBase', () => {
 
       // Unhandled, this rejection would reach `unhandledrejection` and be
       // recorded as an application exception.
-      probe.runHook('hook failed', () => Promise.reject(thrown));
+      probe.exposedSafeExecute('hook failed', () => Promise.reject(thrown));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(diagLogger.error).toHaveBeenCalledWith(

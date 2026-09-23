@@ -263,7 +263,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     const applyCustomAttributesOnSpan =
       this.getConfig().applyCustomAttributesOnSpan;
     if (applyCustomAttributesOnSpan) {
-      this._runHook('applyCustomAttributesOnSpan hook failed', () =>
+      this._safeExecute('applyCustomAttributesOnSpan hook failed', () =>
         applyCustomAttributesOnSpan(span, xhr),
       );
     }

@@ -99,7 +99,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
   private _applyCustomLogRecordData(logRecord: LogRecord) {
     const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
     if (applyCustomLogRecordData) {
-      this._runHook('applyCustomLogRecordData hook failed', () =>
+      this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );
     }
@@ -112,7 +112,9 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     if (autoCapturedActions.includes('click')) {
       // A throw in a listener is reported as an uncaught page error.
       this._onClickHandler = (event) =>
-        this._runHook('failed to record a click', () => this.onClick(event));
+        this._safeExecute('failed to record a click', () =>
+          this.onClick(event),
+        );
       document.addEventListener('click', this._onClickHandler, true);
     }
   }
