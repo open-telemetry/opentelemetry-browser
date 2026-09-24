@@ -150,7 +150,7 @@ groups:
       - ref: browser.resource_timing.decoded_body_size
         requirement_level: required
       - ref: browser.resource_timing.next_hop_protocol
-        requirement_level: recommended
+        requirement_level: required
       - ref: browser.resource_timing.render_blocking_status
         requirement_level: recommended
 
