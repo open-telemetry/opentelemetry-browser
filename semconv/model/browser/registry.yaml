@@ -53,7 +53,10 @@ groups:
         type: boolean
         stability: development
         brief: >
-          Whether the navigation only changed the fragment of the URL.
+          Whether the navigation added or changed the fragment of the URL.
+        note: >
+          A navigation that removes the fragment is not reported as a hash change, even though
+          only the fragment changed.
         examples: [true, false]
 
       - id: browser.navigation.type
