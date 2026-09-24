@@ -1,6 +1,6 @@
 # Federated Browser Semantic Conventions
 
-This directory holds the semantic conventions that the packages in this repository emit, modelled as a federated semantic convention registry. The registry manifest declares the upstream [OpenTelemetry semantic conventions](https://github.com/open-telemetry/semantic-conventions) as an exact-version dependency, so our events can reference upstream attributes without redefining them.
+This directory holds the semantic conventions that the packages in this repository emit, modeled as a federated semantic convention registry. The registry manifest declares the upstream [OpenTelemetry semantic conventions](https://github.com/open-telemetry/semantic-conventions) as an exact-version dependency, so our events can reference upstream attributes without redefining them.
 
 ## Why these live here
 
