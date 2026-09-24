@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogRecord } from '@opentelemetry/api-logs';
 import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 /** A script timing entry reported by the Long Animation Frames API. */
@@ -29,11 +28,10 @@ export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
   scripts: PerformanceScriptTiming[];
 }
 
-export type ApplyCustomLogRecordDataFunction = (logRecord: LogRecord) => void;
-
-/** LongAnimationFrameInstrumentation configuration. */
+/**
+ * LongAnimationFrameInstrumentation Configuration
+ */
 export interface LongAnimationFrameInstrumentationConfig
   extends InstrumentationConfig {
-  /** Hook to modify long-animation-frame log records before they are emitted. */
-  applyCustomLogRecordData?: ApplyCustomLogRecordDataFunction;
+  // Configuration options will be added here
 }

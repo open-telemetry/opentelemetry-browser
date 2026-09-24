@@ -153,19 +153,6 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
       },
     };
 
-    const hook = this.getConfig().applyCustomLogRecordData;
-    if (hook) {
-      safeExecuteInTheMiddle(
-        () => hook(record),
-        (error) => {
-          if (error) {
-            this._diag.error('applyCustomLogRecordData hook failed', error);
-          }
-        },
-        true,
-      );
-    }
-
     safeExecuteInTheMiddle(
       () => this.logger.emit(record),
       (error) => {

@@ -129,49 +129,6 @@ describe('LongAnimationFrameInstrumentation', () => {
     );
   });
 
-  it('allows custom log record data and contains hook errors', () => {
-    const hook = vi
-      .fn()
-      .mockImplementationOnce((record) => {
-        record.attributes = {
-          ...record.attributes,
-          'app.route': '/checkout',
-        };
-      })
-      .mockImplementationOnce(() => {
-        throw new Error('hook failed');
-      });
-    instrumentation = new LongAnimationFrameInstrumentation({
-      applyCustomLogRecordData: hook,
-    });
-    const diagError = vi
-      .spyOn(
-        (
-          instrumentation as unknown as {
-            _diag: { error: (...args: unknown[]) => void };
-          }
-        )._diag,
-        'error',
-      )
-      .mockImplementation(() => {});
-
-    observerCallback(
-      createEntryList([
-        createLongAnimationFrameEntry(),
-        createLongAnimationFrameEntry({ startTime: 200 }),
-      ]),
-      { disconnect } as unknown as PerformanceObserver,
-    );
-
-    const records = inMemoryExporter.getFinishedLogRecords();
-    expect(records).toHaveLength(2);
-    expect(records[0]?.attributes['app.route']).toBe('/checkout');
-    expect(diagError).toHaveBeenCalledWith(
-      'applyCustomLogRecordData hook failed',
-      expect.any(Error),
-    );
-  });
-
   it('does not create an observer when PerformanceObserver is unavailable', () => {
     vi.stubGlobal('PerformanceObserver', undefined);
 
