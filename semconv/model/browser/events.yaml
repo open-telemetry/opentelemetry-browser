@@ -111,6 +111,11 @@ groups:
       This event represents the loading of a single resource by the page, as reported by the
       [PerformanceResourceTiming](https://developer.mozilla.org/docs/Web/API/PerformanceResourceTiming)
       API.
+    note: >
+      The timings are in milliseconds, relative to the time origin of the document.
+      For a cross-origin resource that is not served with a `Timing-Allow-Origin` response header
+      field, the browser reports zero for most of these timings and sizes, so a zero here can mean
+      the value is not available rather than that the step took no time.
     attributes:
       - ref: url.full
         requirement_level: required
