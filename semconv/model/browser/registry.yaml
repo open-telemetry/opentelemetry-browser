@@ -196,10 +196,6 @@ groups:
         examples: [0, 2]
 
       # Resource timing
-      #
-      # Sourced from the
-      # [PerformanceResourceTiming](https://developer.mozilla.org/docs/Web/API/PerformanceResourceTiming)
-      # API. Timings are milliseconds relative to the start of the navigation.
 
       - id: browser.resource_timing.initiator_type
         type: string
