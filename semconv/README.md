@@ -4,8 +4,8 @@ This directory holds the semantic conventions that the packages in this reposito
 
 ## Why these live here
 
-The semantic-conventions [CONTRIBUTING guide](https://github.com/open-telemetry/semantic-conventions/blob/main/CONTRIBUTING.md) places conventions specific to a single runtime or a narrowly scoped implementation in the
-corresponding repository, and most of the conventions below are browser-only.
+The semantic-conventions [CONTRIBUTING guide](https://github.com/open-telemetry/semantic-conventions/blob/main/CONTRIBUTING.md) recommends that conventions specific to a single runtime, library, or a narrowly scoped implementation live in the
+corresponding repository, and most of the conventions in this registry are browser-only.
 
 Names already covered upstream are deliberately not redefined. The `browser.web_vital` and
 `exception` events are imported from the dependency registry by name, and the `http.request.body.size`,
