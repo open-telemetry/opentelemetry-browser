@@ -15,7 +15,8 @@
     "user-action",
     "web-vitals",
     "fetch",
-    "xhr"
+    "xhr",
+    "long-animation-frame"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -40,7 +41,8 @@
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
     "./experimental/fetch": "./dist/fetch/index.js",
-    "./experimental/xhr": "./dist/xhr/index.js"
+    "./experimental/xhr": "./dist/xhr/index.js",
+    "./experimental/long-animation-frame": "./dist/long-animation-frame/index.js"
   },
   "sideEffects": false,
   "files": [
