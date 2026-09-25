@@ -62,6 +62,7 @@ const logProvider = new LoggerProvider({
 logs.setGlobalLoggerProvider(logProvider);
 
 // --- Span-based instrumentations (opentelemetry-js / opentelemetry-js-contrib) ---
+// XXX Cannot quite replace this because StackContextManager isn't in a 2.x release of sdk-trace. OR I could steal the equiv ContextManager from *internal* packages/sdk/src/core/context.ts#getDefaultContextManager.
 const provider = new WebTracerProvider({
   resource,
   spanProcessors: [

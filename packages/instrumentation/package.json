@@ -68,7 +68,7 @@
     "@opentelemetry/core": "2.11.0",
     "@opentelemetry/propagator-b3": "2.11.0",
     "@opentelemetry/sdk-logs": "0.222.0",
-    "@opentelemetry/sdk-trace-base": "2.11.0",
+    "@opentelemetry/sdk-trace": "2.11.0",
     "msw": "2.15.0"
   },
   "publishConfig": {
