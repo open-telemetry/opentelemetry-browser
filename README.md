@@ -4,7 +4,9 @@
 
 This repository is the home of OpenTelemetry Browser instrumentations and the future home of the OpenTelemetry Browser SDK.
 
-This repo provides **event-based instrumentations** that emit events (structured log records) for browser performance and user interactions. These complement the existing **span-based instrumentations** maintained in the [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) repositories.
+This repo provides **event-based instrumentations** that emit events (structured log records) for browser performance and user interactions. It also provides **span-based instrumentations** for `fetch` and `XMLHttpRequest`. Use the instrumentations from this repository. Do not mix them with the classic instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) or [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) for the same API, because both would record every call.
+
+The classic browser instrumentations in other OpenTelemetry JS repositories will be deprecated soon. See [Migrate from classic browser instrumentations](#migrate-from-classic-browser-instrumentations) to move to this repository.
 
 See the [Browser Packages](#browser-packages) section below for a full list of browser-related packages across all repositories.
 
@@ -58,7 +60,7 @@ For detailed configuration options, see the [instrumentation package README](./p
 
 ### More examples
 
-For a more complete setup combining event-based instrumentations from this repository with span-based instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib), see the [examples](./examples/) directory.
+For a more complete setup that combines the event-based and span-based instrumentations from this repository, see the [examples](./examples/) directory.
 
 ### Sandbox
 
@@ -91,25 +93,36 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 | Package | Description | Status |
 | --- | --- | --- |
-| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Event-based browser instrumentations (navigation timing, resource timing, user actions, web vitals, console). | experimental |
+| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Browser instrumentations: event-based (console, errors, navigation, navigation timing, resource timing, user actions, web vitals) and span-based (fetch, XHR). | experimental |
 
-### Event-based instrumentations (other repositories)
+### Migrate from classic browser instrumentations
 
-| Package | Location | Description | Status |
-| --- | --- | --- | --- |
-| instrumentation-browser-navigation | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-browser-navigation) | Capture browser navigation events (SPA route changes). | experimental |
-| instrumentation-web-exception | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-web-exception) | Capture unhandled exceptions and promise rejections. | experimental |
+The browser instrumentations in [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) will be deprecated soon. Move to the instrumentations in this repository as soon as possible. The tables below show the replacement for each classic package.
 
-### Span-based instrumentations (other repositories)
+When you migrate:
 
-| Package | Location | Description | Status |
-| --- | --- | --- | --- |
-| opentelemetry-instrumentation-fetch | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-fetch) | Instrumentation for the Fetch API. | experimental |
-| opentelemetry-instrumentation-xml-http-request | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-xml-http-request) | Instrumentation for XMLHttpRequest. | experimental |
-| instrumentation-document-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-document-load) | Capture document load/navigation timing spans. | experimental |
-| instrumentation-long-task | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-long-task) | Capture Long Tasks API entries as spans. | experimental |
-| instrumentation-user-interaction | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-user-interaction) | Trace user interactions (e.g., clicks). | experimental |
-| plugin-react-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/plugin-react-load) | Instrument React application load/mount performance. | experimental |
+- Remove the classic instrumentation when you add its replacement. A classic instrumentation cannot detect our patches, so if you use both for the same API, every call is recorded twice.
+- Some replacements emit events (log records), not spans. For example, `instrumentation-document-load` and `instrumentation-user-interaction` create spans, but their replacements create events. Set up a `LoggerProvider` for them.
+- The instrumentations in this repository are enabled when you register them, not when you create them. With `enabled: false`, registration runs init but does not emit until you call `enable()`. See [Differences from classic instrumentations](./packages/instrumentation/README.md#differences-from-classic-instrumentations).
+- `auto-instrumentations-web` turns on the classic instrumentations. Replace it with the instrumentations from this repository, registered with `registerInstrumentations()` or the [Browser SDK](./packages/sdk).
+
+#### Event-based instrumentations (other repositories)
+
+| Package | Location | Description | Status | Replacement in this repository |
+| --- | --- | --- | --- | --- |
+| instrumentation-browser-navigation | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-browser-navigation) | Capture browser navigation events (SPA route changes). | experimental | [Navigation](./packages/instrumentation/README.md#navigation) |
+| instrumentation-web-exception | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-web-exception) | Capture unhandled exceptions and promise rejections. | experimental | [Errors](./packages/instrumentation/README.md#errors) |
+
+#### Span-based instrumentations (other repositories)
+
+| Package | Location | Description | Status | Replacement in this repository |
+| --- | --- | --- | --- | --- |
+| opentelemetry-instrumentation-fetch | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-fetch) | Instrumentation for the Fetch API. | experimental | [Fetch](./packages/instrumentation/README.md#fetch) |
+| opentelemetry-instrumentation-xml-http-request | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-xml-http-request) | Instrumentation for XMLHttpRequest. | experimental | [XHR](./packages/instrumentation/README.md#xhr-xmlhttprequest) |
+| instrumentation-document-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-document-load) | Capture document load/navigation timing spans. | experimental | [Navigation Timing](./packages/instrumentation/README.md#navigation-timing) and [Resource Timing](./packages/instrumentation/README.md#resource-timing) (events) |
+| instrumentation-long-task | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-long-task) | Capture Long Tasks API entries as spans. | experimental | No replacement planned |
+| instrumentation-user-interaction | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-user-interaction) | Trace user interactions (e.g., clicks). | experimental | [User Action](./packages/instrumentation/README.md#user-action) (events) |
+| plugin-react-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/plugin-react-load) | Instrument React application load/mount performance. | experimental | No replacement planned |
 
 ### SDK and Utilities (other repositories)
 
