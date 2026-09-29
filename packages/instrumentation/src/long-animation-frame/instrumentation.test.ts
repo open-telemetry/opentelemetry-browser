@@ -170,6 +170,47 @@ describe('LongAnimationFrameInstrumentation', () => {
     expect(PerformanceObserverMock).toHaveBeenCalledTimes(2);
   });
 
+  it('replays buffered entries on the first enable only', () => {
+    instrumentation = new LongAnimationFrameInstrumentation();
+
+    instrumentation.disable();
+    instrumentation.enable();
+
+    expect(observe).toHaveBeenCalledTimes(2);
+    expect(observe).toHaveBeenNthCalledWith(1, {
+      type: 'long-animation-frame',
+      buffered: true,
+    });
+    expect(observe).toHaveBeenNthCalledWith(2, {
+      type: 'long-animation-frame',
+      buffered: false,
+    });
+  });
+
+  it('keeps the buffered replay pending when the first observe fails', () => {
+    observe.mockImplementationOnce(() => {
+      throw new Error('observe failed');
+    });
+    instrumentation = new LongAnimationFrameInstrumentation({ enabled: false });
+    vi.spyOn(
+      (
+        instrumentation as unknown as {
+          _diag: { error: (...args: unknown[]) => void };
+        }
+      )._diag,
+      'error',
+    ).mockImplementation(() => {});
+
+    instrumentation.enable();
+    instrumentation.disable();
+    instrumentation.enable();
+
+    expect(observe).toHaveBeenNthCalledWith(2, {
+      type: 'long-animation-frame',
+      buffered: true,
+    });
+  });
+
   it('does not emit a queued callback after being disabled', () => {
     instrumentation = new LongAnimationFrameInstrumentation();
     instrumentation.disable();

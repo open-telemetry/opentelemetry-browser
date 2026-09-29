@@ -37,6 +37,7 @@ const LONG_ANIMATION_FRAME_ENTRY_TYPE = 'long-animation-frame';
 export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongAnimationFrameInstrumentationConfig> {
   declare private _isEnabled: boolean;
   declare private _observer?: PerformanceObserver;
+  declare private _hasReplayedBufferedEntries: boolean;
 
   constructor(config: LongAnimationFrameInstrumentationConfig = {}) {
     super(
@@ -66,10 +67,16 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     try {
       observer.observe({
         type: LONG_ANIMATION_FRAME_ENTRY_TYPE,
-        buffered: true,
+        // The browser's long animation frame buffer is replayed once, on the
+        // first enable. Disabling and re-enabling resumes live observation
+        // instead of re-emitting frames that were already logged.
+        buffered: !this._hasReplayedBufferedEntries,
       });
       this._observer = observer;
       this._isEnabled = true;
+      // Set only after a successful observe, so a failed first enable keeps
+      // the replay pending for the next attempt.
+      this._hasReplayedBufferedEntries = true;
     } catch (error) {
       observer.disconnect();
       this._diag.error(
