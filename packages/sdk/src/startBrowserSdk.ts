@@ -228,22 +228,5 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     },
   };
 
-  // // For any level equal or louder than `DEBUG` add console exporters
-  // // to get logs and traces print into the DevTools console.
-  // const logLevel = config.logLevel && DiagLogLevel[config.logLevel];
-  // if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
-  //   sdkConfig.logs = {
-  //     processors: [
-  //       new SimpleLogRecordProcessor({
-  //         exporter: new ConsoleLogRecordExporter(),
-  //       }),
-  //     ],
-  //   };
-  //   sdkConfig.traces = {
-  //     processors: [
-  //       new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
-  //     ],
-  //   };
-  // }
   return startBrowserSdk(sdkConfig);
 }
