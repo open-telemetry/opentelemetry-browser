@@ -3,16 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DiagLogLevel, diag } from '@opentelemetry/api';
+import { diag } from '@opentelemetry/api';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import {
-  ConsoleLogRecordExporter,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
-import {
-  ConsoleSpanExporter,
-  SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace';
 import { INVALID_CONFIG_SDK, NOOP_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
@@ -114,6 +106,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   if (logsConfig) {
     const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
+    // Set the logLevel
+    logsConfig.logLevel = rootConfig.logLevel;
+
     // Propagate root configs to the signal only when it has no custom
     // processors. A signal with its own processors manages its own exporter,
     // so the root exportConfig / batchProcessorConfig are not pushed down —
@@ -139,6 +134,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   // Start traces if configured
   if (tracesConfig) {
     const isGenericEndpoint = !tracesConfig.exportConfig?.url;
+
+    // Set the logLevel
+    tracesConfig.logLevel = rootConfig.logLevel;
 
     // Propagate root configs to the signal only when it has no custom
     // processors. A signal with its own processors manages its own exporter,
@@ -230,23 +228,22 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     },
   };
 
-  // For any level equal or louder than `DEBUG` add console exporters
-  // to get logs and traces print into the DevTools console.
-  const logLevel = config.logLevel && DiagLogLevel[config.logLevel];
-  if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
-    sdkConfig.logs = {
-      processors: [
-        new SimpleLogRecordProcessor({
-          exporter: new ConsoleLogRecordExporter(),
-        }),
-      ],
-    };
-    sdkConfig.traces = {
-      processors: [
-        new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
-      ],
-    };
-  }
-
+  // // For any level equal or louder than `DEBUG` add console exporters
+  // // to get logs and traces print into the DevTools console.
+  // const logLevel = config.logLevel && DiagLogLevel[config.logLevel];
+  // if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
+  //   sdkConfig.logs = {
+  //     processors: [
+  //       new SimpleLogRecordProcessor({
+  //         exporter: new ConsoleLogRecordExporter(),
+  //       }),
+  //     ],
+  //   };
+  //   sdkConfig.traces = {
+  //     processors: [
+  //       new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
+  //     ],
+  //   };
+  // }
   return startBrowserSdk(sdkConfig);
 }

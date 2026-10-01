@@ -3,7 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { context, diag, propagation, trace } from '@opentelemetry/api';
+import {
+  context,
+  DiagLogLevel,
+  diag,
+  propagation,
+  trace,
+} from '@opentelemetry/api';
 import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -12,7 +18,12 @@ import {
   resourceFromAttributes,
 } from '@opentelemetry/resources';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace';
-import { BatchSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
+import {
+  BatchSpanProcessor,
+  ConsoleSpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
 import { getDefaultContextManager } from '../core/context.ts';
 import { setSdkLogger } from '../core/diag.ts';
@@ -68,6 +79,15 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
         }),
         ...config?.batchProcessorConfig,
       }),
+    );
+  }
+  // For any level equal or louder than `DEBUG` add console exporters
+  // to get traces print into the DevTools console.
+  const logLevel = config?.logLevel && DiagLogLevel[config?.logLevel];
+  console.log(config?.logLevel, logLevel, DiagLogLevel.DEBUG);
+  if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
+    spanProcessors.push(
+      new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
     );
   }
 

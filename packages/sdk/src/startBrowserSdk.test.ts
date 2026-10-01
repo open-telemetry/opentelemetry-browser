@@ -401,9 +401,11 @@ describe('quickStartBrowserSdk', () => {
     // Console exporters use SimpleProcessors, which export synchronously
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await browserSdk.shutdown();
 
     // Assert: the console exporters write to `console.dir`
     expect(consoleDirSpy).toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('should add console processors for log levels above DEBUG', async () => {
@@ -414,9 +416,11 @@ describe('quickStartBrowserSdk', () => {
     });
     logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
     trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await browserSdk.shutdown();
 
     // Assert
     expect(consoleDirSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('should not fall back to the default endpoint for an empty export URL', async () => {
