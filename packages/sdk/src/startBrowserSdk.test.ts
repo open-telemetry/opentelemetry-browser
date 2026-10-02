@@ -161,6 +161,33 @@ describe('startBrowserSdk', () => {
     expect(exportCalled).toStrictEqual(false);
   });
 
+  it('should start where URL.parse is not available', async () => {
+    // Arrange: Safari < 18 and Chrome/Firefox < 126 have no `URL.parse`
+    const urlParse = Object.getOwnPropertyDescriptor(URL, 'parse');
+    Reflect.deleteProperty(URL, 'parse');
+
+    try {
+      // Act
+      browserSdk = startBrowserSdk({
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        batchProcessorConfig: {
+          scheduledDelayMillis: SCHEDULE_DELAY,
+        },
+      });
+      logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+      trace.getTracer('traces-sdk-test').startSpan('test').end();
+      await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+    } finally {
+      if (urlParse) {
+        Object.defineProperty(URL, 'parse', urlParse);
+      }
+    }
+
+    // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('should use the default configuration for batch processor', async () => {
     // Act
     browserSdk = startBrowserSdk({
