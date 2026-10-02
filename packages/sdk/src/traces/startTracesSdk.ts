@@ -84,7 +84,7 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   // For any level equal or louder than `DEBUG` add console exporters
   // to get traces print into the DevTools console.
   const logLevel = config?.logLevel && DiagLogLevel[config?.logLevel];
-  console.log(config?.logLevel, logLevel, DiagLogLevel.DEBUG);
+
   if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
     spanProcessors.push(
       new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
