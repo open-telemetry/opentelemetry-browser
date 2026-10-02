@@ -18,6 +18,7 @@ npm install @opentelemetry/browser-instrumentation
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
+- [Long Animation Frames](#long-animation-frames) — automatic instrumentation for Long Animation Frames (jank, and the scripts behind a slow interaction)
 - [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
 - [Errors](#errors) — automatic instrumentation for unhandled errors and promise rejections
 - [Fetch](#fetch) — automatic instrumentation for request using the `fetch` API
@@ -239,6 +240,47 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
+
+---
+
+### Long Animation Frames
+
+```typescript
+import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
+```
+
+Emits a `browser.long_animation_frame` event for every [Long Animation Frames API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceLongAnimationFrameTiming) entry. The API is not Baseline and is currently unavailable in Firefox and Safari, and it reports a frame only once it exceeds the 50 ms long-frame threshold, so this instrumentation stays silent on pages that are already responsive.
+
+The [sandbox](../../sandbox) has a **Long Frame** button that blocks the main thread past that threshold, so an entry can be generated on demand while reviewing or QAing a change locally.
+
+#### Captured Attributes
+
+| Attribute | Description |
+|-----------|-------------|
+| `browser.long_animation_frame.name` | Name reported by the performance entry. |
+| `browser.long_animation_frame.entry_type` | Entry type, normally `long-animation-frame`. |
+| `browser.long_animation_frame.duration` | Total duration of the frame, in milliseconds. |
+| `browser.long_animation_frame.blocking_duration` | Time the main thread was blocked, in milliseconds. |
+| `browser.long_animation_frame.render_start` | Start of the rendering cycle, in milliseconds relative to the time origin. |
+| `browser.long_animation_frame.style_and_layout_start` | Start of the style and layout cycle, in milliseconds relative to the time origin. |
+| `browser.long_animation_frame.first_ui_event_timestamp` | Time of the first UI event processed during the frame, in milliseconds relative to the time origin. |
+| `browser.long_animation_frame.scripts` | Script timing entries attributed to the frame: `name`, `entry_type`, `start_time`, `duration`, `execution_start`, `invoker`, `invoker_type`, `source_url`, `source_function_name`, `source_char_position`, `pause_duration`, `forced_style_and_layout_duration`, `window_attribution`. |
+
+#### Buffered replay and volume
+
+The instrumentation observes with `buffered: true`, so frames the browser retained from before it started are emitted once, on the first `enable()`. A later `disable()` / `enable()` cycle resumes live observation and does not re-emit frames that were already logged.
+
+No client-side throttle is applied. The browser caps its long animation frame buffer at roughly 200 entries and discards the oldest first, and a throttle would drop the worst frames first: a jank burst that produces dozens of entries would be reported as one, which improves the downstream p95 while the page gets worse. If a hard ceiling is ever needed, prefer accounting over sampling — a per-callback cap plus a dropped count on the following record so the loss stays visible, or the batching shape [Resource Timing](#resource-timing) already uses (`batchSize`, `maxQueueSize`, `forceProcessingAfter`, drained on an idle callback).
+
+#### Correlating frames with interactions
+
+`first_ui_event_timestamp` is a `DOMHighResTimeStamp` on the same clock as `Event.timeStamp`, so a frame can be joined to the interaction that triggered it without any context plumbing. The `scripts` array then names the culprit: `invoker` (for example `DOMWindow.onclick`), `invoker_type` (`event-listener`), `source_url`, `source_function_name`, `source_char_position`, and the per-script split of `blocking_duration` against `forced_style_and_layout_duration`.
+
+The other half of that join is already in this repository. The [Web Vitals](#web-vitals) instrumentation timestamps its INP record with `attribution.interactionTime` and puts the raw attribution in the record body when `includeRawAttribution` is enabled, so matching a frame's `first_ui_event_timestamp` against a `browser.web_vital` INP record yields the interaction target and type together with the scripts that blocked the frame: INP says which interaction was slow, Long Animation Frames say which script made it slow.
+
+#### Page attribution
+
+`browser.document.url.full` is stamped by `createDocumentLogRecordProcessor` and `createDocumentSpanProcessor`, and `LocationDocumentProvider` reads `location.href` at emit time, so soft navigations are reflected without extra bookkeeping. The caveat is specific to the buffered replay above: those replayed frames carry the URL current when they are emitted rather than the URL they happened on, so the first records can be mislabelled on a page that navigates early.
 
 ### Console
 
