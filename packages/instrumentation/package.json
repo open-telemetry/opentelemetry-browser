@@ -8,6 +8,7 @@
     "web",
     "instrumentation",
     "console",
+    "element-timing",
     "errors",
     "navigation",
     "navigation-timing",
@@ -33,6 +34,7 @@
   },
   "exports": {
     "./experimental/console": "./dist/console/index.js",
+    "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/errors": "./dist/errors/index.js",
     "./experimental/navigation": "./dist/navigation/index.js",
     "./experimental/navigation-timing": "./dist/navigation-timing/index.js",

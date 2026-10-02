@@ -16,6 +16,7 @@ npm install @opentelemetry/browser-instrumentation
 - [Navigation](#navigation) — automatic instrumentation for browser navigations (initial load and SPA route changes)
 - [Navigation Timing](#navigation-timing) — automatic instrumentation for navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
+- [Element Timing](#element-timing) — automatic instrumentation for paint timing of annotated elements
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
 - [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
@@ -176,6 +177,40 @@ Each resource timing event includes:
 - **Redirect Info** — redirect timing if applicable
 - **Service Worker** — worker start time if intercepted
 - **Render Blocking** — whether the resource blocked rendering (Chromium only)
+
+---
+
+### Element Timing
+
+```typescript
+import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
+```
+
+Emits a `browser.element_timing` event for each element annotated with the [`elementtiming`](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming) attribute, reporting when the browser painted it.
+
+Only image elements and text-containing block elements are eligible, and the attribute must be present before the element is first painted:
+
+```html
+<img src="hero.jpg" elementtiming="hero-image" />
+<p elementtiming="headline">Welcome</p>
+```
+
+Entries recorded before the instrumentation was enabled are captured via buffered mode. Element Timing is Chromium-only. On other browsers the instrumentation stays disabled and logs a diag message.
+
+#### Captured Attributes
+
+Each `browser.element_timing` event includes:
+
+| Attribute | Description |
+|-----------|-------------|
+| `browser.element_timing.identifier` | The `elementtiming` attribute value. |
+| `browser.element_timing.element` | The lower-cased tag name (omitted when the element left the document before the entry was processed). |
+| `browser.element_timing.render_time` | Paint time relative to navigation start. Cross-origin images without a `Timing-Allow-Origin` header report 0 or a coarsened value. |
+| `browser.element_timing.start_time` | `render_time` when non-zero, otherwise `load_time`. Always present, so prefer this for charting. |
+| `browser.element_timing.load_time` | Resource load time relative to navigation start. Image elements only. |
+| `url.full` | The image resource URL. Image elements only. |
+| `browser.element_timing.natural_width` | Intrinsic width in CSS pixels. Image elements only. |
+| `browser.element_timing.natural_height` | Intrinsic height in CSS pixels. Image elements only. |
 
 ---
 
