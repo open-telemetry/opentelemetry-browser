@@ -39,6 +39,7 @@ function createFakeInstrumentation(): Instrumentation {
 describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+  const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
   let tracesSdk: WebSdk;
@@ -48,9 +49,11 @@ describe('startTracesSdk', () => {
   // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
+    consoleDirSpy.mockRestore();
   });
   afterEach(async () => {
     fetchSpy.mockClear();
+    consoleDirSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
     context.disable();
@@ -299,6 +302,84 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
+
+  it('should add a SimpleSpanProcessor into the list if log level is DEBUG', () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    tracesSdk = startTracesSdk({
+      logLevel: 'DEBUG',
+      processors: [
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(consoleDirSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should add a SimpleSpanProcessor into the list for log levels above DEBUG', () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    tracesSdk = startTracesSdk({
+      logLevel: 'VERBOSE',
+      processors: [
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(consoleDirSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should add a BatchSpanProcessor for OTLP export and SimpleSpanProcessor for DEBUG', async () => {
+    // Arrange
+    let exportCalled = false;
+    const url = 'http://otlp-signal-endpoint:4318/v1/traces';
+
+    // Act
+    tracesSdk = startTracesSdk({
+      logLevel: 'DEBUG',
+      batchProcessorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+      exportConfig: { url },
+      processors: [
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+    expect(consoleDirSpy).toHaveBeenCalledTimes(1);
   });
 
   it('should accept a Sampler from the user', async () => {
