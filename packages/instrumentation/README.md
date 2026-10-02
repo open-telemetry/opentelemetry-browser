@@ -251,6 +251,8 @@ import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instru
 
 Emits a `browser.long_animation_frame` event for every [Long Animation Frames API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceLongAnimationFrameTiming) entry. The API is not Baseline and is currently unavailable in Firefox and Safari, and it reports a frame only once it exceeds the 50 ms long-frame threshold, so this instrumentation stays silent on pages that are already responsive.
 
+The [sandbox](../../sandbox) has a **Long Frame** button that blocks the main thread past that threshold, so an entry can be generated on demand while reviewing or QAing a change locally.
+
 #### Captured Attributes
 
 | Attribute | Description |
