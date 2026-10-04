@@ -1141,6 +1141,19 @@ describe('FetchInstrumentation', () => {
           expect(headers['foo']).toEqual('bar');
         });
 
+        it('should not write trace propagation headers onto the init object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const callerHeaders = { foo: 'bar' };
+          const init: RequestInit = { headers: callerHeaders };
+          const response = await fetch(url, init);
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+          expect(init.headers).toBe(callerHeaders);
+          expect(callerHeaders).toEqual({ foo: 'bar' });
+        });
+
         it('should keep custom headers with url, untyped request object and typed (Map) headers object', async () => {
           const url = getUrlForPath('/api/echo-headers.json');
           const response = await fetch(url, {
@@ -1249,6 +1262,19 @@ describe('FetchInstrumentation', () => {
             const response = await fetch(url);
 
             await assertPropagationHeaders(response);
+          });
+
+          it('should not send trace propagation headers from an earlier same origin request that used the same init', async () => {
+            const init: RequestInit = { headers: { foo: 'bar' } };
+            await fetch(getUrlForPath('/api/echo-headers.json'), init).then(
+              (r) => r.json(),
+            );
+
+            const url = 'http://example.com/api/echo-headers.json';
+            const response = await fetch(url, init);
+            const headers = await assertPropagationHeaders(response);
+
+            expect(headers['foo']).toEqual('bar');
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
