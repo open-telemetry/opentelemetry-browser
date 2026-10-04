@@ -224,8 +224,10 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
         const elapsed = performance.now() - startTime;
         // timeRemaining() is not Baseline widely available (no Safari support),
         // compatibility is handled by idle-callback-shim.ts.
+        // A run forced by the timeout has 0 time remaining, only maxTime applies.
         // eslint-disable-next-line baseline-js/use-baseline
-        if (elapsed >= maxTime || deadline.timeRemaining() < 1) {
+        const noIdleTime = !deadline.didTimeout && deadline.timeRemaining() < 1;
+        if (elapsed >= maxTime || noIdleTime) {
           break;
         }
 
