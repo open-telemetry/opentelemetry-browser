@@ -146,7 +146,9 @@ Persists the session as JSON under a single fixed key in `window.localStorage`. 
 origin share one session** — this is "one session per browser origin," not "one session per tab."
 If you need per-tab sessions, provide a custom `SessionStore` backed by `sessionStorage` instead
 (see [Custom implementations](#custom-implementations)). The store is a safe no-op in environments
-without `localStorage` (e.g. during server-side rendering).
+without `localStorage` (e.g. during server-side rendering), where the browser blocks storage (e.g.
+Firefox with cookies blocked, or a sandboxed iframe), and when storage is full. The session then
+lives in memory only and is not restored on the next page load.
 
 ## Registering Session Processors
 

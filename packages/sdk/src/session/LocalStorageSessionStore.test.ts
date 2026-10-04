@@ -3,8 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Span } from '@opentelemetry/sdk-trace';
+import { TracerProvider } from '@opentelemetry/sdk-trace';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalStorageSessionStore } from './LocalStorageSessionStore.ts';
+import { SessionManager } from './SessionManager.ts';
+import { SessionSpanProcessor } from './SessionSpanProcessor.ts';
 import type { Session } from './types/Session.ts';
 
 describe('LocalStorageSessionStore', () => {
@@ -57,5 +61,86 @@ describe('LocalStorageSessionStore', () => {
     getItemSpy.mockReturnValue('invalid-json');
     const retrieved = await store.get();
     expect(retrieved).toBeNull();
+  });
+
+  it('resolves when setItem throws because storage is full', async () => {
+    setItemSpy.mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError');
+    });
+    const session: Session = { id: 'id', startTimestamp: Date.now() };
+    let result: Promise<void> | undefined;
+    expect(() => {
+      result = store.save(session);
+    }).not.toThrow();
+    await expect(result).resolves.toBeUndefined();
+  });
+
+  describe('when reading localStorage throws', () => {
+    // Firefox with cookies blocked and sandboxed iframes throw a
+    // SecurityError as soon as `window.localStorage` is read.
+    let original: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        get() {
+          throw new DOMException('The operation is insecure.', 'SecurityError');
+        },
+      });
+    });
+
+    afterEach(() => {
+      if (original) {
+        Object.defineProperty(window, 'localStorage', original);
+      }
+    });
+
+    it('resolves save without throwing', async () => {
+      const session: Session = { id: 'id', startTimestamp: Date.now() };
+      let result: Promise<void> | undefined;
+      expect(() => {
+        result = store.save(session);
+      }).not.toThrow();
+      await expect(result).resolves.toBeUndefined();
+    });
+
+    it('resolves get with null', async () => {
+      let result: Promise<Session | null> | undefined;
+      expect(() => {
+        result = store.get();
+      }).not.toThrow();
+      await expect(result).resolves.toBeNull();
+    });
+
+    it('lets the session manager start', async () => {
+      const manager = new SessionManager({
+        sessionIdGenerator: { generateSessionId: () => 'session-1' },
+        sessionStore: store,
+      });
+      try {
+        await expect(manager.start()).resolves.toBeUndefined();
+        expect(manager.getSessionId()).toBe('session-1');
+      } finally {
+        manager.shutdown();
+      }
+    });
+
+    it('lets spans start through the session span processor', () => {
+      const manager = new SessionManager({
+        sessionIdGenerator: { generateSessionId: () => 'session-1' },
+        sessionStore: store,
+      });
+      try {
+        const tracer = new TracerProvider({
+          spanProcessors: [new SessionSpanProcessor(manager)],
+        }).getTracer('session-testing');
+        const span = tracer.startSpan('test-span') as Span;
+        expect(span.attributes['session.id']).toBe('session-1');
+        span.end();
+      } finally {
+        manager.shutdown();
+      }
+    });
   });
 });
