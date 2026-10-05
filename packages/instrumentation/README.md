@@ -253,30 +253,38 @@ Emits a `browser.long_animation_frame` event for every [Long Animation Frames AP
 
 The [sandbox](../../sandbox) has a **Long Frame** button that blocks the main thread past that threshold, so an entry can be generated on demand while reviewing or QAing a change locally.
 
+#### Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `sanitizeUrl` | `(url: string) => string` | — | Called before `invoker` and `source_url` are written to the `scripts` array. Both are emitted as the browser reports them, and for an inline script or a listener defined on the page that is the page URL including its query string, so a `token` in the page URL would otherwise be exported here even when `url.full` is sanitized elsewhere. `defaultSanitizeUrl` can be used to redact credentials and common sensitive query parameters. |
+
 #### Captured Attributes
 
 | Attribute | Description |
 |-----------|-------------|
-| `browser.long_animation_frame.name` | Name reported by the performance entry. |
-| `browser.long_animation_frame.entry_type` | Entry type, normally `long-animation-frame`. |
 | `browser.long_animation_frame.duration` | Total duration of the frame, in milliseconds. |
 | `browser.long_animation_frame.blocking_duration` | Time the main thread was blocked, in milliseconds. |
 | `browser.long_animation_frame.render_start` | Start of the rendering cycle, in milliseconds relative to the time origin. |
 | `browser.long_animation_frame.style_and_layout_start` | Start of the style and layout cycle, in milliseconds relative to the time origin. |
 | `browser.long_animation_frame.first_ui_event_timestamp` | Time of the first UI event processed during the frame, in milliseconds relative to the time origin. |
-| `browser.long_animation_frame.scripts` | Script timing entries attributed to the frame: `name`, `entry_type`, `start_time`, `duration`, `execution_start`, `invoker`, `invoker_type`, `source_url`, `source_function_name`, `source_char_position`, `pause_duration`, `forced_style_and_layout_duration`, `window_attribution`. |
+| `browser.long_animation_frame.scripts` | Script timing entries attributed to the frame: `start_time`, `duration`, `execution_start`, `invoker`, `invoker_type`, `source_url`, `source_function_name`, `source_char_position`, `pause_duration`, `forced_style_and_layout_duration`, `window_attribution`. `invoker` and `source_url` are passed through `sanitizeUrl` if it is configured. |
+
+Every entry is named `long-animation-frame` and every script entry is named `script` by the spec, so neither name is repeated as an attribute: the event name already says what the record is.
 
 #### Buffered replay and volume
 
 The instrumentation observes with `buffered: true`, so frames the browser retained from before it started are emitted once, on the first `enable()`. A later `disable()` / `enable()` cycle resumes live observation and does not re-emit frames that were already logged.
 
-No client-side throttle is applied. The browser caps its long animation frame buffer at roughly 200 entries and discards the oldest first, and a throttle would drop the worst frames first: a jank burst that produces dozens of entries would be reported as one, which improves the downstream p95 while the page gets worse. If a hard ceiling is ever needed, prefer accounting over sampling — a per-callback cap plus a dropped count on the following record so the loss stays visible, or the batching shape [Resource Timing](#resource-timing) already uses (`batchSize`, `maxQueueSize`, `forceProcessingAfter`, drained on an idle callback).
+No client-side throttle is applied. The performance timeline buffer keeps the first ~200 entries and leaves out the newer ones once it is full (`droppedEntriesCount` goes up), so it only bounds the buffered replay above; a live observer still receives every frame. A throttle would drop the worst frames first: a jank burst that produces dozens of entries would be reported as one, which improves the downstream p95 while the page gets worse. If a hard ceiling is ever needed, prefer accounting over sampling — a per-callback cap plus a dropped count on the following record so the loss stays visible, or the batching shape [Resource Timing](#resource-timing) already uses (`batchSize`, `maxQueueSize`, `forceProcessingAfter`, drained on an idle callback).
 
 #### Correlating frames with interactions
 
-`first_ui_event_timestamp` is a `DOMHighResTimeStamp` on the same clock as `Event.timeStamp`, so a frame can be joined to the interaction that triggered it without any context plumbing. The `scripts` array then names the culprit: `invoker` (for example `DOMWindow.onclick`), `invoker_type` (`event-listener`), `source_url`, `source_function_name`, `source_char_position`, and the per-script split of `blocking_duration` against `forced_style_and_layout_duration`.
+`first_ui_event_timestamp` is a `DOMHighResTimeStamp` on the same clock as `Event.timeStamp`, so a frame can be related to the interaction that triggered it without any context plumbing. The `scripts` array then names the culprit: `invoker` (for example `DOMWindow.onclick`), `invoker_type` (`event-listener`), `source_url`, `source_function_name`, `source_char_position`, and the per-script split of `blocking_duration` against `forced_style_and_layout_duration`.
 
-The other half of that join is already in this repository. The [Web Vitals](#web-vitals) instrumentation timestamps its INP record with `attribution.interactionTime` and puts the raw attribution in the record body when `includeRawAttribution` is enabled, so matching a frame's `first_ui_event_timestamp` against a `browser.web_vital` INP record yields the interaction target and type together with the scripts that blocked the frame: INP says which interaction was slow, Long Animation Frames say which script made it slow.
+Do not join the two by equality. `first_ui_event_timestamp` is the `timeStamp` of the first UI event whose listener ran in that frame — any UI event — while a web-vitals INP record's `attribution.interactionTime` is the start of the interaction's first event entry. The two only line up when the frame happened to handle that first event before anything else, and a slow interaction can overlap more than one frame (the frame that delayed the input and the frame that ran the handlers), of which at most one can match.
+
+The INP side of the join is already done by [Web Vitals](#web-vitals): with `includeRawAttribution` enabled, every frame that overlaps the interaction is in the record body as `attribution.longAnimationFrameEntries`, scripts included, so read them from there. For any other correlation, match by overlap — a frame overlaps the interaction when its `start_time` precedes the interaction end and its `start_time + duration` follows the interaction start — rather than by an exact timestamp comparison. INP says which interaction was slow; Long Animation Frames say which script made it slow.
 
 #### Page attribution
 
