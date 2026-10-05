@@ -6,14 +6,6 @@
 /** Event name for Long Animation Frames API entries. */
 export const LONG_ANIMATION_FRAME_EVENT_NAME = 'browser.long_animation_frame';
 
-/** Name reported by the long-animation-frame performance entry. */
-export const ATTR_LONG_ANIMATION_FRAME_NAME =
-  'browser.long_animation_frame.name';
-
-/** Performance entry type, normally `long-animation-frame`. */
-export const ATTR_LONG_ANIMATION_FRAME_ENTRY_TYPE =
-  'browser.long_animation_frame.entry_type';
-
 /** Total duration of the frame in milliseconds. */
 export const ATTR_LONG_ANIMATION_FRAME_DURATION =
   'browser.long_animation_frame.duration';

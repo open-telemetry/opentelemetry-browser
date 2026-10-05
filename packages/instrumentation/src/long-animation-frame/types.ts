@@ -33,5 +33,11 @@ export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
  */
 export interface LongAnimationFrameInstrumentationConfig
   extends InstrumentationConfig {
-  // Configuration options will be added here
+  /**
+   * Custom function to sanitize URLs before they are written to the `scripts`
+   * array. `invoker` and `source_url` are emitted as the browser reports them,
+   * and for an inline script or a listener defined on the page both are the
+   * page URL including its query string.
+   */
+  sanitizeUrl?: (url: string) => string;
 }

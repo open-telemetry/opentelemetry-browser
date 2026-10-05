@@ -19,9 +19,7 @@ import { LongAnimationFrameInstrumentation } from './instrumentation.ts';
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
   ATTR_LONG_ANIMATION_FRAME_DURATION,
-  ATTR_LONG_ANIMATION_FRAME_ENTRY_TYPE,
   ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP,
-  ATTR_LONG_ANIMATION_FRAME_NAME,
   ATTR_LONG_ANIMATION_FRAME_RENDER_START,
   ATTR_LONG_ANIMATION_FRAME_SCRIPTS,
   ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START,
@@ -83,8 +81,6 @@ describe('LongAnimationFrameInstrumentation', () => {
     expect(records[0]).toMatchObject({
       eventName: LONG_ANIMATION_FRAME_EVENT_NAME,
       attributes: {
-        [ATTR_LONG_ANIMATION_FRAME_NAME]: 'frame',
-        [ATTR_LONG_ANIMATION_FRAME_ENTRY_TYPE]: 'long-animation-frame',
         [ATTR_LONG_ANIMATION_FRAME_DURATION]: 320,
         [ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION]: 250,
         [ATTR_LONG_ANIMATION_FRAME_RENDER_START]: 120,
@@ -92,8 +88,6 @@ describe('LongAnimationFrameInstrumentation', () => {
         [ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP]: 100,
         [ATTR_LONG_ANIMATION_FRAME_SCRIPTS]: [
           {
-            name: 'app.js',
-            entry_type: 'script',
             start_time: 110,
             duration: 200,
             execution_start: 120,
@@ -109,6 +103,79 @@ describe('LongAnimationFrameInstrumentation', () => {
         ],
       },
     });
+  });
+
+  it('does not repeat the constants the event name already carries', () => {
+    instrumentation = new LongAnimationFrameInstrumentation();
+
+    observerCallback(createEntryList([createLongAnimationFrameEntry()]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes).not.toHaveProperty(
+      'browser.long_animation_frame.name',
+    );
+    expect(record?.attributes).not.toHaveProperty(
+      'browser.long_animation_frame.entry_type',
+    );
+
+    const [script] = (record?.attributes?.[ATTR_LONG_ANIMATION_FRAME_SCRIPTS] ??
+      []) as Array<Record<string, unknown>>;
+    expect(script).not.toHaveProperty('name');
+    expect(script).not.toHaveProperty('entry_type');
+  });
+
+  it('emits invoker and source_url unchanged when sanitizeUrl is not configured', () => {
+    instrumentation = new LongAnimationFrameInstrumentation();
+    const entry = createLongAnimationFrameEntry({
+      scripts: [
+        createScriptEntry({
+          invoker: 'DOMWindow.onclick',
+          sourceURL: 'https://app.example/account/reset?token=s3cret#step2',
+        }),
+      ],
+    });
+
+    observerCallback(createEntryList([entry]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes[ATTR_LONG_ANIMATION_FRAME_SCRIPTS]).toEqual([
+      expect.objectContaining({
+        invoker: 'DOMWindow.onclick',
+        source_url: 'https://app.example/account/reset?token=s3cret#step2',
+      }),
+    ]);
+  });
+
+  it('applies sanitizeUrl to invoker and source_url', () => {
+    const sanitizeUrl = vi.fn((url: string) =>
+      url.replace('token=s3cret', 'token=REDACTED'),
+    );
+    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    const entry = createLongAnimationFrameEntry({
+      scripts: [
+        createScriptEntry({
+          invoker: 'https://app.example/account/reset?token=s3cret',
+          sourceURL: 'https://app.example/account/reset?token=s3cret#step2',
+        }),
+      ],
+    });
+
+    observerCallback(createEntryList([entry]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes[ATTR_LONG_ANIMATION_FRAME_SCRIPTS]).toEqual([
+      expect.objectContaining({
+        invoker: 'https://app.example/account/reset?token=REDACTED',
+        source_url: 'https://app.example/account/reset?token=REDACTED#step2',
+      }),
+    ]);
+    expect(sanitizeUrl).toHaveBeenCalledTimes(2);
   });
 
   it('uses the entry start time as the log timestamp', () => {
@@ -283,26 +350,33 @@ function createLongAnimationFrameEntry(
     styleAndLayoutStart: 130,
     blockingDuration: 250,
     firstUIEventTimestamp: 100,
-    scripts: [
-      {
-        name: 'app.js',
-        entryType: 'script',
-        startTime: 110,
-        duration: 200,
-        executionStart: 120,
-        invoker: 'script',
-        invokerType: 'classic-script',
-        sourceURL: 'https://example.com/app.js',
-        sourceFunctionName: 'render',
-        sourceCharPosition: 12,
-        pauseDuration: 10,
-        forcedStyleAndLayoutDuration: 40,
-        windowAttribution: 'self',
-        window: null,
-        toJSON: () => ({}),
-      },
-    ],
+    scripts: [createScriptEntry()],
     toJSON: () => ({}),
     ...overrides,
   };
+}
+
+function createScriptEntry(
+  overrides: Partial<
+    PerformanceLongAnimationFrameTiming['scripts'][number]
+  > = {},
+): PerformanceLongAnimationFrameTiming['scripts'][number] {
+  return {
+    name: 'app.js',
+    entryType: 'script',
+    startTime: 110,
+    duration: 200,
+    executionStart: 120,
+    invoker: 'script',
+    invokerType: 'classic-script',
+    sourceURL: 'https://example.com/app.js',
+    sourceFunctionName: 'render',
+    sourceCharPosition: 12,
+    pauseDuration: 10,
+    forcedStyleAndLayoutDuration: 40,
+    windowAttribution: 'self',
+    window: null,
+    toJSON: () => ({}),
+    ...overrides,
+  } as PerformanceLongAnimationFrameTiming['scripts'][number];
 }

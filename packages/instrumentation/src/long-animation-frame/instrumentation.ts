@@ -18,9 +18,7 @@ import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
   ATTR_LONG_ANIMATION_FRAME_DURATION,
-  ATTR_LONG_ANIMATION_FRAME_ENTRY_TYPE,
   ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP,
-  ATTR_LONG_ANIMATION_FRAME_NAME,
   ATTR_LONG_ANIMATION_FRAME_RENDER_START,
   ATTR_LONG_ANIMATION_FRAME_SCRIPTS,
   ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START,
@@ -121,13 +119,19 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
       return;
     }
 
+    // `invoker` and `sourceURL` go out as the browser reports them, and for an
+    // inline script or a listener defined on the page that is the page URL
+    // including its query string. Route both through `sanitizeUrl` when one is
+    // configured, the same way navigation, fetch and xhr sanitize `url.full`.
+    const { sanitizeUrl } = this.getConfig();
+    const sanitize = (url: string): string =>
+      sanitizeUrl && typeof url === 'string' ? sanitizeUrl(url) : url;
+
     const record: LogRecord = {
       eventName: LONG_ANIMATION_FRAME_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
       timestamp: performance.timeOrigin + entry.startTime,
       attributes: {
-        [ATTR_LONG_ANIMATION_FRAME_NAME]: entry.name,
-        [ATTR_LONG_ANIMATION_FRAME_ENTRY_TYPE]: entry.entryType,
         [ATTR_LONG_ANIMATION_FRAME_DURATION]: entry.duration,
         [ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION]: entry.blockingDuration,
         [ATTR_LONG_ANIMATION_FRAME_RENDER_START]: entry.renderStart,
@@ -139,14 +143,12 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
           ? {
               [ATTR_LONG_ANIMATION_FRAME_SCRIPTS]: entry.scripts.map(
                 (script): AnyValueMap => ({
-                  name: script.name,
-                  entry_type: script.entryType,
                   start_time: script.startTime,
                   duration: script.duration,
                   execution_start: script.executionStart,
-                  invoker: script.invoker,
+                  invoker: sanitize(script.invoker),
                   invoker_type: script.invokerType,
-                  source_url: script.sourceURL,
+                  source_url: sanitize(script.sourceURL),
                   source_function_name: script.sourceFunctionName,
                   source_char_position: script.sourceCharPosition,
                   pause_duration: script.pauseDuration,
