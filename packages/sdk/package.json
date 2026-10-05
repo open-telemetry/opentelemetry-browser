@@ -37,6 +37,10 @@
       "types": "./dist/document/index.d.ts",
       "default": "./dist/document/index.js"
     },
+    "./browser-detector": {
+      "types": "./dist/browser-detector/index.d.ts",
+      "default": "./dist/browser-detector/index.js"
+    },
     "./session": {
       "types": "./dist/session/index.d.ts",
       "default": "./dist/session/index.js"
@@ -63,7 +67,8 @@
     "@opentelemetry/instrumentation": "^0.222.0",
     "@opentelemetry/resources": "^2.11.0",
     "@opentelemetry/sdk-logs": "^0.222.0",
-    "@opentelemetry/sdk-trace": "^2.11.0"
+    "@opentelemetry/sdk-trace": "^2.11.0",
+    "@opentelemetry/semantic-conventions": "^1.43.0"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.1"
