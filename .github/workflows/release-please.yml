@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release-please:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     permissions:
       contents: write
       pull-requests: write
@@ -36,7 +36,7 @@ jobs:
   npm-publish:
     needs: release-please
     if: needs.release-please.outputs.releases_created == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     environment: npm-publish
     permissions:
       contents: read
