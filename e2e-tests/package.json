@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "msw:init": "msw init public --save"
+    "msw:init": "msw init",
+    "test:e2e": "vitest run"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
