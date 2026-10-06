@@ -30,7 +30,7 @@
     "lint:ci": "biome ci && npm run check",
     "validate": "node scripts/validate.js",
     "test": "turbo run test",
-    "test:e2e": "vitest run --config e2e-tests/vitest.config.ts",
+    "test:e2e": "turbo run test:e2e",
     "test:watch": "turbo run test:watch",
     "test:coverage": "turbo run test:coverage"
   },
