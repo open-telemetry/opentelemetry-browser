@@ -382,7 +382,7 @@ Propagators to use to carry information to other services (like backend services
 
 #### sampler
 
-Sampler to be used by traces to resolve if the Spans should be recorded or not.
+Sampler to be used by traces to resolve if the Spans should be recorded or not. If not specified, the SDK uses the upstream `@opentelemetry/sdk-trace` default (`ParentBasedSampler` with `AlwaysOnSampler` root).
 
 ## Sessions
 
