@@ -93,6 +93,36 @@ describe('UserActionInstrumentation', () => {
     );
   });
 
+  it('should emit a log when the element triggers an auxclick event with middle click', () => {
+    const element = createTestElement();
+    const auxEvent = new MouseEvent('auxclick', {
+      button: 1,
+      bubbles: true,
+      clientX: 50,
+      clientY: 60,
+    });
+    element.dispatchEvent(auxEvent);
+
+    const logs = inMemoryExporter.getFinishedLogRecords();
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.attributes['browser.mouse_event.button']).toBe('middle');
+  });
+
+  it('should not record mouse button attribute for unknown button clicks', () => {
+    const element = createTestElement();
+    const auxEvent = new MouseEvent('auxclick', {
+      button: 3, // Browser back button
+      bubbles: true,
+      clientX: 50,
+      clientY: 60,
+    });
+    element.dispatchEvent(auxEvent);
+
+    const logs = inMemoryExporter.getFinishedLogRecords();
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.attributes['browser.mouse_event.button']).toBeUndefined();
+  });
+
   it('should not emit a log when the event target is not an HTMLElement', () => {
     const textNode = document.createTextNode('Test Text Node');
     document.body.appendChild(textNode);

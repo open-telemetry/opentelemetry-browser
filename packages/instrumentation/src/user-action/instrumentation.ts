@@ -46,7 +46,9 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     return [];
   }
 
-  private _getMouseButtonFromMouseEvent(event: MouseEvent): MouseButton {
+  private _getMouseButtonFromMouseEvent(
+    event: MouseEvent,
+  ): MouseButton | undefined {
     switch (event.button) {
       case 0:
         return 'left';
@@ -55,7 +57,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       case 2:
         return 'right';
       default:
-        return 'left';
+        return undefined;
     }
   }
 
@@ -85,17 +87,23 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       }
     }
 
+    const mouseButton = this._getMouseButtonFromMouseEvent(event);
+    const attributes: NonNullable<LogRecord['attributes']> = {
+      [ATTR_PAGE_X]: event.pageX,
+      [ATTR_PAGE_Y]: event.pageY,
+      [ATTR_TAG_NAME]: element.tagName,
+      [ATTR_TAGS]: otelPrefixedAttributes,
+      [ATTR_CSS_SELECTOR]: cssSelector,
+    };
+
+    if (mouseButton !== undefined) {
+      attributes[ATTR_MOUSE_EVENT_BUTTON] = mouseButton;
+    }
+
     const logRecord: LogRecord = {
       severityNumber: SeverityNumber.INFO,
       eventName: CLICK_EVENT_NAME,
-      attributes: {
-        [ATTR_PAGE_X]: event.pageX,
-        [ATTR_PAGE_Y]: event.pageY,
-        [ATTR_TAG_NAME]: element.tagName,
-        [ATTR_TAGS]: otelPrefixedAttributes,
-        [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
-        [ATTR_CSS_SELECTOR]: cssSelector,
-      },
+      attributes,
     };
 
     this._applyCustomLogRecordData(logRecord);
@@ -127,12 +135,14 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
 
     if (autoCapturedActions.includes('click')) {
       document.addEventListener('click', this._onClickHandler, true);
+      document.addEventListener('auxclick', this._onClickHandler, true);
     }
   }
 
   override disable(): void {
     if (this._onClickHandler) {
       document.removeEventListener('click', this._onClickHandler, true);
+      document.removeEventListener('auxclick', this._onClickHandler, true);
     }
   }
 }
