@@ -44,11 +44,13 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
   declare private _listenersRegistered: boolean;
   private _applyCustomLogRecordData?: (logRecord: LogRecord) => void;
   private _includeRawAttribution: boolean;
+  private _reportAllChanges?: boolean;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
     this._applyCustomLogRecordData = config.applyCustomLogRecordData;
     this._includeRawAttribution = config.includeRawAttribution ?? false;
+    this._reportAllChanges = config.reportAllChanges;
   }
 
   protected override init() {
@@ -76,13 +78,17 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
 
     this._listenersRegistered = true;
     this._diag.debug(`Registering listeners`);
+    const opts =
+      this._reportAllChanges !== undefined
+        ? { reportAllChanges: this._reportAllChanges }
+        : undefined;
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
-    onCLS((metric) => this._emitWebVital(metric));
-    onINP((metric) => this._emitWebVital(metric));
-    onLCP((metric) => this._emitWebVital(metric));
-    onFCP((metric) => this._emitWebVital(metric));
-    onTTFB((metric) => this._emitWebVital(metric));
+    onCLS((metric) => this._emitWebVital(metric), opts);
+    onINP((metric) => this._emitWebVital(metric), opts);
+    onLCP((metric) => this._emitWebVital(metric), opts);
+    onFCP((metric) => this._emitWebVital(metric), opts);
+    onTTFB((metric) => this._emitWebVital(metric), opts);
   }
 
   /**

@@ -238,6 +238,7 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
+| `reportAllChanges` | `boolean` | `false` | When true, reports the metric value on every change rather than only once per page lifecycle. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
 
 ### Console

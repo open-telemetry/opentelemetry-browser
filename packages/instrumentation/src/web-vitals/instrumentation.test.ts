@@ -242,4 +242,13 @@ describe('WebVitalsInstrumentation', () => {
       expect(customHook).toHaveBeenCalled();
     });
   });
+
+  describe('reportAllChanges config', () => {
+    it('should initialize and register listeners with reportAllChanges set to true', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: true,
+      });
+      expect(() => instrumentation.enable()).not.toThrow();
+    });
+  });
 });

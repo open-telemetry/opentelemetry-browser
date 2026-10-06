@@ -21,6 +21,13 @@ export interface WebVitalsInstrumentationConfig extends InstrumentationConfig {
   includeRawAttribution?: boolean;
 
   /**
+   * When true, reports the metric value on every change rather than only once
+   * per page lifecycle.
+   * See: https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change
+   */
+  reportAllChanges?: boolean;
+
+  /**
    * Hook to modify log records before they are emitted.
    * Use this to add custom attributes or modify the log record.
    */
