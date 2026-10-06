@@ -322,12 +322,14 @@ describe('quickStartBrowserSdk', () => {
   let fetchSpy: MockInstance;
   let consoleDirSpy: MockInstance;
   let diagDebugSpy: MockInstance;
+  let diagErrorSpy: MockInstance;
   let browserSdk: WebSdk;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
     consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
     diagDebugSpy = vi.spyOn(diag, 'debug');
+    diagErrorSpy = vi.spyOn(diag, 'error');
   });
   afterEach(async () => {
     // A test may already have shut the SDK down to flush its batch
@@ -341,6 +343,7 @@ describe('quickStartBrowserSdk', () => {
     fetchSpy.mockRestore();
     consoleDirSpy.mockRestore();
     diagDebugSpy.mockRestore();
+    diagErrorSpy.mockRestore();
     logs.disable();
     trace.disable();
     context.disable();
@@ -419,10 +422,11 @@ describe('quickStartBrowserSdk', () => {
     });
   });
 
-  it('should add console processors when logLevel is DEBUG', async () => {
+  it('should add console processors and export via OTLP when logLevel is DEBUG', async () => {
     // Act
     browserSdk = quickStartBrowserSdk({
       exportUrl: 'http://otlp-signal-endpoint:4318',
+      exportHeaders: { 'x-test-header': 'test-value' },
       logLevel: 'DEBUG',
     });
     // Console exporters use SimpleProcessors, which export synchronously
@@ -431,8 +435,28 @@ describe('quickStartBrowserSdk', () => {
     await browserSdk.shutdown();
 
     // Assert: the console exporters write to `console.dir`
-    expect(consoleDirSpy).toHaveBeenCalled();
+    expect(consoleDirSpy).toHaveBeenCalledTimes(2);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    const logsCall = fetchSpy.mock.calls.find(
+      (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/logs',
+    );
+    expect(logsCall).toBeDefined();
+    expect(logsCall?.[1]).containSubset({
+      headers: {
+        'x-test-header': 'test-value',
+      },
+    });
+
+    const tracesCall = fetchSpy.mock.calls.find(
+      (args) => args[0] === 'http://otlp-signal-endpoint:4318/v1/traces',
+    );
+    expect(tracesCall).toBeDefined();
+    expect(tracesCall?.[1]).containSubset({
+      headers: {
+        'x-test-header': 'test-value',
+      },
+    });
   });
 
   it('should add console processors for log levels above DEBUG', async () => {
@@ -480,5 +504,34 @@ describe('quickStartBrowserSdk', () => {
 
     // Assert: shutting down the SDK disables the instrumentation
     expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not validate or emit URL errors when disabled even in DEBUG mode', async () => {
+    diagErrorSpy.mockClear();
+
+    browserSdk = quickStartBrowserSdk({
+      disabled: true,
+      exportUrl: 'not_a_valid_url',
+      logLevel: 'DEBUG',
+    });
+
+    expect(browserSdk.invalidConfig).toBeFalsy();
+    expect(diagErrorSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should emit only one error for an invalid URL in DEBUG mode', async () => {
+    diagErrorSpy.mockClear();
+
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'not_a_valid_url',
+      logLevel: 'DEBUG',
+    });
+
+    expect(browserSdk.invalidConfig).toBe(true);
+    expect(diagErrorSpy).toHaveBeenCalledTimes(1);
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(
+      /Invalid OTLP export URL "not_a_valid_url"/,
+    );
   });
 });
