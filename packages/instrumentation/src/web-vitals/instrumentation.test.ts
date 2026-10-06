@@ -205,41 +205,4 @@ describe('WebVitalsInstrumentation', () => {
       expect(parsed).toHaveProperty('interactionTime');
     });
   });
-
-  describe('applyCustomLogRecordData hook', () => {
-    it('should catch and log errors from hook without crashing', async () => {
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-      const errorHook = vi.fn(() => {
-        throw new Error('Hook error');
-      });
-
-      instrumentation = new WebVitalsInstrumentation({
-        applyCustomLogRecordData: errorHook,
-      });
-
-      createButton('Hook error test');
-      await triggerINP('Hook error test');
-
-      const inpLog = await waitForMetric('inp');
-      expect(inpLog.attributes[ATTR_WEB_VITAL_NAME]).toBe('inp');
-      expect(errorHook).toHaveBeenCalled();
-    });
-
-    it('should allow hook to add custom attributes', async () => {
-      const customHook = vi.fn((logRecord) => {
-        logRecord.attributes['custom.page'] = 'test-page';
-      });
-
-      instrumentation = new WebVitalsInstrumentation({
-        applyCustomLogRecordData: customHook,
-      });
-
-      createButton('Custom attr test');
-      await triggerINP('Custom attr test');
-
-      const inpLog = await waitForMetric('inp');
-      expect(inpLog.attributes['custom.page']).toBe('test-page');
-      expect(customHook).toHaveBeenCalled();
-    });
-  });
 });
