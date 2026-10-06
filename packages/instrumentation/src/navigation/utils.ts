@@ -20,15 +20,10 @@ export function isHashChange(fromUrl: string, toUrl: string): boolean {
       a.origin === b.origin &&
       a.pathname === b.pathname &&
       a.search === b.search;
-    const fromHasHash = a.hash !== '';
     const toHasHash = b.hash !== '';
     const hashesAreDifferent = a.hash !== b.hash;
 
-    return (
-      sameBase &&
-      hashesAreDifferent &&
-      ((fromHasHash && toHasHash) || (!fromHasHash && toHasHash))
-    );
+    return sameBase && hashesAreDifferent && toHasHash;
   } catch {
     const fromBase = fromUrl.split('#')[0];
     const toBase = toUrl.split('#')[0];
