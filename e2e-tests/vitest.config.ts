@@ -3,7 +3,7 @@ import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  publicDir: 'e2e-tests/public',
+  publicDir: 'public',
   optimizeDeps: {
     // Prevent Vite from pre-bundling workspace packages from their dist/
     // output. Without this, Vite follows the package exports map and uses
@@ -65,8 +65,8 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['e2e-tests/**/*.test.ts'],
-    setupFiles: ['e2e-tests/utils/e2e-setup.ts'],
+    include: ['**/*.test.ts'],
+    setupFiles: ['utils/e2e-setup.ts'],
     browser: {
       provider: playwright(),
       enabled: true,
