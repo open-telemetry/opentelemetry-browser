@@ -1264,7 +1264,7 @@ describe('FetchInstrumentation', () => {
             await assertPropagationHeaders(response);
           });
 
-          it('should not send trace propagation headers from an earlier same origin request that used the same init', async () => {
+          it('should not set trace propagation headers from an earlier same origin request that used the same init', async () => {
             const init: RequestInit = { headers: { foo: 'bar' } };
             await fetch(getUrlForPath('/api/echo-headers.json'), init).then(
               (r) => r.json(),
@@ -1274,7 +1274,7 @@ describe('FetchInstrumentation', () => {
             const response = await fetch(url, init);
             const headers = await assertPropagationHeaders(response);
 
-            expect(headers['foo']).toEqual('bar');
+            expect(headers).toStrictEqual({ accept: '*/*', foo: 'bar' });
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
