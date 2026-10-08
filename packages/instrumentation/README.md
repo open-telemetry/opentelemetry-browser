@@ -84,14 +84,6 @@ new NavigationInstrumentation({
   // Rewrite the captured URL before it is emitted. Useful for stripping
   // path segments, query parameters, or tokens that should not be exported.
   sanitizeUrl: (url) => defaultSanitizeUrl(url),
-
-  // Mutate the log record before it is emitted (e.g. attach custom attributes).
-  applyCustomLogRecordData: (logRecord) => {
-    logRecord.attributes = {
-      ...logRecord.attributes,
-      'app.route.id': '...',
-    };
-  },
 });
 ```
 
@@ -99,7 +91,9 @@ new NavigationInstrumentation({
 |--------|------|---------|-------------|
 | `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. |
 | `sanitizeUrl` | `(url: string) => string` | — | Called before the URL is written to `url.full`. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+> [!NOTE]
+> To add custom attributes to emitted log records, use a custom `LogRecordProcessor` on the `LoggerProvider` (see [#359](https://github.com/open-telemetry/opentelemetry-browser/issues/359)).
 
 `defaultSanitizeUrl` is exported for composition — it redacts `user:password@` credentials and a set of common sensitive query parameters (`api_key`, `token`, `password`, etc.).
 
@@ -197,21 +191,15 @@ By default the instrumentation captures `click` events. You can configure which 
 new UserActionInstrumentation({
   // Array of actions to automatically capture. Default: ['click'].
   autoCapturedActions: [],
-
-  // Mutate the log record before it is emitted (e.g. attach custom attributes).
-  applyCustomLogRecordData: (logRecord) => {
-    logRecord.attributes = {
-      ...logRecord.attributes,
-      'app.user.role': 'admin',
-    };
-  },
 });
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `autoCapturedActions` | `AutoCapturedUserAction[]` | `['click']` | Array of actions to automatically capture. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+> [!NOTE]
+> To add custom attributes to emitted log records, use a custom `LogRecordProcessor` on the `LoggerProvider` (see [#359](https://github.com/open-telemetry/opentelemetry-browser/issues/359)) or `data-otel-*` attributes on HTML elements.
 
 #### Additional Attributes
 
@@ -238,7 +226,9 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
+
+> [!NOTE]
+> To add custom attributes to emitted log records, use a custom `LogRecordProcessor` on the `LoggerProvider` (see [#359](https://github.com/open-telemetry/opentelemetry-browser/issues/359)).
 
 ### Console
 
