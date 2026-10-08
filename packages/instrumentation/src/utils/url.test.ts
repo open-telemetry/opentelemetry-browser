@@ -4,7 +4,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { matchesUrl, parseUrl, serverPortFromUrl } from './url.ts';
+import {
+  defaultSanitizeUrl,
+  matchesUrl,
+  parseUrl,
+  serverPortFromUrl,
+} from './url.ts';
 
 describe('parseUrl', () => {
   const urlFields: Array<keyof URL> = [
@@ -114,5 +119,43 @@ describe('serverPortFromUrl', () => {
     const url = { port: '', protocol: 'bar' } as URL;
 
     expect(serverPortFromUrl(url)).toBeUndefined();
+  });
+});
+describe('defaultSanitizeUrl', () => {
+  it('redacts signed URL params', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://b.s3.amazonaws.com/f?X-Amz-Signature=abc&X-Amz-Credential=xyz',
+      ),
+    ).toBe(
+      'https://b.s3.amazonaws.com/f?X-Amz-Signature=REDACTED&X-Amz-Credential=REDACTED',
+    );
+  });
+
+  it('redacts AWSAccessKeyId and Signature', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://x.com/a?AWSAccessKeyId=AK&Signature=s&Expires=1',
+      ),
+    ).toBe(
+      'https://x.com/a?AWSAccessKeyId=REDACTED&Signature=REDACTED&Expires=1',
+    );
+  });
+
+  it('redacts sensitive params in a query-shaped fragment', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://app.example.com/cb#access_token=abc&state=xyz',
+      ),
+    ).toBe('https://app.example.com/cb#access_token=REDACTED&state=xyz');
+  });
+
+  it('leaves route and anchor fragments alone', () => {
+    expect(defaultSanitizeUrl('https://app.example.com/#/users/1')).toBe(
+      'https://app.example.com/#/users/1',
+    );
+    expect(defaultSanitizeUrl('https://x.com/#section-2')).toBe(
+      'https://x.com/#section-2',
+    );
   });
 });

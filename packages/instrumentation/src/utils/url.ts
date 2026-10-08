@@ -23,7 +23,27 @@ const SENSITIVE_PARAMS = [
   'client_id',
   'signature',
   'hash',
+  'AWSAccessKeyId',
+  'Signature',
+  'sig',
+  'X-Amz-Signature',
+  'X-Amz-Credential',
+  'X-Amz-Security-Token',
+  'X-Goog-Signature',
 ];
+const QUERY_SHAPED_FRAGMENT = /^[^=&/]+=/;
+
+function redactParams(params: URLSearchParams): boolean {
+  let changed = false;
+  for (const param of SENSITIVE_PARAMS) {
+    if (params.has(param)) {
+      params.set(param, 'REDACTED');
+
+      changed = true;
+    }
+  }
+  return changed;
+}
 
 /**
  * Default URL sanitization function that redacts credentials and sensitive query parameters.
@@ -39,16 +59,19 @@ export function defaultSanitizeUrl(url: string): string {
       urlObj.username = 'REDACTED';
       urlObj.password = 'REDACTED';
     }
-    for (const param of SENSITIVE_PARAMS) {
-      if (urlObj.searchParams.has(param)) {
-        urlObj.searchParams.set(param, 'REDACTED');
+    redactParams(urlObj.searchParams);
+    const fragment = urlObj.hash.slice(1);
+    if (QUERY_SHAPED_FRAGMENT.test(fragment)) {
+      const fragmentParams = new URLSearchParams(fragment);
+      if (redactParams(fragmentParams)) {
+        urlObj.hash = fragmentParams.toString();
       }
     }
     return urlObj.toString();
   } catch {
     let sanitized = url.replace(/\/\/[^:/@]+:[^/@]+@/, '//REDACTED:REDACTED@');
     for (const param of SENSITIVE_PARAMS) {
-      const regex = new RegExp(`([?&]${param}(?:%3D|=))[^&]*`, 'gi');
+      const regex = new RegExp(`([?&#]${param}(?:%3D|=))[^&]*`, 'gi');
       sanitized = sanitized.replace(regex, '$1REDACTED');
     }
     return sanitized;
