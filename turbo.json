@@ -25,15 +25,24 @@
       "cache": false
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build", "msw:init"]
     },
     "test:watch": {
+      "dependsOn": ["msw:init"],
       "persistent": true,
       "cache": false
     },
     "test:coverage": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "msw:init"],
       "outputs": ["coverage/**"]
+    },
+    "test:e2e": {
+      "dependsOn": ["msw:init"],
+      "cache": false
+    },
+    "msw:init": {
+      "inputs": ["package.json"],
+      "outputs": ["public/mockServiceWorker.js"]
     }
   }
 }
