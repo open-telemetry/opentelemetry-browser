@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag, trace } from '@opentelemetry/api';
+import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
+import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -43,6 +45,20 @@ function resourceAttributesFromBody(
   return attributes;
 }
 
+function createFakeInstrumentation(): Instrumentation {
+  return {
+    instrumentationName: 'test-instrumentation',
+    instrumentationVersion: '1.0.0',
+    enable: vi.fn(),
+    disable: vi.fn(),
+    setTracerProvider: vi.fn(),
+    setMeterProvider: vi.fn(),
+    setLoggerProvider: vi.fn(),
+    setConfig: vi.fn(),
+    getConfig: () => ({ enabled: false }),
+  };
+}
+
 describe('startBrowserSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
@@ -61,6 +77,8 @@ describe('startBrowserSdk', () => {
     fetchSpy.mockClear();
     logs.disable();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start disabled by configuration', async () => {
@@ -76,7 +94,8 @@ describe('startBrowserSdk', () => {
     trace.getTracer('traces-sdk-test').startSpan('test').end();
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
-    // Assert
+    // Assert: an intentional disable is not flagged as an invalid config
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(diagDebugSpy).toHaveBeenCalled();
     expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -98,9 +117,75 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
     expect(diagErrorSpy).toHaveBeenCalled();
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Browser SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not start for an invalid signal-specific URL even with custom processors', async () => {
+    // Arrange: the traces signal provides its own processors and an invalid
+    // export URL — the scenario the sandbox used to guard against by hand.
+    let exportCalled = false;
+
+    // Act
+    browserSdk = startBrowserSdk({
+      // NOTE: short delay so a logs signal that wrongly started would flush
+      // within the wait below, which is what `fetchSpy` asserts against.
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      traces: {
+        processors: [
+          new SimpleSpanProcessor({
+            exporter: {
+              export: () => (exportCalled = true),
+              shutdown: () => Promise.resolve(),
+            },
+          }),
+        ],
+        exportConfig: { url: 'this_is_not_an_URL' },
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(
+      /Invalid OTLP export URL "this_is_not_an_URL". Traces SDK won't start/,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(false);
+  });
+
+  it('should start where URL.parse is not available', async () => {
+    // Arrange: Safari < 18 and Chrome/Firefox < 126 have no `URL.parse`
+    const urlParse = Object.getOwnPropertyDescriptor(URL, 'parse');
+    Reflect.deleteProperty(URL, 'parse');
+
+    try {
+      // Act
+      browserSdk = startBrowserSdk({
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        batchProcessorConfig: {
+          scheduledDelayMillis: SCHEDULE_DELAY,
+        },
+      });
+      logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+      trace.getTracer('traces-sdk-test').startSpan('test').end();
+      await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+    } finally {
+      if (urlParse) {
+        Object.defineProperty(URL, 'parse', urlParse);
+      }
+    }
+
+    // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
   it('should use the default configuration for batch processor', async () => {
@@ -116,6 +201,7 @@ describe('startBrowserSdk', () => {
     await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
 
     // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(
       fetchSpy.mock.calls.find(
@@ -157,6 +243,68 @@ describe('startBrowserSdk', () => {
       });
     });
   });
+
+  it('should register instrumentations on start and disable them on shutdown', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations: [instrumentation],
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: providers are set and the instrumentation is enabled
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+    expect(instrumentation.setMeterProvider).toHaveBeenCalled();
+    expect(instrumentation.setLoggerProvider).toHaveBeenCalled();
+
+    // Act
+    await browserSdk.shutdown();
+    // Prevent the afterEach hook from shutting down the same SDK again
+    browserSdk = { shutdown: () => Promise.resolve() };
+
+    // Assert: shutting down the SDK disables the instrumentations
+    expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when disabled by configuration', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      disabled: true,
+      instrumentations: [instrumentation],
+    });
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when an invalid URL is provided', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'this_is_not_an_URL',
+      },
+      instrumentations: [instrumentation],
+    });
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
 });
 
 describe('quickStartBrowserSdk', () => {
@@ -195,6 +343,8 @@ describe('quickStartBrowserSdk', () => {
     diagDebugSpy.mockRestore();
     logs.disable();
     trace.disable();
+    context.disable();
+    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {
@@ -278,5 +428,26 @@ describe('quickStartBrowserSdk', () => {
 
     // Assert: the console exporters write to `console.dir`
     expect(consoleDirSpy).toHaveBeenCalled();
+  });
+
+  it('should forward instrumentations to the SDK', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'http://otlp-signal-endpoint:4318',
+      instrumentations: [instrumentation],
+    });
+
+    // Assert: the SDK registers and enables the instrumentation
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+
+    // Act
+    await browserSdk.shutdown();
+
+    // Assert: shutting down the SDK disables the instrumentation
+    expect(instrumentation.disable).toHaveBeenCalled();
   });
 });

@@ -7,6 +7,7 @@ export default defineConfig({
     index: 'src/index.ts',
     'logs/index': 'src/logs/index.ts',
     'traces/index': 'src/traces/index.ts',
+    'document/index': 'src/document/index.ts',
     'session/index': 'src/session/index.ts',
   },
 });

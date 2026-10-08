@@ -11,6 +11,11 @@ import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentatio
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import type { TracesConfig } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+import {
+  createDocumentLogRecordProcessor,
+  createDocumentSpanProcessor,
+  createLocationDocumentProvider,
+} from '@opentelemetry/browser-sdk/document';
 import type { SessionManager } from '@opentelemetry/browser-sdk/session';
 import {
   createDefaultSessionIdGenerator,
@@ -23,7 +28,6 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import {
@@ -69,16 +73,6 @@ export async function initOtel(
   customAttrs: Record<string, string> = {},
   { onSpan, onLog }: InitOtelOptions = {},
 ): Promise<OtelHandle> {
-  // ── Validate export endpoints ───────────────────────────────────────────────
-  // startBrowserSdk logs a diag.error and silently skips the OTLP exporter for
-  // an invalid URL, so guard here and throw to surface the failure through the
-  // caller's error handling instead of reporting "SDK ready".
-  for (const url of [config.tracesUrl, config.logsUrl]) {
-    if (!URL.parse(url)) {
-      throw new Error(`Invalid OTLP export URL: "${url}"`);
-    }
-  }
-
   // ── Sessions ────────────────────────────────────────────────────────────────
   // The session processors must run BEFORE the export processors so the
   // session.id attribute is set on each span / log record before it is exported.
@@ -91,11 +85,18 @@ export async function initOtel(
   });
   await sessionManager.start();
 
+  // ── Document context ────────────────────────────────────────────────────────
+  // Reads `location.href` as each span starts and each log record is emitted,
+  // so `browser.document.url.full` follows soft navigations with no bookkeeping.
+  const documentProvider = createLocationDocumentProvider();
+
   // ── Span processors ───────────────────────────────────────────────────────
-  // session (first, so session.id is set) → console → optional UI mirror.
+  // context first (so session.id and browser.document.url.full are set)
+  // → console → optional UI mirror.
   // The batching OTLP exporter is appended by startBrowserSdk (see below).
   const spanProcessors = [
     createSessionSpanProcessor(sessionManager),
+    createDocumentSpanProcessor(documentProvider),
     new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
   ];
   if (onSpan) {
@@ -107,6 +108,7 @@ export async function initOtel(
   // ── Log record processors ─────────────────────────────────────────────────
   const logProcessors = [
     createSessionLogRecordProcessor(sessionManager),
+    createDocumentLogRecordProcessor(documentProvider),
     new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ];
   if (onLog) {
@@ -123,7 +125,7 @@ export async function initOtel(
   // The traces `contextManager` and `propagators` reproduce what
   // `WebTracerProvider.register()` used to wire up by default, so context
   // propagation and W3C trace-context header injection keep working.
-  startBrowserSdk({
+  const sdk = startBrowserSdk({
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
     resourceAttributes: { ...customAttrs },
@@ -142,10 +144,7 @@ export async function initOtel(
       exportConfig: { url: config.logsUrl, headers: {} },
       batchProcessorConfig: BATCH_PROCESSOR_CONFIG,
     },
-  });
 
-  // ── Auto-instrumentations ───────────────────────────────────────────────────
-  registerInstrumentations({
     instrumentations: [
       new ErrorsInstrumentation(),
       new NavigationTimingInstrumentation(),
@@ -165,6 +164,18 @@ export async function initOtel(
       }),
     ],
   });
+
+  // startBrowserSdk returns a no-op SDK flagged with `invalidConfig` when it
+  // refuses to start because of a bad configuration (e.g. an invalid export
+  // URL or no usable processors). Surface that as an error instead of letting
+  // the sandbox report "SDK ready" while inert. The SDK already logged the
+  // specific cause via diag.error, so keep this message cause-agnostic.
+  if (sdk.invalidConfig) {
+    throw new Error(
+      'Browser SDK failed to start due to an invalid configuration — ' +
+        'see the preceding SDK diag.error logs for the specific cause.',
+    );
+  }
 
   return {
     tracer: trace.getTracer(config.serviceName, config.serviceVersion),

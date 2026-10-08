@@ -11,6 +11,7 @@ import {
   ROOT_CONTEXT,
   trace,
 } from '@opentelemetry/api';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
   AlwaysOffSampler,
   SimpleSpanProcessor,
@@ -20,6 +21,20 @@ import type { WebSdk } from '../core/types.ts';
 import { startTracesSdk } from './startTracesSdk.ts';
 
 const BSP_SCHEDULE_DELAY = 10;
+
+function createFakeInstrumentation(): Instrumentation {
+  return {
+    instrumentationName: 'test-instrumentation',
+    instrumentationVersion: '1.0.0',
+    enable: vi.fn(),
+    disable: vi.fn(),
+    setTracerProvider: vi.fn(),
+    setMeterProvider: vi.fn(),
+    setLoggerProvider: vi.fn(),
+    setConfig: vi.fn(),
+    getConfig: () => ({ enabled: false }),
+  };
+}
 
 describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
@@ -78,6 +93,33 @@ describe('startTracesSdk', () => {
     expect(diagErrorSpy).toHaveBeenCalled();
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not start for an invalid URL even when custom processors are set', async () => {
+    // Arrange: an invalid `exportConfig.url` must not be silently skipped just
+    // because the user also provided their own processors.
+    let exportCalled = false;
+
+    // Act
+    tracesSdk = startTracesSdk({
+      processors: [
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
+        }),
+      ],
+      exportConfig: { url: 'this_is_not_an_URL' },
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't start/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(false);
   });
 
   it('should use the default configuration for exporters', async () => {
@@ -275,6 +317,48 @@ describe('startTracesSdk', () => {
 
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should register instrumentations on start and disable them on shutdown', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    tracesSdk = startTracesSdk({
+      instrumentations: [instrumentation],
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: the tracer provider is set and the instrumentation is enabled
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+
+    // Act
+    await tracesSdk.shutdown();
+    // Prevent the afterEach hook from shutting down the same SDK again
+    tracesSdk = { shutdown: () => Promise.resolve() };
+
+    // Assert: shutting down the SDK disables the instrumentation
+    expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when disabled by configuration', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    tracesSdk = startTracesSdk({
+      disabled: true,
+      instrumentations: [instrumentation],
+    });
+    await tracesSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
   });
 
   it('should install default context manager and propagators when none are provided', () => {

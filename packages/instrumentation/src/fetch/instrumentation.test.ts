@@ -161,7 +161,25 @@ describe('FetchInstrumentation', () => {
 
   const msWorker = setupWorker(...handlers);
 
+  // The browser relays a mocked stream's error from the Service Worker to the
+  // page as an unhandled rejection independent of our own promise chain, and it
+  // can land after the test that triggered it has already finished. Suppress it
+  // for the whole file rather than around a single test, so the listener always
+  // outlives the rejection.
+  const suppressBrokenStreamRejection = (e: PromiseRejectionEvent) => {
+    if (
+      e.reason instanceof TypeError &&
+      e.reason.message === 'Failed to fetch'
+    ) {
+      e.preventDefault();
+    }
+  };
+
   beforeAll(async () => {
+    window.addEventListener(
+      'unhandledrejection',
+      suppressBrokenStreamRejection,
+    );
     await msWorker.start();
     inMemoryExporter = setupTestSpanExporter();
   });
@@ -178,6 +196,10 @@ describe('FetchInstrumentation', () => {
 
   afterAll(() => {
     msWorker.stop();
+    window.removeEventListener(
+      'unhandledrejection',
+      suppressBrokenStreamRejection,
+    );
   });
 
   const getUrlForPath = (path: string) => {
@@ -301,7 +323,6 @@ describe('FetchInstrumentation', () => {
         // `enable()` runs — `_wrap` is an instance-level field inherited
         // from `InstrumentationBase`, not a prototype method.
         instrumentation = new FetchInstrumentation({ enabled: false });
-        // @ts-expect-error access internal property for testing
         vi.spyOn(instrumentation, '_wrap').mockThrow(wrapError);
       });
 
@@ -495,34 +516,23 @@ describe('FetchInstrumentation', () => {
     });
 
     it('should record the real status and an error when the body stream fails mid-read', async () => {
-      // The browser relays the mocked stream's error from the Service Worker
-      // to the page as an unhandled rejection independent of our own promise
-      // chain, so it needs suppressing here the same way dispatched `error`
-      // events are suppressed in the errors instrumentation tests.
-      const suppress = (e: PromiseRejectionEvent) => e.preventDefault();
-      window.addEventListener('unhandledrejection', suppress);
+      const url = getUrlForPath('/api/broken-stream');
+      const startTime = performance.now();
+      const response = await fetch(url);
+      await expect(response.text()).rejects.toThrow();
+      const endTime = performance.now();
 
-      try {
-        const url = getUrlForPath('/api/broken-stream');
-        const startTime = performance.now();
-        const response = await fetch(url);
-        await expect(response.text()).rejects.toThrow();
-        const endTime = performance.now();
+      // Span is exported
+      const span = await waitForSpan(url);
+      expect(span.name).toBe('GET');
+      expect(span.kind).toEqual(SpanKind.CLIENT);
+      expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
+      expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
+      expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
+      expect(span.status.code).toEqual(SpanStatusCode.ERROR);
 
-        // Span is exported
-        const span = await waitForSpan(url);
-        expect(span.name).toBe('GET');
-        expect(span.kind).toEqual(SpanKind.CLIENT);
-        expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
-        expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toEqual(200);
-        expect(span.attributes[ATTR_ERROR_TYPE]).toEqual('TypeError');
-        expect(span.status.code).toEqual(SpanStatusCode.ERROR);
-
-        // Context has been registered for the resource
-        assertResourceRegistered({ span, url, startTime, endTime });
-      } finally {
-        window.removeEventListener('unhandledrejection', suppress);
-      }
+      // Context has been registered for the resource
+      assertResourceRegistered({ span, url, startTime, endTime });
     });
 
     it('204 (No Content) will correctly end the span', async () => {
@@ -623,7 +633,7 @@ describe('FetchInstrumentation', () => {
         await fetch(url);
 
         // No spans to export
-        expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(async () => await waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });
@@ -1131,6 +1141,19 @@ describe('FetchInstrumentation', () => {
           expect(headers['foo']).toEqual('bar');
         });
 
+        it('should not write trace propagation headers onto the init object', async () => {
+          const url = getUrlForPath('/api/echo-headers.json');
+          const callerHeaders = { foo: 'bar' };
+          const init: RequestInit = { headers: callerHeaders };
+          const response = await fetch(url, init);
+          const span = await waitForSpan(url);
+          const headers = await assertPropagationHeaders(response, span);
+
+          expect(headers['foo']).toEqual('bar');
+          expect(init.headers).toBe(callerHeaders);
+          expect(callerHeaders).toEqual({ foo: 'bar' });
+        });
+
         it('should keep custom headers with url, untyped request object and typed (Map) headers object', async () => {
           const url = getUrlForPath('/api/echo-headers.json');
           const response = await fetch(url, {
@@ -1239,6 +1262,19 @@ describe('FetchInstrumentation', () => {
             const response = await fetch(url);
 
             await assertPropagationHeaders(response);
+          });
+
+          it('should not set trace propagation headers from an earlier same origin request that used the same init', async () => {
+            const init: RequestInit = { headers: { foo: 'bar' } };
+            await fetch(getUrlForPath('/api/echo-headers.json'), init).then(
+              (r) => r.json(),
+            );
+
+            const url = 'http://example.com/api/echo-headers.json';
+            const response = await fetch(url, init);
+            const headers = await assertPropagationHeaders(response);
+
+            expect(headers).toStrictEqual({ accept: '*/*', foo: 'bar' });
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {

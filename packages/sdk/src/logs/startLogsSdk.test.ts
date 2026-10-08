@@ -5,12 +5,27 @@
 
 import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { WebSdk } from '../core/types.ts';
 import { startLogsSdk } from './startLogsSdk.ts';
 
 const BLRP_SCHEDULE_DELAY = 10;
+
+function createFakeInstrumentation(): Instrumentation {
+  return {
+    instrumentationName: 'test-instrumentation',
+    instrumentationVersion: '1.0.0',
+    enable: vi.fn(),
+    disable: vi.fn(),
+    setTracerProvider: vi.fn(),
+    setMeterProvider: vi.fn(),
+    setLoggerProvider: vi.fn(),
+    setConfig: vi.fn(),
+    getConfig: () => ({ enabled: false }),
+  };
+}
 
 describe('startLogsSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
@@ -67,6 +82,34 @@ describe('startLogsSdk', () => {
     expect(diagErrorSpy).toHaveBeenCalled();
     expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Logs SDK won't start/);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('should not start for an invalid URL even when custom processors are set', async () => {
+    // Arrange: an invalid `exportConfig.url` must not be silently skipped just
+    // because the user also provided their own processors.
+    let exportCalled = false;
+
+    // Act
+    logsSdk = startLogsSdk({
+      processors: [
+        new SimpleLogRecordProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
+        }),
+      ],
+      exportConfig: { url: 'this_is_not_an_URL' },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalled();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/Logs SDK won't start/);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(exportCalled).toStrictEqual(false);
   });
 
   it('should use the default configuration for exporters', async () => {
@@ -247,5 +290,47 @@ describe('startLogsSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
+
+  it('should register instrumentations on start and disable them on shutdown', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    logsSdk = startLogsSdk({
+      instrumentations: [instrumentation],
+      // NOTE: we set a short delay to speed up tests and avoid test timeouts
+      batchProcessorConfig: {
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+    });
+
+    // Assert: the logger provider is set and the instrumentation is enabled
+    expect(instrumentation.enable).toHaveBeenCalled();
+    expect(instrumentation.setLoggerProvider).toHaveBeenCalled();
+
+    // Act
+    await logsSdk.shutdown();
+    // Prevent the afterEach hook from shutting down the same SDK again
+    logsSdk = { shutdown: () => Promise.resolve() };
+
+    // Assert: shutting down the SDK disables the instrumentation
+    expect(instrumentation.disable).toHaveBeenCalled();
+  });
+
+  it('should not register instrumentations when disabled by configuration', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    logsSdk = startLogsSdk({
+      disabled: true,
+      instrumentations: [instrumentation],
+    });
+    await logsSdk.shutdown();
+
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
+    expect(instrumentation.disable).not.toHaveBeenCalled();
   });
 });

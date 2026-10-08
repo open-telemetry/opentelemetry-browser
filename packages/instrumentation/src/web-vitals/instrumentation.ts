@@ -40,8 +40,8 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
   // Using `declare` is required here: InstrumentationBase calls enable() during
   // construction, and standard field initialization would reset this flag after
   // super() returns, breaking the duplicate-registration guard.
-  private declare _isEnabled: boolean;
-  private declare _listenersRegistered: boolean;
+  declare private _isEnabled: boolean;
+  declare private _listenersRegistered: boolean;
   private _applyCustomLogRecordData?: (logRecord: LogRecord) => void;
   private _includeRawAttribution: boolean;
 

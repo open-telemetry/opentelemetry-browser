@@ -6,6 +6,7 @@
 import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
+import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -15,11 +16,12 @@ import {
   BatchLogRecordProcessor,
   LoggerProvider,
 } from '@opentelemetry/sdk-logs';
+import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
 import { setSdkLogger } from '../core/diag.ts';
+import { parseExportUrl } from '../core/exportUrl.ts';
 import type { LogsConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
-const NOOP_SDK = { shutdown: () => Promise.resolve() };
 
 /**
  * @param config The configuration for logs
@@ -31,7 +33,6 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
 
   if (config?.disabled) {
     diag.debug('Logs SDK disabled by configuration.');
-    // TODO: need to discuss with the SIG if it's better to return `undefined`
     return NOOP_SDK;
   }
 
@@ -59,27 +60,25 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     const logsEndpoint =
       config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
 
-    if (URL.parse(logsEndpoint)) {
-      processors.push(
-        new BatchLogRecordProcessor({
-          exporter: new OTLPLogExporter({
-            url: logsEndpoint,
-            headers: config?.exportConfig?.headers,
-          }),
-          ...config?.batchProcessorConfig,
-        }),
-      );
-    } else {
-      diag.error(
-        `BatchLogRecordProcessor configuration error. Invalid export URL "${logsEndpoint}".`,
-      );
+    // Bail out on an invalid URL instead of silently skipping the exporter,
+    // which would leave the SDK running without exporting the telemetry.
+    if (!parseExportUrl(logsEndpoint, 'Logs SDK')) {
+      return INVALID_CONFIG_SDK;
     }
+    processors.push(
+      new BatchLogRecordProcessor({
+        exporter: new OTLPLogExporter({
+          url: logsEndpoint,
+          headers: config?.exportConfig?.headers,
+        }),
+        ...config?.batchProcessorConfig,
+      }),
+    );
   }
 
   if (processors.length === 0) {
     diag.error("No LogRecord processors configured. Logs SDK won't start");
-    // TODO: need to discuss with the SIG if it's better to return `undefined`
-    return NOOP_SDK;
+    return INVALID_CONFIG_SDK;
   }
 
   const loggerProvider = new LoggerProvider({
@@ -89,8 +88,17 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   });
   logs.setGlobalLoggerProvider(loggerProvider);
 
+  // Register instrumentations
+  let deregisterInstrumentations: (() => void) | undefined;
+  if (config?.instrumentations?.length) {
+    deregisterInstrumentations = registerInstrumentations({
+      instrumentations: config.instrumentations,
+    });
+  }
+
   return {
     shutdown() {
+      deregisterInstrumentations?.();
       return loggerProvider.shutdown();
     },
   };

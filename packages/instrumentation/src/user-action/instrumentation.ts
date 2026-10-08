@@ -32,7 +32,7 @@ const OTEL_ELEMENT_ATTRIBUTE_PREFIX = 'data-otel-';
  * This class automatically instruments different User Actions within the browser.
  */
 export class UserActionInstrumentation extends InstrumentationBase<UserActionInstrumentationConfig> {
-  private declare _onClickHandler?: (event: MouseEvent) => void;
+  declare private _onClickHandler?: (event: MouseEvent) => void;
 
   constructor(config: UserActionInstrumentationConfig = {}) {
     super(

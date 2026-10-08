@@ -66,6 +66,7 @@ extended configuration object to tune some other component and also apply specif
 The following example sets some extra resource attributes and the limits for spans and log records.
 
 ```javascript
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
@@ -87,6 +88,10 @@ const sdk = startBrowserSdk({
     url: 'https://collector.mycompany.com',
     headers: { foo: 'bar' }
   },
+  // Optional - list of instrumentations to register when the SDK starts
+  instrumentations: [
+    new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
+  ],
   // Optional - logs signal configuration. Default empty empty. See below for more options
   logs: {
     logRecordLimits: { attributeCountLimit: 128 },
@@ -209,6 +214,33 @@ tracesSdk.shutdown().then(
 );
 ```
 
+### Instrumentations
+
+Register third-party instrumentations or the
+[browser instrumentations from this repo](../instrumentation) by passing them to the
+`instrumentations` config option. The SDK registers them with
+[`registerInstrumentations`](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation)
+after the global providers are set, so the instrumentations receive the tracer and logger providers,
+and disables them when the SDK shuts down.
+
+The option is available in `quickStartBrowserSdk`, `startBrowserSdk`, and in the standalone signal
+SDKs (`startLogsSdk` / `startTracesSdk`). For example, to register the `FetchInstrumentation` with the SDK:
+
+```javascript
+import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
+import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
+
+const sdk = quickStartBrowserSdk({
+  exportUrl: 'https://collector.mycompany.com',
+  instrumentations: [
+    new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
+  ],
+});
+```
+
+Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
+call.
+
 ## Configuration
 
 ### Common configuration
@@ -275,6 +307,11 @@ Object containing configuraiton options for the HTTP log record exporter. These 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
 the option is defined at the top level and within the signal configuration the later wins.
 
+Note: an invalid `url` stops the whole browser SDK from starting, including the other signals and any
+`processors` they define. It logs a `diag.error` and returns a no-op SDK (with `invalidConfig: true`,
+so callers can detect it) instead of starting and silently dropping the telemetry it cannot export.
+The `url` must be an absolute `http` or `https` URL.
+
 #### logRecordLimits
 
 Object containing configuraiton options log record limits. These options are:
@@ -284,8 +321,10 @@ Object containing configuraiton options log record limits. These options are:
 
 #### processors
 
-List of LogRecordProcessor for the logger provider. Setting this will make the SDK ignore `processorConfig`
-and `exportConfig` since no `BatchLogRecordProcessor` will be created.
+List of LogRecordProcessor for the logger provider. When set, these are used instead of the default
+OTLP `BatchLogRecordProcessor`. To also export over OTLP alongside them, additionally set `exportConfig`
+— this appends a `BatchLogRecordProcessor` (tuned by `batchProcessorConfig`). When `exportConfig` is
+omitted, no OTLP exporter is added and `batchProcessorConfig` has no effect.
 
 ### Traces configuration
 
@@ -311,6 +350,10 @@ Object containing configuraiton options for the HTTP span exporter. These option
 Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
 the option is defined at the top level and within the `traces` signal configuration the later wins.
 
+Note: an invalid `url` stops the SDK from starting — it logs a `diag.error` and returns a no-op SDK
+(with `invalidConfig: true`, so callers can detect it) instead of starting and silently dropping the
+telemetry it cannot export.
+
 #### spanLimits
 
 Object containing configuraiton options span limits. These options are:
@@ -324,8 +367,10 @@ Object containing configuraiton options span limits. These options are:
 
 #### processors
 
-List of SpanProcessor for the tracer provider. Setting this will make the SDK ignore `processorConfig`
-and `exportConfig` since no `BatchSpanProcessor` will be created.
+List of SpanProcessor for the tracer provider. When set, these are used instead of the default OTLP
+`BatchSpanProcessor`. To also export over OTLP alongside them, additionally set `exportConfig` — this
+appends a `BatchSpanProcessor` (tuned by `batchProcessorConfig`). When `exportConfig` is omitted, no
+OTLP exporter is added and `batchProcessorConfig` has no effect.
 
 #### contextManager
 
@@ -341,16 +386,8 @@ Sampler to be used by traces to resolve if the Spans should be recorded or not.
 
 ## Sessions
 
-Sessions correlate multiple traces, events and logs that happen within a given time period. Sessions are represented as span/log attributes prefixed with the `session.` namespace. For additional information, see [documentation in semantic conventions](https://github.com/open-telemetry/semantic-conventions/blob/main/docs/general/session.md).
-
-The `@opentelemetry/browser-sdk/session` subpath provides a default implementation of managing sessions that:
-
-- abstracts persisting sessions across page loads, with a default implementation based on `LocalStorage`
-- abstracts generating session IDs
-- provides a mechanism for resetting the active session after a maximum defined duration
-- provides a mechanism for resetting the active session after a defined inactivity duration
-
-Example:
+Sessions correlate multiple traces, events and logs that happen within a given time period. The
+`@opentelemetry/browser-sdk/session` subpath provides a default implementation for managing them.
 
 ```javascript
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
@@ -384,44 +421,10 @@ startBrowserSdk({
 });
 ```
 
-The session processors must be registered **before** the export processors so the `session.id` attribute is set on each span / log record before it is exported.
-
-The above implementation can be customized by providing different implementations of `SessionStore` and `SessionIdGenerator`.
-
-### Observing sessions
-
-The `SessionManager` provides a mechanism for observing sessions. This is useful when other components should be notified when a session is started or ended.
-
-```javascript
-sessionManager.addObserver({
-  onSessionStarted: (newSession, previousSession) => {
-    console.log('Session started', newSession, previousSession);
-  },
-  onSessionEnded: (session) => {
-    console.log('Session ended', session);
-  },
-});
-```
-
-### Custom implementation of managing sessions
-
-If you require a completely custom solution for managing sessions, you can still use the processors that attach attributes to spans/logs by passing your own `getSessionId` implementation:
-
-```javascript
-const customSessionProvider = {
-  getSessionId: () => 'abcd1234',
-};
-
-startBrowserSdk({
-  serviceName: 'my-service',
-  traces: {
-    processors: [createSessionSpanProcessor(customSessionProvider)],
-  },
-  logs: {
-    processors: [createSessionLogRecordProcessor(customSessionProvider)],
-  },
-});
-```
+**Session processors must be registered before the export processors.** See [Session
+Management](../../docs/session-management.md) for lifecycle details, the full configuration
+reference, observing sessions, custom `SessionStore`/`SessionIdGenerator` implementations, and
+known limitations.
 
 ## Useful links
 

@@ -77,6 +77,12 @@ This starts the sandbox with hot-reload via Vite at `http://localhost:5173`.
 
 The sandbox is automatically deployed to GitHub Pages on every push to `main` via the `deploy-sandbox.yml` workflow. The live site is available at [open-telemetry.github.io/opentelemetry-browser](https://open-telemetry.github.io/opentelemetry-browser/).
 
+## Documentation
+
+- [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in session support.
+- [Browser Events](./docs/browser-observability-model.md) — catalog of browser telemetry events.
+- [Navigation event](./docs/navigation-event.md) — deep dive on the `browser.navigation` event.
+
 ## Browser Packages
 
 The following tables list browser-related packages across all OpenTelemetry JS repositories.
@@ -98,18 +104,16 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 | Package | Location | Description | Status |
 | --- | --- | --- | --- |
-| opentelemetry-instrumentation-fetch | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-fetch) | Instrumentation for the Fetch API. | experimental |
-| opentelemetry-instrumentation-xml-http-request | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-xml-http-request) | Instrumentation for XMLHttpRequest. | experimental |
+| opentelemetry-instrumentation-fetch | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-fetch) | Instrumentation for the Fetch API. | deprecated |
+| opentelemetry-instrumentation-xml-http-request | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation-xml-http-request) | Instrumentation for XMLHttpRequest. | deprecated |
 | instrumentation-document-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-document-load) | Capture document load/navigation timing spans. | experimental |
 | instrumentation-long-task | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-long-task) | Capture Long Tasks API entries as spans. | experimental |
 | instrumentation-user-interaction | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/instrumentation-user-interaction) | Trace user interactions (e.g., clicks). | experimental |
-| plugin-react-load | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/plugin-react-load) | Instrument React application load/mount performance. | experimental |
 
 ### SDK and Utilities (other repositories)
 
 | Package | Location | Description | Status |
 | --- | --- | --- | --- |
-| opentelemetry-sdk-trace-web | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-sdk-trace-web) | Browser tracing SDK (WebTracerProvider, web tracing setup). | stable |
 | opentelemetry-browser-detector | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-browser-detector) | Resource detector for browser environment attributes. | experimental |
 | web-common | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/web-common) | Shared utilities for browser/web instrumentations. | experimental |
 | opentelemetry-context-zone | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-context-zone) | Zone.js-based context manager for maintaining trace context in browsers. | stable |
@@ -117,13 +121,8 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 ## Contributing
 
-### Prerequisites
+See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-Contributing to this project requires **Node.js >= 24** and **npm ^11.9.0**
-
-```bash
-npm install -g npm@11
-```
 
 ### Maintainers
 
