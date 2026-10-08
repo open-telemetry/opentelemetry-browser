@@ -206,6 +206,9 @@ describe('getElementCSSSelector', () => {
 
     expect(selector).toBe('html > body > div > button:nth-child(2)');
     expectSelector(selector, button2);
+    expect(getElementCSSSelector(button1)).toBe(
+      'html > body > div > button.primary',
+    );
   });
 
   it('should escape special characters in ID', () => {
