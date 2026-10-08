@@ -149,8 +149,8 @@ If you need per-tab sessions, provide a custom `SessionStore` backed by `session
 without `localStorage` (e.g. during server-side rendering) and where the browser blocks storage
 (e.g. Firefox with cookies blocked, or a sandboxed iframe). There the session lives in memory only
 and is not restored on the next page load. When storage is full, saving is skipped, so a session
-stored earlier may still be restored. With `logLevel: 'DEBUG'` both cases log a `diag.debug`
-message.
+stored earlier may still be restored. Blocked and full storage both log a `diag.debug` message. To
+see the ones from `sessionManager.start()`, set a debug diag logger before calling it.
 
 ## Registering Session Processors
 
