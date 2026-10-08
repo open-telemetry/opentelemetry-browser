@@ -148,8 +148,9 @@ If you need per-tab sessions, provide a custom `SessionStore` backed by `session
 (see [Custom implementations](#custom-implementations)). The store is a safe no-op in environments
 without `localStorage` (e.g. during server-side rendering) and where the browser blocks storage
 (e.g. Firefox with cookies blocked, or a sandboxed iframe). There the session lives in memory only
-and is not restored on the next page load. When storage is full, saving is skipped quietly, so a
-session stored earlier may still be restored.
+and is not restored on the next page load. When storage is full, saving is skipped, so a session
+stored earlier may still be restored. With `logLevel: 'DEBUG'` both cases log a `diag.debug`
+message.
 
 ## Registering Session Processors
 

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/sdk-trace';
 import { TracerProvider } from '@opentelemetry/sdk-trace';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,11 +16,13 @@ describe('LocalStorageSessionStore', () => {
   let store: LocalStorageSessionStore;
   let getItemSpy: ReturnType<typeof vi.spyOn>;
   let setItemSpy: ReturnType<typeof vi.spyOn>;
+  let debugSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     store = new LocalStorageSessionStore();
     getItemSpy = vi.spyOn(globalThis.localStorage, 'getItem');
     setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem');
+    debugSpy = vi.spyOn(diag, 'debug');
   });
 
   afterEach(() => {
@@ -61,6 +64,10 @@ describe('LocalStorageSessionStore', () => {
     getItemSpy.mockReturnValue('invalid-json');
     const retrieved = await store.get();
     expect(retrieved).toBeNull();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Could not read the session from localStorage',
+      expect.any(SyntaxError),
+    );
   });
 
   it('resolves when setItem throws because storage is full', async () => {
@@ -73,6 +80,10 @@ describe('LocalStorageSessionStore', () => {
       result = store.save(session);
     }).not.toThrow();
     await expect(result).resolves.toBeUndefined();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Session not saved to localStorage, it stays in memory only',
+      expect.any(DOMException),
+    );
   });
 
   describe('when reading localStorage throws', () => {
@@ -103,6 +114,10 @@ describe('LocalStorageSessionStore', () => {
         result = store.save(session);
       }).not.toThrow();
       await expect(result).resolves.toBeUndefined();
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Session not saved to localStorage, it stays in memory only',
+        expect.any(DOMException),
+      );
     });
 
     it('resolves get with null', async () => {
@@ -111,6 +126,10 @@ describe('LocalStorageSessionStore', () => {
         result = store.get();
       }).not.toThrow();
       await expect(result).resolves.toBeNull();
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Could not read the session from localStorage',
+        expect.any(DOMException),
+      );
     });
 
     it('lets the session manager start', async () => {

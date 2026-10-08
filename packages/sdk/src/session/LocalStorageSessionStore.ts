@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import type { Session } from './types/Session.ts';
 import type { SessionStore } from './types/SessionStore.ts';
 
@@ -15,8 +16,11 @@ export class LocalStorageSessionStore implements SessionStore {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
       }
-    } catch {
-      // the session stays in memory only
+    } catch (error) {
+      diag.debug(
+        'Session not saved to localStorage, it stays in memory only',
+        error,
+      );
     }
 
     return Promise.resolve();
@@ -32,8 +36,9 @@ export class LocalStorageSessionStore implements SessionStore {
       if (sessionData) {
         return Promise.resolve(JSON.parse(sessionData) as Session);
       }
-    } catch {
+    } catch (error) {
       // blocked storage or invalid JSON
+      diag.debug('Could not read the session from localStorage', error);
     }
     return Promise.resolve(null);
   }
