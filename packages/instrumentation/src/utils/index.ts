@@ -11,4 +11,8 @@ export {
   getNetworkContextRegistry,
   NetworkContextRegistry,
 } from './NetworkContextRegistry.ts';
+export {
+  createPerformanceObserver,
+  isEntryTypeSupported,
+} from './performanceObserver.ts';
 export { defaultSanitizeUrl } from './url.ts';
