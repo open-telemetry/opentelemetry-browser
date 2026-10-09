@@ -122,6 +122,50 @@ describe('serverPortFromUrl', () => {
   });
 });
 describe('defaultSanitizeUrl', () => {
+  it('redacts S3 signed URL params including security token', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://bucket.s3.amazonaws.com/a.js?X-Amz-Credential=c&X-Amz-Security-Token=t&X-Amz-Signature=s',
+      ),
+    ).toBe(
+      'https://bucket.s3.amazonaws.com/a.js?X-Amz-Credential=REDACTED&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED',
+    );
+  });
+
+  it('redacts Google Cloud Storage signed URL params', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://storage.googleapis.com/b/a.js?X-Goog-Signature=s',
+      ),
+    ).toBe('https://storage.googleapis.com/b/a.js?X-Goog-Signature=REDACTED');
+  });
+
+  it('redacts Azure SAS sig param while leaving normal params intact', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://acct.blob.core.windows.net/c/a.js?sv=2024&sig=s',
+      ),
+    ).toBe('https://acct.blob.core.windows.net/c/a.js?sv=2024&sig=REDACTED');
+  });
+
+  it('redacts sensitive params in relative URLs with fragments', () => {
+    expect(defaultSanitizeUrl('/cb#access_token=abc&state=1')).toBe(
+      '/cb#access_token=REDACTED&state=1',
+    );
+  });
+
+  it('preserves fragment anchors in relative URLs when redacting query params', () => {
+    expect(defaultSanitizeUrl('/a.js?token=t#step2')).toBe(
+      '/a.js?token=REDACTED#step2',
+    );
+  });
+
+  it('redacts id_token in fragment', () => {
+    expect(
+      defaultSanitizeUrl('https://app.example/cb#id_token=abc&state=1'),
+    ).toBe('https://app.example/cb#id_token=REDACTED&state=1');
+  });
+
   it('redacts signed URL params', () => {
     expect(
       defaultSanitizeUrl(

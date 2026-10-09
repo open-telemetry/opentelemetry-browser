@@ -14,6 +14,7 @@ const SENSITIVE_PARAMS = [
   'token',
   'access_token',
   'refresh_token',
+  'id_token',
   'jwt',
   'session',
   'sessionid',
@@ -71,9 +72,10 @@ export function defaultSanitizeUrl(url: string): string {
   } catch {
     let sanitized = url.replace(/\/\/[^:/@]+:[^/@]+@/, '//REDACTED:REDACTED@');
     for (const param of SENSITIVE_PARAMS) {
-      const regex = new RegExp(`([?&#]${param}(?:%3D|=))[^&]*`, 'gi');
+      const regex = new RegExp(`([?&#]${param}(?:%3D|=))[^&#]*`, 'gi');
       sanitized = sanitized.replace(regex, '$1REDACTED');
     }
+
     return sanitized;
   }
 }
