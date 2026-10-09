@@ -6,11 +6,22 @@
 /** Event name for Long Animation Frames API entries. */
 export const LONG_ANIMATION_FRAME_EVENT_NAME = 'browser.long_animation_frame';
 
+/** Start time of the frame in milliseconds relative to the time origin. */
+export const ATTR_LONG_ANIMATION_FRAME_START_TIME =
+  'browser.long_animation_frame.start_time';
+
 /** Total duration of the frame in milliseconds. */
 export const ATTR_LONG_ANIMATION_FRAME_DURATION =
   'browser.long_animation_frame.duration';
 
-/** Total time in milliseconds during which the main thread was blocked. */
+/**
+ * Time in milliseconds the main thread was blocked from responding to
+ * high-priority tasks: the sum, over the tasks in the frame that ran longer than
+ * 50 ms, of each task's duration minus 50 ms, with the rendering time added to
+ * the longest of them. It is not the frame's total blocked time and it is not
+ * distributed across the `scripts` entries.
+ * https://w3c.github.io/long-animation-frames/#dom-performancelonganimationframetiming-blockingduration
+ */
 export const ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION =
   'browser.long_animation_frame.blocking_duration';
 

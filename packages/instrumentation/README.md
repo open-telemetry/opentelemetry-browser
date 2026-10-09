@@ -255,20 +255,33 @@ The [sandbox](../../sandbox) has a **Long Frame** button that blocks the main th
 
 #### Configuration
 
+```typescript
+import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
+
+new LongAnimationFrameInstrumentation({
+  // Optional. Defaults to `defaultSanitizeUrl`, which redacts
+  // `user:password@` credentials and common sensitive query parameters
+  // (`api_key`, `token`, `password`, ...). Pass `undefined` to emit the
+  // URL-bearing fields exactly as the browser reports them.
+  sanitizeUrl: (url) => url.replace(/\/users\/\d+/, '/users/:id'),
+});
+```
+
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `sanitizeUrl` | `(url: string) => string` | — | Called before `invoker` and `source_url` are written to the `scripts` array. Both are emitted as the browser reports them, and for an inline script or a listener defined on the page that is the page URL including its query string, so a `token` in the page URL would otherwise be exported here even when `url.full` is sanitized elsewhere. `defaultSanitizeUrl` can be used to redact credentials and common sensitive query parameters. |
+| `sanitizeUrl` | `(url: string) => string` | `defaultSanitizeUrl` | Called before a URL-bearing field of a `scripts` entry is written: `source_url`, and `invoker` for a `classic-script` or `module-script` entry, where the spec defines it as the invoking script's source URL. For an inline script that URL is the page URL including its query string, so a `token` in it would otherwise be exported here even when `url.full` is sanitized elsewhere. Values that are not URLs — the `DOMWindow.onclick` style `invoker` of an `event-listener` entry, an unresolved `source_url` — are written unchanged and never passed to the function, so a sanitizer that parses its argument (`new URL(url)`) is safe to pass. Unlike `url.full` for navigation, fetch and xhr, this is on by default, because the value sits inside the `scripts` array where a page token is easy to miss. |
 
 #### Captured Attributes
 
 | Attribute | Description |
 |-----------|-------------|
+| `browser.long_animation_frame.start_time` | Start of the frame, in milliseconds relative to the time origin. Same clock as `render_start`, `style_and_layout_start` and `first_ui_event_timestamp`, and the same value as the record timestamp. |
 | `browser.long_animation_frame.duration` | Total duration of the frame, in milliseconds. |
-| `browser.long_animation_frame.blocking_duration` | Time the main thread was blocked, in milliseconds. |
+| `browser.long_animation_frame.blocking_duration` | Time the main thread was blocked from responding to high-priority tasks, in milliseconds: the sum, over the tasks in the frame that ran longer than 50 ms, of each task's duration minus 50 ms, with the rendering time added to the longest of them. It is not the frame's total duration and it is not split across the `scripts` entries — scripts carry `duration` and `forced_style_and_layout_duration` instead. See [the spec](https://w3c.github.io/long-animation-frames/#dom-performancelonganimationframetiming-blockingduration). |
 | `browser.long_animation_frame.render_start` | Start of the rendering cycle, in milliseconds relative to the time origin. |
 | `browser.long_animation_frame.style_and_layout_start` | Start of the style and layout cycle, in milliseconds relative to the time origin. |
 | `browser.long_animation_frame.first_ui_event_timestamp` | Time of the first UI event processed during the frame, in milliseconds relative to the time origin. |
-| `browser.long_animation_frame.scripts` | Script timing entries attributed to the frame: `start_time`, `duration`, `execution_start`, `invoker`, `invoker_type`, `source_url`, `source_function_name`, `source_char_position`, `pause_duration`, `forced_style_and_layout_duration`, `window_attribution`. `invoker` and `source_url` are passed through `sanitizeUrl` if it is configured. |
+| `browser.long_animation_frame.scripts` | Script timing entries attributed to the frame: `start_time`, `duration`, `execution_start`, `invoker`, `invoker_type`, `source_url`, `source_function_name`, `source_char_position`, `pause_duration`, `forced_style_and_layout_duration`, `window_attribution`. `invoker` and `source_url` are passed through `sanitizeUrl` when they are URLs; see Configuration. |
 
 Every entry is named `long-animation-frame` and every script entry is named `script` by the spec, so neither name is repeated as an attribute: the event name already says what the record is.
 
@@ -280,15 +293,15 @@ No client-side throttle is applied. The performance timeline buffer keeps the fi
 
 #### Correlating frames with interactions
 
-`first_ui_event_timestamp` is a `DOMHighResTimeStamp` on the same clock as `Event.timeStamp`, so a frame can be related to the interaction that triggered it without any context plumbing. The `scripts` array then names the culprit: `invoker` (for example `DOMWindow.onclick`), `invoker_type` (`event-listener`), `source_url`, `source_function_name`, `source_char_position`, and the per-script split of `blocking_duration` against `forced_style_and_layout_duration`.
+`first_ui_event_timestamp` is a `DOMHighResTimeStamp` on the same clock as `Event.timeStamp`, so a frame can be related to the interaction that triggered it without any context plumbing. The `scripts` array then names the culprit: `invoker` (for example `DOMWindow.onclick`), `invoker_type` (`event-listener`), `source_url`, `source_function_name`, `source_char_position`, and `forced_style_and_layout_duration` (the time that script spent forcing style and layout).
 
 Do not join the two by equality. `first_ui_event_timestamp` is the `timeStamp` of the first UI event whose listener ran in that frame — any UI event — while a web-vitals INP record's `attribution.interactionTime` is the start of the interaction's first event entry. The two only line up when the frame happened to handle that first event before anything else, and a slow interaction can overlap more than one frame (the frame that delayed the input and the frame that ran the handlers), of which at most one can match.
 
-The INP side of the join is already done by [Web Vitals](#web-vitals): with `includeRawAttribution` enabled, every frame that overlaps the interaction is in the record body as `attribution.longAnimationFrameEntries`, scripts included, so read them from there. For any other correlation, match by overlap — a frame overlaps the interaction when its `start_time` precedes the interaction end and its `start_time + duration` follows the interaction start — rather than by an exact timestamp comparison. INP says which interaction was slow; Long Animation Frames say which script made it slow.
+The INP side of the join is already done by [Web Vitals](#web-vitals): with `includeRawAttribution` enabled, every frame that overlaps the interaction is in the record body as `attribution.longAnimationFrameEntries`, scripts included, so read them from there. For any other correlation, match by overlap — a frame overlaps the interaction when its `start_time` precedes the interaction end and its `start_time + duration` follows the interaction start, both of which are on the frame record as attributes — rather than by an exact timestamp comparison. INP says which interaction was slow; Long Animation Frames say which script made it slow.
 
 #### Page attribution
 
-`browser.document.url.full` is stamped by `createDocumentLogRecordProcessor` and `createDocumentSpanProcessor`, and `LocationDocumentProvider` reads `location.href` at emit time, so soft navigations are reflected without extra bookkeeping. The caveat is specific to the buffered replay above: those replayed frames carry the URL current when they are emitted rather than the URL they happened on, so the first records can be mislabelled on a page that navigates early.
+`browser.document.url.full` is stamped by `createDocumentLogRecordProcessor` and `createDocumentSpanProcessor`, and `LocationDocumentProvider` reads `location.href` at emit time, so soft navigations are reflected without extra bookkeeping. The URL is therefore the one current when the record is built, not necessarily the one the frame happened on, and the two differ more often than the replay caveat above suggests: the observer callback runs after the frame has finished, so a handler that blocks for 100 ms and then calls `history.pushState` is reported with the new pathname — often exactly the frame a reviewer wants to place. The buffered replay broadens it further, since those frames carry the URL current when they are emitted rather than the URL they happened on, so the first records of a session can be mislabelled on a page that navigates early. The frame's own clock is unaffected: `start_time` and the record timestamp stay on the frame, which is what the overlap match above uses.
 
 ### Console
 

@@ -14,6 +14,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { defaultSanitizeUrl } from '#utils';
 import { setupTestLogExporter } from '#utils/test';
 import { LongAnimationFrameInstrumentation } from './instrumentation.ts';
 import {
@@ -22,6 +23,7 @@ import {
   ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP,
   ATTR_LONG_ANIMATION_FRAME_RENDER_START,
   ATTR_LONG_ANIMATION_FRAME_SCRIPTS,
+  ATTR_LONG_ANIMATION_FRAME_START_TIME,
   ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START,
   LONG_ANIMATION_FRAME_EVENT_NAME,
 } from './semconv.ts';
@@ -81,6 +83,7 @@ describe('LongAnimationFrameInstrumentation', () => {
     expect(records[0]).toMatchObject({
       eventName: LONG_ANIMATION_FRAME_EVENT_NAME,
       attributes: {
+        [ATTR_LONG_ANIMATION_FRAME_START_TIME]: 100,
         [ATTR_LONG_ANIMATION_FRAME_DURATION]: 320,
         [ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION]: 250,
         [ATTR_LONG_ANIMATION_FRAME_RENDER_START]: 120,
@@ -126,12 +129,15 @@ describe('LongAnimationFrameInstrumentation', () => {
     expect(script).not.toHaveProperty('entry_type');
   });
 
-  it('emits invoker and source_url unchanged when sanitizeUrl is not configured', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+  it('emits invoker and source_url unchanged when sanitizeUrl is disabled', () => {
+    instrumentation = new LongAnimationFrameInstrumentation({
+      sanitizeUrl: undefined,
+    });
     const entry = createLongAnimationFrameEntry({
       scripts: [
         createScriptEntry({
           invoker: 'DOMWindow.onclick',
+          invokerType: 'event-listener',
           sourceURL: 'https://app.example/account/reset?token=s3cret#step2',
         }),
       ],
@@ -148,6 +154,149 @@ describe('LongAnimationFrameInstrumentation', () => {
         source_url: 'https://app.example/account/reset?token=s3cret#step2',
       }),
     ]);
+  });
+
+  it('sanitizes source_url with defaultSanitizeUrl when nothing is configured', () => {
+    instrumentation = new LongAnimationFrameInstrumentation();
+
+    expect(instrumentation.getConfig().sanitizeUrl).toBe(defaultSanitizeUrl);
+
+    const entry = createLongAnimationFrameEntry({
+      scripts: [
+        createScriptEntry({
+          invoker: 'DOMWindow.onclick',
+          invokerType: 'event-listener',
+          sourceURL: 'https://app.example/account/reset?token=s3cret',
+        }),
+      ],
+    });
+
+    observerCallback(createEntryList([entry]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes[ATTR_LONG_ANIMATION_FRAME_SCRIPTS]).toEqual([
+      expect.objectContaining({
+        invoker: 'DOMWindow.onclick',
+        source_url: 'https://app.example/account/reset?token=REDACTED',
+      }),
+    ]);
+  });
+
+  it('does not hand an invoker that is not a URL to a sanitizer that parses it', () => {
+    const sanitizeUrl = vi.fn((url: string) => new URL(url).href);
+    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    const entry = createLongAnimationFrameEntry({
+      scripts: [
+        createScriptEntry({
+          invoker: 'DOMWindow.onclick',
+          invokerType: 'event-listener',
+          sourceURL: 'https://app.example/app.js',
+        }),
+        createScriptEntry({
+          invoker: 'https://app.example/late.js?token=s3cret',
+          invokerType: 'module-script',
+          sourceURL: 'https://app.example/late.js',
+        }),
+      ],
+    });
+
+    expect(() =>
+      observerCallback(createEntryList([entry]), {
+        disconnect,
+      } as unknown as PerformanceObserver),
+    ).not.toThrow();
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes[ATTR_LONG_ANIMATION_FRAME_SCRIPTS]).toEqual([
+      expect.objectContaining({
+        invoker: 'DOMWindow.onclick',
+        invoker_type: 'event-listener',
+        source_url: 'https://app.example/app.js',
+      }),
+      expect.objectContaining({
+        invoker: 'https://app.example/late.js?token=s3cret',
+        invoker_type: 'module-script',
+        source_url: 'https://app.example/late.js',
+      }),
+    ]);
+    // The two source URLs and the URL-valued invoker, and nothing else.
+    expect(sanitizeUrl).toHaveBeenCalledTimes(3);
+    expect(sanitizeUrl).not.toHaveBeenCalledWith('DOMWindow.onclick');
+  });
+
+  it('does not hand an unresolved source_url to sanitizeUrl', () => {
+    const sanitizeUrl = vi.fn((url: string) => new URL(url).href);
+    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    const entry = createLongAnimationFrameEntry({
+      scripts: [
+        createScriptEntry({
+          invoker: 'Window.setTimeout',
+          invokerType: 'user-callback',
+          sourceURL: '',
+        }),
+      ],
+    });
+
+    observerCallback(createEntryList([entry]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes[ATTR_LONG_ANIMATION_FRAME_SCRIPTS]).toEqual([
+      expect.objectContaining({
+        invoker: 'Window.setTimeout',
+        source_url: '',
+      }),
+    ]);
+    expect(sanitizeUrl).not.toHaveBeenCalled();
+  });
+
+  it('keeps emitting the frames that follow an entry that fails', () => {
+    const error = new Error('sanitizer rejected the URL');
+    const sanitizeUrl = vi.fn((url: string): string => {
+      if (url.includes('boom')) {
+        throw error;
+      }
+      return url;
+    });
+    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    const diagError = vi
+      .spyOn(
+        (
+          instrumentation as unknown as {
+            _diag: { error: (...args: unknown[]) => void };
+          }
+        )._diag,
+        'error',
+      )
+      .mockImplementation(() => {});
+
+    const broken = createLongAnimationFrameEntry({
+      scripts: [
+        createScriptEntry({ sourceURL: 'https://app.example/boom.js' }),
+      ],
+    });
+    const healthy = createLongAnimationFrameEntry({
+      scripts: [createScriptEntry({ sourceURL: 'https://app.example/ok.js' })],
+    });
+
+    expect(() =>
+      observerCallback(createEntryList([broken, healthy]), {
+        disconnect,
+      } as unknown as PerformanceObserver),
+    ).not.toThrow();
+
+    const records = inMemoryExporter.getFinishedLogRecords();
+    expect(records).toHaveLength(1);
+    expect(records[0]?.attributes[ATTR_LONG_ANIMATION_FRAME_SCRIPTS]).toEqual([
+      expect.objectContaining({ source_url: 'https://app.example/ok.js' }),
+    ]);
+    expect(diagError).toHaveBeenCalledWith(
+      'Failed to process long-animation-frame entry',
+      error,
+    );
   });
 
   it('applies sanitizeUrl to invoker and source_url', () => {

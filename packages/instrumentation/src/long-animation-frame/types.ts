@@ -34,10 +34,16 @@ export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
 export interface LongAnimationFrameInstrumentationConfig
   extends InstrumentationConfig {
   /**
-   * Custom function to sanitize URLs before they are written to the `scripts`
-   * array. `invoker` and `source_url` are emitted as the browser reports them,
-   * and for an inline script or a listener defined on the page both are the
-   * page URL including its query string.
+   * Sanitizes the URL-bearing fields of a `scripts` entry before they are
+   * written: `source_url`, and `invoker` for the entries whose `invoker` is a
+   * URL (`classic-script` and `module-script` entries, where it is the invoking
+   * script's source URL). For an inline script that URL is the page URL
+   * including its query string. Values that are not URLs — a `DOMWindow.onclick`
+   * style `invoker`, an empty `source_url` — are written as the browser reports
+   * them and are never passed to this function.
+   *
+   * Defaults to `defaultSanitizeUrl`. Pass `sanitizeUrl: undefined` to emit both
+   * fields unsanitized.
    */
   sanitizeUrl?: (url: string) => string;
 }

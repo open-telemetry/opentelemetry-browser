@@ -14,6 +14,7 @@ import {
   InstrumentationBase,
   safeExecuteInTheMiddle,
 } from '@opentelemetry/instrumentation';
+import { defaultSanitizeUrl } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
@@ -21,6 +22,7 @@ import {
   ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP,
   ATTR_LONG_ANIMATION_FRAME_RENDER_START,
   ATTR_LONG_ANIMATION_FRAME_SCRIPTS,
+  ATTR_LONG_ANIMATION_FRAME_START_TIME,
   ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START,
   LONG_ANIMATION_FRAME_EVENT_NAME,
 } from './semconv.ts';
@@ -30,6 +32,18 @@ import type {
 } from './types.ts';
 
 const LONG_ANIMATION_FRAME_ENTRY_TYPE = 'long-animation-frame';
+
+/**
+ * `invoker` is the invoking script's source URL only for these entry types. For
+ * the others it is a selector-like string — `DOMWindow.onclick`,
+ * `BUTTON#cart.onclick`, `IMG[src=...].onload` — which a sanitizer that parses
+ * its argument rejects.
+ * https://developer.mozilla.org/en-US/docs/Web/API/PerformanceScriptTiming/invoker
+ */
+const URL_VALUED_INVOKER_TYPES: ReadonlySet<string> = new Set([
+  'classic-script',
+  'module-script',
+]);
 
 /** Captures Long Animation Frames API performance entries as OpenTelemetry logs. */
 export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongAnimationFrameInstrumentationConfig> {
@@ -41,7 +55,11 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     super(
       '@opentelemetry/browser-instrumentation/long-animation-frame',
       version,
-      config,
+      // Unlike `url.full` for navigation, fetch and xhr, the URL-bearing fields
+      // here sit inside the `scripts` array, where a page token is easy to miss,
+      // so sanitization is on by default. Pass `sanitizeUrl: undefined` to emit
+      // both fields exactly as the browser reports them.
+      { sanitizeUrl: defaultSanitizeUrl, ...config },
     );
   }
 
@@ -56,8 +74,23 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
 
     const observer = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        this._emitLongAnimationFrame(
-          entry as PerformanceLongAnimationFrameTiming,
+        // Building the record can throw — a `sanitizeUrl` hook that rejects its
+        // argument, for example. Contain the failure to the entry itself so it
+        // cannot skip the frames that follow it in the same callback.
+        safeExecuteInTheMiddle(
+          () =>
+            this._emitLongAnimationFrame(
+              entry as PerformanceLongAnimationFrameTiming,
+            ),
+          (error) => {
+            if (error) {
+              this._diag.error(
+                'Failed to process long-animation-frame entry',
+                error,
+              );
+            }
+          },
+          true,
         );
       }
     });
@@ -119,10 +152,13 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
       return;
     }
 
-    // `invoker` and `sourceURL` go out as the browser reports them, and for an
-    // inline script or a listener defined on the page that is the page URL
-    // including its query string. Route both through `sanitizeUrl` when one is
-    // configured, the same way navigation, fetch and xhr sanitize `url.full`.
+    // `invoker` and `source_url` are written as the browser reports them, except
+    // that real URLs go through `sanitizeUrl`: for an inline script, that URL is
+    // the page URL including its query string. `invoker` is a selector-like
+    // string for every entry type except `classic-script` and `module-script`,
+    // and `sourceURL` is an empty string when the browser could not resolve it —
+    // a sanitizer that parses its argument (`new URL(url)`, the obvious
+    // implementation) would throw on either, so neither is handed to it.
     const { sanitizeUrl } = this.getConfig();
     const sanitize = (url: string): string =>
       sanitizeUrl && typeof url === 'string' ? sanitizeUrl(url) : url;
@@ -132,6 +168,7 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
       severityNumber: SeverityNumber.INFO,
       timestamp: performance.timeOrigin + entry.startTime,
       attributes: {
+        [ATTR_LONG_ANIMATION_FRAME_START_TIME]: entry.startTime,
         [ATTR_LONG_ANIMATION_FRAME_DURATION]: entry.duration,
         [ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION]: entry.blockingDuration,
         [ATTR_LONG_ANIMATION_FRAME_RENDER_START]: entry.renderStart,
@@ -146,9 +183,13 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
                   start_time: script.startTime,
                   duration: script.duration,
                   execution_start: script.executionStart,
-                  invoker: sanitize(script.invoker),
+                  invoker: URL_VALUED_INVOKER_TYPES.has(script.invokerType)
+                    ? sanitize(script.invoker)
+                    : script.invoker,
                   invoker_type: script.invokerType,
-                  source_url: sanitize(script.sourceURL),
+                  source_url: script.sourceURL
+                    ? sanitize(script.sourceURL)
+                    : script.sourceURL,
                   source_function_name: script.sourceFunctionName,
                   source_char_position: script.sourceCharPosition,
                   pause_duration: script.pauseDuration,
