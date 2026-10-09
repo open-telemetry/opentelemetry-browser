@@ -110,10 +110,10 @@ describe('fetch instrumentation migration parity', () => {
 
   beforeAll(async () => {
     ({ iframe: oldIframe, harness: oldHarness } = await loadFixtureIframe(
-      '/e2e-tests/migration/fetch-migration/old.html',
+      '/migration/fetch-migration/old.html',
     ));
     ({ iframe: newIframe, harness: newHarness } = await loadFixtureIframe(
-      '/e2e-tests/migration/fetch-migration/new.html',
+      '/migration/fetch-migration/new.html',
     ));
   });
 

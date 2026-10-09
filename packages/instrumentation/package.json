@@ -50,7 +50,7 @@
     "build": "tsdown",
     "watch": "tsdown --watch --no-clean",
     "check-types": "tsc",
-    "msw:init": "msw init public --save",
+    "msw:init": "msw init",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage"
@@ -69,7 +69,7 @@
     "@opentelemetry/propagator-b3": "2.11.0",
     "@opentelemetry/sdk-logs": "0.222.0",
     "@opentelemetry/sdk-trace": "2.11.0",
-    "msw": "2.15.0"
+    "msw": "3.0.1"
   },
   "publishConfig": {
     "access": "public"
