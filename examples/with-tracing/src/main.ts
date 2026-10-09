@@ -11,6 +11,11 @@ import {
   createSessionManager,
   createSessionSpanProcessor,
 } from '@opentelemetry/browser-sdk/session';
+import {
+  CompositePropagator,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
@@ -30,7 +35,6 @@ import {
   StackContextManager,
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
-import { CompositePropagator, W3CBaggagePropagator, W3CTraceContextPropagator } from '@opentelemetry/core';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 // --- Resource detection ---
@@ -75,10 +79,7 @@ const tracerProvider = new TracerProvider({
 trace.setGlobalTracerProvider(tracerProvider);
 context.setGlobalContextManager(new StackContextManager().enable());
 const propagator = new CompositePropagator({
-  propagators: [
-    new W3CTraceContextPropagator(),
-    new W3CBaggagePropagator(),
-  ],
+  propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
 });
 propagation.setGlobalPropagator(propagator);
 
