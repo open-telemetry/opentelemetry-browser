@@ -1,4 +1,5 @@
 import './style.css';
+import { context, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -10,6 +11,11 @@ import {
   createSessionManager,
   createSessionSpanProcessor,
 } from '@opentelemetry/browser-sdk/session';
+import {
+  CompositePropagator,
+  W3CBaggagePropagator,
+  W3CTraceContextPropagator,
+} from '@opentelemetry/core';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
@@ -26,8 +32,9 @@ import {
 import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
+  StackContextManager,
+  TracerProvider,
 } from '@opentelemetry/sdk-trace';
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
 // --- Resource detection ---
@@ -62,14 +69,19 @@ const logProvider = new LoggerProvider({
 logs.setGlobalLoggerProvider(logProvider);
 
 // --- Span-based instrumentations (opentelemetry-js / opentelemetry-js-contrib) ---
-const provider = new WebTracerProvider({
+const tracerProvider = new TracerProvider({
   resource,
   spanProcessors: [
     createSessionSpanProcessor(sessionManager),
     new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
   ],
 });
-provider.register();
+trace.setGlobalTracerProvider(tracerProvider);
+context.setGlobalContextManager(new StackContextManager().enable());
+const propagator = new CompositePropagator({
+  propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
+});
+propagation.setGlobalPropagator(propagator);
 
 // --- Register all instrumentations ---
 registerInstrumentations({

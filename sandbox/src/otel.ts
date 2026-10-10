@@ -24,10 +24,6 @@ import {
   createSessionManager,
   createSessionSpanProcessor,
 } from '@opentelemetry/browser-sdk/session';
-import {
-  W3CBaggagePropagator,
-  W3CTraceContextPropagator,
-} from '@opentelemetry/core';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import {
@@ -38,7 +34,6 @@ import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
-import { StackContextManager } from '@opentelemetry/sdk-trace-web';
 import type { OtelConfig } from './app/types/OtelConfig.type.ts';
 import {
   createUILogExporter,
@@ -133,11 +128,6 @@ export async function initOtel(
       processors: spanProcessors,
       exportConfig: { url: config.tracesUrl, headers: {} },
       batchProcessorConfig: BATCH_PROCESSOR_CONFIG,
-      contextManager: new StackContextManager().enable(),
-      propagators: [
-        new W3CTraceContextPropagator(),
-        new W3CBaggagePropagator(),
-      ],
     },
     logs: {
       processors: logProcessors,
