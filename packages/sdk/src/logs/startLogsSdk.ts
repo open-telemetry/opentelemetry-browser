@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag } from '@opentelemetry/api';
+import { DiagLogLevel, diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -14,7 +14,9 @@ import {
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   BatchLogRecordProcessor,
+  ConsoleLogRecordExporter,
   LoggerProvider,
+  SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
 import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
 import { setSdkLogger } from '../core/diag.ts';
@@ -72,6 +74,16 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
           headers: config?.exportConfig?.headers,
         }),
         ...config?.batchProcessorConfig,
+      }),
+    );
+  }
+  // For any level equal or louder than `DEBUG` add console exporters
+  // to get logs and traces print into the DevTools console.
+  const logLevel = config?.logLevel && DiagLogLevel[config?.logLevel];
+  if (logLevel !== undefined && logLevel >= DiagLogLevel.DEBUG) {
+    processors.push(
+      new SimpleLogRecordProcessor({
+        exporter: new ConsoleLogRecordExporter(),
       }),
     );
   }

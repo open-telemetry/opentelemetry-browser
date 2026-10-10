@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.2](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.1...browser-instrumentation-v0.8.2) (2026-10-09)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#435](https://github.com/open-telemetry/opentelemetry-browser/issues/435)) ([c00ee83](https://github.com/open-telemetry/opentelemetry-browser/commit/c00ee83ff8eb7e4e99655fa87893190ac02a8571))
+* **deps:** update dependencies ([#455](https://github.com/open-telemetry/opentelemetry-browser/issues/455)) ([89fddf7](https://github.com/open-telemetry/opentelemetry-browser/commit/89fddf771cb5456cfa5ef21bc2a6fa8c7df53a75))
+* **deps:** update opentelemetry ([#477](https://github.com/open-telemetry/opentelemetry-browser/issues/477)) ([80316d8](https://github.com/open-telemetry/opentelemetry-browser/commit/80316d8e441caaf5e76f5bf0afcb3f3b5bbf79d9))
+* **fetch:** don't write trace headers onto the caller's init ([#452](https://github.com/open-telemetry/opentelemetry-browser/issues/452)) ([9a5bc49](https://github.com/open-telemetry/opentelemetry-browser/commit/9a5bc498a45db745f3fb7719da55beabc1307230))
+* **test:** regenerate MSW workers before tests run ([#456](https://github.com/open-telemetry/opentelemetry-browser/issues/456)) ([a8da9e9](https://github.com/open-telemetry/opentelemetry-browser/commit/a8da9e97d8390390ce1e89e77f5d54190d5ae2f7))
+* **user-action:** count every sibling in the css selector's nth-child ([#467](https://github.com/open-telemetry/opentelemetry-browser/issues/467)) ([de85226](https://github.com/open-telemetry/opentelemetry-browser/commit/de85226c2ef8c280d1098c1d351a18aceb616f50))
+
 ## [0.8.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.0...browser-instrumentation-v0.8.1) (2026-09-09)
 
 
