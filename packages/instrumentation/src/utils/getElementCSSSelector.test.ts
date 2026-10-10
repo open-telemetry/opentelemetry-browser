@@ -155,6 +155,62 @@ describe('getElementCSSSelector', () => {
     expectSelector(selector, button);
   });
 
+  it('should count every sibling in nth-child when other tags come first', () => {
+    const parent = document.createElement('div');
+    const span = document.createElement('span');
+    const button1 = document.createElement('button');
+    const button2 = document.createElement('button');
+    parent.appendChild(span);
+    parent.appendChild(button1);
+    parent.appendChild(button2);
+    document.body.appendChild(parent);
+
+    const selector1 = getElementCSSSelector(button1);
+    const selector2 = getElementCSSSelector(button2);
+
+    expect(selector1).toBe('html > body > div > button:nth-child(2)');
+    expectSelector(selector1, button1);
+    expect(selector2).toBe('html > body > div > button:nth-child(3)');
+    expectSelector(selector2, button2);
+  });
+
+  it('should count every sibling in nth-child when classes differ', () => {
+    const parent = document.createElement('div');
+    const buttonA = document.createElement('button');
+    buttonA.classList.add('a');
+    const buttonB1 = document.createElement('button');
+    buttonB1.classList.add('b');
+    const buttonB2 = document.createElement('button');
+    buttonB2.classList.add('b');
+    parent.appendChild(buttonA);
+    parent.appendChild(buttonB1);
+    parent.appendChild(buttonB2);
+    document.body.appendChild(parent);
+
+    const selector = getElementCSSSelector(buttonB2);
+
+    expect(selector).toBe('html > body > div > button.b:nth-child(3)');
+    expectSelector(selector, buttonB2);
+  });
+
+  it('should add nth-child when a sibling with extra classes also matches', () => {
+    const parent = document.createElement('div');
+    const button1 = document.createElement('button');
+    button1.classList.add('primary');
+    const button2 = document.createElement('button');
+    parent.appendChild(button1);
+    parent.appendChild(button2);
+    document.body.appendChild(parent);
+
+    const selector = getElementCSSSelector(button2);
+
+    expect(selector).toBe('html > body > div > button:nth-child(2)');
+    expectSelector(selector, button2);
+    expect(getElementCSSSelector(button1)).toBe(
+      'html > body > div > button.primary',
+    );
+  });
+
   it('should escape special characters in ID', () => {
     const div = document.createElement('div');
     div.id = 'test:id.special';
