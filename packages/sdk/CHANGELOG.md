@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.5.0...browser-sdk-v0.5.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* **sdk:** print console export for every level above DEBUG ([#437](https://github.com/open-telemetry/opentelemetry-browser/issues/437)) ([d04c6bf](https://github.com/open-telemetry/opentelemetry-browser/commit/d04c6bf60437597b2cf5dd7f673b745db1d52807))
+
 ## [0.5.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.4.0...browser-sdk-v0.5.0) (2026-10-09)
 
 
