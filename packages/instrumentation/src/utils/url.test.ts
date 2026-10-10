@@ -4,7 +4,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { matchesUrl, parseUrl, serverPortFromUrl } from './url.ts';
+import {
+  defaultSanitizeUrl,
+  matchesUrl,
+  parseUrl,
+  serverPortFromUrl,
+} from './url.ts';
 
 describe('parseUrl', () => {
   const urlFields: Array<keyof URL> = [
@@ -114,5 +119,100 @@ describe('serverPortFromUrl', () => {
     const url = { port: '', protocol: 'bar' } as URL;
 
     expect(serverPortFromUrl(url)).toBeUndefined();
+  });
+});
+describe('defaultSanitizeUrl', () => {
+  it('redacts S3 signed URL params including security token', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://bucket.s3.amazonaws.com/a.js?X-Amz-Credential=c&X-Amz-Security-Token=t&X-Amz-Signature=s',
+      ),
+    ).toBe(
+      'https://bucket.s3.amazonaws.com/a.js?X-Amz-Credential=REDACTED&X-Amz-Security-Token=REDACTED&X-Amz-Signature=REDACTED',
+    );
+  });
+
+  it('redacts Google Cloud Storage signed URL params', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://storage.googleapis.com/b/a.js?X-Goog-Signature=s',
+      ),
+    ).toBe('https://storage.googleapis.com/b/a.js?X-Goog-Signature=REDACTED');
+  });
+
+  it('redacts Azure SAS sig param while leaving normal params intact', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://acct.blob.core.windows.net/c/a.js?sv=2024&sig=s',
+      ),
+    ).toBe('https://acct.blob.core.windows.net/c/a.js?sv=2024&sig=REDACTED');
+  });
+
+  it('redacts sensitive params in relative URLs with fragments', () => {
+    expect(defaultSanitizeUrl('/cb#access_token=abc&state=1')).toBe(
+      '/cb#access_token=REDACTED&state=1',
+    );
+  });
+
+  it('preserves fragment anchors in relative URLs when redacting query params', () => {
+    expect(defaultSanitizeUrl('/a.js?token=t#step2')).toBe(
+      '/a.js?token=REDACTED#step2',
+    );
+  });
+
+  it('redacts id_token in fragment', () => {
+    expect(
+      defaultSanitizeUrl('https://app.example/cb#id_token=abc&state=1'),
+    ).toBe('https://app.example/cb#id_token=REDACTED&state=1');
+  });
+
+  it('redacts signed URL params', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://b.s3.amazonaws.com/f?X-Amz-Signature=abc&X-Amz-Credential=xyz',
+      ),
+    ).toBe(
+      'https://b.s3.amazonaws.com/f?X-Amz-Signature=REDACTED&X-Amz-Credential=REDACTED',
+    );
+  });
+
+  it('redacts AWSAccessKeyId and Signature', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://x.com/a?AWSAccessKeyId=AK&Signature=s&Expires=1',
+      ),
+    ).toBe(
+      'https://x.com/a?AWSAccessKeyId=REDACTED&Signature=REDACTED&Expires=1',
+    );
+  });
+
+  it('redacts sensitive params in a query-shaped fragment', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://app.example.com/cb#access_token=abc&state=xyz',
+      ),
+    ).toBe('https://app.example.com/cb#access_token=REDACTED&state=xyz');
+  });
+
+  it('leaves route and anchor fragments alone', () => {
+    expect(defaultSanitizeUrl('https://app.example.com/#/users/1')).toBe(
+      'https://app.example.com/#/users/1',
+    );
+    expect(defaultSanitizeUrl('https://x.com/#section-2')).toBe(
+      'https://x.com/#section-2',
+    );
+  });
+  it('redacts tokens in fragments with a leading &', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://app.example.com/cb#&access_token=abc&state=1',
+      ),
+    ).toBe('https://app.example.com/cb#access_token=REDACTED&state=1');
+  });
+
+  it('redacts tokens in relative URLs with a leading & in fragment', () => {
+    expect(defaultSanitizeUrl('/cb#&access_token=abc&state=1')).toBe(
+      '/cb#&access_token=REDACTED&state=1',
+    );
   });
 });
