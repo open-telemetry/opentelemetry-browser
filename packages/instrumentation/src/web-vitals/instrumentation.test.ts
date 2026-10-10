@@ -14,6 +14,7 @@ import {
   vi,
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
+import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
 import { setupTestLogExporter } from '#utils/test';
 import { WebVitalsInstrumentation } from './instrumentation.ts';
 import {
@@ -25,6 +26,9 @@ import {
   ATTR_WEB_VITAL_VALUE,
   WEB_VITAL_EVENT_NAME,
 } from './semconv.ts';
+
+// Keeps the real library, the spies only record the options each call gets.
+vi.mock('web-vitals/attribution', { spy: true });
 
 describe('WebVitalsInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
@@ -240,6 +244,32 @@ describe('WebVitalsInstrumentation', () => {
       const inpLog = await waitForMetric('inp');
       expect(inpLog.attributes['custom.page']).toBe('test-page');
       expect(customHook).toHaveBeenCalled();
+    });
+  });
+
+  describe('reportAllChanges', () => {
+    const subscribers = [onCLS, onINP, onLCP, onFCP, onTTFB];
+
+    it('should pass reportAllChanges to every web-vitals listener', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: true,
+      });
+
+      for (const subscribe of subscribers) {
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: true,
+        });
+      }
+    });
+
+    it('should default reportAllChanges to false', () => {
+      instrumentation = new WebVitalsInstrumentation();
+
+      for (const subscribe of subscribers) {
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: false,
+        });
+      }
     });
   });
 });
