@@ -6,10 +6,7 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,
@@ -42,12 +39,10 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
   // super() returns, breaking the duplicate-registration guard.
   declare private _isEnabled: boolean;
   declare private _listenersRegistered: boolean;
-  private _applyCustomLogRecordData?: (logRecord: LogRecord) => void;
   private _includeRawAttribution: boolean;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
-    this._applyCustomLogRecordData = config.applyCustomLogRecordData;
     this._includeRawAttribution = config.includeRawAttribution ?? false;
   }
 
@@ -142,19 +137,6 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
         : {}),
       ...(timestamp !== undefined ? { timestamp } : {}),
     };
-
-    if (this._applyCustomLogRecordData) {
-      safeExecuteInTheMiddle(
-        () => this._applyCustomLogRecordData?.(logRecord),
-        (error) => {
-          if (error) {
-            this._diag.error('applyCustomLogRecordData hook failed', error);
-          }
-        },
-        true,
-      );
-    }
-
     this.logger.emit(logRecord);
   }
 }

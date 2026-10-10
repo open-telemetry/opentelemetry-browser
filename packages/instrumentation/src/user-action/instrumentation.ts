@@ -4,10 +4,7 @@
  */
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
+import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { getElementCSSSelector } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
@@ -98,24 +95,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       },
     };
 
-    this._applyCustomLogRecordData(logRecord);
-
     this.logger.emit(logRecord);
-  }
-
-  private _applyCustomLogRecordData(logRecord: LogRecord) {
-    const applyCustomLogRecordData = this.getConfig().applyCustomLogRecordData;
-    if (applyCustomLogRecordData) {
-      safeExecuteInTheMiddle(
-        () => applyCustomLogRecordData(logRecord),
-        (error) => {
-          if (error) {
-            this._diag.error('applyCustomLogRecordData hook failed', error);
-          }
-        },
-        true,
-      );
-    }
   }
 
   override enable(): void {
