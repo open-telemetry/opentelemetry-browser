@@ -32,7 +32,7 @@ const SENSITIVE_PARAMS = [
   'X-Amz-Security-Token',
   'X-Goog-Signature',
 ];
-const QUERY_SHAPED_FRAGMENT = /^[^=&/]+=/;
+const QUERY_SHAPED_FRAGMENT = /^&*[^=&/]+=/;
 
 function redactParams(params: URLSearchParams): boolean {
   let changed = false;

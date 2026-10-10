@@ -202,4 +202,17 @@ describe('defaultSanitizeUrl', () => {
       'https://x.com/#section-2',
     );
   });
+  it('redacts tokens in fragments with a leading &', () => {
+    expect(
+      defaultSanitizeUrl(
+        'https://app.example.com/cb#&access_token=abc&state=1',
+      ),
+    ).toBe('https://app.example.com/cb#access_token=REDACTED&state=1');
+  });
+
+  it('redacts tokens in relative URLs with a leading & in fragment', () => {
+    expect(defaultSanitizeUrl('/cb#&access_token=abc&state=1')).toBe(
+      '/cb#&access_token=REDACTED&state=1',
+    );
+  });
 });
