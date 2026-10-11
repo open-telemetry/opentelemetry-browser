@@ -215,4 +215,16 @@ describe('defaultSanitizeUrl', () => {
       '/cb#&access_token=REDACTED&state=1',
     );
   });
+
+  it('redacts tokens in fragments with flag-only fields', () => {
+    expect(
+      defaultSanitizeUrl('https://app.example/cb#state&access_token=abc'),
+    ).toBe('https://app.example/cb#state=&access_token=REDACTED');
+  });
+
+  it('redacts tokens in relative URLs with flag-only fields in fragment', () => {
+    expect(defaultSanitizeUrl('/cb#state&access_token=abc')).toBe(
+      '/cb#state&access_token=REDACTED',
+    );
+  });
 });
