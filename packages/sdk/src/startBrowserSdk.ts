@@ -8,6 +8,7 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { INVALID_CONFIG_SDK, NOOP_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
+import { appendIgnoreUrls } from './core/ignoreUrls.ts';
 import type {
   CommonConfig,
   LogsConfig,
@@ -102,6 +103,12 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     }
   }
 
+  // Export URLs the SDK-created exporters will request. Collected per
+  // signal right after each signal's endpoint is resolved (the generic
+  // endpoint object is shared between signals and its `url` is rewritten per
+  // signal, so reading them at the end would only see the last one).
+  const exportUrls: string[] = [];
+
   // Start logs if configured
   if (logsConfig) {
     const isGenericEndpoint = !logsConfig.exportConfig?.url;
@@ -126,6 +133,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     if (isGenericEndpoint && logsConfig.exportConfig) {
       endpointUrl.pathname = '/v1/logs';
       logsConfig.exportConfig.url = endpointUrl.href;
+    }
+    if (logsConfig.exportConfig?.url) {
+      exportUrls.push(logsConfig.exportConfig.url);
     }
     logsConfig.resourceAttributes = rootConfig.resourceAttributes;
     sdks.push(startLogsSdk(logsConfig));
@@ -157,6 +167,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       endpointUrl.pathname = '/v1/traces';
       tracesConfig.exportConfig.url = endpointUrl.href;
     }
+    if (tracesConfig.exportConfig?.url) {
+      exportUrls.push(tracesConfig.exportConfig.url);
+    }
     tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
     sdks.push(startTracesSdk(tracesConfig));
   }
@@ -164,6 +177,14 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;
   if (rootConfig.instrumentations?.length) {
+    // Keep the SDK's own export requests out of the instrumentations so
+    // emitting telemetry cannot recursively trigger new telemetry (e.g. a
+    // resource-timing entry for an export firing a new export). The URLs are
+    // appended to each instrumentation's `ignoreUrls` list; instrumentations
+    // that do not support that option ignore the extra entry.
+    for (const instrumentation of rootConfig.instrumentations) {
+      appendIgnoreUrls(instrumentation, exportUrls);
+    }
     deregisterInstrumentations = registerInstrumentations({
       instrumentations: rootConfig.instrumentations,
     });
