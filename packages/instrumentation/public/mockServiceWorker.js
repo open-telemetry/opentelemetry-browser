@@ -7,7 +7,7 @@
  * - Please do NOT modify this file.
  */
 
-const PACKAGE_VERSION = '3.0.1'
+const PACKAGE_VERSION = '3.0.2'
 const INTEGRITY_CHECKSUM = '5cd5cf8b54c3a90f82960cedcd637772'
 const IS_MOCKED_RESPONSE = Symbol('isMockedResponse')
 

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "check-types": "tsc",
     "msw:init": "msw init",
     "test:e2e": "vitest run"
   },
