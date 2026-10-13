@@ -1,9 +1,11 @@
 import './style.css';
 import { context, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
 import {
   createDefaultSessionIdGenerator,
   createLocalStorageSessionStore,
@@ -17,8 +19,6 @@ import {
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
 import {
   detectResources,
@@ -92,7 +92,7 @@ registerInstrumentations({
     new WebVitalsInstrumentation(),
     // Span-based
     new FetchInstrumentation(),
-    new XMLHttpRequestInstrumentation(),
+    new XhrInstrumentation(),
   ],
 });
 
