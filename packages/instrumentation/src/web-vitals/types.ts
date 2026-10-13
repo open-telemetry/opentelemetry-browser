@@ -13,7 +13,11 @@ export interface WebVitalsInstrumentationConfig extends InstrumentationConfig {
   /**
    * @experimental
    * When true, sets the log record body to the JSON-stringified
-   * `web-vitals` attribution object for the metric.
+   * `web-vitals` attribution object for the metric. For INP, also adds
+   * selected attribution fields as experimental log record attributes.
+   *
+   * Interaction selectors and script URLs can contain sensitive data.
+   * Use `applyCustomLogRecordData` to redact attributes and the raw body.
    *
    * Note: `applyCustomLogRecordData` runs after the body is set.
    * If the hook assigns a new `body`, it will overwrite the attribution data.
