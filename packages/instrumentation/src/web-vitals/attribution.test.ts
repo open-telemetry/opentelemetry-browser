@@ -78,9 +78,9 @@ const createLongestScript = (): NonNullable<
   entry: {
     name: 'script',
     entryType: 'script',
-    startTime: 105,
+    startTime: 95,
     duration: 55,
-    executionStart: 105,
+    executionStart: 95,
     invoker: 'BUTTON#checkout.onclick',
     invokerType: 'event-listener',
     sourceURL: 'https://example.com/checkout.js?token=secret',
@@ -91,7 +91,7 @@ const createLongestScript = (): NonNullable<
     windowAttribution: 'self',
     toJSON: () => ({ duration: 55 }),
   },
-  subpart: 'processing-duration',
+  subpart: 'input-delay',
   intersectingDuration: 50,
 });
 
@@ -182,8 +182,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME]:
         'submitOrder',
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION]: 55,
-      [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART]:
-        'processing-duration',
+      [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART]: 'input-delay',
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION]: 50,
     });
     expect(log.body).toBe(JSON.stringify(metric.attribution));
