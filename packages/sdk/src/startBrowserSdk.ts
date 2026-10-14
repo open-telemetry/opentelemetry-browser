@@ -3,22 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DiagLogLevel } from '@opentelemetry/api';
 import { diag } from '@opentelemetry/api';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import {
-  ConsoleLogRecordExporter,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
-import {
-  ConsoleSpanExporter,
-  SimpleSpanProcessor,
-} from '@opentelemetry/sdk-trace';
 import { INVALID_CONFIG_SDK, NOOP_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
 import type {
+  CommonConfig,
   LogsConfig,
   RemoveCommonProps,
   RootConfig,
@@ -86,8 +77,10 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
 
   // Validate every export URL before starting any signal SDK, so an invalid
   // URL cannot leave one signal exporting while the other refuses to start.
+  // `??` and not `||`: an empty `url` is a mistake, usually an unset env var,
+  // so it must fail loudly instead of falling back to the local collector
   const endpointUrl = parseExportUrl(
-    rootConfig.exportConfig?.url || DEFAULT_OTLP_ENDPOINT,
+    rootConfig.exportConfig?.url ?? DEFAULT_OTLP_ENDPOINT,
   );
   if (!endpointUrl) {
     return INVALID_CONFIG_SDK;
@@ -112,6 +105,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   // Start logs if configured
   if (logsConfig) {
     const isGenericEndpoint = !logsConfig.exportConfig?.url;
+
+    // Set the logLevel
+    logsConfig.logLevel = rootConfig.logLevel;
 
     // Propagate root configs to the signal only when it has no custom
     // processors. A signal with its own processors manages its own exporter,
@@ -138,6 +134,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   // Start traces if configured
   if (tracesConfig) {
     const isGenericEndpoint = !tracesConfig.exportConfig?.url;
+
+    // Set the logLevel
+    tracesConfig.logLevel = rootConfig.logLevel;
 
     // Propagate root configs to the signal only when it has no custom
     // processors. A signal with its own processors manages its own exporter,
@@ -192,29 +191,14 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   };
 }
 
-export interface QuickStartConfig {
-  /**
-   * Set `disabled: true` to disable the SDK
-   *
-   * @defaultValue undefined
-   */
-  disabled?: boolean;
-  /**
-   * Log level for SDK's internal logger
-   *
-   * @defaultValue DiagLogLevel.INFO
-   */
-  logLevel?: keyof typeof DiagLogLevel;
-  /**
-   * Sets the value of the `service.name` resource attribute
-   */
-  serviceName?: string;
-  /**
-   * Sets the value of the `service.version` resource attribute
-   *
-   * @defaultValue undefined
-   */
-  serviceVersion?: string;
+export type QuickStartConfig = Pick<
+  CommonConfig,
+  | 'disabled'
+  | 'logLevel'
+  | 'serviceName'
+  | 'serviceVersion'
+  | 'instrumentations'
+> & {
   /**
    * Target URL for the SDK to send traces and logs.
    */
@@ -224,11 +208,7 @@ export interface QuickStartConfig {
    * This is the place to add API keys or similar.
    */
   exportHeaders?: Record<string, string>;
-  /**
-   * List of instrumentations to be registered when the SDK starts
-   */
-  instrumentations?: Instrumentation[];
-}
+};
 
 /**
  * This function does the same as `startBrowserSdk` but requiring
@@ -247,22 +227,6 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
       headers: config.exportHeaders,
     },
   };
-
-  // Add console processors if the user wants to debug
-  if (config.logLevel === 'DEBUG') {
-    sdkConfig.logs = {
-      processors: [
-        new SimpleLogRecordProcessor({
-          exporter: new ConsoleLogRecordExporter(),
-        }),
-      ],
-    };
-    sdkConfig.traces = {
-      processors: [
-        new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
-      ],
-    };
-  }
 
   return startBrowserSdk(sdkConfig);
 }
