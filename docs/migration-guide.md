@@ -36,7 +36,7 @@ was `GlobalErrorsInstrumentationConfig`.
 
 | Previous package | Current migration path |
 | --- | --- |
-| `@opentelemetry/instrumentation-document-load` | [Navigation, navigation-timing, and resource-timing events](#document-load-migration-pending) expose related data. They do not recreate the `documentLoad` span hierarchy. The final migration remains pending [#327][document-load-decision]. |
+| `@opentelemetry/instrumentation-document-load` | [Navigation, navigation-timing, and resource-timing events](#document-load-timing-and-trace-gaps) expose related data. They do not recreate the `documentLoad` span hierarchy. Keep the legacy instrumentation if that hierarchy is required; [#327][document-load-decision] tracks the remaining design decisions. |
 | `@opentelemetry/instrumentation-user-interaction` | `UserActionInstrumentation` from `@opentelemetry/browser-instrumentation/experimental/user-action` captures clicks as log events. It does not replace the old interaction spans, arbitrary `eventNames`, or their context propagation. See [user interactions](#user-interactions). |
 | `@opentelemetry/instrumentation-long-task` | There is no shipped long-task replacement in the current package exports. `WebVitalsInstrumentation` at `@opentelemetry/browser-instrumentation/experimental/web-vitals` emits Web Vitals events, which do not replace individual long-task spans. Follow [#209][consolidation] for this migration. |
 | `@opentelemetry/plugin-react-load` | Deprecated and removed from contrib, with no replacement here. See the [removal decision][react-load-removal]. Component-load spans require a separately chosen instrumentation approach. |
@@ -224,13 +224,15 @@ coverage and interaction tracing deliberately before removing the legacy
 instrumentation. Changing to the new Browser SDK's default context manager is
 a separate decision from changing this instrumentation.
 
-## Document-load migration: pending
+## Document-load timing and trace gaps
 
-**The final replacement is pending [#327][document-load-decision].** The current
-events provide timing data, but they are not a completed replacement for
-`DocumentLoadInstrumentation`. The Browser SIG still needs to settle load
-duration as a span or event, related-record grouping, and paint timing coverage.
-This section records current capabilities and the remaining gaps.
+The [current SIG direction][document-load-direction] is to use navigation,
+navigation-timing, and resource-timing events rather than port the
+`documentLoad` spans. Register those three instrumentations and configure logs
+export as shown in [SDK setup](#sdk-setup) to collect the available timing data.
+They do not reproduce the document-load trace structure. The Browser SIG still
+needs to settle load duration as a span or event, related-record grouping, and
+paint timing coverage in [#327][document-load-decision].
 
 | Data previously represented by document-load instrumentation | Data available now | Gap |
 | --- | --- | --- |
@@ -241,11 +243,20 @@ This section records current capabilities and the remaining gaps.
 | `firstPaint` and `firstContentfulPaint` span events | `WebVitalsInstrumentation` at `@opentelemetry/browser-instrumentation/experimental/web-vitals` includes FCP among its `browser.web_vital` events. | Web Vitals events do not reproduce the old paint events on the load span; full paint coverage remains part of the decision. |
 | Server-provided `<meta name="traceparent">` connection | The old document-load implementation extracts this context for its span tree. | The current navigation and timing event combination does not reproduce that extraction and tree. |
 
+Navigation-timing values are milliseconds relative to the page's performance
+time origin. To recover the old load duration, subtract
+`browser.resource_timing.fetch_start` from
+`browser.navigation_timing.load_event_end` on the same record. Only calculate it
+when the end value is greater than zero and at least the start value. The
+instrumentation can emit incomplete timing on page hide or after retries, so a
+zero `load_event_end` does not mean the page loaded instantly.
+
 Keep the legacy document-load instrumentation if you still require its spans,
 server-to-document trace relationship, or span customization callbacks. You can
 evaluate the new timing events alongside it, but account for overlapping
-measurements in dashboards. Final instructions for removing the legacy package
-will follow the decision in #327.
+measurements in dashboards. Remove the legacy package only after deciding that
+the event data in the table is sufficient for your application. Applications
+that need the missing trace or paint behavior should keep it while #327 is open.
 
 ## SDK setup
 
@@ -339,6 +350,7 @@ See the [SDK README](../packages/sdk/README.md) for the full configuration API.
 
 [consolidation]: https://github.com/open-telemetry/opentelemetry-browser/issues/209
 [document-load-decision]: https://github.com/open-telemetry/opentelemetry-browser/issues/327
+[document-load-direction]: https://github.com/open-telemetry/opentelemetry-browser/issues/327#issuecomment-6052435295
 [react-load-removal]: https://github.com/open-telemetry/opentelemetry-js/issues/7110
 [browser-detector-migration]: https://github.com/open-telemetry/opentelemetry-browser/issues/458
 [trace-sdk-migration]: https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md
