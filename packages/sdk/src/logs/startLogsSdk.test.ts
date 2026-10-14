@@ -30,6 +30,7 @@ function createFakeInstrumentation(): Instrumentation {
 describe('startLogsSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
+  const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
   let logsSdk: WebSdk;
@@ -39,9 +40,11 @@ describe('startLogsSdk', () => {
   // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
+    consoleDirSpy.mockRestore();
   });
   afterEach(async () => {
     fetchSpy.mockClear();
+    consoleDirSpy.mockClear();
     await logsSdk?.shutdown();
     logs.disable();
   });
@@ -290,6 +293,87 @@ describe('startLogsSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
+
+  it('should add a SimpleLogRecordProcessor with console exporter if the log level is DEBUG', () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    logsSdk = startLogsSdk({
+      logLevel: 'DEBUG',
+      processors: [
+        new SimpleLogRecordProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(consoleDirSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should add a SimpleLogRecordProcessor with console exporter for log levels above DEBUG', () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    logsSdk = startLogsSdk({
+      logLevel: 'VERBOSE',
+      processors: [
+        new SimpleLogRecordProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(consoleDirSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should add a BatchLogRecordProcessor for OTLP export and a SimpleLogRecordProcessor for DEBUG', async () => {
+    // Arrange
+    let exportCalled = false;
+    const url = 'http://otlp-signal-endpoint:4318/v1/traces';
+
+    // Act
+    logsSdk = startLogsSdk({
+      logLevel: 'DEBUG',
+      batchProcessorConfig: {
+        // NOTE: we set a short delay to speed up tests and avoid test timeouts
+        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
+      },
+      exportConfig: { url },
+      processors: [
+        new SimpleLogRecordProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+            forceFlush: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+    expect(consoleDirSpy).toHaveBeenCalledTimes(1);
   });
 
   it('should register instrumentations on start and disable them on shutdown', async () => {
