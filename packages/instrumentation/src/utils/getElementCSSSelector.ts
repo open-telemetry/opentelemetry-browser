@@ -91,16 +91,20 @@ const getNthChild = (element: HTMLElement): number => {
     return 0;
   }
 
-  const selector = getFullClassSelector(element);
+  const classes = Array.from(element.classList);
+  const children = Array.from(element.parentElement.children);
 
-  // Get all siblings that match the same selector
-  const siblings = Array.from(element.parentElement.children).filter(
-    (sibling) => getFullClassSelector(sibling) === selector,
+  // The selector also matches any sibling with this tag and these classes
+  const hasMatchingSibling = children.some(
+    (sibling) =>
+      sibling !== element &&
+      sibling.localName === element.localName &&
+      classes.every((cls) => sibling.classList.contains(cls)),
   );
 
-  // Only add nth-child if there are multiple matching siblings
-  if (siblings.length > 1) {
-    return siblings.indexOf(element) + 1;
+  // nth-child counts every element sibling, not only the matching ones
+  if (hasMatchingSibling) {
+    return children.indexOf(element) + 1;
   }
 
   return 0;

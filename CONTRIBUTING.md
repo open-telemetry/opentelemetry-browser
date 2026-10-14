@@ -68,6 +68,24 @@ For detailed contribution guidelines, see the [OpenTelemetry JS Contributing Gui
 - Filter down to label:"good first issue" or label:"available"
 - If you are having trouble finding an appropriately sized issue, reach out on Slack or ask in a SIG meeting
 
+## Claiming an issue
+
+Before you start working on an issue, check that nobody else is:
+
+- Read the comments and check the assignee. If someone has said they are working on it, it is theirs.
+- Look for a linked or open pull request. If one exists, review it or offer to help the author instead of opening another one.
+- Issues labeled `needs discussion` or `needs prototype` don't have an agreed approach yet. Join the discussion on the issue or in a SIG meeting before writing code.
+
+To claim an issue, comment on it saying you plan to work on it. This applies to every issue, not just ones labeled `available`. A draft pull request opened early is the clearest sign that work is in progress.
+
+If a claim has had no pull request or update for two weeks, ask on the issue whether it is still in progress. If there is no reply within a few days, you can pick it up.
+
+When more than one pull request is opened for the same issue, maintainers will usually keep the one that was claimed first and close the others.
+
+Small fixes such as typos or broken links don't need an issue. For anything that changes behavior or adds a feature, open or claim an issue first.
+
+If you use AI tools, follow the OpenTelemetry [Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md). Maintainers may close pull requests that don't follow it.
+
 ## Raising issues
 
 Have a feature request or a bug to report?
