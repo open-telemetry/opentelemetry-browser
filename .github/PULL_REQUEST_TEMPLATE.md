@@ -41,3 +41,7 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] Followed the style guidelines of this project
 - [ ] Unit tests have been added
 - [ ] Documentation has been updated
+- [ ] Disclose AI usage, see the [OpenTelemetry Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md):
+  - [ ] No AI used
+  - [ ] AI-assisted
+  - [ ] Bulk AI-generated

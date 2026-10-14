@@ -18,8 +18,14 @@ import { diag } from '@opentelemetry/api';
  * @returns The parsed {@link URL} or `null` when the URL is invalid.
  */
 export function parseExportUrl(url: string, scope = 'Browser SDK'): URL | null {
-  const parsed = URL.parse(url);
-  // `URL.parse` accepts any parseable URL, so a missing scheme slips through:
+  let parsed: URL | null;
+  try {
+    // Not `URL.parse`, which Safari < 18 and Chrome/Firefox < 126 lack.
+    parsed = new URL(url);
+  } catch {
+    parsed = null;
+  }
+  // `new URL` accepts any parseable URL, so a missing scheme slips through:
   // `localhost:4318` parses with protocol `localhost:` and an opaque path.
   if (
     !parsed ||
