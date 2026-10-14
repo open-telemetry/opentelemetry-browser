@@ -269,7 +269,7 @@ The `browser.web_vital.attribution.*` names are experimental implementation prop
 | `browser.web_vital.attribution.longest_script.source_url` | Source URL of that script. |
 | `browser.web_vital.attribution.longest_script.source_function_name` | Source function name of that script. |
 | `browser.web_vital.attribution.longest_script.duration` | Full script entry duration in milliseconds. |
-| `browser.web_vital.attribution.longest_script.subpart` | The interaction phase containing that script's start: `input-delay`, `processing-duration`, or `presentation-delay`. |
+| `browser.web_vital.attribution.longest_script.subpart` | The INP subpart assigned by `web-vitals`: `input-delay`, `processing-duration`, or `presentation-delay`. A script that starts before the interaction can be assigned `input-delay`. |
 | `browser.web_vital.attribution.longest_script.intersecting_duration` | Duration attributed to the script within the INP interaction, in milliseconds. |
 
 Unavailable optional interaction fields are omitted. The longest-script fields are present only when `web-vitals` supplies a Long Animation Frame script summary. Browsers without that API still report the available interaction timing attributes. Zero timings and empty strings supplied by the library are preserved. No DOM nodes or raw performance entry arrays are added as attributes.
