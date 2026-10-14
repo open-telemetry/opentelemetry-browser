@@ -9,7 +9,7 @@ let worker: ReturnType<typeof setupWorker> | undefined;
 export const mockServer = {
   async start(...handlers: HttpHandler[]): Promise<void> {
     worker = setupWorker(...handlers);
-    await worker.start({ onUnhandledRequest: 'error', quiet: true });
+    await worker.start({ onUnhandledFrame: 'error', quiet: true });
   },
 
   stop(): void {
