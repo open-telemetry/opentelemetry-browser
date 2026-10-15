@@ -45,7 +45,7 @@ export const ATTR_WEB_VITAL_NAVIGATION_TYPE =
   'browser.web_vital.navigation_type';
 
 // Experimental INP attribution names, pending semantic convention agreement.
-// https://github.com/open-telemetry/semantic-conventions-client-side/pull/14
+// https://github.com/open-telemetry/opentelemetry-browser/issues/471
 
 /**
  * @experimental This attribute is experimental and is subject to change pending semantic convention agreement.
