@@ -116,11 +116,7 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     if (typeof error === 'object' && error !== null) {
       const candidate = error as Partial<Error>;
       // Keep Error-like values, including errors from another realm.
-      if (
-        typeof candidate.message === 'string' ||
-        typeof candidate.name === 'string' ||
-        typeof candidate.stack === 'string'
-      ) {
+      if (error instanceof Error || typeof candidate.message === 'string') {
         return candidate as Error;
       }
     }
