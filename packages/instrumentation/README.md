@@ -247,7 +247,7 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 
 With `includeRawAttribution: true`, INP events include the following attributes alongside the raw JSON body. Attribution attributes are absent by default. Other web-vital events retain their raw body behavior without these INP attributes.
 
-The `browser.web_vital.attribution.*` names are experimental implementation proposals for [INP attribution](https://github.com/open-telemetry/opentelemetry-browser/issues/471), pending agreement with the [client-side semantic conventions](https://github.com/open-telemetry/semantic-conventions-client-side/pull/14). They may change in a minor release.
+The `browser.web_vital.attribution.*` names are experimental implementation proposals for [INP attribution](https://github.com/open-telemetry/opentelemetry-browser/issues/471), pending semantic convention agreement. [Client-side semantic conventions #14](https://github.com/open-telemetry/semantic-conventions-client-side/pull/14) excludes web-vitals and does not define these names. They may change in a minor release.
 
 | Attribute | Description |
 |-----------|-------------|
