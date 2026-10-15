@@ -214,29 +214,6 @@ tracesSdk.shutdown().then(
 );
 ```
 
-## Browser resource detection
-
-The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
-detector for browser attributes. It detects the user agent and preferred
-language, plus platform, brands, and mobile status when the User-Agent Client
-Hints API is available.
-
-```javascript
-import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
-import {
-  detectResources,
-  resourceFromAttributes,
-} from '@opentelemetry/resources';
-
-const resource = resourceFromAttributes({
-  'service.name': 'my-app',
-}).merge(
-  detectResources({
-    detectors: [browserDetector],
-  }),
-);
-```
-
 ### Instrumentations
 
 Register third-party instrumentations or the
@@ -263,6 +240,29 @@ const sdk = quickStartBrowserSdk({
 
 Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
 call.
+
+### Browser resource detection
+
+The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
+detector for browser attributes. It detects the user agent and preferred
+language, plus platform, brands, and mobile status when the User-Agent Client
+Hints API is available.
+
+```javascript
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
+import {
+  detectResources,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+
+const resource = resourceFromAttributes({
+  'service.name': 'my-app',
+}).merge(
+  detectResources({
+    detectors: [browserDetector],
+  }),
+);
+```
 
 ## Configuration
 
