@@ -48,7 +48,7 @@ describe('UserActionInstrumentation', () => {
   const dispatchMouseDownEvent = (
     element: HTMLElement,
     button: number,
-    type: 'click' | 'auxclick' = 'click',
+    type: 'click' | 'auxclick' | 'contextmenu' = 'click',
   ) => {
     const clickEvent = new MouseEvent(type, {
       button,
@@ -81,7 +81,7 @@ describe('UserActionInstrumentation', () => {
     const element = createTestElement();
 
     dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
-    dispatchMouseDownEvent(element, 2, 'auxclick'); // Right click
+    dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
     const logs = inMemoryExporter.getFinishedLogRecords();
     expect(logs.length).toBe(2);
@@ -95,6 +95,31 @@ describe('UserActionInstrumentation', () => {
     expect(rightClickLog?.attributes['browser.mouse_event.button']).toBe(
       'right',
     );
+  });
+
+  it.each(['contextmenu-first', 'auxclick-first'])(
+    'records one right click with both events (%s)',
+    (order) => {
+      const element = createTestElement();
+      const events =
+        order === 'contextmenu-first'
+          ? (['contextmenu', 'auxclick'] as const)
+          : (['auxclick', 'contextmenu'] as const);
+      for (const type of events) {
+        dispatchMouseDownEvent(element, 2, type);
+      }
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes['browser.mouse_event.button']).toBe('right');
+    },
+  );
+
+  it('ignores keyboard context menus and non-right contextmenu events', () => {
+    const element = createTestElement();
+    for (const button of [0, 1, 3, 4]) {
+      dispatchMouseDownEvent(element, button, 'contextmenu');
+    }
+    expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
   });
 
   it('should not emit a log for buttons other than left, middle and right', () => {
@@ -162,6 +187,7 @@ describe('UserActionInstrumentation', () => {
     const element = createTestElement();
     dispatchMouseDownEvent(element, 0); // Left click
     dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
+    dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
     const logs = inMemoryExporter.getFinishedLogRecords();
     expect(logs.length).toBe(0);
@@ -173,6 +199,7 @@ describe('UserActionInstrumentation', () => {
     disableInstrumentations();
     dispatchMouseDownEvent(element, 0); // Left click
     dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
+    dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
     const logs = inMemoryExporter.getFinishedLogRecords();
     expect(logs.length).toBe(0);

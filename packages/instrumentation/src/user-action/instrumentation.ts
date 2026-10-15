@@ -62,6 +62,15 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
   }
 
   private onClick(event: MouseEvent) {
+    // Use one event per button, including when both contextmenu and auxclick fire.
+    if (
+      (event.type === 'click' && event.button !== 0) ||
+      (event.type === 'auxclick' && event.button !== 1) ||
+      (event.type === 'contextmenu' && event.button !== 2)
+    ) {
+      return;
+    }
+
     // Back, forward and other extra buttons are not clicks we report.
     const button = this._getMouseButtonFromMouseEvent(event);
     if (!button) {
@@ -135,9 +144,9 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
 
     if (autoCapturedActions.includes('click')) {
       document.addEventListener('click', this._onClickHandler, true);
-      // Browsers only dispatch `click` for the primary button. Middle and
-      // right clicks arrive as `auxclick`.
+      // Native context menus can consume mouseup before auxclick fires.
       document.addEventListener('auxclick', this._onClickHandler, true);
+      document.addEventListener('contextmenu', this._onClickHandler, true);
     }
   }
 
@@ -145,6 +154,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     if (this._onClickHandler) {
       document.removeEventListener('click', this._onClickHandler, true);
       document.removeEventListener('auxclick', this._onClickHandler, true);
+      document.removeEventListener('contextmenu', this._onClickHandler, true);
     }
   }
 }
