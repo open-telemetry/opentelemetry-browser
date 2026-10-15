@@ -784,6 +784,38 @@ describe('ResourceTimingInstrumentation', () => {
       expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
     });
 
+    it('should stop a timed-out chunk when its positive processing budget is spent', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        maxProcessingTime: 5,
+        batchSize: 100,
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+      ];
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      vi.spyOn(performance, 'now').mockReturnValue(0);
+      vi.spyOn(instrumentation.logger, 'emit').mockImplementationOnce(() => {
+        vi.mocked(performance.now).mockReturnValue(5);
+      });
+
+      triggerIdleCallback(0, true);
+
+      expect(instrumentation.logger.emit).toHaveBeenCalledTimes(1);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+
+      triggerIdleCallback(0, true);
+
+      expect(instrumentation.logger.emit).toHaveBeenCalledTimes(2);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+    });
+
     it('should respect maxProcessingTime when the idle callback fires on its timeout', () => {
       instrumentation = new ResourceTimingInstrumentation({
         maxProcessingTime: 0,
