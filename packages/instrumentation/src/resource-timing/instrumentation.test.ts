@@ -4,6 +4,7 @@
  */
 
 import type { Span } from '@opentelemetry/api';
+import { hrTime } from '@opentelemetry/core';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -102,6 +103,42 @@ describe('ResourceTimingInstrumentation', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(['idle callback', 'visibilitychange', 'disable'])(
+    'should preserve the resource start time when flushed by %s',
+    (flush) => {
+      let now = 100;
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
+      instrumentation = new ResourceTimingInstrumentation();
+      instrumentation.enable();
+
+      const startTime = 42.5;
+      observerCallback(
+        createMockPerformanceObserverEntryList([
+          createMockResourceEntry({ startTime }),
+        ]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+      now = 5000;
+
+      if (flush === 'idle callback') {
+        triggerIdleCallback();
+      } else if (flush === 'visibilitychange') {
+        mockDocument.hidden = true;
+        const listener = mockDocument.addEventListener.mock.calls.find(
+          ([event]) => event === 'visibilitychange',
+        )?.[1] as () => void;
+        listener();
+      } else {
+        instrumentation.disable();
+      }
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(1);
+      expect(records[0]?.hrTime).toEqual(hrTime(startTime));
+    },
+  );
 
   describe('Instrumentation lifecycle', () => {
     it('should not observe until enabled, and disconnect on disable', () => {
