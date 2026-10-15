@@ -136,6 +136,11 @@ the [HTTP client span conventions][http-spans]. Error-rate dashboards may theref
 show additional failed requests after migration even if application traffic is
 unchanged. Update queries that used HTTP status `0` to identify failures.
 
+Cancellation is recognized when the rejected error's `name` is `AbortError`.
+Calling `AbortController.abort(reason)` with a custom reason whose name differs
+can therefore be classified as a failure rather than an intentional cancellation.
+The abort row above covers the default abort reason.
+
 These tests establish the listed comparisons, not identical spans in every
 respect. Instrumentation scope names, timing events, and auxiliary spans change.
 The new fetch scope is `@opentelemetry/browser-instrumentation/fetch`; its version
