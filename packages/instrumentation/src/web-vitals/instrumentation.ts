@@ -94,8 +94,15 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       const { attribution } = metric as INPMetricWithAttribution;
       return attribution.interactionTime;
     }
-    // FCP, LCP, TTFB: metric.value is already DOMHighResTimeStamp of the event
-    return metric.value;
+    // Durations are relative to restore time or prerender activation.
+    const navigationEntry = metric.attribution.navigationEntry;
+    const activationStart =
+      navigationEntry && 'activationStart' in navigationEntry
+        ? // Guarded because prerender activation is not available in all browsers.
+          // eslint-disable-next-line baseline-js/use-baseline
+          navigationEntry.activationStart
+        : 0;
+    return (metric.navigationStartTime || activationStart || 0) + metric.value;
   }
 
   private _emitWebVital(metric: MetricWithAttribution): void {
