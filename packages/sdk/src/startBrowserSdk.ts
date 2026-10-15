@@ -7,7 +7,7 @@ import { diag } from '@opentelemetry/api';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { INVALID_CONFIG_SDK, NOOP_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
-import { parseExportUrl } from './core/exportUrl.ts';
+import { parseExportUrl, withResourcePath } from './core/exportUrl.ts';
 import type {
   CommonConfig,
   LogsConfig,
@@ -122,10 +122,11 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       }
     }
 
-    // Set the path if endpoint comes from general config
+    // Append the signal resource path if the endpoint comes from the
+    // general config: the endpoint's path is a prefix of the per-signal
+    // URLs, so it must be kept (see the OTLP/HTTP exporter spec)
     if (isGenericEndpoint && logsConfig.exportConfig) {
-      endpointUrl.pathname = '/v1/logs';
-      logsConfig.exportConfig.url = endpointUrl.href;
+      logsConfig.exportConfig.url = withResourcePath(endpointUrl, 'v1/logs');
     }
     logsConfig.resourceAttributes = rootConfig.resourceAttributes;
     sdks.push(startLogsSdk(logsConfig));
@@ -152,10 +153,14 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       }
     }
 
-    // Set the path if endpoint comes from general config
+    // Append the signal resource path if the endpoint comes from the
+    // general config: the endpoint's path is a prefix of the per-signal
+    // URLs, so it must be kept (see the OTLP/HTTP exporter spec)
     if (isGenericEndpoint && tracesConfig.exportConfig) {
-      endpointUrl.pathname = '/v1/traces';
-      tracesConfig.exportConfig.url = endpointUrl.href;
+      tracesConfig.exportConfig.url = withResourcePath(
+        endpointUrl,
+        'v1/traces',
+      );
     }
     tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
     sdks.push(startTracesSdk(tracesConfig));
