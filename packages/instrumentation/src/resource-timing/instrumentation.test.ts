@@ -800,19 +800,19 @@ describe('ResourceTimingInstrumentation', () => {
         mockObserver as unknown as PerformanceObserver,
       );
 
-      vi.spyOn(performance, 'now').mockReturnValue(0);
-      vi.spyOn(instrumentation.logger, 'emit').mockImplementationOnce(() => {
-        vi.mocked(performance.now).mockReturnValue(5);
-      });
+      vi.spyOn(performance, 'now')
+        .mockReturnValue(5)
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(0);
 
       triggerIdleCallback(0, true);
 
-      expect(instrumentation.logger.emit).toHaveBeenCalledTimes(1);
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
       expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
 
       triggerIdleCallback(0, true);
 
-      expect(instrumentation.logger.emit).toHaveBeenCalledTimes(2);
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(2);
       expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
     });
 
