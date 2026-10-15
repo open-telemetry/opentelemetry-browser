@@ -33,6 +33,9 @@ const SEVERITY_MAP: Record<ConsoleMethod, SeverityNumber> = {
 function defaultMessageSerializer(args: unknown[]): string {
   return args
     .map((arg) => {
+      if (arg instanceof Error) {
+        return arg.stack || `${arg.name}: ${arg.message}`;
+      }
       if (typeof arg === 'object' && arg !== null) {
         try {
           return JSON.stringify(arg);
