@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { describe, expect, it } from 'vitest';
 import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
+import { describe, expect, it } from 'vitest';
 
 describe('browserDetector outside a browser', () => {
   it('returns an empty resource', () => {
