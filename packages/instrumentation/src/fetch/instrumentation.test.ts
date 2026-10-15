@@ -1264,6 +1264,14 @@ describe('FetchInstrumentation', () => {
             await assertPropagationHeaders(response);
           });
 
+          it('should not call the propagator when propagation is skipped', async () => {
+            const injectSpy = vi.spyOn(propagation, 'inject');
+            const url = 'http://example.com/api/echo-headers.json';
+            await fetch(url);
+
+            expect(injectSpy).not.toHaveBeenCalled();
+          });
+
           it('should not set trace propagation headers from an earlier same origin request that used the same init', async () => {
             const init: RequestInit = { headers: { foo: 'bar' } };
             await fetch(getUrlForPath('/api/echo-headers.json'), init).then(
