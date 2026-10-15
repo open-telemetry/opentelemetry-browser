@@ -271,5 +271,41 @@ describe('WebVitalsInstrumentation', () => {
         });
       }
     });
+
+    it('should preserve explicit false', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: false,
+      });
+      for (const subscribe of subscribers) {
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: false,
+        });
+      }
+    });
+
+    it('should defer registration when disabled and keep options on re-enable', () => {
+      const callCounts = subscribers.map(
+        (subscribe) => vi.mocked(subscribe).mock.calls.length,
+      );
+      instrumentation = new WebVitalsInstrumentation({
+        enabled: false,
+        reportAllChanges: true,
+      });
+      subscribers.forEach((subscribe, index) => {
+        expect(vi.mocked(subscribe).mock.calls.length).toBe(callCounts[index]);
+      });
+      instrumentation.enable();
+      instrumentation.disable();
+      instrumentation.setConfig({ reportAllChanges: false });
+      instrumentation.enable();
+      subscribers.forEach((subscribe, index) => {
+        expect(vi.mocked(subscribe).mock.calls.length).toBe(
+          (callCounts[index] ?? 0) + 1,
+        );
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: true,
+        });
+      });
+    });
   });
 });

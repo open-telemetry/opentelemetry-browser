@@ -27,8 +27,9 @@ export interface WebVitalsInstrumentationConfig extends InstrumentationConfig {
   applyCustomLogRecordData?: (logRecord: LogRecord) => void;
 
   /**
-   * Passed through to `web-vitals`. When true, a log record is emitted every
-   * time a metric's value changes, with `delta` carrying the change.
+   * Passed through to `web-vitals` to report metric updates according to its
+   * reporting behavior. `delta` is the change since its previous report.
+   * Set before listeners are first registered, later changes have no effect.
    * Defaults to `false`.
    */
   reportAllChanges?: boolean;
