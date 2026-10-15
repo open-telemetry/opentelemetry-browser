@@ -11,6 +11,41 @@ experimental. The fetch and XHR comparisons use the legacy packages at 0.223.0;
 check your installed versions before applying the behavior tables to older
 releases. The overall consolidation is tracked in [#209][consolidation].
 
+## Key changes at a glance
+
+The table summarizes the changes below for the versions listed above. Follow the
+linked sections for configuration details, outcome comparisons, and unresolved gaps.
+
+| Previous package or API | New package, API, or behavior | What to do |
+| --- | --- | --- |
+| Separate instrumentation packages | `@opentelemetry/browser-instrumentation/experimental/*` | Use the full subpath, including `experimental/`; there is no root export. See [package mapping](#package-and-import-mapping). |
+| `FetchInstrumentation` / `XMLHttpRequestInstrumentation` | `FetchInstrumentation` / `XhrInstrumentation` | Replace imports and the XHR constructor/config type (`XhrInstrumentationConfig`), then remove old instances, including auto-enabled ones, to avoid double patching. |
+| Single-value `propagateTraceHeaderCorsUrls` | Array of strings or regular expressions | Wrap single values in an array. Same-origin propagation still works without an allowlist; cross-origin servers must accept the injected headers. |
+| Network hooks and request headers | Distinct fetch/XHR hook signatures | Keep fetch and XHR custom-attribute signatures separate. `requestHook` is fetch-only, `FetchError.status` is optional, and caller-owned `RequestInit` headers are preserved. See [configuration changes](#configuration-changes). |
+| `clearTimingResources`, `ignoreNetworkEvents` | No equivalent options | Remove them. Register `ResourceTimingInstrumentation` and export logs for timing data. |
+| Captured network URLs | Optional fetch/XHR `sanitizeUrl` callback | Supply an application sanitizer if needed. It changes captured `url.full`, not requests, and does not sanitize separate timing records. Redaction is off by default. |
+| Fetch failures with synthetic HTTP status `0` | No HTTP status without a response; network failures/timeouts are errors | Update failure queries and hooks. Default `AbortError` cancellation stays `UNSET`; custom abort reasons can count as failures. See [fetch outcomes](#fetch-outcomes). |
+| XHR `error.type`: `error` / `timeout` | `Error` / `TimeoutError` | Update error filters. HTTP status/error behavior for responses and intentional aborts stays as listed in [XHR outcomes](#xhr-outcomes-and-timing). |
+| XHR span starts at `open()` and waits for timing collection | Starts at `send()` and ends on the terminal event | Recheck duration and parentage: time before `send()` is excluded and its active context determines the parent. |
+| Network timing events, CORS preflight child spans, XHR lifecycle events | Separate `browser.resource_timing` log records | Update trace/event queries and configure logs export. Matching new fetch/XHR context can correlate records, but does not recreate the old trace structure. |
+| Legacy fetch/XHR instrumentation scopes | `@opentelemetry/browser-instrumentation/fetch` and `/xhr` | Update scope filters; scope versions follow the new package. Legacy 0.223.0 already uses stable HTTP attributes, older versions need their semconv migration notes. |
+| `BrowserNavigationInstrumentation` | `NavigationInstrumentation`, `NavigationInstrumentationConfig` | Use `experimental/navigation`, retain navigation options, and update scope filters to `@opentelemetry/browser-instrumentation/navigation`. Events remain logs; test canceled and successful navigations. |
+| Navigation `defaultSanitizeUrl` export | Application-provided `sanitizeUrl` | Remove the helper import, it is not a public export here. |
+| `ExceptionInstrumentation`, `GlobalErrorsInstrumentationConfig` | `ErrorsInstrumentation`, `ErrorsInstrumentationConfig` | Use `experimental/errors` and scope `@opentelemetry/browser-instrumentation/errors`. Keep the `applyCustomAttributes` hook; exceptions remain log events. |
+| User-interaction spans, arbitrary `eventNames`, `shouldPreventSpanCreation` | `UserActionInstrumentation` click log events | Use `experimental/user-action`; `autoCapturedActions` accepts only click (empty disables capture). Use `applyCustomLogRecordData` for customization and separately retain needed event coverage or interaction tracing/context propagation. |
+| `documentLoad`, `documentFetch`, `resourceFetch` span hierarchy | Navigation, navigation-timing and resource-timing log events | Configure logs and evaluate [document-load gaps](#document-load-timing-and-trace-gaps). Keep legacy instrumentation for required spans, customization, server `<meta name="traceparent">` linkage or missing paint coverage while #327 is open. |
+| `documentLoad` duration (`fetchStart` to `loadEventEnd`) | Difference of navigation-timing fields on the same record | Subtract `browser.resource_timing.fetch_start` from `browser.navigation_timing.load_event_end` only when the end is positive and at least the start. Values are milliseconds; incomplete records can have zero end time. |
+| Load-span paint events / individual long-task spans | Web Vitals log events, including FCP, with no direct replacement | Do not treat `WebVitalsInstrumentation` as equivalent paint or long-task coverage. Keep required legacy measurements or choose another approach. |
+| `@opentelemetry/plugin-react-load` | No replacement here | The package was deprecated and removed; choose component-load instrumentation separately. |
+| `getWebAutoInstrumentations()` | Explicit instrumentation array | Choose each migration before removing the legacy helper; it enabled document-load, fetch, user-interaction and XHR. |
+| `WebTracerProvider` startup | Optional `startBrowserSdk()` / `quickStartBrowserSdk()` or signal-specific startup | These are initialization functions, not renamed provider classes. Existing compatible providers can stay. Add a logger provider and logs pipeline for event instrumentations; avoid a second global provider for the same signal. |
+| Resource service attributes and SDK configuration | `serviceName`, `serviceVersion`, `resourceAttributes`, signal options | Transfer sampler, limits and processors into `traces`. Custom `processors` replace default OTLP processing; explicit signal `exportConfig` also adds OTLP. See [SDK setup](#sdk-setup). |
+| Zone context manager and existing propagators | Synchronous default context manager; W3C Trace Context and Baggage defaults | Keep needed Zone dependencies and pass `traces.contextManager` / `traces.propagators`. Verify async parentage, the default does not carry arbitrary async context. |
+| Exporter endpoints behind a path prefix | Full signal URLs in `logs.exportConfig` / `traces.exportConfig` | Use full URLs to retain prefixes. Quick-start and root `exportConfig.url` replace the path with `/v1/logs` and `/v1/traces`; exclude telemetry traffic and check `invalidConfig`. |
+| Existing metrics SDK | No metrics provider in Browser SDK | Keep independently configured metrics. |
+| `@opentelemetry/web-common` session utilities | `@opentelemetry/browser-sdk/session` | Move supported session API imports. Old network-timing and DOM utilities are not re-exported; see [session management](./session-management.md). |
+| `@opentelemetry/opentelemetry-browser-detector` | No exported Browser SDK detector subpath yet | Keep the existing detector as needed; #458 tracks its move and automatic SDK integration is a separate discussion. |
+
 ## Package and import mapping
 
 All new instrumentations come from `@opentelemetry/browser-instrumentation`.
