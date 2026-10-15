@@ -233,6 +233,25 @@ describe('ConsoleInstrumentation', () => {
       expect(logs[0]?.body).toBe(`Failed: ${error.stack} {"retry":false}`);
     });
 
+    it.each(['stack', 'name', 'message'])(
+      'should fall back to JSON when Error %s throws',
+      (property) => {
+        const error = new Error('failed');
+        Object.defineProperty(error, 'stack', {
+          value: '',
+          configurable: true,
+        });
+        Object.defineProperty(error, property, {
+          get() {
+            throw new Error('unreadable property');
+          },
+        });
+
+        expect(() => console.error(error)).not.toThrow();
+        expect(inMemoryExporter.getFinishedLogRecords()[0]?.body).toBe('{}');
+      },
+    );
+
     it('should serialize objects as JSON', () => {
       console.log({ name: 'test', value: 42 });
 

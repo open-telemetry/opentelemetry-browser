@@ -34,7 +34,11 @@ function defaultMessageSerializer(args: unknown[]): string {
   return args
     .map((arg) => {
       if (arg instanceof Error) {
-        return arg.stack || `${arg.name}: ${arg.message}`;
+        try {
+          return arg.stack || `${arg.name}: ${arg.message}`;
+        } catch {
+          // Fall back to JSON if an Error property cannot be read.
+        }
       }
       if (typeof arg === 'object' && arg !== null) {
         try {
