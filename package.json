@@ -42,16 +42,16 @@
     "@types/jsdom": "30.0.0",
     "@vitest/browser-playwright": "5.0.3",
     "@vitest/coverage-v8": "5.0.3",
-    "eslint": "10.11.0",
-    "eslint-plugin-baseline-js": "0.7.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-baseline-js": "0.7.4",
     "eslint-plugin-yet-another-license-header": "1.0.0",
-    "jsdom": "30.1.1",
-    "lefthook": "2.1.16",
+    "jsdom": "30.1.2",
+    "lefthook": "2.2.1",
     "publint": "0.3.25",
     "tsdown": "0.23.0",
-    "turbo": "2.11.6",
-    "typescript-eslint": "8.71.0",
-    "vite": "8.3.2",
+    "turbo": "2.11.7",
+    "typescript-eslint": "8.71.1",
+    "vite": "8.3.4",
     "vitest": "5.0.3"
   },
   "peerDependencies": {
@@ -66,7 +66,7 @@
   "commitlint": {
     "extends": "@commitlint/config-conventional"
   },
-  "packageManager": "npm@11.16.0",
+  "packageManager": "npm@12.2.0+sha512.66c2632a94e796649738b2d7894d710c2cc2e1696893823066687f6b0d8a52e5f2b54eeaeaa32ffdc513ecca1e49ff794a5c2ec3f9515d879f1b3182b291cf35",
   "devEngines": {
     "packageManager": {
       "name": "npm",
@@ -79,6 +79,7 @@
     }
   },
   "allowScripts": {
-    "lefthook@2.1.8": true
+    "fsevents": false,
+    "lefthook@2.2.1": true
   }
 }

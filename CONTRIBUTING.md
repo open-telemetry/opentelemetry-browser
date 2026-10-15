@@ -16,6 +16,12 @@ nvm install
 nvm use
 ```
 
+Then install the latest npm:
+
+```sh
+npm install -g npm@latest
+```
+
 ## Quick Start
 
 1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this page. 
@@ -29,10 +35,13 @@ nvm use
     git remote add upstream https://github.com/open-telemetry/opentelemetry-browser.git
     ```
 
-3. Build and run tests
+3. Install dependencies, set up git hooks, then build and run tests
+
+    `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run install scripts. Run `npm run prepare` once to install the git hooks.
 
     ```sh
     npm ci
+    npm run prepare
     npm run build
     npm test
     ```
