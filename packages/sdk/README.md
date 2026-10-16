@@ -128,6 +128,7 @@ code related to other signals.
 | ------------------------------- | -------------------------------------------------------------- |
 | `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
 | `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
+| `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes |
 
 
 #### Initialize logs SDK
@@ -239,6 +240,29 @@ const sdk = quickStartBrowserSdk({
 
 Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
 call.
+
+### Browser resource detection
+
+The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
+detector for browser attributes. It detects the user agent and preferred
+language, plus platform, brands, and mobile status when the User-Agent Client
+Hints API is available.
+
+```javascript
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
+import {
+  detectResources,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+
+const resource = resourceFromAttributes({
+  'service.name': 'my-app',
+}).merge(
+  detectResources({
+    detectors: [browserDetector],
+  }),
+);
+```
 
 ## Configuration
 
