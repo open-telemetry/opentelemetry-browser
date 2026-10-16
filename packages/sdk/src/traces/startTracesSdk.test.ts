@@ -125,6 +125,35 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(false);
   });
 
+  it('should disable a context manager that is dropped by an existing registration', async () => {
+    // Arrange
+    const disable = vi.fn();
+    const fakeManager: ContextManager = {
+      active: () => ROOT_CONTEXT,
+      with: (_ctx, fn, thisArg, ...args) => fn.call(thisArg, ...args),
+      bind: (_ctx, target) => target,
+      enable: vi.fn(function (this: ContextManager) {
+        return this;
+      }),
+      disable: vi.fn(function (this: ContextManager) {
+        disable();
+        return this;
+      }),
+    };
+    context.setGlobalContextManager({
+      ...fakeManager,
+      enable: () => fakeManager,
+      disable: () => fakeManager,
+    });
+
+    // Act
+    tracesSdk = startTracesSdk({ contextManager: fakeManager });
+
+    // Assert: an enabled manager that nothing registered still patches the
+    // async APIs, and `shutdown()` does not disable it
+    expect(disable).toHaveBeenCalled();
+  });
+
   it('should use the default configuration for exporters', async () => {
     // Act
     tracesSdk = startTracesSdk({

@@ -108,7 +108,12 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
 
   const contextManager = config?.contextManager ?? getDefaultContextManager();
   contextManager.enable();
-  context.setGlobalContextManager(contextManager);
+  if (!context.setGlobalContextManager(contextManager)) {
+    // Undo `enable()`: a manager that is not registered still patches the
+    // async APIs, and `shutdown()` below never disables it. The API already
+    // logs the conflict
+    contextManager.disable();
+  }
 
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;
