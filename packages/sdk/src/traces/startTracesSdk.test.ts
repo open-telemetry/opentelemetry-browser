@@ -42,6 +42,7 @@ describe('startTracesSdk', () => {
   const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
   let tracesSdk: WebSdk;
 
   // NOTE: we mock the registration of the tracer provider because
@@ -54,6 +55,7 @@ describe('startTracesSdk', () => {
   afterEach(async () => {
     fetchSpy.mockClear();
     consoleDirSpy.mockClear();
+    diagWarnSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
     context.disable();
@@ -272,6 +274,11 @@ describe('startTracesSdk', () => {
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
+    expect(diagWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'The traces config sets `processors` and no `exportConfig`',
+      ),
+    );
   });
 
   it('should add a BatchSpanProcessor into the list if exporter config is set', async () => {
@@ -302,6 +309,7 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+    expect(diagWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should add a SimpleSpanProcessor into the list if log level is DEBUG', () => {

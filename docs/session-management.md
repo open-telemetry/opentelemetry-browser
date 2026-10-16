@@ -49,20 +49,19 @@ await sessionManager.start();
 
 startBrowserSdk({
   serviceName: 'my-service',
+  exportConfig: { url: 'https://your-collector.example.com' },
   traces: {
     processors: [createSessionSpanProcessor(sessionManager)],
-    exportConfig: { url: 'https://your-collector.example.com/v1/traces' },
   },
   logs: {
     processors: [createSessionLogRecordProcessor(sessionManager)],
-    exportConfig: { url: 'https://your-collector.example.com/v1/logs' },
   },
 });
 ```
 
-Note that `exportConfig` is set per signal. When a signal is given custom `processors`, the SDK
-does not append an OTLP exporter unless that signal also has its own `exportConfig`, so without
-it the example above would set `session.id` but never export anything.
+When a signal is given custom `processors`, the SDK appends an OTLP exporter only when there is an
+`exportConfig`, either at the top level or in the signal config. Without one, the example above
+would set `session.id` but never export anything, and the SDK logs a warning.
 
 **Session processors must be registered before the export processors.** See [Registering session
 processors](#registering-session-processors) below for why, and for a full example with explicit

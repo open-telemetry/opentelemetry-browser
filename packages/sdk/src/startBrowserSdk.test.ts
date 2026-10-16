@@ -6,6 +6,7 @@
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/instrumentation';
+import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
@@ -59,12 +60,29 @@ function createFakeInstrumentation(): Instrumentation {
   };
 }
 
+function createNoopLogProcessor(): LogRecordProcessor {
+  return {
+    onEmit: () => {},
+    forceFlush: () => Promise.resolve(),
+    shutdown: () => Promise.resolve(),
+  };
+}
+
+function findWarning(spy: MockInstance, text: string) {
+  return spy.mock.calls.find((args) => String(args[0]).includes(text));
+}
+
 describe('startBrowserSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
   let browserSdk: WebSdk;
+
+  beforeEach(() => {
+    diagWarnSpy.mockClear();
+  });
 
   // NOTE: we mock the registration of the logger/tracer provider because
   // the APIs only allow to register once. With the mock we can use
@@ -304,6 +322,177 @@ describe('startBrowserSdk', () => {
     // Assert
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
+  });
+
+  it('should propagate the root export config to a signal that sets processors', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [createNoopLogProcessor()],
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy.mock.calls.map((args) => args[0]).sort()).toEqual([
+      'http://otlp-signal-endpoint:4318/v1/logs',
+      'http://otlp-signal-endpoint:4318/v1/traces',
+    ]);
+    expect(findWarning(diagWarnSpy, '`processors`')).toBeUndefined();
+  });
+
+  it('should propagate a root export set with headers only to a signal that sets processors', async () => {
+    // Act: no root `url`, but setting headers is still configuring an export
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        headers: { 'x-api-key': 'secret' },
+      },
+      logs: {
+        processors: [createNoopLogProcessor()],
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('http://localhost:4318/v1/logs');
+    expect(fetchSpy.mock.calls[0]?.[1]).containSubset({
+      headers: { 'x-api-key': 'secret' },
+    });
+  });
+
+  it('should not export a signal that sets processors when no root export config was set', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      logs: {
+        processors: [createNoopLogProcessor()],
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: the default endpoint was never asked for, so the logs SDK warns instead
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(
+      findWarning(diagWarnSpy, 'The logs config sets `processors`'),
+    ).toBeDefined();
+  });
+
+  it('should propagate the root batch config to a signal that sets processors and exportConfig', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {
+        processors: [createNoopLogProcessor()],
+        exportConfig: {},
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: the 1000ms default delay for logs would not have exported yet
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      'http://otlp-signal-endpoint:4318/v1/logs',
+    );
+  });
+
+  it('should propagate the root export headers to a signal that sets its own exportConfig', async () => {
+    // Act
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+        headers: { 'x-api-key': 'secret' },
+      },
+      logs: {
+        exportConfig: {},
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(
+      'http://otlp-signal-endpoint:4318/v1/logs',
+    );
+    expect(fetchSpy.mock.calls[0]?.[1]).containSubset({
+      headers: { 'x-api-key': 'secret' },
+    });
+  });
+
+  it('should not send the root export headers to a signal with its own URL', async () => {
+    // Act: the signal URL may be another host, so root credentials must stay out
+    browserSdk = startBrowserSdk({
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+        headers: { 'x-api-key': 'secret' },
+      },
+      logs: {
+        exportConfig: { url: 'http://other-host:4318/v1/logs' },
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('http://other-host:4318/v1/logs');
+    expect(fetchSpy.mock.calls[0]?.[1]).not.containSubset({
+      headers: { 'x-api-key': 'secret' },
+    });
+  });
+
+  it('should export each signal to its own URL when restarted with the same config', async () => {
+    // Arrange: the SDK writes the resolved URLs back into this object
+    const config = {
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+      exportConfig: {
+        url: 'http://otlp-signal-endpoint:4318',
+      },
+      logs: {},
+      traces: {},
+    };
+    await startBrowserSdk(config).shutdown();
+    logs.disable();
+    trace.disable();
+    fetchSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk(config);
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(fetchSpy.mock.calls.map((args) => args[0]).sort()).toEqual([
+      'http://otlp-signal-endpoint:4318/v1/logs',
+      'http://otlp-signal-endpoint:4318/v1/traces',
+    ]);
   });
 });
 

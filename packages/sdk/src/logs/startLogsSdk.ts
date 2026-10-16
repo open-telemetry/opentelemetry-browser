@@ -57,6 +57,11 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
 
   if (config?.processors) {
     processors.push(...config.processors);
+    if (!config.exportConfig) {
+      diag.warn(
+        'The logs config sets `processors` and no `exportConfig`, so no OTLP exporter is added. Set `exportConfig` to also export over OTLP.',
+      );
+    }
   }
   if (!config?.processors || config?.exportConfig) {
     const logsEndpoint =

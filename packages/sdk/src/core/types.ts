@@ -73,10 +73,10 @@ export interface BatchProcessorConfig {
 }
 
 /**
- * The common configuration properties regardles of the SDK being
+ * The common configuration properties regardless of the SDK being
  * started. Any signal SDK should accept it and when SDKs are combined
  * these properties belong to the root configuration and not to
- * the sginal specific config.
+ * the signal specific config.
  */
 export interface CommonConfig {
   /**
@@ -127,38 +127,49 @@ export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
 /**
  * Root configuration options when SDKs are combined into a single
  * one. This type is enhanced
- * by the `combineSdks` function by adding a key for each
+ * by `startBrowserSdk` by adding a key for each
  * signal used (logs, traces). Do not add a "logs" or "traces" key
  * here to avoid type collision.
  */
 export type RootConfig = CommonConfig & {
   /**
    * Configuration for processors. If defined it will be applied to
-   * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless signal
-   * specific configuration is set for the signal.
+   * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless the signal sets
+   * its own `batchProcessorConfig`. It follows any batch processor the SDK
+   * creates, including the one a signal gets from its own `exportConfig`.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
    * Configuration for exporters. If defined it will be applied to the
-   * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`
-   * unless signal specific configuration is set for the signal.
+   * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`. A
+   * signal `exportConfig` with no `url` inherits the root options it does not
+   * set, such as `headers`, and uses the root URL with the signal path. A
+   * signal `exportConfig` with its own `url` uses none of the root options, so
+   * root credentials are not sent to another host. A signal that sets
+   * `processors` and no `exportConfig` gets the root config only when you set
+   * it, and adds no OTLP exporter otherwise.
    */
   exportConfig?: ExportConfig;
   // TODO: to be discussed in Browser SIG
   // Basic options that could translate to more complex ones
   // in specific signals like
   // 1. `sampleRate` becomes a TraceIdRatioBasedSampler for traces
-  //    and maybe somethign else for other signals??? (sampling logs?)
+  //    and maybe something else for other signals??? (sampling logs?)
   // sampleRate?: number;
 };
 
 export type LogsConfig = CommonConfig & {
   /**
-   * Configuration for the LogRecord processor.
+   * Configuration for the `BatchLogRecordProcessor`, used whenever one is
+   * created for this signal. Its exporter takes the default configuration or
+   * the one set in the `exportConfig` option.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
-   * Configuration for the LogRecord exporter.
+   * Configuration for the LogRecord exporter. Setting this config creates a
+   * `BatchLogRecordProcessor` even when `processors` is set; see `processors`
+   * for the full matrix. The processor takes the defaults for batch and queue
+   * size, export schedule and timeouts unless `batchProcessorConfig` is set.
    */
   exportConfig?: ExportConfig;
   /**
@@ -170,8 +181,10 @@ export type LogsConfig = CommonConfig & {
    * used instead of the default OTLP `BatchLogRecordProcessor`. To also export
    * over OTLP alongside them, additionally set `exportConfig` — this appends a
    * `BatchLogRecordProcessor` (tuned by `batchProcessorConfig`). When
-   * `exportConfig` is omitted, no OTLP exporter is added and
-   * `batchProcessorConfig` has no effect.
+   * `exportConfig` is omitted, no OTLP exporter is added,
+   * `batchProcessorConfig` has no effect, and the SDK logs a warning. In
+   * `startBrowserSdk`, a root `exportConfig` you set counts as this
+   * `exportConfig`.
    */
   processors?: LogRecordProcessor[];
 };
@@ -179,7 +192,7 @@ export type LogsConfig = CommonConfig & {
 export type TracesConfig = CommonConfig & {
   // Context and Propagation
   /**
-   * Manager use to carry context accross function boundaries
+   * Manager used to carry context across function boundaries
    *
    * @defaultValue undefined
    */
@@ -192,23 +205,22 @@ export type TracesConfig = CommonConfig & {
    */
   propagators?: TextMapPropagator[];
   /**
-   * Sampler to be used by tracer to decide if a Span os sampled or not.
+   * Sampler to be used by tracer to decide if a Span is sampled or not.
    *
    * @defaultValue undefined
    */
   sampler?: Sampler;
   /**
-   * Configuration for the Span processor. Setting this
-   * config will enable a `BatchSpanProcessor` whith an exporter
-   * that has the default configuration or the one set in `exportConfig`
-   * option.
+   * Configuration for the `BatchSpanProcessor`, used whenever one is created for
+   * this signal. Its exporter takes the default configuration or the one set in
+   * the `exportConfig` option.
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
-   * Configuration for the Span exporter. Setting this
-   * config will enable a `BatchSpanProcessor` whith the default
-   * options for batch and queue size and export schedule and timeouts
-   * unless the `batchProcessorConfig` option is set.
+   * Configuration for the Span exporter. Setting this config creates a
+   * `BatchSpanProcessor` even when `processors` is set; see `processors` for
+   * the full matrix. The processor takes the defaults for batch and queue
+   * size, export schedule and timeouts unless `batchProcessorConfig` is set.
    */
   exportConfig?: ExportConfig;
   /**
@@ -220,8 +232,9 @@ export type TracesConfig = CommonConfig & {
    * instead of the default OTLP `BatchSpanProcessor`. To also export over OTLP
    * alongside them, additionally set `exportConfig` — this appends a
    * `BatchSpanProcessor` (tuned by `batchProcessorConfig`). When `exportConfig`
-   * is omitted, no OTLP exporter is added and `batchProcessorConfig` has no
-   * effect.
+   * is omitted, no OTLP exporter is added, `batchProcessorConfig` has no
+   * effect, and the SDK logs a warning. In `startBrowserSdk`, a root
+   * `exportConfig` you set counts as this `exportConfig`.
    *
    * @defaultValue undefined
    */
