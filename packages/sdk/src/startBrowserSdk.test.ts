@@ -244,6 +244,69 @@ describe('startBrowserSdk', () => {
     });
   });
 
+  it('should keep the path of the root export URL when building per-signal URLs', async () => {
+    // The OTLP/HTTP exporter spec builds per-signal URLs by appending the
+    // signal path to the endpoint's path, so a collector behind a proxy path
+    // keeps its prefix: exporting to http://otlp-path.example:8080/otlp-http
+    // must NOT drop the /otlp-http prefix from the per-signal URLs.
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'http://otlp-path.example:8080/otlp-http',
+      },
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-path.example:8080/otlp-http/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) =>
+          args[0] === 'http://otlp-path.example:8080/otlp-http/v1/traces',
+      ),
+    ).toBeDefined();
+  });
+
+  it('should tolerate a trailing slash on the root export URL path', async () => {
+    browserSdk = startBrowserSdk({
+      exportConfig: {
+        url: 'http://otlp-path.example:8080/otlp-http/',
+      },
+      batchProcessorConfig: {
+        scheduledDelayMillis: SCHEDULE_DELAY,
+      },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert: both spellings of the base URL produce the same per-signal
+    // URLs, without a double slash
+    expect(browserSdk.invalidConfig).toBeFalsy();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-path.example:8080/otlp-http/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) =>
+          args[0] === 'http://otlp-path.example:8080/otlp-http/v1/traces',
+      ),
+    ).toBeDefined();
+  });
+
   it('should register instrumentations on start and disable them on shutdown', async () => {
     // Arrange
     const instrumentation = createFakeInstrumentation();
@@ -400,6 +463,33 @@ describe('quickStartBrowserSdk', () => {
     // Console output belongs to DEBUG and above. Without this, making the
     // console processors unconditional would leave every test green.
     expect(consoleDirSpy).not.toHaveBeenCalled();
+  });
+
+  it('should keep the path of the quick start exportUrl too', async () => {
+    // The root exportUrl is the OTLP/HTTP base endpoint, so its path is a
+    // prefix of the per-signal URLs and must not be dropped.
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'http://otlp-path.example:8080/otlp-http',
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    // NOTE: quick start uses batch processors with default (long) delays,
+    // so we flush via shutdown instead of waiting for the scheduled export
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) => args[0] === 'http://otlp-path.example:8080/otlp-http/v1/logs',
+      ),
+    ).toBeDefined();
+    expect(
+      fetchSpy.mock.calls.find(
+        (args) =>
+          args[0] === 'http://otlp-path.example:8080/otlp-http/v1/traces',
+      ),
+    ).toBeDefined();
   });
 
   it('should propagate service name and version as resource attributes', async () => {

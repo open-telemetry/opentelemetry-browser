@@ -283,6 +283,23 @@ Sets the value of the [service.version](https://github.com/open-telemetry/semant
 
 Key-value pairs to be used as resource attributes.
 
+#### exportConfig
+
+Object containing configuration options for the HTTP exporters. These options
+are:
+
+- `url`: Base endpoint for the OTLP/HTTP exporters. The SDK appends the
+  per-signal path to it, keeping any path of its own: with
+  `url: 'https://collector.mycompany.com/otlp-http'` the logs and traces
+  exporters send to `https://collector.mycompany.com/otlp-http/v1/logs` and
+  `https://collector.mycompany.com/otlp-http/v1/traces` respectively.
+- `headers`: Key-value pairs to be used as headers associated with HTTP
+  requests.
+
+Each signal can set its own `exportConfig` (see the signal configuration
+sections). A signal URL is used as-is, without the per-signal path being
+added.
+
 ### Logs configuration
 
 #### processorConfig
