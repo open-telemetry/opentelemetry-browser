@@ -170,6 +170,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   }
 
   return {
+    // A signal that refused to start already logged the reason, but the caller
+    // only holds the combined SDK
+    invalidConfig: sdks.some((sdk) => sdk.invalidConfig) || undefined,
     shutdown() {
       deregisterInstrumentations?.();
       return Promise.allSettled(sdks.map((s) => s.shutdown())).then(

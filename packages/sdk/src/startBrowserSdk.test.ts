@@ -305,6 +305,18 @@ describe('startBrowserSdk', () => {
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
   });
+
+  it('should report invalidConfig when a signal refuses to start', async () => {
+    // Act: an empty `processors` array leaves traces with no processor at all
+    browserSdk = startBrowserSdk({
+      traces: {
+        processors: [],
+      },
+    });
+
+    // Assert
+    expect(browserSdk.invalidConfig).toStrictEqual(true);
+  });
 });
 
 describe('quickStartBrowserSdk', () => {
