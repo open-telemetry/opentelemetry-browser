@@ -10,6 +10,7 @@ import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
 import type {
   CommonConfig,
+  ExportConfig,
   LogsConfig,
   RemoveCommonProps,
   RootConfig,
@@ -35,6 +36,54 @@ const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
 };
+
+type ResolveOptions = {
+  signalConfig: LogsConfig | TracesConfig;
+  rootConfig: RootConfig;
+  rootExportIsFromUser: boolean;
+  endpointUrl: URL;
+  signal: 'logs' | 'traces';
+};
+
+/**
+ * Builds the config a signal starts with, as a new object: writing into the
+ * user's config would leak one signal's export URL into the other on restart.
+ */
+function resolveSignalConfig<T extends LogsConfig | TracesConfig>(
+  options: ResolveOptions & { signalConfig: T },
+): T {
+  const { signalConfig, rootConfig } = options;
+  return {
+    ...signalConfig,
+    logLevel: rootConfig.logLevel,
+    resourceAttributes: rootConfig.resourceAttributes,
+    batchProcessorConfig:
+      signalConfig.batchProcessorConfig ?? rootConfig.batchProcessorConfig,
+    exportConfig: resolveExportConfig(options),
+  };
+}
+
+function resolveExportConfig({
+  signalConfig,
+  rootConfig,
+  rootExportIsFromUser,
+  endpointUrl,
+  signal,
+}: ResolveOptions): ExportConfig | undefined {
+  const ownExport = signalConfig.exportConfig;
+  // The URL may be another host, so the root headers (usually credentials) stay out
+  if (ownExport?.url) {
+    return ownExport;
+  }
+  // The processors may already export, so only an export the user set is added.
+  // Without one, the signal SDK warns
+  if (!ownExport && signalConfig.processors && !rootExportIsFromUser) {
+    return undefined;
+  }
+  const url = new URL(endpointUrl.href);
+  url.pathname = `/v1/${signal}`;
+  return { ...rootConfig.exportConfig, ...ownExport, url: url.href };
+}
 
 /**
  * Combination of all singal SDKs into one. A shorthand for users to
@@ -67,7 +116,8 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       rootConfig.serviceVersion;
   }
 
-  // Export
+  // Read before the default URL is applied. Headers alone count as setting one
+  const rootExportIsFromUser = !!config?.exportConfig;
   rootConfig.exportConfig = {
     url: DEFAULT_OTLP_ENDPOINT,
     ...rootConfig.exportConfig,
@@ -102,64 +152,25 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     }
   }
 
-  // Start logs if configured
-  if (logsConfig) {
-    const isGenericEndpoint = !logsConfig.exportConfig?.url;
-
-    // Set the logLevel
-    logsConfig.logLevel = rootConfig.logLevel;
-
-    // Propagate root configs to the signal only when it has no custom
-    // processors. A signal with its own processors manages its own exporter,
-    // so the root exportConfig / batchProcessorConfig are not pushed down —
-    // the signal's own exportConfig, if any, is still honored downstream.
-    if (!logsConfig.processors) {
-      if (!logsConfig.batchProcessorConfig) {
-        logsConfig.batchProcessorConfig = rootConfig.batchProcessorConfig || {};
-      }
-      if (!logsConfig.exportConfig) {
-        logsConfig.exportConfig = rootConfig.exportConfig || {};
-      }
-    }
-
-    // Set the path if endpoint comes from general config
-    if (isGenericEndpoint && logsConfig.exportConfig) {
-      endpointUrl.pathname = '/v1/logs';
-      logsConfig.exportConfig.url = endpointUrl.href;
-    }
-    logsConfig.resourceAttributes = rootConfig.resourceAttributes;
-    sdks.push(startLogsSdk(logsConfig));
-  }
-
-  // Start traces if configured
-  if (tracesConfig) {
-    const isGenericEndpoint = !tracesConfig.exportConfig?.url;
-
-    // Set the logLevel
-    tracesConfig.logLevel = rootConfig.logLevel;
-
-    // Propagate root configs to the signal only when it has no custom
-    // processors. A signal with its own processors manages its own exporter,
-    // so the root exportConfig / batchProcessorConfig are not pushed down —
-    // the signal's own exportConfig, if any, is still honored downstream.
-    if (!tracesConfig.processors) {
-      if (!tracesConfig.batchProcessorConfig) {
-        tracesConfig.batchProcessorConfig =
-          rootConfig.batchProcessorConfig || {};
-      }
-      if (!tracesConfig.exportConfig) {
-        tracesConfig.exportConfig = rootConfig.exportConfig || {};
-      }
-    }
-
-    // Set the path if endpoint comes from general config
-    if (isGenericEndpoint && tracesConfig.exportConfig) {
-      endpointUrl.pathname = '/v1/traces';
-      tracesConfig.exportConfig.url = endpointUrl.href;
-    }
-    tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
-    sdks.push(startTracesSdk(tracesConfig));
-  }
+  const shared = { rootConfig, rootExportIsFromUser, endpointUrl };
+  sdks.push(
+    startLogsSdk(
+      resolveSignalConfig({
+        signalConfig: logsConfig,
+        signal: 'logs',
+        ...shared,
+      }),
+    ),
+  );
+  sdks.push(
+    startTracesSdk(
+      resolveSignalConfig({
+        signalConfig: tracesConfig,
+        signal: 'traces',
+        ...shared,
+      }),
+    ),
+  );
 
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;

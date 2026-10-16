@@ -61,6 +61,11 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
 
   if (config?.processors) {
     spanProcessors.push(...config.processors);
+    if (!config.exportConfig) {
+      diag.warn(
+        'The traces config sets `processors` and no `exportConfig`, so no OTLP exporter is added. Set `exportConfig` to also export over OTLP.',
+      );
+    }
   }
   if (!config?.processors || config?.exportConfig) {
     const tracesEndpoint =

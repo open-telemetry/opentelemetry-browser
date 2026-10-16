@@ -33,6 +33,7 @@ describe('startLogsSdk', () => {
   const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
   let logsSdk: WebSdk;
 
   // NOTE: we mock the registration of the logger provider because
@@ -45,6 +46,7 @@ describe('startLogsSdk', () => {
   afterEach(async () => {
     fetchSpy.mockClear();
     consoleDirSpy.mockClear();
+    diagWarnSpy.mockClear();
     await logsSdk?.shutdown();
     logs.disable();
   });
@@ -262,6 +264,11 @@ describe('startLogsSdk', () => {
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
+    expect(diagWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'The logs config sets `processors` and no `exportConfig`',
+      ),
+    );
   });
 
   it('should add a BatchLogRecordProcessor into the list if exporter config is set', async () => {
@@ -293,6 +300,7 @@ describe('startLogsSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+    expect(diagWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should add a SimpleLogRecordProcessor with console exporter if the log level is DEBUG', () => {
