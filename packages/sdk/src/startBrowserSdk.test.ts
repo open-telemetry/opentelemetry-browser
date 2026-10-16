@@ -60,25 +60,40 @@ function createFakeInstrumentation(): Instrumentation {
 }
 
 describe('startBrowserSdk', () => {
-  const response = { ok: true, json: async () => ({ ok: true }) } as Response;
+  // `status` is required, or the OTLP exporter reports every export as failed
+  const response = {
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true }),
+  } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
   const diagDebugSpy = vi.spyOn(diag, 'debug');
-  let browserSdk: WebSdk;
+  let browserSdk: WebSdk | undefined;
 
   // NOTE: we mock the registration of the logger/tracer provider because
   // the APIs only allow to register once. With the mock we can use
   // a dedicated provider for the test
   afterAll(() => {
     fetchSpy.mockRestore();
+    diagErrorSpy.mockRestore();
+    diagDebugSpy.mockRestore();
   });
   afterEach(async () => {
-    await browserSdk?.shutdown();
-    fetchSpy.mockClear();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
+    // `finally` so a failed shutdown still fails the test but does not leak
+    // fetch calls or OTel globals into the next test.
+    try {
+      await browserSdk?.shutdown();
+    } finally {
+      browserSdk = undefined;
+      fetchSpy.mockClear();
+      diagErrorSpy.mockClear();
+      diagDebugSpy.mockClear();
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
+    }
   });
 
   it('should not start disabled by configuration', async () => {
@@ -186,6 +201,7 @@ describe('startBrowserSdk', () => {
     // Assert
     expect(browserSdk.invalidConfig).toBeFalsy();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy).not.toHaveBeenCalled();
   });
 
   it('should use the default configuration for batch processor', async () => {
@@ -203,6 +219,7 @@ describe('startBrowserSdk', () => {
     // Assert
     expect(browserSdk.invalidConfig).toBeFalsy();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy).not.toHaveBeenCalled();
     expect(
       fetchSpy.mock.calls.find(
         (args) => args[0] === 'http://localhost:4318/v1/logs',
@@ -233,6 +250,7 @@ describe('startBrowserSdk', () => {
 
     // Assert
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy).not.toHaveBeenCalled();
     fetchSpy.mock.calls.forEach((args) => {
       expect(args[1]).containSubset({
         method: 'POST',
@@ -265,8 +283,6 @@ describe('startBrowserSdk', () => {
 
     // Act
     await browserSdk.shutdown();
-    // Prevent the afterEach hook from shutting down the same SDK again
-    browserSdk = { shutdown: () => Promise.resolve() };
 
     // Assert: shutting down the SDK disables the instrumentations
     expect(instrumentation.disable).toHaveBeenCalled();
@@ -323,7 +339,7 @@ describe('quickStartBrowserSdk', () => {
   let consoleDirSpy: MockInstance;
   let diagDebugSpy: MockInstance;
   let diagErrorSpy: MockInstance;
-  let browserSdk: WebSdk;
+  let browserSdk: WebSdk | undefined;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
@@ -332,22 +348,20 @@ describe('quickStartBrowserSdk', () => {
     diagErrorSpy = vi.spyOn(diag, 'error');
   });
   afterEach(async () => {
-    // A test may already have shut the SDK down to flush its batch
-    // processors; ignore the resulting "already shutdown" error so the
-    // provider globals are always reset for the next test.
+    // Most tests already shut the SDK down. A second `shutdown()` returns the
+    // first result, not an "already shut down" error, so do not swallow it.
     try {
       await browserSdk?.shutdown();
-    } catch {
-      /* already shut down within the test */
+    } finally {
+      browserSdk = undefined;
+      // Unlike `mockRestore()`, this does not throw if `beforeEach` failed
+      // before creating every spy
+      vi.restoreAllMocks();
+      logs.disable();
+      trace.disable();
+      context.disable();
+      propagation.disable();
     }
-    fetchSpy.mockRestore();
-    consoleDirSpy.mockRestore();
-    diagDebugSpy.mockRestore();
-    diagErrorSpy.mockRestore();
-    logs.disable();
-    trace.disable();
-    context.disable();
-    propagation.disable();
   });
 
   it('should not start when disabled by configuration', async () => {
@@ -443,6 +457,7 @@ describe('quickStartBrowserSdk', () => {
     );
     expect(logsCall).toBeDefined();
     expect(logsCall?.[1]).containSubset({
+      method: 'POST',
       headers: {
         'x-test-header': 'test-value',
       },
@@ -453,6 +468,7 @@ describe('quickStartBrowserSdk', () => {
     );
     expect(tracesCall).toBeDefined();
     expect(tracesCall?.[1]).containSubset({
+      method: 'POST',
       headers: {
         'x-test-header': 'test-value',
       },
