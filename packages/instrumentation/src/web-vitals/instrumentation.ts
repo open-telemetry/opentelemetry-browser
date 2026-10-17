@@ -52,7 +52,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     if (this._hasSubscribed) {
       return;
     }
-    this._diag.debug('Registering listeners');
+    this._diag.debug('Subscribing listeners');
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
     const subscribers = [

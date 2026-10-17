@@ -230,7 +230,7 @@ describe('WebVitalsInstrumentation', () => {
 
       const inpLog = await waitForMetric('inp');
       expect(inpLog.attributes[ATTR_WEB_VITAL_NAME]).toBe('inp');
-      // Listeners cannot be removed, so registering again on each enable would
+      // Listeners cannot be removed, so subscribing again on each enable would
       // report every metric more than once.
       await new Promise((r) => setTimeout(r, 200));
       const inpLogs = getWebVitalLogs().filter(

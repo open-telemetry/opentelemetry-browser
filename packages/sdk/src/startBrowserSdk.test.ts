@@ -390,7 +390,7 @@ describe('startBrowserSdk', () => {
     }
   });
 
-  it('should not register instrumentations when an invalid URL is provided', async () => {
+  it('should not enable instrumentations when an invalid URL is provided', async () => {
     // Arrange
     const instrumentation = createFakeInstrumentation();
 

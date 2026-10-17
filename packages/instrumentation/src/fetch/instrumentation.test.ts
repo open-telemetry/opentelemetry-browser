@@ -481,15 +481,16 @@ describe('FetchInstrumentation', () => {
   });
 
   describe('instrumentation', () => {
-    // Calling it again swaps the default instance for one with `config`.
-    const register = (config?: FetchInstrumentationConfig) => {
+    // Each call creates a new instance that wraps fetch again on top of the old
+    // wrapper. Earlier layers are disabled and pass calls through.
+    const enableWithConfig = (config?: FetchInstrumentationConfig) => {
       instrumentation?.disable();
       instrumentation = new FetchInstrumentation(config);
       instrumentation.enable();
     };
 
     beforeEach(() => {
-      register();
+      enableWithConfig();
     });
 
     afterEach(() => {
@@ -741,7 +742,7 @@ describe('FetchInstrumentation', () => {
 
     describe('with sanitizeUrl configuration', () => {
       beforeEach(() => {
-        register({ sanitizeUrl: defaultSanitizeUrl });
+        enableWithConfig({ sanitizeUrl: defaultSanitizeUrl });
       });
 
       it('should create spans for GET requests', async () => {
@@ -771,7 +772,7 @@ describe('FetchInstrumentation', () => {
     describe('with ignoreUrls configuration', () => {
       it('should not create spans for GET requests if URL matches', async () => {
         const url = getUrlForPath('/api/get');
-        register({ ignoreUrls: [url] });
+        enableWithConfig({ ignoreUrls: [url] });
         await fetch(url);
 
         // No spans to export
@@ -793,7 +794,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should not measure the size if set to false', async () => {
-        register({ measureRequestSize: false });
+        enableWithConfig({ measureRequestSize: false });
         const url = getUrlForPath('/api/post');
         await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
           r.json(),
@@ -805,7 +806,7 @@ describe('FetchInstrumentation', () => {
 
       describe('with measureRequestSize set to true', () => {
         beforeEach(() => {
-          register({ measureRequestSize: true });
+          enableWithConfig({ measureRequestSize: true });
         });
 
         it('should measure the size with URL and init object', async () => {
@@ -889,7 +890,7 @@ describe('FetchInstrumentation', () => {
 
     describe('with applyCustomAttributesOnSpan configuration', () => {
       it('should not break fetch or instrumentation of throws', async () => {
-        register({
+        enableWithConfig({
           applyCustomAttributesOnSpan: () => {
             throw new Error('boom');
           },
@@ -916,7 +917,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to set attributes on the span', async () => {
-        register({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -939,7 +940,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to acces to Request and Response', async () => {
-        register({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span, req, res) => {
             const reqHeaders = req.headers as Headers;
             const resHeaders = (res as Response).headers;
@@ -996,7 +997,7 @@ describe('FetchInstrumentation', () => {
 
       // https://github.com/open-telemetry/opentelemetry-js/pull/5281
       it('should not be able to access the response body if already consumed', async () => {
-        register({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span, _req, res) => {
             span.setAttribute('res.body.used', (res as Response).bodyUsed);
           },
@@ -1021,7 +1022,7 @@ describe('FetchInstrumentation', () => {
 
     describe('with requestHook configuration', () => {
       it('should be able to set attributes on the span', async () => {
-        register({
+        enableWithConfig({
           requestHook: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -1044,7 +1045,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a string param', async () => {
-        register({
+        enableWithConfig({
           requestHook: (span, req) => {
             const isInitObj =
               typeof req === 'object' && !(req instanceof Request);
@@ -1067,7 +1068,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a a url and RequestInit param', async () => {
-        register({
+        enableWithConfig({
           requestHook: (span, req) => {
             const isInitObj =
               typeof req === 'object' && !(req instanceof Request);
@@ -1093,7 +1094,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a Request param', async () => {
-        register({
+        enableWithConfig({
           requestHook: (span, req) => {
             span.setAttribute('is.req', req instanceof Request);
             (req as Request).headers.set('foo', 'bar');
@@ -1384,7 +1385,7 @@ describe('FetchInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            register({
+            enableWithConfig({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
@@ -1428,7 +1429,7 @@ describe('FetchInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            register({
+            enableWithConfig({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
