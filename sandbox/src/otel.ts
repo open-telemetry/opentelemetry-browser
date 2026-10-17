@@ -5,11 +5,13 @@ import { trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
 import type { TracesConfig } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import {
@@ -25,8 +27,6 @@ import {
   createSessionManager,
   createSessionSpanProcessor,
 } from '@opentelemetry/browser-sdk/session';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
 import {
   ConsoleLogRecordExporter,
   SimpleLogRecordProcessor,
@@ -147,10 +147,9 @@ export async function initOtel(
       new WebVitalsInstrumentation({ includeRawAttribution: true }),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
-        clearTimingResources: true,
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
-      new XMLHttpRequestInstrumentation({
+      new XhrInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
