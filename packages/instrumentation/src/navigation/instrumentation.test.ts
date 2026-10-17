@@ -518,6 +518,45 @@ describe('NavigationInstrumentation', () => {
       restore();
     });
 
+    it('should remove the Navigation API listener on disable', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: true,
+      });
+      registerForTest(instrumentation);
+
+      instrumentation.disable();
+      inMemoryExporter.reset();
+      stub.dispatchEvent(new Event('currententrychange'));
+
+      expect(getNavigationLogs()).toHaveLength(0);
+    });
+
+    it('should keep Navigation API mode after disable and enable', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: true,
+      });
+      registerForTest(instrumentation);
+
+      instrumentation.disable();
+      instrumentation.enable();
+      inMemoryExporter.reset();
+      stub.dispatchEvent(new Event('currententrychange'));
+
+      expect(getNavigationLogs()).toHaveLength(1);
+    });
+
     it('should record a navigation that a hook makes during the page load', () => {
       setReadyState('complete');
       const stub = new EventTarget() as EventTarget & {
