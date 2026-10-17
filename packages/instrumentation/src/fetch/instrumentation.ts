@@ -6,7 +6,7 @@
 import type { Attributes, Context, Span } from '@opentelemetry/api';
 import {
   context,
-  propagation,
+  defaultTextMapSetter,
   SpanKind,
   SpanStatusCode,
   trace,
@@ -369,21 +369,21 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         // This mutates `Request.headers` in-place, because it is read-only
         // (per https://developer.mozilla.org/en-US/docs/Web/API/Request/headers),
         // so we cannot (easily) replace it.
-        propagation.inject(ctx, options.headers, {
+        this.propagator.inject(ctx, options.headers, {
           set: (h, k, v) => h.set(k, typeof v === 'string' ? v : String(v)),
         });
       } else {
         // Otherwise, create a new Headers and a new init to avoid mutating
         // the caller's possibly re-used init and headers.
         const headers = new Headers(options.headers);
-        propagation.inject(ctx, headers, {
+        this.propagator.inject(ctx, headers, {
           set: (h, k, v) => h.set(k, typeof v === 'string' ? v : String(v)),
         });
         return { ...options, headers };
       }
     } else {
       const headers: Partial<Record<string, unknown>> = {};
-      propagation.inject(ctx, headers);
+      this.propagator.inject(ctx, headers, defaultTextMapSetter);
       if (Object.keys(headers).length > 0) {
         this._diag.debug('headers inject skipped due to CORS policy');
       }

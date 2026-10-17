@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TextMapPropagator } from '@opentelemetry/api';
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import {
   B3InjectEncoding,
@@ -1172,6 +1173,30 @@ describe('FetchInstrumentation', () => {
 
           expect(headers['foo']).toEqual('bar');
           expect(headers['content-type']).toEqual('application/json');
+        });
+      });
+
+      describe('with the propagator passed to enable()', () => {
+        it('injects with the propagator passed to enable()', async () => {
+          const fake: TextMapPropagator = {
+            inject: (_ctx, carrier, setter) =>
+              setter?.set(carrier, 'x-test', '1'),
+            extract: (ctx) => ctx,
+            fields: () => ['x-test'],
+          };
+          propagation.setGlobalPropagator(
+            new B3Propagator({ injectEncoding: B3InjectEncoding.MULTI_HEADER }),
+          );
+          onTestFinished(() => propagation.disable());
+          instrumentation?.disable();
+          instrumentation = new FetchInstrumentation();
+          enableForTest(instrumentation, { propagator: fake });
+
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url);
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['x-test']).toEqual('1');
         });
       });
 

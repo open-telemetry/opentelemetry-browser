@@ -4,13 +4,7 @@
  */
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
-import {
-  context,
-  propagation,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-} from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -279,14 +273,14 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     const shouldPropagate = sameOrigin || matchesUrl(url.href, urlsToPropagate);
 
     if (shouldPropagate) {
-      propagation.inject(ctx, xhr, {
+      this.propagator.inject(ctx, xhr, {
         set: (x, k, v) => {
           x.setRequestHeader(k, typeof v === 'string' ? v : String(v));
         },
       });
     } else {
       const headers: Partial<Record<string, unknown>> = {};
-      propagation.inject(ctx, headers, {
+      this.propagator.inject(ctx, headers, {
         set: (h, k, v) => {
           h[k] = v;
         },

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TextMapPropagator } from '@opentelemetry/api';
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { hrTimeToMilliseconds, millisToHrTime } from '@opentelemetry/core';
 import {
@@ -35,6 +36,7 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
@@ -1026,6 +1028,30 @@ describe('XhrInstrumentation', () => {
           const headers = await assertPropagationHeaders(response);
 
           expect(headers['foo']).toEqual('bar');
+        });
+      });
+
+      describe('with the propagator passed to enable()', () => {
+        it('injects with the propagator passed to enable()', async () => {
+          const fake: TextMapPropagator = {
+            inject: (_ctx, carrier, setter) =>
+              setter?.set(carrier, 'x-test', '1'),
+            extract: (ctx) => ctx,
+            fields: () => ['x-test'],
+          };
+          propagation.setGlobalPropagator(
+            new B3Propagator({ injectEncoding: B3InjectEncoding.MULTI_HEADER }),
+          );
+          onTestFinished(() => propagation.disable());
+          instrumentation?.disable();
+          instrumentation = new XhrInstrumentation();
+          enableForTest(instrumentation, { propagator: fake });
+
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await doXhrRequest({ method: 'GET', url });
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['x-test']).toEqual('1');
         });
       });
 
