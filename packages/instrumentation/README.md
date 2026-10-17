@@ -45,7 +45,7 @@ import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation
 
 const loggerProvider = new LoggerProvider({
   processors: [
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ],
 });
 logs.setGlobalLoggerProvider(loggerProvider);
@@ -502,6 +502,11 @@ From the first `enable()`, use `this.tracer`, `this.logger` and
 `this.propagator`. They come from the locked dependencies. Use
 `this.propagator` instead of the global `propagation` API, so a second SDK on
 the page can inject its own trace context.
+
+Extra subclass deps must be optional, because `startBrowserSdk` passes only
+`tracerProvider`, `loggerProvider` and `propagator`. An instance that needs
+required extra deps must be enabled by its owner, not passed to
+`startBrowserSdk`.
 
 There is `_wrap()` but no unwrap. Patches are never removed, because other
 code may have wrapped on top of ours. So a patch must check `isEnabled()`, and

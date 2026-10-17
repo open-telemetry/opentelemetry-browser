@@ -122,8 +122,8 @@ code related to other signals.
 
 | Subpath                         | Purpose                                                        |
 | ------------------------------- | -------------------------------------------------------------- |
-| `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
-| `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
+| `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — sets up logs and sets the global LoggerProvider (unless `setGlobals` is `false`) |
+| `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — sets up traces and sets the global TracerProvider (unless `setGlobals` is `false`) |
 
 
 #### Initialize logs SDK
@@ -290,6 +290,10 @@ for example when two teams each start their own SDK. The SDK then does not set
 the global tracer provider, logger provider, propagator or context manager.
 With `startBrowserSdk`, the instrumentations still get this SDK's providers and
 propagator. Default value is `true`.
+
+With `setGlobals: false` the SDK sets no context manager. Span parent and child
+links then use the context manager that another SDK on the page has set. With
+no other SDK, fetch and XHR spans have no parent.
 
 ```javascript
 startBrowserSdk({

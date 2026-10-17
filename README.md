@@ -38,7 +38,7 @@ import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/e
 
 const logProvider = new LoggerProvider({
   processors: [
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ],
 });
 logs.setGlobalLoggerProvider(logProvider);
