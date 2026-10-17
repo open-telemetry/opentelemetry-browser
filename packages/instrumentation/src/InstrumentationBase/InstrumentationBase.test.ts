@@ -6,6 +6,11 @@
 import type { TextMapPropagator } from '@opentelemetry/api';
 import { propagation, trace } from '@opentelemetry/api';
 import {
+  InMemoryLogRecordExporter,
+  LoggerProvider,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
+import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
   TracerProvider,
@@ -13,6 +18,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupTestDiagLogger } from '#utils/test';
 import { InstrumentationBase } from './InstrumentationBase.ts';
+import type { InstrumentationDeps } from './types.ts';
 
 class Probe extends InstrumentationBase {
   public initCount = 0;
@@ -30,6 +36,10 @@ class Probe extends InstrumentationBase {
 
   public emitSpan(name: string): void {
     this.tracer.startSpan(name).end();
+  }
+
+  public emitLog(body: string): void {
+    this.logger.emit({ body });
   }
 
   public exposedPropagator(): TextMapPropagator {
@@ -68,6 +78,20 @@ class AsyncInitProbe extends Probe {
     super._init();
     await Promise.resolve();
     throw this.rejection;
+  }
+}
+
+interface ExtraDeps extends InstrumentationDeps {
+  extra?: string;
+}
+
+class DepsProbe extends InstrumentationBase<Record<string, never>, ExtraDeps> {
+  constructor() {
+    super('test', '1.0.0', {});
+  }
+
+  public readExtra(): string | undefined {
+    return this.deps?.extra;
   }
 }
 
@@ -184,6 +208,35 @@ describe('InstrumentationBase', () => {
       expect(spanNames(exporter)).toEqual(['passed']);
     });
 
+    it('uses a passed loggerProvider', () => {
+      const exporter = new InMemoryLogRecordExporter();
+      const loggerProvider = new LoggerProvider({
+        processors: [new SimpleLogRecordProcessor({ exporter })],
+      });
+      const probe = new Probe();
+
+      probe.enable({ loggerProvider });
+      probe.emitLog('passed');
+
+      expect(exporter.getFinishedLogRecords().map((r) => r.body)).toEqual([
+        'passed',
+      ]);
+    });
+
+    it('deps getter exposes subclass-specific deps', () => {
+      const probe = new DepsProbe();
+
+      probe.enable({ extra: 'value' });
+
+      expect(probe.readExtra()).toBe('value');
+    });
+
+    it('tracer before the first enable() throws', () => {
+      const probe = new Probe();
+
+      expect(() => probe.emitSpan('early')).toThrow(/first enable/);
+    });
+
     it('falls back to the global proxy', () => {
       const probe = new Probe();
       probe.enable();
@@ -288,6 +341,21 @@ describe('InstrumentationBase', () => {
         expect.stringContaining('cannot patch'),
         probe.initError,
       );
+    });
+
+    it('a provider that throws from getTracer leaves the instance failed and enable() does not throw', () => {
+      const probe = new Probe();
+      const tracerProvider = {
+        getTracer: () => {
+          throw new Error('no tracer');
+        },
+      };
+
+      expect(() => probe.enable({ tracerProvider })).not.toThrow();
+
+      expect(probe.initCount).toBe(0);
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
     });
 
     it('_onEnable throws: rolled back through _onDisable, warn, a later enable retries', () => {
