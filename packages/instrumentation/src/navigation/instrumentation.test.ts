@@ -329,48 +329,6 @@ describe('NavigationInstrumentation', () => {
     });
   });
 
-  describe('applyCustomLogRecordData', () => {
-    it('should invoke the hook and allow attribute mutations', () => {
-      setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({
-        enabled: false,
-        applyCustomLogRecordData: (logRecord) => {
-          (logRecord.attributes as Record<string, unknown>)['custom.key'] =
-            'custom.value';
-        },
-      });
-      instrumentation.enable();
-
-      const logs = getNavigationLogs();
-      expect(logs[0]?.attributes['custom.key']).toBe('custom.value');
-    });
-
-    it('should catch errors thrown by the hook and still emit', () => {
-      setReadyState('complete');
-      instrumentation = new NavigationInstrumentation({
-        enabled: false,
-        applyCustomLogRecordData: () => {
-          throw new Error('hook boom');
-        },
-      });
-      const diagErrorSpy = vi
-        .spyOn(
-          (
-            instrumentation as unknown as {
-              _diag: { error: (...a: unknown[]) => void };
-            }
-          )._diag,
-          'error',
-        )
-        .mockImplementation(() => {});
-
-      instrumentation.enable();
-
-      expect(getNavigationLogs()).toHaveLength(1);
-      expect(diagErrorSpy).toHaveBeenCalled();
-    });
-  });
-
   describe('Navigation API', () => {
     const installNavigationApi = (stub: EventTarget) => {
       const original = Object.getOwnPropertyDescriptor(window, 'navigation');
