@@ -1197,6 +1197,7 @@ describe('FetchInstrumentation', () => {
           const headers = await assertPropagationHeaders(response);
 
           expect(headers['x-test']).toEqual('1');
+          expect(headers[X_B3_TRACE_ID]).toBeUndefined();
         });
       });
 
