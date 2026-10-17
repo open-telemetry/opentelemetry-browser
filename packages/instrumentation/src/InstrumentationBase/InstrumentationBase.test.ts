@@ -3,14 +3,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TextMapPropagator } from '@opentelemetry/api';
-import { propagation, trace } from '@opentelemetry/api';
+import type { Meter, TextMapPropagator } from '@opentelemetry/api';
+import {
+  createNoopMeter,
+  metrics,
+  propagation,
+  trace,
+} from '@opentelemetry/api';
 import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from 'vitest';
 import { setupTestDiagLogger } from '#utils/test';
 import { InstrumentationBase } from './InstrumentationBase.ts';
 
@@ -30,6 +43,10 @@ class Probe extends InstrumentationBase {
 
   public emitSpan(name: string): void {
     this.tracer.startSpan(name).end();
+  }
+
+  public exposedMeter(): Meter {
+    return this.meter;
   }
 
   public exposedPropagator(): TextMapPropagator {
@@ -193,6 +210,21 @@ describe('InstrumentationBase', () => {
       probe.emitSpan('late-global');
 
       expect(spanNames(exporter)).toEqual(['late-global']);
+    });
+
+    it('meter falls back to the global', () => {
+      onTestFinished(() => metrics.disable());
+      const probe = new Probe();
+      probe.enable();
+
+      // createNoopMeter() returns a shared instance, so wrap it to get an identity
+      // that only this provider hands out.
+      const meter: Meter = { ...createNoopMeter() };
+      const getMeter = vi.fn(() => meter);
+      metrics.setGlobalMeterProvider({ getMeter });
+
+      expect(probe.exposedMeter()).toBe(meter);
+      expect(getMeter).toHaveBeenCalledWith('test', '1.0.0', undefined);
     });
 
     it('same deps on a later enable do not warn', () => {

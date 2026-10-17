@@ -28,7 +28,9 @@ type State = 'new' | 'enabled' | 'disabled' | 'failed';
 interface Locked<Deps> {
   deps: Readonly<Deps> | undefined;
   tracer: Tracer;
-  meter: Meter;
+  // Undefined when no meterProvider was passed: `metrics.getMeterProvider()` is
+  // not a proxy, so the global is read on each access instead.
+  meter: Meter | undefined;
   logger: Logger;
   propagator: TextMapPropagator;
 }
@@ -113,18 +115,15 @@ export abstract class InstrumentationBase<
   private _lock(deps: Deps | undefined): void {
     const name = this.instrumentationName;
     const version = this.instrumentationVersion;
-    // The API proxies, not the providers behind them, so a provider set as
-    // global after this call still receives the data.
+    // The trace and logs APIs return proxies, so a provider set as global after
+    // this call still receives the data. The metrics API does not; see `meter`.
     this._locked = {
       deps: deps && { ...deps },
       tracer: (deps?.tracerProvider ?? trace.getTracerProvider()).getTracer(
         name,
         version,
       ),
-      meter: (deps?.meterProvider ?? metrics.getMeterProvider()).getMeter(
-        name,
-        version,
-      ),
+      meter: deps?.meterProvider?.getMeter(name, version),
       logger: (deps?.loggerProvider ?? logs.getLoggerProvider()).getLogger(
         name,
         version,
@@ -201,9 +200,15 @@ export abstract class InstrumentationBase<
     return this._requireLocked('tracer').tracer;
   }
 
-  /** The meter from the locked provider. Available from the first `enable()`. */
+  /**
+   * The meter from the locked provider, or else from the current global meter
+   * provider. Available from the first `enable()`.
+   */
   protected get meter(): Meter {
-    return this._requireLocked('meter').meter;
+    return (
+      this._requireLocked('meter').meter ??
+      metrics.getMeter(this.instrumentationName, this.instrumentationVersion)
+    );
   }
 
   /** The logger from the locked provider. Available from the first `enable()`. */

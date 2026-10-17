@@ -12,9 +12,10 @@ import type { LoggerProvider } from '@opentelemetry/api-logs';
 
 /**
  * The dependencies an instrumentation emits through. A dependency that is not
- * passed falls back to the global API, so an `enable()` made before the SDK
- * sets its globals still sends data to the SDK's providers later. An
- * instrumentation can extend this type with its own dependencies.
+ * passed falls back to the global API. The fallback follows the global that
+ * is set at emit time, so an `enable()` made before the SDK sets its globals
+ * still sends data to the SDK's providers later. An instrumentation can
+ * extend this type with its own dependencies.
  */
 export interface InstrumentationDeps {
   /** Used for spans. The default is the global tracer provider. */
