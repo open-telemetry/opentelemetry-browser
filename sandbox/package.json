@@ -14,7 +14,6 @@
     "@opentelemetry/browser-instrumentation": "file:../packages/instrumentation",
     "@opentelemetry/browser-sdk": "file:../packages/sdk",
     "@opentelemetry/core": "^2.12.0",
-    "@opentelemetry/instrumentation": "^0.223.0",
     "@opentelemetry/sdk-logs": "^0.223.0",
     "@opentelemetry/sdk-trace": "^2.12.0",
     "react": "^19.3.0",

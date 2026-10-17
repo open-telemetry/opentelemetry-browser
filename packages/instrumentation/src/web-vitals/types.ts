@@ -4,12 +4,11 @@
  */
 
 import type { LogRecord } from '@opentelemetry/api-logs';
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 /**
  * WebVitalsInstrumentation Configuration
  */
-export interface WebVitalsInstrumentationConfig extends InstrumentationConfig {
+export interface WebVitalsInstrumentationConfig {
   /**
    * @experimental
    * When true, sets the log record body to the JSON-stringified

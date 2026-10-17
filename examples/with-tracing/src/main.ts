@@ -18,7 +18,6 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
 import {
   detectResources,
@@ -68,7 +67,7 @@ const logProvider = new LoggerProvider({
 });
 logs.setGlobalLoggerProvider(logProvider);
 
-// --- Span-based instrumentations (opentelemetry-js / opentelemetry-js-contrib) ---
+// --- Span-based instrumentations (this repository) ---
 const tracerProvider = new TracerProvider({
   resource,
   spanProcessors: [
@@ -83,18 +82,24 @@ const propagator = new CompositePropagator({
 });
 propagation.setGlobalPropagator(propagator);
 
-// --- Register all instrumentations ---
-registerInstrumentations({
-  instrumentations: [
-    // Event-based
-    new NavigationTimingInstrumentation(),
-    new UserActionInstrumentation(),
-    new WebVitalsInstrumentation(),
-    // Span-based
-    new FetchInstrumentation(),
-    new XhrInstrumentation(),
-  ],
-});
+// --- Enable all instrumentations ---
+const instrumentations = [
+  // Event-based
+  new NavigationTimingInstrumentation(),
+  new UserActionInstrumentation(),
+  new WebVitalsInstrumentation(),
+  // Span-based
+  new FetchInstrumentation(),
+  new XhrInstrumentation(),
+];
+
+for (const instrumentation of instrumentations) {
+  instrumentation.enable({
+    tracerProvider,
+    loggerProvider: logProvider,
+    propagator,
+  });
+}
 
 // --- Button handlers ---
 document.getElementById('fetch-button')?.addEventListener('click', () => {

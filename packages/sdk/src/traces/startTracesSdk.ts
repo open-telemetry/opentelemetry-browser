@@ -12,7 +12,6 @@ import {
 } from '@opentelemetry/api';
 import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -24,23 +23,18 @@ import {
   SimpleSpanProcessor,
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
-import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
+import { INVALID_CONFIG_SDK } from '../core/constants.ts';
 import { getDefaultContextManager } from '../core/context.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
 import { getDefaultPropagators } from '../core/propagation.ts';
-import type { TracesConfig, WebSdk } from '../core/types.ts';
+import type { TracesConfig, TracesSdk } from '../core/types.ts';
 
 const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
 
-export function startTracesSdk(config?: TracesConfig): WebSdk {
+export function startTracesSdk(config?: TracesConfig): TracesSdk {
   // Set the logger
   setSdkLogger(config?.logLevel);
-
-  if (config?.disabled) {
-    diag.debug('Traces SDK disabled by configuration.');
-    return NOOP_SDK;
-  }
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};
@@ -101,27 +95,23 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
     spanProcessors,
     sampler: config?.sampler,
   });
-  trace.setGlobalTracerProvider(tracerProvider);
+  const propagator = new CompositePropagator({
+    propagators: config?.propagators ?? getDefaultPropagators(),
+  });
 
-  const propagators = config?.propagators ?? getDefaultPropagators();
-  propagation.setGlobalPropagator(new CompositePropagator({ propagators }));
-
-  const contextManager = config?.contextManager ?? getDefaultContextManager();
-  contextManager.enable();
-  context.setGlobalContextManager(contextManager);
-
-  // Register instrumentations
-  let deregisterInstrumentations: (() => void) | undefined;
-  if (config?.instrumentations?.length) {
-    deregisterInstrumentations = registerInstrumentations({
-      instrumentations: config.instrumentations,
-    });
+  // Without globals, context comes from the global context API that another
+  // SDK on the page has set up. One context manager per page is correct.
+  if (config?.setGlobals !== false) {
+    trace.setGlobalTracerProvider(tracerProvider);
+    propagation.setGlobalPropagator(propagator);
+    const contextManager = config?.contextManager ?? getDefaultContextManager();
+    contextManager.enable();
+    context.setGlobalContextManager(contextManager);
   }
 
   return {
-    shutdown() {
-      deregisterInstrumentations?.();
-      return tracerProvider.shutdown();
-    },
+    tracerProvider,
+    propagator,
+    shutdown: () => tracerProvider.shutdown(),
   };
 }
