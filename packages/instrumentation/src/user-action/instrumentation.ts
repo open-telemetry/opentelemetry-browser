@@ -46,7 +46,9 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     return [];
   }
 
-  private _getMouseButtonFromMouseEvent(event: MouseEvent): MouseButton {
+  private _getMouseButtonFromMouseEvent(
+    event: MouseEvent,
+  ): MouseButton | undefined {
     switch (event.button) {
       case 0:
         return 'left';
@@ -55,11 +57,26 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
       case 2:
         return 'right';
       default:
-        return 'left';
+        return undefined;
     }
   }
 
   private onClick(event: MouseEvent) {
+    // Use one event per button, including when both contextmenu and auxclick fire.
+    if (
+      (event.type === 'click' && event.button !== 0) ||
+      (event.type === 'auxclick' && event.button !== 1) ||
+      (event.type === 'contextmenu' && event.button !== 2)
+    ) {
+      return;
+    }
+
+    // Back, forward and other extra buttons are not clicks we report.
+    const button = this._getMouseButtonFromMouseEvent(event);
+    if (!button) {
+      return;
+    }
+
     const element = event.target;
 
     if (!(element instanceof HTMLElement)) {
@@ -93,7 +110,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
         [ATTR_PAGE_Y]: event.pageY,
         [ATTR_TAG_NAME]: element.tagName,
         [ATTR_TAGS]: otelPrefixedAttributes,
-        [ATTR_MOUSE_EVENT_BUTTON]: this._getMouseButtonFromMouseEvent(event),
+        [ATTR_MOUSE_EVENT_BUTTON]: button,
         [ATTR_CSS_SELECTOR]: cssSelector,
       },
     };
@@ -127,12 +144,17 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
 
     if (autoCapturedActions.includes('click')) {
       document.addEventListener('click', this._onClickHandler, true);
+      // Native context menus can consume mouseup before auxclick fires.
+      document.addEventListener('auxclick', this._onClickHandler, true);
+      document.addEventListener('contextmenu', this._onClickHandler, true);
     }
   }
 
   override disable(): void {
     if (this._onClickHandler) {
       document.removeEventListener('click', this._onClickHandler, true);
+      document.removeEventListener('auxclick', this._onClickHandler, true);
+      document.removeEventListener('contextmenu', this._onClickHandler, true);
     }
   }
 }
