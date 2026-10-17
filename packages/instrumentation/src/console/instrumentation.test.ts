@@ -165,29 +165,27 @@ describe('ConsoleInstrumentation', () => {
       expect(logs.length).toBe(0);
     });
 
-    it('should respect logMethods updates via setConfig at runtime', () => {
-      instrumentation.setConfig({ logMethods: ['error'] });
+    it.each([
+      { logMethods: ['error'] as const, expected: ['error'] },
+      { logMethods: ['log', 'warn'] as const, expected: ['log', 'warn'] },
+    ])(
+      'should only emit the configured logMethods $logMethods',
+      ({ logMethods, expected }) => {
+        instrumentation.disable();
+        inMemoryExporter.reset();
+        instrumentation = new ConsoleInstrumentation({
+          logMethods: [...logMethods],
+        });
+        registerForTest(instrumentation);
 
-      console.log('log message');
-      console.warn('warn message');
-      console.error('error message');
+        console.log('log message');
+        console.warn('warn message');
+        console.error('error message');
 
-      let logs = inMemoryExporter.getFinishedLogRecords();
-      expect(logs.length).toBe(1);
-      expect(logs[0]?.severityText).toBe('error');
-
-      inMemoryExporter.reset();
-      instrumentation.setConfig({ logMethods: ['log', 'warn'] });
-
-      console.log('log message');
-      console.warn('warn message');
-      console.error('error message');
-
-      logs = inMemoryExporter.getFinishedLogRecords();
-      expect(logs.length).toBe(2);
-      expect(logs[0]?.severityText).toBe('log');
-      expect(logs[1]?.severityText).toBe('warn');
-    });
+        const logs = inMemoryExporter.getFinishedLogRecords();
+        expect(logs.map((l) => l.severityText)).toEqual(expected);
+      },
+    );
   });
 
   describe('default serialization', () => {

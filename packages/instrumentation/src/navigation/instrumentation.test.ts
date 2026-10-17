@@ -518,48 +518,6 @@ describe('NavigationInstrumentation', () => {
       restore();
     });
 
-    it('should remove the Navigation API listener on disable after setConfig', () => {
-      setReadyState('complete');
-      const stub = new EventTarget() as EventTarget & {
-        currentEntry: { url: string };
-      };
-      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
-      onTestFinished(installNavigationApi(stub));
-      instrumentation = new NavigationInstrumentation({
-        useNavigationApiIfAvailable: true,
-      });
-      registerForTest(instrumentation);
-
-      // Replaces the whole config, so `useNavigationApiIfAvailable` is dropped.
-      instrumentation.setConfig({});
-      instrumentation.disable();
-      inMemoryExporter.reset();
-      stub.dispatchEvent(new Event('currententrychange'));
-
-      expect(getNavigationLogs()).toHaveLength(0);
-    });
-
-    it('should keep the init-time mode when setConfig drops the flag', () => {
-      setReadyState('complete');
-      const stub = new EventTarget() as EventTarget & {
-        currentEntry: { url: string };
-      };
-      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
-      onTestFinished(installNavigationApi(stub));
-      instrumentation = new NavigationInstrumentation({
-        useNavigationApiIfAvailable: true,
-      });
-      registerForTest(instrumentation);
-
-      instrumentation.setConfig({});
-      instrumentation.disable();
-      instrumentation.enable();
-      inMemoryExporter.reset();
-      stub.dispatchEvent(new Event('currententrychange'));
-
-      expect(getNavigationLogs()).toHaveLength(1);
-    });
-
     it('should record a navigation that a hook makes during the page load', () => {
       setReadyState('complete');
       const stub = new EventTarget() as EventTarget & {

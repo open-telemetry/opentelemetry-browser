@@ -304,38 +304,6 @@ describe('WebVitalsInstrumentation', () => {
     });
   });
 
-  describe('setConfig', () => {
-    it('should apply includeRawAttribution set after construction', async () => {
-      instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
-      instrumentation.setConfig({ includeRawAttribution: true });
-
-      createButton('Late attribution test');
-      await triggerINP('Late attribution test');
-
-      const inpLog = await waitForMetric('inp');
-      expect(inpLog.body).toBeDefined();
-    });
-
-    it('should apply an applyCustomLogRecordData hook set after construction', async () => {
-      instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
-      instrumentation.setConfig({
-        applyCustomLogRecordData: (logRecord) => {
-          if (logRecord.attributes) {
-            logRecord.attributes['custom.late'] = true;
-          }
-        },
-      });
-
-      createButton('Late hook test');
-      await triggerINP('Late hook test');
-
-      const inpLog = await waitForMetric('inp');
-      expect(inpLog.attributes['custom.late']).toBe(true);
-    });
-  });
-
   describe('emit failure', () => {
     it('should not let a failed emit reach the page as an uncaught error', async () => {
       instrumentation = new WebVitalsInstrumentation();

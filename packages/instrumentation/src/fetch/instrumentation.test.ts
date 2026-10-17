@@ -46,6 +46,7 @@ import {
 } from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
+import type { FetchInstrumentationConfig } from './types.ts';
 
 const VITEST_SERVER_URL = new URL(location.href);
 const VITEST_SERVER_NAME = VITEST_SERVER_URL.hostname;
@@ -487,17 +488,24 @@ describe('FetchInstrumentation', () => {
   });
 
   describe('instrumentation', () => {
-    let unregister: () => void;
+    let unregister: (() => void) | undefined;
 
-    beforeAll(() => {
-      instrumentation = new FetchInstrumentation();
+    // Calling it again swaps the default instance for one with `config`.
+    const register = (config?: FetchInstrumentationConfig) => {
+      unregister?.();
+      instrumentation = new FetchInstrumentation(config);
       unregister = registerInstrumentations({
         instrumentations: [instrumentation],
       });
+    };
+
+    beforeEach(() => {
+      register();
     });
 
-    afterAll(() => {
-      unregister();
+    afterEach(() => {
+      unregister?.();
+      unregister = undefined;
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {
@@ -744,11 +752,8 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with sanitizeUrl configuration', () => {
-      beforeAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
-      });
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
+      beforeEach(() => {
+        register({ sanitizeUrl: defaultSanitizeUrl });
       });
 
       it('should create spans for GET requests', async () => {
@@ -776,13 +781,9 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with ignoreUrls configuration', () => {
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
-      });
-
       it('should not create spans for GET requests if URL matches', async () => {
         const url = getUrlForPath('/api/get');
-        instrumentation.setConfig({ ignoreUrls: [url] });
+        register({ ignoreUrls: [url] });
         await fetch(url);
 
         // No spans to export
@@ -804,7 +805,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should not measure the size if set to false', async () => {
-        instrumentation.setConfig({ measureRequestSize: false });
+        register({ measureRequestSize: false });
         const url = getUrlForPath('/api/post');
         await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
           r.json(),
@@ -815,11 +816,8 @@ describe('FetchInstrumentation', () => {
       });
 
       describe('with measureRequestSize set to true', () => {
-        beforeAll(() => {
-          instrumentation.setConfig({ measureRequestSize: true });
-        });
-        afterAll(() => {
-          instrumentation.setConfig({ measureRequestSize: undefined });
+        beforeEach(() => {
+          register({ measureRequestSize: true });
         });
 
         it('should measure the size with URL and init object', async () => {
@@ -902,12 +900,8 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with applyCustomAttributesOnSpan configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({ applyCustomAttributesOnSpan: undefined });
-      });
-
       it('should not break fetch or instrumentation of throws', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: () => {
             throw new Error('boom');
           },
@@ -934,7 +928,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to set attributes on the span', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -957,7 +951,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to acces to Request and Response', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: (span, req, res) => {
             const reqHeaders = req.headers as Headers;
             const resHeaders = (res as Response).headers;
@@ -1014,7 +1008,7 @@ describe('FetchInstrumentation', () => {
 
       // https://github.com/open-telemetry/opentelemetry-js/pull/5281
       it('should not be able to access the response body if already consumed', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: (span, _req, res) => {
             span.setAttribute('res.body.used', (res as Response).bodyUsed);
           },
@@ -1038,12 +1032,8 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with requestHook configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({ requestHook: undefined });
-      });
-
       it('should be able to set attributes on the span', async () => {
-        instrumentation.setConfig({
+        register({
           requestHook: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -1066,7 +1056,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a string param', async () => {
-        instrumentation.setConfig({
+        register({
           requestHook: (span, req) => {
             const isInitObj =
               typeof req === 'object' && !(req instanceof Request);
@@ -1089,7 +1079,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a a url and RequestInit param', async () => {
-        instrumentation.setConfig({
+        register({
           requestHook: (span, req) => {
             const isInitObj =
               typeof req === 'object' && !(req instanceof Request);
@@ -1115,7 +1105,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a Request param', async () => {
-        instrumentation.setConfig({
+        register({
           requestHook: (span, req) => {
             span.setAttribute('is.req', req instanceof Request);
             (req as Request).headers.set('foo', 'bar');
@@ -1372,12 +1362,6 @@ describe('FetchInstrumentation', () => {
       });
 
       describe('with propagateTraceHeaderCorsUrls configuration', () => {
-        afterEach(() => {
-          instrumentation.setConfig({
-            propagateTraceHeaderCorsUrls: [],
-          });
-        });
-
         describe('without global propagator', () => {
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
             const url = 'http://example.com/api/echo-headers.json';
@@ -1387,7 +1371,7 @@ describe('FetchInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            register({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
@@ -1431,7 +1415,7 @@ describe('FetchInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            register({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';

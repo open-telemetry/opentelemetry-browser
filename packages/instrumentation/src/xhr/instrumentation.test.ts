@@ -47,6 +47,7 @@ import {
 } from '#utils/test';
 import { XhrInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
+import type { XhrInstrumentationConfig } from './types.ts';
 
 const VITEST_SERVER_URL = new URL(location.href);
 const VITEST_SERVER_NAME = VITEST_SERVER_URL.hostname;
@@ -489,17 +490,24 @@ describe('XhrInstrumentation', () => {
   });
 
   describe('instrumentation', () => {
-    let unregister: () => void;
+    let unregister: (() => void) | undefined;
 
-    beforeAll(() => {
-      instrumentation = new XhrInstrumentation();
+    // Calling it again swaps the default instance for one with `config`.
+    const register = (config?: XhrInstrumentationConfig) => {
+      unregister?.();
+      instrumentation = new XhrInstrumentation(config);
       unregister = registerInstrumentations({
         instrumentations: [instrumentation],
       });
+    };
+
+    beforeEach(() => {
+      register();
     });
 
-    afterAll(() => {
-      unregister();
+    afterEach(() => {
+      unregister?.();
+      unregister = undefined;
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {
@@ -843,11 +851,8 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with sanitizeUrl configuration', () => {
-      beforeAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
-      });
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
+      beforeEach(() => {
+        register({ sanitizeUrl: defaultSanitizeUrl });
       });
 
       it('should create spans for GET requests', async () => {
@@ -875,13 +880,9 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with ignoreUrls configuration', () => {
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
-      });
-
       it('should not create spans for GET requests if URL matches', async () => {
         const url = getUrlForPath('/api/get');
-        instrumentation.setConfig({ ignoreUrls: [url] });
+        register({ ignoreUrls: [url] });
         await doXhrRequest({ method: 'GET', url });
 
         // No spans to export
@@ -903,7 +904,7 @@ describe('XhrInstrumentation', () => {
       });
 
       it('should not measure the size if set to false', async () => {
-        instrumentation.setConfig({ measureRequestSize: false });
+        register({ measureRequestSize: false });
         const url = getUrlForPath('/api/post');
         await doXhrRequest({ method: 'POST', url, body: 'body_content' }).then(
           (r) => r.json(),
@@ -914,11 +915,8 @@ describe('XhrInstrumentation', () => {
       });
 
       describe('with measureRequestSize set to true', () => {
-        beforeAll(() => {
-          instrumentation.setConfig({ measureRequestSize: true });
-        });
-        afterAll(() => {
-          instrumentation.setConfig({ measureRequestSize: undefined });
+        beforeEach(() => {
+          register({ measureRequestSize: true });
         });
 
         it('should measure the size with string body', async () => {
@@ -953,12 +951,8 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with applyCustomAttributesOnSpan configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({ applyCustomAttributesOnSpan: undefined });
-      });
-
       it('should not break fetch or instrumentation if throws', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: () => {
             throw new Error('boom');
           },
@@ -985,7 +979,7 @@ describe('XhrInstrumentation', () => {
       });
 
       it('should be able to set attributes on the span', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -1008,7 +1002,7 @@ describe('XhrInstrumentation', () => {
       });
 
       it('should be able to access to XHR object', async () => {
-        instrumentation.setConfig({
+        register({
           applyCustomAttributesOnSpan: (span, xhr) => {
             span.setAttribute('has.xhr.access', xhr instanceof XMLHttpRequest);
           },
@@ -1107,12 +1101,6 @@ describe('XhrInstrumentation', () => {
       });
 
       describe('with propagateTraceHeaderCorsUrls configuration', () => {
-        afterEach(() => {
-          instrumentation.setConfig({
-            propagateTraceHeaderCorsUrls: [],
-          });
-        });
-
         describe('without global propagator', () => {
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
             const url = 'http://example.com/api/echo-headers.json';
@@ -1122,7 +1110,7 @@ describe('XhrInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            register({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
@@ -1153,7 +1141,7 @@ describe('XhrInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            register({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
