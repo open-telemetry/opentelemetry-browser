@@ -71,8 +71,8 @@ export abstract class InstrumentationBase<
    */
   public enable(deps?: Deps): void {
     if (this._state === 'new') {
-      this._lock(deps);
       try {
+        this._lock(deps);
         this._assertSync(this._init());
       } catch (err) {
         // Never retried: a second _init() could wrap an API twice.

@@ -33,8 +33,10 @@ export interface Instrumentation {
 
   /**
    * Starts emitting. The first call sets the dependencies for the life of the
-   * instance. Later calls must not change them. Calling `enable()` when the
-   * instrumentation is already enabled does nothing. It must not throw.
+   * instance. Later calls ignore them. Calling `enable()` when the
+   * instrumentation is already enabled does nothing. If the instrumentation
+   * cannot run, it stays off and `isEnabled()` returns false. It must not
+   * throw.
    */
   enable(deps?: InstrumentationDeps): void;
 
