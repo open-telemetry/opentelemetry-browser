@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.3](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.2...browser-instrumentation-v0.8.3) (2026-10-17)
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#480](https://github.com/open-telemetry/opentelemetry-browser/issues/480)) ([2d99baf](https://github.com/open-telemetry/opentelemetry-browser/commit/2d99baf0665cca1b15b2f8a665469bbcefd5b27e))
+* **user-action:** capture middle clicks and right context menus ([#448](https://github.com/open-telemetry/opentelemetry-browser/issues/448)) ([0c80b34](https://github.com/open-telemetry/opentelemetry-browser/commit/0c80b343742e43d3c0b8ed59f9eecf67b00a0c84))
+
 ## [0.8.2](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.1...browser-instrumentation-v0.8.2) (2026-10-09)
 
 
