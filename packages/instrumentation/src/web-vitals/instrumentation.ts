@@ -121,8 +121,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     };
 
     const timestamp = this._getTimestampForMetric(metric);
-    const { applyCustomLogRecordData, includeRawAttribution } =
-      this.getConfig();
+    const { applyCustomLogRecordData, includeRawAttribution } = this._config;
 
     const logRecord: LogRecord = {
       eventName: WEB_VITAL_EVENT_NAME,

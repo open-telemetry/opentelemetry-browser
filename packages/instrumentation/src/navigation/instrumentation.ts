@@ -53,7 +53,6 @@ interface NavigationApi {
 export class NavigationInstrumentation extends InstrumentationBase<NavigationInstrumentationConfig> {
   private _hasProcessedInitialLoad = false;
   private _lastUrl = '';
-  // Chosen once in `_init()`, so `setConfig()` cannot switch the mode later.
   private _navigationApi: NavigationApi | undefined;
   private _onDOMContentLoaded: (() => void) | undefined;
   private _onPopState: ((event: PopStateEvent) => void) | undefined;
@@ -119,7 +118,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   }
 
   private _getNavigationApi(): NavigationApi | undefined {
-    const cfg = this.getConfig();
+    const cfg = this._config;
     if (!cfg.useNavigationApiIfAvailable) {
       return undefined;
     }
@@ -128,7 +127,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
 
   private _onHardNavigation(): void {
     this._safeExecute('failed to record the page load', () => {
-      const cfg = this.getConfig();
+      const cfg = this._config;
       const logRecord: LogRecord = {
         eventName: BROWSER_NAVIGATION_EVENT_NAME,
         severityNumber: SeverityNumber.INFO,
@@ -165,7 +164,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
       const navType = this._mapChangeStateToType(changeState, navigationEvent);
       const sameDocument = this._determineSameDocument(referrerUrl, currentUrl);
       const hashChange = isHashChange(referrerUrl, currentUrl);
-      const cfg = this.getConfig();
+      const cfg = this._config;
 
       const logRecord: LogRecord = {
         eventName: BROWSER_NAVIGATION_EVENT_NAME,
@@ -233,7 +232,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
   }
 
   private _applyCustomLogRecordData(logRecord: LogRecord): void {
-    const cfg = this.getConfig();
+    const cfg = this._config;
     const hook = cfg.applyCustomLogRecordData;
     if (!hook) {
       return;

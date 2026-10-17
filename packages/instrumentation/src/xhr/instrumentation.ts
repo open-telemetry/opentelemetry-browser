@@ -95,7 +95,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           const url = parseUrl(urlArgument);
           const shouldIgnoreUrl = matchesUrl(
             url.href,
-            instrumentation.getConfig().ignoreUrls,
+            instrumentation._config.ignoreUrls,
           );
           if (shouldIgnoreUrl) {
             return original.apply(this, args);
@@ -136,7 +136,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
             xhrRecord.span = span;
             xhrRecord.start = performance.now();
 
-            if (instrumentation.getConfig().measureRequestSize && args?.[0]) {
+            if (instrumentation._config.measureRequestSize && args?.[0]) {
               const bodyLength = getXHRBodyLength(args[0]);
               if (bodyLength) {
                 span.setAttribute(ATTR_HTTP_REQUEST_BODY_SIZE, bodyLength);
@@ -183,7 +183,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     const origMethod = method;
     const normMethod = normalizeHttpRequestMethod(method);
     const attributes = {} as Attributes;
-    const { sanitizeUrl } = this.getConfig();
+    const { sanitizeUrl } = this._config;
 
     attributes[ATTR_HTTP_REQUEST_METHOD] = normMethod;
     if (normMethod !== origMethod) {
@@ -261,7 +261,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
    */
   private _applyAttributesAfterSend(span: Span, xhr: XMLHttpRequest) {
     const applyCustomAttributesOnSpan =
-      this.getConfig().applyCustomAttributesOnSpan;
+      this._config.applyCustomAttributesOnSpan;
     if (applyCustomAttributesOnSpan) {
       this._safeExecute('applyCustomAttributesOnSpan hook failed', () =>
         applyCustomAttributesOnSpan(span, xhr),
@@ -274,7 +274,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
    */
   private _addHeaders(xhr: XMLHttpRequest, url: URL, ctx: Context) {
     // Propagate only if in request goes to same origin or is in the allow list
-    const urlsToPropagate = this.getConfig().propagateTraceHeaderCorsUrls;
+    const urlsToPropagate = this._config.propagateTraceHeaderCorsUrls;
     const sameOrigin = location.origin === url.origin;
     const shouldPropagate = sameOrigin || matchesUrl(url.href, urlsToPropagate);
 

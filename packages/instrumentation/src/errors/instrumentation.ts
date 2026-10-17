@@ -108,7 +108,7 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
   }
 
   private _applyCustomAttributes(error: Error | string): Attributes {
-    const hook = this.getConfig().applyCustomAttributes;
+    const hook = this._config.applyCustomAttributes;
     if (!hook) {
       return {};
     }

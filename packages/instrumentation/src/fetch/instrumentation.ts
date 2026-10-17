@@ -79,7 +79,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         // It will be used to keep the Map only with the Spans that will be ended
         let trucatedSpan: Span | undefined;
         try {
-          const instrConfig = instrumentation.getConfig();
+          const instrConfig = instrumentation._config;
           const url = parseUrl(
             args[0] instanceof Request ? args[0].url : String(args[0]),
           ).href;
@@ -265,7 +265,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     const normMethod = normalizeHttpRequestMethod(options.method || 'GET');
     const serverPort = serverPortFromUrl(parsedUrl);
     const name = normMethod;
-    const { sanitizeUrl } = this.getConfig();
+    const { sanitizeUrl } = this._config;
 
     attributes[ATTR_HTTP_REQUEST_METHOD] = normMethod;
     attributes[ATTR_URL_FULL] = sanitizeUrl ? sanitizeUrl(url) : url;
@@ -330,7 +330,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     result: Response | FetchError,
   ) {
     const applyCustomAttributesOnSpan =
-      this.getConfig().applyCustomAttributesOnSpan;
+      this._config.applyCustomAttributesOnSpan;
     if (applyCustomAttributesOnSpan) {
       this._safeExecute('applyCustomAttributesOnSpan hook failed', () =>
         applyCustomAttributesOnSpan(span, request, result),
@@ -342,7 +342,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
    * Calls the request hook if defined
    */
   private _callRequestHook(span: Span, request: Request | RequestInit) {
-    const requestHook = this.getConfig().requestHook;
+    const requestHook = this._config.requestHook;
 
     if (requestHook) {
       this._safeExecute('requestHook failed', () => requestHook(span, request));
@@ -359,7 +359,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
     ctx: Context,
   ): Request | RequestInit {
     // Propagate only if in request goes to same origin or is in the allow list
-    const urlsToPropagate = this.getConfig().propagateTraceHeaderCorsUrls;
+    const urlsToPropagate = this._config.propagateTraceHeaderCorsUrls;
     const urlOrigin = parseUrl(url).origin;
     const sameOrigin = location.origin === urlOrigin;
     const shouldPropagate = sameOrigin || matchesUrl(url, urlsToPropagate);
