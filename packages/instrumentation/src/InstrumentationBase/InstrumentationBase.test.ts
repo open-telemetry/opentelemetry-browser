@@ -3,167 +3,71 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Tracer, TracerProvider } from '@opentelemetry/api';
-import type { Logger, LoggerProvider } from '@opentelemetry/api-logs';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { beforeEach, describe, expect, it } from 'vitest';
-import { registerForTest, setupTestDiagLogger } from '#utils/test';
+import type { TextMapPropagator } from '@opentelemetry/api';
+import { propagation, trace } from '@opentelemetry/api';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setupTestDiagLogger } from '#utils/test';
 import { InstrumentationBase } from './InstrumentationBase.ts';
 
-class EnableProbe extends InstrumentationBase {
+class Probe extends InstrumentationBase {
   public initCount = 0;
-  public enableCount = 0;
-  public disableCount = 0;
+  public onEnableCount = 0;
+  public onDisableCount = 0;
+  public isEnabledInOnEnable: boolean | undefined;
+  // `undefined` means the hook succeeds.
+  public initError: unknown;
+  public onEnableError: unknown;
+  public onDisableError: unknown;
+
+  constructor() {
+    super('test', '1.0.0', {});
+  }
+
+  public emitSpan(name: string): void {
+    this.tracer.startSpan(name).end();
+  }
+
+  public exposedPropagator(): TextMapPropagator {
+    return this.propagator;
+  }
 
   protected override _init(): void {
     this.initCount += 1;
-  }
-
-  protected override _onEnable(): void {
-    this.enableCount += 1;
-  }
-
-  protected override _onDisable(): void {
-    this.disableCount += 1;
-  }
-}
-
-// Hooks read subclass fields, which only exist once the subclass constructor
-// has finished. The Node base runs its first enable() before that point.
-class FieldProbe extends InstrumentationBase {
-  public readonly marker = 'initialized';
-  public events: string[] = [];
-  public markerSeenInHook: string | undefined;
-  public tracerSeenInHook: Tracer | undefined;
-  public isEnabledSeenInHook: boolean | undefined;
-
-  protected override _init(): void {
-    this.events.push('init');
-  }
-
-  protected override _onEnable(): void {
-    this.events.push('enable');
-    this.markerSeenInHook = this.marker;
-    this.tracerSeenInHook = this.tracer;
-    this.isEnabledSeenInHook = this.isEnabled();
-  }
-}
-
-class FailingProbe extends InstrumentationBase {
-  protected override _init(): void {
-    throw new Error('cannot patch');
-  }
-}
-
-class ThrowingProbe extends InstrumentationBase {
-  // `unknown` so tests can throw non-Error values; `undefined` means succeed.
-  public toThrow: unknown;
-  public attempts = 0;
-
-  protected override _init(): void {
-    this.attempts += 1;
-    if (this.toThrow !== undefined) {
-      throw this.toThrow;
+    if (this.initError !== undefined) {
+      throw this.initError;
     }
   }
-}
-
-// Adds a listener, then throws, like an _onEnable that emits the initial state
-// through a user hook that fails.
-class HalfEnableProbe extends InstrumentationBase {
-  public readonly target = new EventTarget();
-  public received = 0;
-  public failNextEnable = true;
-  public initCount = 0;
-  private _listener: (() => void) | undefined;
-
-  protected override _init(): void {
-    this.initCount += 1;
-  }
 
   protected override _onEnable(): void {
-    this._listener = () => {
-      this.received += 1;
-    };
-    this.target.addEventListener('ping', this._listener);
-    if (this.failNextEnable) {
-      this.failNextEnable = false;
-      throw new Error('enable broke');
+    this.onEnableCount += 1;
+    this.isEnabledInOnEnable = this.isEnabled();
+    if (this.onEnableError !== undefined) {
+      throw this.onEnableError;
     }
   }
 
   protected override _onDisable(): void {
-    if (this._listener) {
-      this.target.removeEventListener('ping', this._listener);
-      this._listener = undefined;
-    }
-  }
-}
-
-// Calls enable() from _init(), as a port of a Node instrumentation might.
-class ReentrantInitProbe extends EnableProbe {
-  protected override _init(): void {
-    super._init();
-    this.enable();
-  }
-}
-
-// Runs `duringNextEnable` before _onEnable() adds its listener, like a user
-// hook called by an emit that _onEnable() makes.
-class ReentrantEnableProbe extends InstrumentationBase {
-  public readonly target = new EventTarget();
-  public received = 0;
-  public duringNextEnable: (() => void) | undefined;
-  private _listener: (() => void) | undefined;
-
-  protected override _onEnable(): void {
-    const callback = this.duringNextEnable;
-    this.duringNextEnable = undefined;
-    callback?.();
-    this._listener = () => {
-      this.received += 1;
-    };
-    this.target.addEventListener('ping', this._listener);
-  }
-
-  protected override _onDisable(): void {
-    if (this._listener) {
-      this.target.removeEventListener('ping', this._listener);
-      this._listener = undefined;
+    this.onDisableCount += 1;
+    if (this.onDisableError !== undefined) {
+      throw this.onDisableError;
     }
   }
 }
 
 // An `async` override type-checks, because a method that returns
 // Promise<void> can override one that returns void.
-class AsyncInitProbe extends EnableProbe {
+class AsyncInitProbe extends Probe {
   public readonly rejection = new Error('async init broke');
 
   protected override async _init(): Promise<void> {
     super._init();
     await Promise.resolve();
     throw this.rejection;
-  }
-}
-
-class AsyncEnableProbe extends EnableProbe {
-  protected override async _onEnable(): Promise<void> {
-    super._onEnable();
-  }
-}
-
-class AsyncDisableProbe extends EnableProbe {
-  protected override async _onDisable(): Promise<void> {
-    super._onDisable();
-  }
-}
-
-class ThrowingDisableProbe extends InstrumentationBase {
-  public readonly thrown = new Error('cleanup broke');
-
-  protected override _onDisable(): void {
-    throw this.thrown;
   }
 }
 
@@ -182,640 +86,237 @@ class WrapProbe extends InstrumentationBase {
   ): T | undefined {
     return this._safeExecute(errorMessage, fn);
   }
-
-  public exposedTracer(): Tracer {
-    return this.tracer;
-  }
-
-  public exposedLogger(): Logger {
-    return this.logger;
-  }
 }
+
+const createTracerProvider = () => {
+  const exporter = new InMemorySpanExporter();
+  const provider = new TracerProvider({
+    spanProcessors: [new SimpleSpanProcessor({ exporter })],
+  });
+  return { exporter, provider };
+};
+
+const spanNames = (exporter: InMemorySpanExporter): string[] =>
+  exporter.getFinishedSpans().map((span) => span.name);
 
 describe('InstrumentationBase', () => {
   let diagLogger: ReturnType<typeof setupTestDiagLogger>;
-  const warnedError = (): unknown => diagLogger.warn.mock.calls[0]?.[2];
 
   beforeEach(() => {
     diagLogger = setupTestDiagLogger();
   });
 
-  describe('activation', () => {
-    it('does no work in the constructor', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
+  afterEach(() => {
+    trace.disable();
+    vi.restoreAllMocks();
+  });
+
+  describe('constructor', () => {
+    it('does not call any hook', () => {
+      const probe = new Probe();
 
       expect(probe.initCount).toBe(0);
-      expect(probe.enableCount).toBe(0);
+      expect(probe.onEnableCount).toBe(0);
+      expect(probe.onDisableCount).toBe(0);
       expect(probe.isEnabled()).toBe(false);
     });
 
-    it('runs hooks after subclass fields exist', () => {
-      const probe = new FieldProbe('test', '1.0.0', {});
+    it('does not read the global providers', () => {
+      const getTracerProvider = vi.spyOn(trace, 'getTracerProvider');
 
-      registerForTest(probe);
+      new Probe();
 
-      expect(probe.events).toEqual(['init', 'enable']);
-      expect(probe.markerSeenInHook).toBe('initialized');
-    });
-
-    it('reports isEnabled() as true inside _onEnable()', () => {
-      const probe = new FieldProbe('test', '1.0.0', {});
-
-      registerForTest(probe);
-
-      // Emits that _onEnable() makes go through patches that check isEnabled().
-      expect(probe.isEnabledSeenInHook).toBe(true);
-    });
-
-    it('runs init once when _init() calls enable()', () => {
-      const probe = new ReentrantInitProbe('test', '1.0.0', {});
-
-      registerForTest(probe);
-
-      expect(probe.initCount).toBe(1);
-      expect(probe.enableCount).toBe(1);
-      expect(probe.isEnabled()).toBe(true);
-    });
-
-    it('treats an explicit `enabled: undefined` as the default', () => {
-      // Spreading caller options often produces this key. It must not count
-      // as `enabled: false`.
-      const probe = new EnableProbe('test', '1.0.0', { enabled: undefined });
-
-      registerForTest(probe);
-
-      expect(probe.isEnabled()).toBe(true);
-    });
-
-    it('does no work for an enable() made before registration', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-
-      probe.enable();
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.initCount).toBe(0);
-      expect(probe.enableCount).toBe(0);
-    });
-
-    it('with `enabled: false`, does no work for an enable() made before registration', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-
-      probe.enable();
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.initCount).toBe(0);
-      expect(probe.enableCount).toBe(0);
-    });
-
-    it('does not run init again after disable() and enable()', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-
-      registerForTest(probe);
-      probe.disable();
-      probe.enable();
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.enableCount).toBe(2);
-      expect(probe.disableCount).toBe(1);
-      // disable() leaves patches in place, so running init again would stack them.
-      expect(probe.initCount).toBe(1);
-    });
-
-    it('disable() is a no-op when already off', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-
-      probe.disable();
-
-      expect(probe.disableCount).toBe(0);
+      expect(getTracerProvider).toHaveBeenCalledTimes(0);
     });
   });
 
-  describe('getConfig().enabled', () => {
-    it('reports whether registration has handled the instance', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      expect(probe.getConfig().enabled).toBe(false);
+  describe('enable', () => {
+    it('first enable runs _init once then _onEnable', () => {
+      const probe = new Probe();
 
-      registerForTest(probe);
-      expect(probe.getConfig().enabled).toBe(true);
-
-      probe.disable();
-      expect(probe.getConfig().enabled).toBe(false);
-    });
-
-    it('is true for a silent `enabled: false` instance after init', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.getConfig().enabled).toBe(true);
-      expect(probe.isEnabled()).toBe(false);
-      unload();
-    });
-  });
-
-  describe('with registerInstrumentations', () => {
-    it('enables a default instance', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.enableCount).toBe(1);
-      unload();
-    });
-
-    it('runs init for an `enabled: false` instance but does not emit', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
+      probe.enable();
 
       expect(probe.initCount).toBe(1);
-      expect(probe.enableCount).toBe(0);
-      expect(probe.isEnabled()).toBe(false);
-      unload();
-    });
-
-    it('lets a later enable() emit from an `enabled: false` instance', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      probe.enable();
-
+      expect(probe.onEnableCount).toBe(1);
       expect(probe.isEnabled()).toBe(true);
-      expect(probe.enableCount).toBe(1);
-      unload();
     });
 
-    it('runs init and emits at registration for an `enabled: false` instance enabled before it', () => {
-      const sentinelTracer = {} as Tracer;
-      const tracerProvider: TracerProvider = {
-        getTracer: () => sentinelTracer,
-      };
-      const probe = new FieldProbe('test', '1.0.0', { enabled: false });
-      // For example, a consent tool that reports a stored choice right away.
+    it('a second enable does nothing', () => {
+      const probe = new Probe();
+
+      probe.enable();
       probe.enable();
 
-      const unload = registerInstrumentations({
-        instrumentations: [probe],
-        tracerProvider,
-      });
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.events).toEqual(['init', 'enable']);
-      expect(probe.tracerSeenInHook).toBe(sentinelTracer);
-      unload();
-    });
-
-    it('lets a disable() cancel an enable() made before registration', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-      probe.enable();
-      probe.disable();
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(false);
       expect(probe.initCount).toBe(1);
-      unload();
-    });
-
-    it('emits once at registration for a default instance enabled before it', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      probe.enable();
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.initCount).toBe(1);
-      expect(probe.enableCount).toBe(1);
-      unload();
-    });
-
-    it('treats a default instance disabled before registration like `enabled: false`', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      // For example, a consent tool that reports a stored refusal right away.
-      probe.disable();
-
-      const unloadFirst = registerInstrumentations({
-        instrumentations: [probe],
-      });
-      expect(probe.initCount).toBe(1);
-      expect(probe.enableCount).toBe(0);
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.getConfig().enabled).toBe(true);
-
-      probe.enable();
-      expect(probe.isEnabled()).toBe(true);
-
-      unloadFirst();
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.enableCount).toBe(1);
-
-      probe.enable();
-      expect(probe.isEnabled()).toBe(true);
-      unload();
-    });
-
-    it('emits at registration after an early disable() and then enable()', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      probe.disable();
-      probe.enable();
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.enableCount).toBe(1);
-      unload();
-    });
-
-    it('does not emit at registration after an early enable() and then disable()', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      probe.enable();
-      probe.disable();
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.initCount).toBe(1);
-      expect(probe.enableCount).toBe(0);
-      unload();
-    });
-
-    it('enables a default instance disabled after registration on a new registration', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      const unloadFirst = registerInstrumentations({
-        instrumentations: [probe],
-      });
-      probe.disable();
-
-      unloadFirst();
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.enableCount).toBe(2);
-      unload();
-    });
-
-    it('keeps a silent instance silent through a second registration', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-
-      registerInstrumentations({ instrumentations: [probe] })();
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.enableCount).toBe(0);
-      unload();
-    });
-
-    it('keeps an `enabled: false` instance silent through unload and a new registration, until enable()', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-      const unloadFirst = registerInstrumentations({
-        instrumentations: [probe],
-      });
-      probe.enable();
-
-      // For example consent revoked, then an SDK restart.
-      unloadFirst();
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-      expect(probe.isEnabled()).toBe(false);
-
-      probe.enable();
-      expect(probe.isEnabled()).toBe(true);
-      unload();
-    });
-
-    it('does not let a registration retry a failed enable() of an `enabled: false` instance', () => {
-      const probe = new HalfEnableProbe('test', '1.0.0', { enabled: false });
-      const unloadFirst = registerInstrumentations({
-        instrumentations: [probe],
-      });
-      probe.enable();
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(false);
-      unload();
-      unloadFirst();
-    });
-
-    it('retries a failed enable() of a default instance on the next registration', () => {
-      const probe = new HalfEnableProbe('test', '1.0.0', {});
-      const unloadFirst = registerInstrumentations({
-        instrumentations: [probe],
-      });
-
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(true);
-      unload();
-      unloadFirst();
-    });
-
-    it('sets providers before init and enable', () => {
-      const sentinelTracer = {} as Tracer;
-      const tracerProvider: TracerProvider = {
-        getTracer: () => sentinelTracer,
-      };
-      const probe = new FieldProbe('test', '1.0.0', {});
-
-      const unload = registerInstrumentations({
-        instrumentations: [probe],
-        tracerProvider,
-      });
-
-      expect(probe.tracerSeenInHook).toBe(sentinelTracer);
-      unload();
-    });
-
-    it('enables again after unload and a second registration', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-
-      registerInstrumentations({ instrumentations: [probe] })();
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.enableCount).toBe(2);
-      expect(probe.initCount).toBe(1);
-      unload();
-    });
-
-    it('does not enable an instance twice when registered twice', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-
-      const unloadFirst = registerInstrumentations({
-        instrumentations: [probe],
-      });
-      const unloadSecond = registerInstrumentations({
-        instrumentations: [probe],
-      });
-
-      expect(probe.enableCount).toBe(1);
-      unloadSecond();
-      unloadFirst();
-    });
-
-    it('enables the other instances when one fails init', () => {
-      const failing = new FailingProbe('failing', '1.0.0', {});
-      const healthy = new EnableProbe('healthy', '1.0.0', {});
-
-      let unload: (() => void) | undefined;
-      expect(() => {
-        unload = registerInstrumentations({
-          instrumentations: [failing, healthy],
-        });
-      }).not.toThrow();
-
-      expect(failing.isEnabled()).toBe(false);
-      expect(healthy.isEnabled()).toBe(true);
-      unload?.();
-    });
-
-    it('unload disables the other instances when one fails to disable', () => {
-      const throwing = new ThrowingDisableProbe('throwing', '1.0.0', {});
-      const healthy = new EnableProbe('healthy', '1.0.0', {});
-      const unload = registerInstrumentations({
-        instrumentations: [throwing, healthy],
-      });
-
-      expect(() => unload()).not.toThrow();
-
-      expect(throwing.isEnabled()).toBe(false);
-      expect(healthy.isEnabled()).toBe(false);
-    });
-  });
-
-  describe('setConfig', () => {
-    it('keeps the `enabled: false` wait', () => {
-      const probe = new EnableProbe('test', '1.0.0', { enabled: false });
-
-      probe.setConfig({});
-      const unload = registerInstrumentations({ instrumentations: [probe] });
-
-      expect(probe.isEnabled()).toBe(false);
-      unload();
-    });
-
-    it('never enables or disables, and warns when asked to', () => {
-      const running = new EnableProbe('running', '1.0.0', {});
-      registerForTest(running);
-      running.setConfig({ enabled: false });
-      expect(running.isEnabled()).toBe(true);
-      expect(running.disableCount).toBe(0);
-
-      const stopped = new EnableProbe('stopped', '1.0.0', {});
-      stopped.setConfig({ enabled: true });
-      expect(stopped.isEnabled()).toBe(false);
-      expect(stopped.enableCount).toBe(0);
-
-      expect(diagLogger.warn).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not warn when `enabled` matches the running state', () => {
-      const probe = new EnableProbe('test', '1.0.0', {});
-      registerForTest(probe);
-
-      // The usual pattern for changing one option.
-      probe.setConfig({ ...probe.getConfig() });
-
-      expect(probe.isEnabled()).toBe(true);
+      expect(probe.onEnableCount).toBe(1);
       expect(diagLogger.warn).not.toHaveBeenCalled();
     });
+
+    it('enable after disable runs only _onEnable', () => {
+      const probe = new Probe();
+
+      probe.enable();
+      probe.disable();
+      probe.enable();
+
+      expect(probe.initCount).toBe(1);
+      expect(probe.onEnableCount).toBe(2);
+      expect(probe.isEnabled()).toBe(true);
+    });
+
+    it('isEnabled() is true inside _onEnable', () => {
+      const probe = new Probe();
+
+      probe.enable();
+
+      expect(probe.isEnabledInOnEnable).toBe(true);
+    });
   });
 
-  describe('init failure', () => {
-    it('stays off and warns with the cause', () => {
-      const probe = new FailingProbe('test', '1.0.0', {});
+  describe('deps', () => {
+    it('uses passed providers', () => {
+      const { exporter, provider } = createTracerProvider();
+      const probe = new Probe();
 
-      expect(() => registerForTest(probe)).not.toThrow();
+      probe.enable({ tracerProvider: provider });
+      probe.emitSpan('passed');
 
+      expect(spanNames(exporter)).toEqual(['passed']);
+    });
+
+    it('falls back to the global proxy', () => {
+      const probe = new Probe();
+      probe.enable();
+
+      const { exporter, provider } = createTracerProvider();
+      trace.setGlobalTracerProvider(provider);
+      probe.emitSpan('late-global');
+
+      expect(spanNames(exporter)).toEqual(['late-global']);
+    });
+
+    it('same deps on a later enable do not warn', () => {
+      const { provider } = createTracerProvider();
+      const deps = { tracerProvider: provider, propagator: propagation };
+      const probe = new Probe();
+
+      probe.enable(deps);
+      probe.enable(deps);
+      probe.disable();
+      // A new object with the same values is the same deps.
+      probe.enable({ ...deps });
+
+      expect(diagLogger.warn).not.toHaveBeenCalled();
+    });
+
+    it('different deps on a later enable warn once and are ignored', () => {
+      const first = createTracerProvider();
+      const second = createTracerProvider();
+      const probe = new Probe();
+
+      probe.enable({ tracerProvider: first.provider });
+      probe.disable();
+      probe.enable({ tracerProvider: second.provider });
+      probe.emitSpan('after-second-enable');
+
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+      expect(diagLogger.warn).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('tracerProvider'),
+      );
+      expect(probe.isEnabled()).toBe(true);
+      expect(spanNames(first.exporter)).toEqual(['after-second-enable']);
+      expect(spanNames(second.exporter)).toEqual([]);
+    });
+
+    it('propagator defaults to the global propagation API', () => {
+      const probe = new Probe();
+
+      probe.enable();
+
+      expect(probe.exposedPropagator()).toBe(propagation);
+    });
+  });
+
+  describe('disable', () => {
+    it('before enable does nothing', () => {
+      const probe = new Probe();
+
+      probe.disable();
+      expect(probe.onDisableCount).toBe(0);
+
+      probe.enable();
+      expect(probe.initCount).toBe(1);
+      expect(probe.isEnabled()).toBe(true);
+    });
+
+    it('after enable runs _onDisable and isEnabled() is false', () => {
+      const probe = new Probe();
+
+      probe.enable();
+      probe.disable();
+
+      expect(probe.onDisableCount).toBe(1);
       expect(probe.isEnabled()).toBe(false);
+    });
+
+    it('twice runs _onDisable once', () => {
+      const probe = new Probe();
+
+      probe.enable();
+      probe.disable();
+      probe.disable();
+
+      expect(probe.onDisableCount).toBe(1);
+    });
+  });
+
+  describe('failures', () => {
+    it('_init throws: state failed, one warn with cause, later enable does nothing', () => {
+      const probe = new Probe();
+      probe.initError = new Error('cannot patch');
+
+      probe.enable();
+      probe.enable();
+
+      expect(probe.initCount).toBe(1);
+      expect(probe.onEnableCount).toBe(0);
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
       expect(diagLogger.warn).toHaveBeenCalledWith(
         'test',
         expect.stringContaining('cannot patch'),
-        warnedError(),
+        probe.initError,
       );
-      expect((warnedError() as Error).message).toBe('cannot patch');
     });
 
-    it('warns with the descriptive error, not its cause', () => {
-      const inner = new TypeError('Cannot redefine property: greet');
-      const outer = new Error('Failed to patch greet', { cause: inner });
-      const probe = new ThrowingProbe('test', '1.0.0', {});
-      probe.toThrow = outer;
+    it('_onEnable throws: rolled back through _onDisable, warn, a later enable retries', () => {
+      const probe = new Probe();
+      probe.onEnableError = new Error('enable broke');
 
-      registerForTest(probe);
-
-      expect(warnedError()).toBe(outer);
-    });
-
-    it('warns with an Error for a non-Error throw', () => {
-      const probe = new ThrowingProbe('test', '1.0.0', {});
-      probe.toThrow = 'boom';
-
-      registerForTest(probe);
-
-      const error = warnedError();
-      expect(error).toBeInstanceOf(Error);
-      expect((error as Error).message).toBe('boom');
-      expect((error as Error).cause).toBe('boom');
-    });
-
-    it('does not throw for a value String() cannot convert', () => {
-      const unprintable = Object.create(null);
-      const probe = new ThrowingProbe('test', '1.0.0', {});
-      probe.toThrow = unprintable;
-
-      expect(() => registerForTest(probe)).not.toThrow();
-      expect((warnedError() as Error).cause).toBe(unprintable);
-    });
-
-    it('never retries', () => {
-      const probe = new ThrowingProbe('test', '1.0.0', {});
-      probe.toThrow = new Error('locked');
-      registerForTest(probe);
-
-      // A retry could stack wraps on the APIs that did get patched.
-      probe.toThrow = undefined;
-      probe.enable();
       probe.enable();
 
-      expect(probe.attempts).toBe(1);
       expect(probe.isEnabled()).toBe(false);
-    });
-  });
-
-  describe('_onEnable failure', () => {
-    it('does not throw, stays off, and removes what it added', () => {
-      const probe = new HalfEnableProbe('test', '1.0.0', {});
-
-      expect(() => registerForTest(probe)).not.toThrow();
-      probe.target.dispatchEvent(new Event('ping'));
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.received).toBe(0);
+      expect(probe.onDisableCount).toBe(1);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
       expect(diagLogger.warn).toHaveBeenCalledWith(
         'test',
         expect.stringContaining('enable broke'),
-        expect.any(Error),
+        probe.onEnableError,
       );
-    });
 
-    it('can succeed on a later enable() without running init again', () => {
-      const probe = new HalfEnableProbe('test', '1.0.0', {});
-      registerForTest(probe);
-
+      probe.onEnableError = undefined;
       probe.enable();
-      probe.target.dispatchEvent(new Event('ping'));
 
       expect(probe.isEnabled()).toBe(true);
       expect(probe.initCount).toBe(1);
-      expect(probe.received).toBe(1);
-    });
-  });
-
-  describe('disable() inside _onEnable()', () => {
-    it('removes the listeners that _onEnable() adds after it', () => {
-      const probe = new ReentrantEnableProbe('test', '1.0.0', {});
-      probe.duringNextEnable = () => probe.disable();
-
-      registerForTest(probe);
-      probe.target.dispatchEvent(new Event('ping'));
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.received).toBe(0);
+      expect(probe.onEnableCount).toBe(2);
     });
 
-    it('leaves exactly one listener after a later enable()', () => {
-      const probe = new ReentrantEnableProbe('test', '1.0.0', {});
-      probe.duringNextEnable = () => probe.disable();
-      registerForTest(probe);
-
+    it('_onDisable throws: logged with diag.error, isEnabled() false, no throw', () => {
+      const probe = new Probe();
+      probe.onDisableError = new Error('cleanup broke');
       probe.enable();
-      probe.target.dispatchEvent(new Event('ping'));
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.received).toBe(1);
-    });
-
-    it('followed by enable(), stays enabled with one listener', () => {
-      const probe = new ReentrantEnableProbe('test', '1.0.0', {});
-      probe.duringNextEnable = () => {
-        probe.disable();
-        probe.enable();
-      };
-
-      registerForTest(probe);
-      probe.target.dispatchEvent(new Event('ping'));
-
-      expect(probe.isEnabled()).toBe(true);
-      expect(probe.received).toBe(1);
-    });
-  });
-
-  describe('async hooks', () => {
-    it('treats an async _init() as a failed init', () => {
-      const probe = new AsyncInitProbe('test', '1.0.0', {});
-
-      registerForTest(probe);
-      probe.enable();
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.initCount).toBe(1);
-      expect(diagLogger.warn).toHaveBeenCalledWith(
-        'test',
-        expect.stringContaining('synchronous'),
-        expect.any(Error),
-      );
-    });
-
-    it('logs the rejection of an async _init()', async () => {
-      const probe = new AsyncInitProbe('test', '1.0.0', {});
-
-      registerForTest(probe);
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
-      expect(diagLogger.error).toHaveBeenCalledWith(
-        'test',
-        expect.any(String),
-        probe.rejection,
-      );
-    });
-
-    it('rolls back an async _onEnable()', () => {
-      const probe = new AsyncEnableProbe('test', '1.0.0', {});
-
-      registerForTest(probe);
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(probe.disableCount).toBe(1);
-      expect(diagLogger.warn).toHaveBeenCalledWith(
-        'test',
-        expect.stringContaining('synchronous'),
-        expect.any(Error),
-      );
-    });
-
-    it('logs an async _onDisable() as a failed disable', () => {
-      const probe = new AsyncDisableProbe('test', '1.0.0', {});
-      registerForTest(probe);
-
-      probe.disable();
-
-      expect(probe.isEnabled()).toBe(false);
-      expect(diagLogger.error).toHaveBeenCalledWith(
-        'test',
-        expect.any(String),
-        expect.objectContaining({
-          message: expect.stringContaining('synchronous'),
-        }),
-      );
-    });
-  });
-
-  describe('disable()', () => {
-    it('logs a throwing _onDisable instead of throwing, and stays off', () => {
-      const probe = new ThrowingDisableProbe('test', '1.0.0', {});
-      registerForTest(probe);
 
       expect(() => probe.disable()).not.toThrow();
 
@@ -823,7 +324,27 @@ describe('InstrumentationBase', () => {
       expect(diagLogger.error).toHaveBeenCalledWith(
         'test',
         expect.any(String),
-        probe.thrown,
+        probe.onDisableError,
+      );
+    });
+
+    it('a hook that returns a promise counts as failed and its rejection is logged', async () => {
+      const probe = new AsyncInitProbe();
+
+      probe.enable();
+      probe.enable();
+
+      expect(probe.isEnabled()).toBe(false);
+      expect(probe.initCount).toBe(1);
+      expect(probe.onEnableCount).toBe(0);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.any(String),
+        probe.rejection,
       );
     });
   });
@@ -956,35 +477,4 @@ describe('InstrumentationBase', () => {
       );
     });
   });
-
-  describe('providers', () => {
-    it('setTracerProvider swaps the tracer handle', () => {
-      const probe = new WrapProbe('test', '1.0.0', {});
-      const sentinelTracer = {} as Tracer;
-      const tracerProvider: TracerProvider = {
-        getTracer: () => sentinelTracer,
-      };
-
-      probe.setTracerProvider(tracerProvider);
-
-      expect(probe.exposedTracer()).toBe(sentinelTracer);
-    });
-
-    it('setLoggerProvider swaps the logger handle', () => {
-      const probe = new WrapProbe('test', '1.0.0', {});
-      const sentinelLogger = {} as Logger;
-      const loggerProvider: LoggerProvider = {
-        getLogger: () => sentinelLogger,
-      };
-
-      probe.setLoggerProvider(loggerProvider);
-
-      expect(probe.exposedLogger()).toBe(sentinelLogger);
-    });
-  });
 });
-
-// Type-level check: a concrete subclass satisfies the public Instrumentation
-// interface, so it drops straight into registerInstrumentations.
-const _typeCheck: Instrumentation = new EnableProbe('type', '1.0.0', {});
-void _typeCheck;

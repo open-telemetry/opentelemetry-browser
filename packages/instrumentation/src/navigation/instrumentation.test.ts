@@ -15,7 +15,7 @@ import {
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl } from '#utils';
-import { registerForTest, setupTestLogExporter } from '#utils/test';
+import { enableForTest, setupTestLogExporter } from '#utils/test';
 
 import { NavigationInstrumentation } from './instrumentation.ts';
 import {
@@ -81,7 +81,7 @@ describe('NavigationInstrumentation', () => {
       const inst = new NavigationInstrumentation();
       instrumentation = inst;
       expect(() => {
-        registerForTest(inst);
+        enableForTest(inst);
         inst.disable();
       }).not.toThrow();
     });
@@ -91,7 +91,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation();
       const addSpy = vi.spyOn(window, 'addEventListener');
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.enable();
 
       const popstateCalls = addSpy.mock.calls.filter(
@@ -105,7 +105,7 @@ describe('NavigationInstrumentation', () => {
     it('should emit immediately when readyState is complete', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const logs = getNavigationLogs();
       expect(logs).toHaveLength(1);
@@ -120,7 +120,7 @@ describe('NavigationInstrumentation', () => {
     it('should emit on DOMContentLoaded when readyState is loading', () => {
       setReadyState('loading');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       expect(getNavigationLogs()).toHaveLength(0);
 
       document.dispatchEvent(new Event('DOMContentLoaded'));
@@ -136,7 +136,7 @@ describe('NavigationInstrumentation', () => {
       // DOMContentLoaded has already fired, so waiting for it would miss the page load.
       setReadyState('interactive');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(getNavigationLogs()).toHaveLength(1);
     });
@@ -144,7 +144,7 @@ describe('NavigationInstrumentation', () => {
     it('should not emit the page load again after disable and enable', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.disable();
       instrumentation.enable();
 
@@ -162,7 +162,7 @@ describe('NavigationInstrumentation', () => {
         },
       });
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       window.history.pushState({}, '', '/next');
 
       expect(instrumentation.isEnabled()).toBe(true);
@@ -172,7 +172,7 @@ describe('NavigationInstrumentation', () => {
     it('should not emit a duplicate initial event if DOMContentLoaded fires twice', () => {
       setReadyState('loading');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       document.dispatchEvent(new Event('DOMContentLoaded'));
       document.dispatchEvent(new Event('DOMContentLoaded'));
@@ -185,7 +185,7 @@ describe('NavigationInstrumentation', () => {
     it('should emit a push event when history.pushState is called', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/new-path');
@@ -204,7 +204,7 @@ describe('NavigationInstrumentation', () => {
     it('should emit a replace event when history.replaceState is called', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.replaceState({}, '', '/replaced');
@@ -217,7 +217,7 @@ describe('NavigationInstrumentation', () => {
     it('should not emit when pushState is called twice with the same URL', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/same');
@@ -237,18 +237,18 @@ describe('NavigationInstrumentation', () => {
           return url;
         },
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(() => window.history.pushState({}, '', '/boom')).not.toThrow();
       expect(location.pathname).toBe('/boom');
     });
 
-    it('should use the URL at registration, not at construction, as the referrer', () => {
+    it('should use the URL at the first enable(), not at construction, as the referrer', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      // History is not patched until registration, so this change is not observed.
+      // History is not patched until the first enable(), so this change is not observed.
       window.history.replaceState({}, '', '/before-enable');
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/before-enable');
@@ -259,7 +259,7 @@ describe('NavigationInstrumentation', () => {
     it('should still call the original pushState', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       window.history.pushState({ foo: 'bar' }, '', '/original-ran');
 
@@ -272,7 +272,7 @@ describe('NavigationInstrumentation', () => {
     it('should emit a traverse event on popstate', async () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       window.history.pushState({}, '', '/page-a');
       inMemoryExporter.reset();
@@ -296,7 +296,7 @@ describe('NavigationInstrumentation', () => {
     it('should mark hash_change=true when only hash is added', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/#section1');
@@ -311,7 +311,7 @@ describe('NavigationInstrumentation', () => {
     it('should mark hash_change=false when path changes', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/new-path');
@@ -337,7 +337,7 @@ describe('NavigationInstrumentation', () => {
         wrapped.push(String(name));
       });
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.enable();
       instrumentation.enable();
 
@@ -350,7 +350,7 @@ describe('NavigationInstrumentation', () => {
     it('should not emit for history changes after disable', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
       instrumentation.disable();
 
@@ -362,7 +362,7 @@ describe('NavigationInstrumentation', () => {
     it('should not emit on popstate after disable', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
       instrumentation.disable();
 
@@ -376,7 +376,7 @@ describe('NavigationInstrumentation', () => {
     it('should not sanitize by default', () => {
       setReadyState('complete');
       instrumentation = new NavigationInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/path?api_key=secret');
@@ -390,7 +390,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         sanitizeUrl: defaultSanitizeUrl,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/path?api_key=secret&normal=value');
@@ -406,7 +406,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         sanitizeUrl: (url) => url.replace('secret', 'CUSTOM'),
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/path?token=secret');
@@ -425,7 +425,7 @@ describe('NavigationInstrumentation', () => {
             'custom.value';
         },
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const logs = getNavigationLogs();
       expect(logs[0]?.attributes['custom.key']).toBe('custom.value');
@@ -449,7 +449,7 @@ describe('NavigationInstrumentation', () => {
         )
         .mockImplementation(() => {});
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(getNavigationLogs()).toHaveLength(1);
       expect(diagErrorSpy).toHaveBeenCalled();
@@ -482,7 +482,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         useNavigationApiIfAvailable: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(window.history.pushState).toBe(origPushState);
       restore();
@@ -499,7 +499,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         useNavigationApiIfAvailable: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       const event = new Event('currententrychange') as Event & {
@@ -528,7 +528,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         useNavigationApiIfAvailable: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       instrumentation.disable();
       inMemoryExporter.reset();
@@ -547,7 +547,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         useNavigationApiIfAvailable: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       instrumentation.disable();
       instrumentation.enable();
@@ -576,7 +576,7 @@ describe('NavigationInstrumentation', () => {
         },
       });
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const urls = getNavigationLogs().map(
         (log) => log.attributes[ATTR_URL_FULL],
@@ -595,7 +595,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         useNavigationApiIfAvailable: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       window.history.pushState({}, '', '/fallback');
@@ -616,7 +616,7 @@ describe('NavigationInstrumentation', () => {
       instrumentation = new NavigationInstrumentation({
         useNavigationApiIfAvailable: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       inMemoryExporter.reset();
 
       const event = new Event('currententrychange') as Event & {
@@ -641,8 +641,8 @@ describe('NavigationInstrumentation', () => {
       const b = new NavigationInstrumentation();
 
       expect(() => {
-        registerForTest(a);
-        registerForTest(b);
+        enableForTest(a);
+        enableForTest(b);
         window.history.pushState({}, '', '/dual');
         a.disable();
         b.disable();

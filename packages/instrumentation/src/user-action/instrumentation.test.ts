@@ -5,7 +5,6 @@
 
 import type { Logger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -17,7 +16,7 @@ import {
   onTestFinished,
   vi,
 } from 'vitest';
-import { registerForTest, setupTestLogExporter } from '#utils/test';
+import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { UserActionInstrumentation } from './instrumentation.ts';
 
 describe('UserActionInstrumentation', () => {
@@ -29,9 +28,9 @@ describe('UserActionInstrumentation', () => {
   });
 
   beforeEach(() => {
-    disableInstrumentations = registerInstrumentations({
-      instrumentations: [new UserActionInstrumentation()],
-    });
+    const instrumentation = new UserActionInstrumentation();
+    instrumentation.enable();
+    disableInstrumentations = () => instrumentation.disable();
   });
 
   afterEach(() => {
@@ -183,9 +182,7 @@ describe('UserActionInstrumentation', () => {
     const instrumentation = new UserActionInstrumentation({
       autoCapturedActions: [],
     });
-    disableInstrumentations = registerInstrumentations({
-      instrumentations: [instrumentation],
-    });
+    enableForTest(instrumentation);
     expect(instrumentation.isEnabled()).toBe(true);
 
     const element = createTestElement();
@@ -210,9 +207,7 @@ describe('UserActionInstrumentation', () => {
   it('should not let a failed emit reach the page as an uncaught error', () => {
     disableInstrumentations();
     const instrumentation = new UserActionInstrumentation();
-    disableInstrumentations = registerInstrumentations({
-      instrumentations: [instrumentation],
-    });
+    enableForTest(instrumentation);
     // Stands in for a log processor that throws from onEmit.
     const emitSpy = vi
       .spyOn((instrumentation as unknown as { logger: Logger }).logger, 'emit')
@@ -239,7 +234,7 @@ describe('UserActionInstrumentation', () => {
       disableInstrumentations();
       const instrumentation = new UserActionInstrumentation();
       const element = createTestElement();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       dispatchMouseDownEvent(element, 0);
       expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
 
@@ -256,12 +251,10 @@ describe('UserActionInstrumentation', () => {
       instrumentation.disable();
     });
 
-    it('should not emit through registerInstrumentations with `enabled: false` until enable()', () => {
+    it('should not emit when constructed but not enabled, until enable()', () => {
       disableInstrumentations();
-      const instrumentation = new UserActionInstrumentation({ enabled: false });
-      disableInstrumentations = registerInstrumentations({
-        instrumentations: [instrumentation],
-      });
+      const instrumentation = new UserActionInstrumentation();
+      onTestFinished(() => instrumentation.disable());
       const element = createTestElement();
 
       dispatchMouseDownEvent(element, 0);
@@ -284,9 +277,7 @@ describe('UserActionInstrumentation', () => {
           };
         },
       });
-      disableInstrumentations = registerInstrumentations({
-        instrumentations: [customInstrumentation],
-      });
+      enableForTest(customInstrumentation);
 
       const element = createTestElement();
       dispatchMouseDownEvent(element, 0); // Left click
@@ -316,9 +307,7 @@ describe('UserActionInstrumentation', () => {
         )
         .mockImplementation(() => {});
 
-      disableInstrumentations = registerInstrumentations({
-        instrumentations: [customInstrumentation],
-      });
+      enableForTest(customInstrumentation);
 
       const element = createTestElement();
 

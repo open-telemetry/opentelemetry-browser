@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
 /**
  * Console methods that can be instrumented.
  */
@@ -13,7 +11,7 @@ export type ConsoleMethod = 'log' | 'warn' | 'error' | 'info' | 'debug';
 /**
  * ConsoleInstrumentation Configuration
  */
-export interface ConsoleInstrumentationConfig extends InstrumentationConfig {
+export interface ConsoleInstrumentationConfig {
   /**
    * Console methods to instrument.
    * @default ['log', 'warn', 'error', 'info', 'debug']

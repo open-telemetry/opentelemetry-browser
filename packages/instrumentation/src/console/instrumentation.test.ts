@@ -16,8 +16,8 @@ import {
   it,
 } from 'vitest';
 import {
+  enableForTest,
   getWrapDepth,
-  registerForTest,
   setupTestDiagLogger,
   setupTestLogExporter,
 } from '#utils/test';
@@ -52,7 +52,7 @@ describe('ConsoleInstrumentation', () => {
     } as unknown as Console;
     inMemoryExporter.reset();
     instrumentation = new ConsoleInstrumentation();
-    registerForTest(instrumentation);
+    enableForTest(instrumentation);
   });
 
   afterEach(() => {
@@ -134,7 +134,7 @@ describe('ConsoleInstrumentation', () => {
       instrumentation = new ConsoleInstrumentation({
         logMethods: ['error', 'warn'],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       console.log('log message');
       console.info('info message');
@@ -155,7 +155,7 @@ describe('ConsoleInstrumentation', () => {
       instrumentation = new ConsoleInstrumentation({
         logMethods: [],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       console.log('log message');
       console.warn('warn message');
@@ -176,7 +176,7 @@ describe('ConsoleInstrumentation', () => {
         instrumentation = new ConsoleInstrumentation({
           logMethods: [...logMethods],
         });
-        registerForTest(instrumentation);
+        enableForTest(instrumentation);
 
         console.log('log message');
         console.warn('warn message');
@@ -229,7 +229,7 @@ describe('ConsoleInstrumentation', () => {
         messageSerializer: (args) =>
           args.map((arg) => `[${typeof arg}]`).join('-'),
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       console.log('hello', 123, { test: true });
 
@@ -264,7 +264,7 @@ describe('ConsoleInstrumentation', () => {
       };
 
       instrumentation = new ConsoleInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       console.log('test');
 
@@ -292,7 +292,7 @@ describe('ConsoleInstrumentation', () => {
           throw new Error('serializer broke');
         },
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(() => console.log('hello')).not.toThrow();
 
@@ -331,7 +331,7 @@ describe('ConsoleInstrumentation', () => {
           throw new Error('serializer broke');
         },
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(() => console.error('boom')).not.toThrow();
       expect(serializerCalls).toBe(1);
@@ -398,7 +398,7 @@ describe('ConsoleInstrumentation', () => {
       });
       const locked = new ConsoleInstrumentation();
 
-      registerForTest(locked);
+      enableForTest(locked);
       locked.enable();
 
       expect(locked.isEnabled()).toBe(false);

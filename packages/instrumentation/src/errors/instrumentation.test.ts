@@ -18,7 +18,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { registerForTest, setupTestLogExporter } from '#utils/test';
+import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { ErrorsInstrumentation } from './instrumentation.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
@@ -118,14 +118,14 @@ describe('ErrorsInstrumentation', () => {
       const subject = new ErrorsInstrumentation();
       instrumentation = subject;
       expect(() => {
-        registerForTest(subject);
+        enableForTest(subject);
         subject.disable();
       }).not.toThrow();
     });
 
     it('should not emit after disable', () => {
       instrumentation = new ErrorsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.disable();
 
       dispatchErrorEvent(new Error('after disable'));
@@ -137,7 +137,7 @@ describe('ErrorsInstrumentation', () => {
       instrumentation = new ErrorsInstrumentation();
       const addSpy = vi.spyOn(window, 'addEventListener');
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.enable();
 
       const errorCalls = addSpy.mock.calls.filter((c) => c[0] === 'error');
@@ -152,7 +152,7 @@ describe('ErrorsInstrumentation', () => {
   describe('error events', () => {
     beforeEach(() => {
       instrumentation = new ErrorsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
     });
 
     it('should emit an exception event when an Error is thrown', () => {
@@ -243,7 +243,7 @@ describe('ErrorsInstrumentation', () => {
   describe('unhandled rejection events', () => {
     beforeEach(() => {
       instrumentation = new ErrorsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
     });
 
     it('should emit an exception event when a promise is rejected with an Error', () => {
@@ -307,7 +307,7 @@ describe('ErrorsInstrumentation', () => {
               : error.toLocaleUpperCase(),
         }),
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       dispatchErrorEvent(new ValidationError('Something happened!'));
 
@@ -328,7 +328,7 @@ describe('ErrorsInstrumentation', () => {
               : error.message.toLocaleUpperCase(),
         }),
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       dispatchErrorEvent(STRING_ERROR);
 
@@ -349,7 +349,7 @@ describe('ErrorsInstrumentation', () => {
               : error.message.toLocaleUpperCase(),
         }),
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       dispatchErrorEvent(undefined, 'Script error.');
 
@@ -365,7 +365,7 @@ describe('ErrorsInstrumentation', () => {
           [ATTR_EXCEPTION_MESSAGE]: 'overridden',
         }),
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       dispatchErrorEvent(undefined, 'Script error.');
 
@@ -380,7 +380,7 @@ describe('ErrorsInstrumentation', () => {
           throw new Error('hook boom');
         },
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(() =>
         dispatchErrorEvent(new ValidationError('Something happened!')),
@@ -398,7 +398,7 @@ describe('ErrorsInstrumentation', () => {
   describe('failure containment', () => {
     beforeEach(() => {
       instrumentation = new ErrorsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
     });
 
     it('should contain a throwing LogRecordProcessor and surface it via diag', () => {

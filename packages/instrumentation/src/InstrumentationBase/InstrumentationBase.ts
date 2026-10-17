@@ -6,18 +6,14 @@
 import type {
   DiagLogger,
   Meter,
-  MeterProvider,
+  TextMapPropagator,
   Tracer,
-  TracerProvider,
 } from '@opentelemetry/api';
-import { diag, metrics, trace } from '@opentelemetry/api';
-import type { Logger, LoggerProvider } from '@opentelemetry/api-logs';
+import { diag, metrics, propagation, trace } from '@opentelemetry/api';
+import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
-import type {
-  Instrumentation,
-  InstrumentationConfig,
-} from '@opentelemetry/instrumentation';
 import { toError } from '../utils/toError.ts';
+import type { Instrumentation, InstrumentationDeps } from './types.ts';
 
 function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   return (
@@ -27,48 +23,35 @@ function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
   );
 }
 
-// `waiting`: init is done, but only an explicit enable() makes it emit.
-type Phase =
-  | 'new'
-  | 'initializing'
-  | 'initFailed'
-  | 'waiting'
-  | 'enabled'
-  | 'disabled';
+type State = 'new' | 'enabled' | 'disabled' | 'failed';
+
+interface Locked<Deps> {
+  deps: Readonly<Deps> | undefined;
+  tracer: Tracer;
+  meter: Meter;
+  logger: Logger;
+  propagator: TextMapPropagator;
+}
 
 /**
- * Browser-native base class for OpenTelemetry instrumentations. It implements
- * the `Instrumentation` interface, so instances work with
- * `registerInstrumentations`, without the Node module-patching runtime of
- * `@opentelemetry/instrumentation`.
+ * Browser-native base class for OpenTelemetry instrumentations.
  *
- * Nothing runs until the providers are set, so the constructor and an early
- * `enable()` do not patch or add listeners. Hooks must be synchronous, and
- * patches are never removed. The package README describes the full lifecycle
- * in "Enabling and disabling" and "Writing an instrumentation".
+ * The constructor only stores the config. The first `enable(deps)` locks the
+ * dependencies, runs `_init()` once and then `_onEnable()`. After that,
+ * `disable()` and `enable()` only run `_onDisable()` and `_onEnable()`.
+ * Hooks must be synchronous, and patches are never removed.
  */
 export abstract class InstrumentationBase<
-  ConfigType extends InstrumentationConfig = InstrumentationConfig,
-> implements Instrumentation<ConfigType>
+  ConfigType extends object = object,
+  Deps extends InstrumentationDeps = InstrumentationDeps,
+> implements Instrumentation
 {
   public readonly instrumentationName: string;
   public readonly instrumentationVersion: string;
-  protected _config: ConfigType;
+  protected readonly _config: ConfigType;
   protected readonly _diag: DiagLogger;
-  private _tracer: Tracer;
-  private _meter: Meter;
-  private _logger: Logger;
-  // From `enabled: false` or a disable() before registration: only an explicit
-  // enable() makes it emit.
-  private _waitsForEnable: boolean;
-  private _phase: Phase = 'new';
-  // Set while _onEnable() runs, so a disable() inside it can defer cleanup.
-  private _isEnabling = false;
-  // Stands in for "registered": registerInstrumentations always sets the
-  // providers before it calls enable(). A manual set*Provider() counts too.
-  private _hasProviders = false;
-  // An enable() made before registration, kept for the registration to apply.
-  private _isEnableRequested = false;
+  private _state: State = 'new';
+  private _locked: Locked<Deps> | undefined;
 
   constructor(
     instrumentationName: string,
@@ -77,49 +60,29 @@ export abstract class InstrumentationBase<
   ) {
     this.instrumentationName = instrumentationName;
     this.instrumentationVersion = instrumentationVersion;
-    this._waitsForEnable = config.enabled === false;
-    this._config = { ...config, enabled: false };
+    this._config = config;
     this._diag = diag.createComponentLogger({ namespace: instrumentationName });
-    this._tracer = trace.getTracer(instrumentationName, instrumentationVersion);
-    this._meter = metrics.getMeter(instrumentationName, instrumentationVersion);
-    this._logger = logs.getLogger(instrumentationName, instrumentationVersion);
   }
 
   /** Whether the instrumentation is emitting now. */
   public isEnabled(): boolean {
-    return this._phase === 'enabled';
+    return this._state === 'enabled';
   }
 
   /**
-   * Runs init once, then emits. Before registration, the call is only kept,
-   * and registration then emits. With `enabled: false` or an early
-   * `disable()`, registration only runs init, unless a call was kept. After a
+   * Starts emitting. The first call locks `deps` (a dependency that is not
+   * passed uses the global API) and runs init once. Later calls ignore `deps`
+   * and warn if a passed dependency differs from the locked one. After a
    * failed init, calls do nothing.
    */
-  public enable(): void {
-    // `initializing`: an enable() from _init() would run init a second time.
-    if (this._phase === 'enabled' || this._phase === 'initializing') {
-      return;
-    }
-    if (this._phase === 'initFailed') {
-      this._diag.debug(
-        'not enabling because init failed earlier; see the earlier warning',
-      );
-      return;
-    }
-    if (this._phase === 'new') {
-      // Before registration, events and init warnings could be dropped.
-      if (!this._hasProviders) {
-        this._isEnableRequested = true;
-        this._diag.debug('enable() kept until registration sets the providers');
-        return;
-      }
-      this._setPhase('initializing');
+  public enable(deps?: Deps): void {
+    if (this._state === 'new') {
+      this._lock(deps);
       try {
         this._assertSync(this._init());
       } catch (err) {
-        // Swallowed: one locked API must not stop the other instrumentations.
-        this._setPhase('initFailed');
+        // Never retried: a second _init() could wrap an API twice.
+        this._state = 'failed';
         const error = toError(err);
         this._diag.warn(
           `init failed, so this instrumentation stays off: ${error.message}`,
@@ -127,70 +90,84 @@ export abstract class InstrumentationBase<
         );
         return;
       }
-      if (this._waitsForEnable && !this._isEnableRequested) {
-        this._setPhase('waiting');
-        this._diag.debug(
-          'initialized but not emitting, because of `enabled: false` or an early disable(). Call enable() to emit.',
-        );
-        return;
-      }
-    }
-    // Set first, so emits made by the hook pass `isEnabled()` checks and a
-    // re-entrant enable() does not run the hook twice.
-    this._setPhase('enabled');
-    if (this._isEnabling) {
+      this._runOnEnable();
       return;
     }
-    let failure: Error | undefined;
-    this._isEnabling = true;
-    try {
-      this._assertSync(this._onEnable());
-    } catch (err) {
-      // No failure phase: init is done, so a retry cannot wrap twice.
-      failure = toError(err);
-      this._setPhase(this._idlePhase);
-    } finally {
-      this._isEnabling = false;
+    if (deps) {
+      this._warnIgnoredDeps(deps);
     }
-    // Also cleans up after a disable() made inside _onEnable().
-    if (!this.isEnabled()) {
-      this._runOnDisable();
+    if (this._state === 'disabled') {
+      this._runOnEnable();
     }
-    if (failure) {
+  }
+
+  /** Stops emitting and removes listeners. Patches stay. */
+  public disable(): void {
+    if (this._state !== 'enabled') {
+      return;
+    }
+    this._state = 'disabled';
+    this._runOnDisable();
+  }
+
+  private _lock(deps: Deps | undefined): void {
+    const name = this.instrumentationName;
+    const version = this.instrumentationVersion;
+    // The API proxies, not the providers behind them, so a provider set as
+    // global after this call still receives the data.
+    this._locked = {
+      deps: deps && { ...deps },
+      tracer: (deps?.tracerProvider ?? trace.getTracerProvider()).getTracer(
+        name,
+        version,
+      ),
+      meter: (deps?.meterProvider ?? metrics.getMeterProvider()).getMeter(
+        name,
+        version,
+      ),
+      logger: (deps?.loggerProvider ?? logs.getLoggerProvider()).getLogger(
+        name,
+        version,
+      ),
+      propagator: deps?.propagator ?? propagation,
+    };
+  }
+
+  // Compares by key, so passing the same deps on every enable() logs nothing.
+  private _warnIgnoredDeps(deps: Deps): void {
+    const locked = this._locked?.deps ?? {};
+    const ignored = Object.entries(deps)
+      .filter(([key, value]) => value !== Reflect.get(locked, key))
+      .map(([key]) => key);
+    if (ignored.length > 0) {
       this._diag.warn(
-        `enable failed; a later enable() can retry: ${failure.message}`,
-        failure,
+        `enable() ignores deps after the first call; ignored: ${ignored.join(', ')}`,
       );
     }
   }
 
-  /**
-   * Stops emission and removes listeners. Patches stay. Before registration,
-   * it cancels a kept `enable()` and makes the instance wait for `enable()`,
-   * as if it was built with `enabled: false`.
-   */
-  public disable(): void {
-    this._isEnableRequested = false;
-    if (this._phase === 'new') {
-      this._waitsForEnable = true;
-      return;
+  private _runOnEnable(): void {
+    // Set first, so emits made by the hook pass `isEnabled()` checks.
+    this._state = 'enabled';
+    try {
+      this._assertSync(this._onEnable());
+    } catch (err) {
+      // Not `failed`: init is done, so a retry cannot wrap twice.
+      this._state = 'disabled';
+      this._runOnDisable();
+      const error = toError(err);
+      this._diag.warn(
+        `enable failed; a later enable() can retry: ${error.message}`,
+        error,
+      );
     }
-    if (this._phase !== 'enabled') {
-      return;
-    }
-    this._setPhase(this._idlePhase);
-    // _onEnable() is still adding listeners. enable() removes them once it returns.
-    if (this._isEnabling) {
-      return;
-    }
-    this._runOnDisable();
   }
 
   private _runOnDisable(): void {
     try {
       this._assertSync(this._onDisable());
     } catch (err) {
-      // Caught so the unload loop of registerInstrumentations reaches the rest.
+      // Caught so a caller that disables many instances reaches the rest.
       this._diag.error(
         'disable failed; some listeners may still be attached',
         toError(err),
@@ -210,73 +187,44 @@ export abstract class InstrumentationBase<
     }
   }
 
-  private get _idlePhase(): Phase {
-    return this._waitsForEnable ? 'waiting' : 'disabled';
+  private _requireLocked(name: string): Locked<Deps> {
+    if (!this._locked) {
+      throw new Error(
+        `${this.instrumentationName}: ${name} is not available before the first enable()`,
+      );
+    }
+    return this._locked;
   }
 
-  private get _isHandled(): boolean {
-    return this._phase === 'enabled' || this._phase === 'waiting';
-  }
-
-  // registerInstrumentations calls enable() only when `enabled` is false.
-  private _setPhase(phase: Phase): void {
-    this._phase = phase;
-    this._config.enabled = this._isHandled;
-  }
-
+  /** The tracer from the locked provider. Available from the first `enable()`. */
   protected get tracer(): Tracer {
-    return this._tracer;
+    return this._requireLocked('tracer').tracer;
   }
 
+  /** The meter from the locked provider. Available from the first `enable()`. */
   protected get meter(): Meter {
-    return this._meter;
+    return this._requireLocked('meter').meter;
   }
 
+  /** The logger from the locked provider. Available from the first `enable()`. */
   protected get logger(): Logger {
-    return this._logger;
-  }
-
-  /** The live object, not a copy, because hot paths read it per request. */
-  public getConfig(): Readonly<ConfigType> {
-    return this._config;
+    return this._requireLocked('logger').logger;
   }
 
   /**
-   * Replaces the whole config. Keys not in `config` become undefined. It never
-   * enables or disables the instrumentation. A different `enabled` value is
-   * ignored with a warning, so use `enable()` and `disable()` instead.
+   * The locked propagator, or the global propagation API. Use it instead of
+   * `propagation`, so a second SDK on the page can inject its own context.
    */
-  public setConfig(config: ConfigType): void {
-    if (config.enabled !== undefined && config.enabled !== this._isHandled) {
-      this._diag.warn(
-        'setConfig() ignores `enabled`; call enable() or disable() to change whether this instrumentation emits',
-      );
-    }
-    this._config = { ...config, enabled: this._isHandled };
+  protected get propagator(): TextMapPropagator {
+    return this._requireLocked('propagator').propagator;
   }
 
-  public setTracerProvider(tracerProvider: TracerProvider): void {
-    this._hasProviders = true;
-    this._tracer = tracerProvider.getTracer(
-      this.instrumentationName,
-      this.instrumentationVersion,
-    );
-  }
-
-  public setMeterProvider(meterProvider: MeterProvider): void {
-    this._hasProviders = true;
-    this._meter = meterProvider.getMeter(
-      this.instrumentationName,
-      this.instrumentationVersion,
-    );
-  }
-
-  public setLoggerProvider(loggerProvider: LoggerProvider): void {
-    this._hasProviders = true;
-    this._logger = loggerProvider.getLogger(
-      this.instrumentationName,
-      this.instrumentationVersion,
-    );
+  /**
+   * The deps as passed to the first `enable()`, for subclass-specific deps.
+   * Undefined if that call passed none.
+   */
+  protected get deps(): Readonly<Deps> | undefined {
+    return this._requireLocked('deps').deps;
   }
 
   /**
@@ -334,11 +282,10 @@ export abstract class InstrumentationBase<
   }
 
   /**
-   * One-time setup, run at registration: patch browser APIs, check that
-   * the browser supports what this instrumentation needs, and make one-time
-   * choices. Throw if the instrumentation cannot run. Listeners belong in
-   * `_onEnable()`: a patch passes calls through while nothing is emitted, but a
-   * listener added here would drop what it hears, including buffered entries.
+   * One-time setup, run at the first `enable()`. It only patches browser APIs
+   * and checks that the browser supports what this instrumentation needs.
+   * Throw if the instrumentation cannot run. Listeners belong in
+   * `_onEnable()`. Must not call `enable()` or `disable()`.
    */
   protected _init(): void {}
 
@@ -346,12 +293,14 @@ export abstract class InstrumentationBase<
    * Add this instrumentation's listeners and observers, including buffered ones,
    * so a late `enable()` still receives earlier entries. If this throws,
    * `_onDisable()` must be able to remove whatever was added before the throw.
+   * Must not call `enable()` or `disable()`.
    */
   protected _onEnable(): void {}
 
   /**
    * Remove what `_onEnable()` added. `isEnabled()` is already false here, which
-   * is what stops the patches from emitting.
+   * is what stops the patches from emitting. Must not call `enable()` or
+   * `disable()`.
    */
   protected _onDisable(): void {}
 }

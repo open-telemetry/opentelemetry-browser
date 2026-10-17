@@ -4,7 +4,6 @@
  */
 
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -40,7 +39,7 @@ import {
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
 import {
-  registerForTest,
+  enableForTest,
   setupTestDiagLogger,
   setupTestSpanExporter,
 } from '#utils/test';
@@ -290,22 +289,19 @@ describe('FetchInstrumentation', () => {
       globalThis.fetch = originalFetchFunction;
     });
 
-    it('should wrap global fetch at registration, not when instantiated or on an earlier enable()', () => {
+    it('should wrap global fetch at the first enable(), not when instantiated', () => {
       instrumentation = new FetchInstrumentation();
-      expect(globalThis.fetch).toBe(originalFetchFunction);
-
-      instrumentation.enable();
       expect(globalThis.fetch).toBe(originalFetchFunction);
       expect(instrumentation.isEnabled()).toBe(false);
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       expect(instrumentation.isEnabled()).toBe(true);
       expect(globalThis.fetch).not.toBe(originalFetchFunction);
     });
 
     it('should keep a wrapper added on top of ours working across disable and enable', async () => {
       instrumentation = new FetchInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       const ours = globalThis.fetch;
       let thirdPartyCalls = 0;
       globalThis.fetch = function (this: typeof globalThis, ...args) {
@@ -330,19 +326,15 @@ describe('FetchInstrumentation', () => {
       ).toEqual([onUrl]);
     });
 
-    it('should patch but not emit through registerInstrumentations with `enabled: false` until enable()', async () => {
-      instrumentation = new FetchInstrumentation({ enabled: false });
+    it('should not patch or emit when constructed but not enabled, until enable()', async () => {
+      instrumentation = new FetchInstrumentation();
       const url = getUrlForPath('/api/get');
 
-      onTestFinished(
-        registerInstrumentations({ instrumentations: [instrumentation] }),
-      );
-      expect(globalThis.fetch).not.toBe(originalFetchFunction);
-      expect(instrumentation.isEnabled()).toBe(false);
       await fetch(url);
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       expect(getFetchSpans()).toHaveLength(0);
 
-      instrumentation.enable();
+      enableForTest(instrumentation);
       await fetch(url);
       await waitForSpan(url);
       expect(getFetchSpans()).toHaveLength(1);
@@ -351,7 +343,7 @@ describe('FetchInstrumentation', () => {
     it('should not unwrap global fetch when disabled', () => {
       expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation = new FetchInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       expect(globalThis.fetch).not.toBe(originalFetchFunction);
       instrumentation.disable();
       expect(globalThis.fetch).not.toBe(originalFetchFunction);
@@ -359,7 +351,7 @@ describe('FetchInstrumentation', () => {
 
     it('should not re-wrap global fetch across a disable/enable cycle', () => {
       instrumentation = new FetchInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       const wrappedFetch = globalThis.fetch;
 
       instrumentation.disable();
@@ -372,7 +364,7 @@ describe('FetchInstrumentation', () => {
 
     it('should stop and resume emitting spans across a disable/enable cycle', async () => {
       instrumentation = new FetchInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       const offUrl = getUrlForPath('/api/get?phase=off');
       const onUrl = getUrlForPath('/api/get?phase=on');
 
@@ -397,7 +389,7 @@ describe('FetchInstrumentation', () => {
       });
 
       instrumentation = new FetchInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(instrumentation.isEnabled()).toBe(false);
       expect(globalThis.fetch).toBe(originalFetchFunction);
@@ -426,7 +418,7 @@ describe('FetchInstrumentation', () => {
         });
 
         instrumentation = new FetchInstrumentation();
-        registerForTest(instrumentation);
+        enableForTest(instrumentation);
 
         expect(globalThis.fetch).not.toBe(originalFetchFunction);
         expect(instrumentation.isEnabled()).toBe(true);
@@ -456,16 +448,16 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should not throw when _wrap fails', () => {
-        expect(() => registerForTest(instrumentation)).not.toThrow();
+        expect(() => enableForTest(instrumentation)).not.toThrow();
       });
 
       it('should leave fetch unwrapped when _wrap fails', () => {
-        registerForTest(instrumentation);
+        enableForTest(instrumentation);
         expect(globalThis.fetch).toBe(originalFetchFunction);
       });
 
       it('should not retry _wrap after it fails', () => {
-        registerForTest(instrumentation);
+        enableForTest(instrumentation);
         expect(() => instrumentation.enable()).not.toThrow();
         instrumentation.enable();
 
@@ -475,7 +467,7 @@ describe('FetchInstrumentation', () => {
 
       it('should warn with the descriptive error', () => {
         const { warn } = setupTestDiagLogger();
-        registerForTest(instrumentation);
+        enableForTest(instrumentation);
 
         // Component loggers forward to `diag.warn(namespace, message, error)`.
         const error = warn.mock.calls[0]?.[2] as Error | undefined;
@@ -488,15 +480,11 @@ describe('FetchInstrumentation', () => {
   });
 
   describe('instrumentation', () => {
-    let unregister: (() => void) | undefined;
-
     // Calling it again swaps the default instance for one with `config`.
     const register = (config?: FetchInstrumentationConfig) => {
-      unregister?.();
+      instrumentation?.disable();
       instrumentation = new FetchInstrumentation(config);
-      unregister = registerInstrumentations({
-        instrumentations: [instrumentation],
-      });
+      instrumentation.enable();
     };
 
     beforeEach(() => {
@@ -504,8 +492,7 @@ describe('FetchInstrumentation', () => {
     });
 
     afterEach(() => {
-      unregister?.();
-      unregister = undefined;
+      instrumentation?.disable();
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {

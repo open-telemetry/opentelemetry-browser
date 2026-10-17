@@ -16,7 +16,7 @@ import {
 } from 'vitest';
 import { getNetworkContextRegistry } from '#utils';
 import {
-  registerForTest,
+  enableForTest,
   setupTestDiagLogger,
   setupTestLogExporter,
 } from '#utils/test';
@@ -108,7 +108,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation();
       expect(PerformanceObserverMock).not.toHaveBeenCalled();
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       expect(PerformanceObserverMock).toHaveBeenCalledTimes(1);
 
       instrumentation.disable();
@@ -118,7 +118,7 @@ describe('ResourceTimingInstrumentation', () => {
     it('should replay buffered entries only on the first enable()', () => {
       instrumentation = new ResourceTimingInstrumentation();
 
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.disable();
       instrumentation.enable();
 
@@ -148,7 +148,7 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(PerformanceObserverMock).not.toHaveBeenCalled();
 
@@ -175,7 +175,7 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.disable();
 
       expect(removeEventListener).toHaveBeenCalledWith(
@@ -187,7 +187,7 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should flush pending entries on disable', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntries = [
         createMockResourceEntry({ name: 'https://example.com/entry1.js' }),
@@ -218,7 +218,7 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(instrumentation.isEnabled()).toBe(false);
       expect(warn).toHaveBeenCalledWith(
@@ -259,7 +259,7 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(() => listeners.get('load')?.()).not.toThrow();
       expect(error).toHaveBeenCalledWith(
@@ -273,7 +273,7 @@ describe('ResourceTimingInstrumentation', () => {
   describe('Configuration', () => {
     it('should use default forceProcessingAfter of 1000ms', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntry = createMockResourceEntry();
       observerCallback(
@@ -291,7 +291,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         forceProcessingAfter: 500,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntry = createMockResourceEntry();
       observerCallback(
@@ -307,7 +307,7 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should clamp batchSize: 0 to 1 so entries are still processed', () => {
       instrumentation = new ResourceTimingInstrumentation({ batchSize: 0 });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntry = createMockResourceEntry();
       observerCallback(
@@ -322,7 +322,7 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should clamp maxQueueSize: 0 to 1 so flush still triggers', () => {
       instrumentation = new ResourceTimingInstrumentation({ maxQueueSize: 0 });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1' }),
@@ -341,7 +341,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         forceProcessingAfter: -1,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntry = createMockResourceEntry();
       observerCallback(
@@ -360,7 +360,7 @@ describe('ResourceTimingInstrumentation', () => {
         maxProcessingTime: -1,
         batchSize: 100,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1' }),
@@ -383,7 +383,7 @@ describe('ResourceTimingInstrumentation', () => {
         maxProcessingTime: 0,
         batchSize: 100,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1' }),
@@ -408,7 +408,7 @@ describe('ResourceTimingInstrumentation', () => {
   describe('Filtering', () => {
     it('should capture all entries when initiatorTypes is not set', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1', initiatorType: 'script' }),
@@ -430,7 +430,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         initiatorTypes: ['fetch', 'xmlhttprequest'],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1', initiatorType: 'script' }),
@@ -456,7 +456,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         initiatorTypes: [],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1', initiatorType: 'script' }),
@@ -477,7 +477,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         ignoreUrls: ['https://example.com/ignored.js'],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: 'https://example.com/ignored.js' }),
@@ -502,7 +502,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         ignoreUrls: [/analytics/],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: 'https://example.com/analytics.js' }),
@@ -528,7 +528,7 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should capture all entries when ignoreUrls is empty', () => {
       instrumentation = new ResourceTimingInstrumentation({ ignoreUrls: [] });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: 'https://example.com/a.js' }),
@@ -549,7 +549,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         ignoreUrls: ['https://example.com/exact.js', /tracking/],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: 'https://example.com/exact.js' }),
@@ -575,7 +575,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         ignoreUrls: ['analytics'],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: 'https://example.com/analytics.js' }),
@@ -600,7 +600,7 @@ describe('ResourceTimingInstrumentation', () => {
         initiatorTypes: ['fetch', 'script'],
         ignoreUrls: [/analytics/],
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({
@@ -648,7 +648,7 @@ describe('ResourceTimingInstrumentation', () => {
   describe('Data Emission', () => {
     it('should emit log records with correct attributes', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntry = createMockResourceEntry({
         name: 'https://example.com/script.js',
@@ -677,7 +677,7 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should emit log records with correct context if registered', () => {
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const TRACE_ID = '1aa6c4e2912022f20cc0f30e1cce1902';
       const SPAN_ID = '6e65f4fc04c216ec';
@@ -725,7 +725,7 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const mockEntry = createMockResourceEntry();
       observerCallback(
@@ -754,7 +754,7 @@ describe('ResourceTimingInstrumentation', () => {
       vi.stubGlobal('PerformanceObserver', undefined);
 
       instrumentation = new ResourceTimingInstrumentation();
-      expect(() => registerForTest(instrumentation)).not.toThrow();
+      expect(() => enableForTest(instrumentation)).not.toThrow();
 
       // No observer should be constructed
       expect(PerformanceObserverMock).not.toHaveBeenCalled();
@@ -775,7 +775,7 @@ describe('ResourceTimingInstrumentation', () => {
       });
 
       instrumentation = new ResourceTimingInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.enable();
 
       expect(instrumentation.isEnabled()).toBe(false);
@@ -794,7 +794,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         maxQueueSize: 2,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1' }),
@@ -815,7 +815,7 @@ describe('ResourceTimingInstrumentation', () => {
 
     it('should reschedule remaining entries if _emitResource throws', () => {
       instrumentation = new ResourceTimingInstrumentation({ batchSize: 1 });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1' }),
@@ -847,7 +847,7 @@ describe('ResourceTimingInstrumentation', () => {
       instrumentation = new ResourceTimingInstrumentation({
         batchSize: 2,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const entries = [
         createMockResourceEntry({ name: '1' }),

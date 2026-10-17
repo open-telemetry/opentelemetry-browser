@@ -17,7 +17,7 @@ import {
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import {
-  registerForTest,
+  enableForTest,
   setupTestDiagLogger,
   setupTestLogExporter,
 } from '#utils/test';
@@ -145,7 +145,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('INP metric', () => {
     it('should emit INP after user interaction', async () => {
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       createButton('Click me');
 
       await triggerINP('Click me');
@@ -165,7 +165,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('CLS metric', () => {
     it('should emit CLS after layout shift', async () => {
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       const shifter = document.createElement('div');
       shifter.id = 'shifter';
@@ -200,7 +200,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('enable/disable', () => {
     it('should not emit metrics when disabled', async () => {
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.disable();
 
       const button = document.createElement('button');
@@ -219,7 +219,7 @@ describe('WebVitalsInstrumentation', () => {
 
     it('should resume emitting after re-enable, without duplicate listeners', async () => {
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       instrumentation.disable();
       instrumentation.enable();
       instrumentation.disable();
@@ -239,18 +239,32 @@ describe('WebVitalsInstrumentation', () => {
       expect(inpLogs).toHaveLength(1);
     });
 
-    it('should not emit through registerInstrumentations with `enabled: false` until enable()', async () => {
-      instrumentation = new WebVitalsInstrumentation({ enabled: false });
-      registerForTest(instrumentation);
+    it('should not emit when constructed but not enabled, until enable()', async () => {
+      instrumentation = new WebVitalsInstrumentation();
+      createButton('Not enabled');
+      await triggerINP('Not enabled');
+      await new Promise((r) => setTimeout(r, 200));
+      expect(getWebVitalLogs()).toHaveLength(0);
 
-      expect(instrumentation.isEnabled()).toBe(false);
-
-      instrumentation.enable();
+      enableForTest(instrumentation);
       expect(instrumentation.isEnabled()).toBe(true);
 
       createButton('Enabled later');
       await triggerINP('Enabled later');
       await waitForMetric('inp');
+    });
+
+    it('enable, disable, enable does not subscribe twice', () => {
+      webVitalsMock.calls.length = 0;
+      instrumentation = new WebVitalsInstrumentation();
+
+      enableForTest(instrumentation);
+      instrumentation.disable();
+      instrumentation.enable();
+
+      expect(webVitalsMock.calls.filter((name) => name === 'CLS')).toHaveLength(
+        1,
+      );
     });
 
     it('should stay off and warn when PerformanceObserver is not available', () => {
@@ -261,7 +275,7 @@ describe('WebVitalsInstrumentation', () => {
       });
 
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(instrumentation.isEnabled()).toBe(false);
       expect(warn).toHaveBeenCalledWith(
@@ -277,7 +291,7 @@ describe('WebVitalsInstrumentation', () => {
       instrumentation = new WebVitalsInstrumentation({
         includeRawAttribution: true,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       createButton('Attribution test');
       await triggerINP('Attribution test');
@@ -289,15 +303,14 @@ describe('WebVitalsInstrumentation', () => {
     });
   });
 
-  describe('enabled after an `enabled: false` registration', () => {
-    it('should still report TTFB', async () => {
-      instrumentation = new WebVitalsInstrumentation({ enabled: false });
-      registerForTest(instrumentation);
+  describe('late enable', () => {
+    it('TTFB is still reported when enable() is called after load', async () => {
+      instrumentation = new WebVitalsInstrumentation();
       // TTFB is reported once. A subscription made while nothing is emitted
       // would receive it and drop it.
       await new Promise((r) => setTimeout(r, 200));
 
-      instrumentation.enable();
+      enableForTest(instrumentation);
 
       const ttfbLog = await waitForMetric('ttfb');
       expect(ttfbLog.attributes[ATTR_WEB_VITAL_NAME]).toBe('ttfb');
@@ -307,7 +320,7 @@ describe('WebVitalsInstrumentation', () => {
   describe('emit failure', () => {
     it('should not let a failed emit reach the page as an uncaught error', async () => {
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
       // Stands in for a log processor that throws from onEmit.
       const emitSpy = vi
         .spyOn(
@@ -343,7 +356,7 @@ describe('WebVitalsInstrumentation', () => {
       });
 
       instrumentation = new WebVitalsInstrumentation();
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       expect(instrumentation.isEnabled()).toBe(true);
       expect(webVitalsMock.calls).toEqual(['CLS', 'INP', 'LCP', 'FCP', 'TTFB']);
@@ -370,7 +383,7 @@ describe('WebVitalsInstrumentation', () => {
       instrumentation = new WebVitalsInstrumentation({
         applyCustomLogRecordData: errorHook,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       createButton('Hook error test');
       await triggerINP('Hook error test');
@@ -388,7 +401,7 @@ describe('WebVitalsInstrumentation', () => {
       instrumentation = new WebVitalsInstrumentation({
         applyCustomLogRecordData: customHook,
       });
-      registerForTest(instrumentation);
+      enableForTest(instrumentation);
 
       createButton('Custom attr test');
       await triggerINP('Custom attr test');

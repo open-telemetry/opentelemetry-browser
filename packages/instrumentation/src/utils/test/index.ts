@@ -6,8 +6,6 @@
 import type { DiagLogger } from '@opentelemetry/api';
 import { DiagLogLevel, diag, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   InMemoryLogRecordExporter,
@@ -21,6 +19,10 @@ import {
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
 import { onTestFinished, vi } from 'vitest';
+import type {
+  Instrumentation,
+  InstrumentationDeps,
+} from '#instrumentation-base';
 
 /**
  * setupTestLogExporter is a utility function that sets up a test log exporter for use in testing.
@@ -77,13 +79,15 @@ export const setupTestDiagLogger = () => {
 };
 
 /**
- * Registers `instrumentation` with the global providers, the way an app does,
- * and unregisters it when the test finishes.
+ * Enables `instrumentation` with `deps` (the globals by default) and disables
+ * it when the test finishes.
  */
-export const registerForTest = (instrumentation: Instrumentation) => {
-  onTestFinished(
-    registerInstrumentations({ instrumentations: [instrumentation] }),
-  );
+export const enableForTest = (
+  instrumentation: Instrumentation,
+  deps?: InstrumentationDeps,
+) => {
+  instrumentation.enable(deps);
+  onTestFinished(() => instrumentation.disable());
 };
 
 /** Counts `_wrap` layers on `fn` by walking its `__original` chain. */
