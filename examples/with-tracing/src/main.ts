@@ -82,7 +82,7 @@ const propagator = new CompositePropagator({
 });
 propagation.setGlobalPropagator(propagator);
 
-// --- Register all instrumentations ---
+// --- Enable all instrumentations ---
 const instrumentations = [
   // Event-based
   new NavigationTimingInstrumentation(),

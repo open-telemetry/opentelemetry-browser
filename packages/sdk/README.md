@@ -45,8 +45,6 @@ import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
 const sdk = quickStartBrowserSdk({
-  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
-  disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
@@ -70,8 +68,6 @@ import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK 
 const sdk = startBrowserSdk({
-  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
-  disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
@@ -87,7 +83,7 @@ const sdk = startBrowserSdk({
     url: 'https://collector.mycompany.com',
     headers: { foo: 'bar' }
   },
-  // Optional - list of instrumentations to register when the SDK starts
+  // Optional - list of instrumentations to enable when the SDK starts
   instrumentations: [
     new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
   ],
@@ -140,8 +136,6 @@ import { startLogsSdk } from '@opentelemetry/browser-sdk/logs';
 
 // Start the SDK 
 const logsSdk = startLogsSdk({
-  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
-  disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
@@ -182,8 +176,6 @@ import { startTracesSdk } from '@opentelemetry/browser-sdk/traces';
 
 // Start the SDK 
 const tracesSdk = startTracesSdk({
-  // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
-  disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
@@ -215,16 +207,17 @@ tracesSdk.shutdown().then(
 
 ### Instrumentations
 
-Register the [browser instrumentations from this repo](../instrumentation) by passing them to the
-`instrumentations` config option. Do not mix them with the classic instrumentations from
-`opentelemetry-js` or `opentelemetry-js-contrib`. Those cannot detect our patches, so two
-instrumentations for the same API would record every call twice. The SDK registers them with
-[`registerInstrumentations`](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation)
-after the global providers are set, so the instrumentations receive the tracer and logger providers,
-and disables them when the SDK shuts down.
+Pass the [browser instrumentations from this repo](../instrumentation) in the
+`instrumentations` option. The SDK calls `enable()` on each one with its own
+tracer provider, logger provider and propagator. On `shutdown()`, it calls
+`disable()` on each one.
 
-The option is available in `quickStartBrowserSdk`, `startBrowserSdk`, and in the standalone signal
-SDKs (`startLogsSdk` / `startTracesSdk`). For example, to register the `FetchInstrumentation` with the SDK:
+Do not mix them with the classic instrumentations from `opentelemetry-js` or
+`opentelemetry-js-contrib`. Those cannot detect our patches, so two
+instrumentations for the same API would record every call twice.
+
+The option is available in `quickStartBrowserSdk` and `startBrowserSdk`. The
+standalone signal SDKs (`startLogsSdk` and `startTracesSdk`) do not take it.
 
 ```javascript
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
@@ -238,8 +231,29 @@ const sdk = quickStartBrowserSdk({
 });
 ```
 
-Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
-call.
+Pass each instrumentation to one SDK only. Do not also call `enable()` on it
+yourself with other providers. An instrumentation keeps the providers from its
+first `enable()`.
+
+#### Consent
+
+To wait for user consent, start the SDK with `enabled: false`. Then call
+`sdk.enable()` and `sdk.disable()` when the user changes their choice:
+
+```javascript
+const sdk = startBrowserSdk({
+  enabled: false,
+  instrumentations: [new FetchInstrumentation()],
+});
+
+onConsent(() => sdk.enable());
+onRevoke(() => sdk.disable());
+```
+
+Consent covers the instrumentations only. The providers and exporters still
+run, so your own manual spans and logs are still recorded and exported.
+`sdk.disable()` does not drop data. Data that was recorded before it is still
+exported.
 
 ## Configuration
 
@@ -263,9 +277,26 @@ startBrowserSdk({
 })
 ```
 
-#### disabled
+#### enabled
 
-Set `disabled: true` to disable the SDK.
+Only for `quickStartBrowserSdk` and `startBrowserSdk`. Set `enabled: false` to
+start the SDK without enabling the instrumentations. Call `sdk.enable()` later
+to enable them. See [Consent](#consent). Default value is `true`.
+
+#### setGlobals
+
+Set `setGlobals: false` when another SDK on the page already owns the globals,
+for example when two teams each start their own SDK. The SDK then does not set
+the global tracer provider, logger provider, propagator or context manager.
+With `startBrowserSdk`, the instrumentations still get this SDK's providers and
+propagator. Default value is `true`.
+
+```javascript
+startBrowserSdk({
+  setGlobals: false,
+  instrumentations: [new FetchInstrumentation()],
+});
+```
 
 #### logLevel
 
@@ -375,7 +406,8 @@ OTLP exporter is added and `batchProcessorConfig` has no effect.
 
 #### contextManager
 
-Manager to use to propagate context across different call stacks.
+Manager to use to propagate context across different call stacks. It is ignored when `setGlobals`
+is `false`.
 
 #### propagators
 

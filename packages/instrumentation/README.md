@@ -24,6 +24,11 @@ npm install @opentelemetry/browser-instrumentation
 
 ## Usage
 
+The easiest way to use these instrumentations is the [Browser SDK](../sdk). Pass them to
+`startBrowserSdk()` and the SDK enables them with its own providers.
+
+You can also enable them yourself. Call `enable()` on each one:
+
 ```typescript
 import { logs } from '@opentelemetry/api-logs';
 import {
@@ -31,7 +36,6 @@ import {
   LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
@@ -39,23 +43,24 @@ import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrument
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 
-const logProvider = new LoggerProvider({
+const loggerProvider = new LoggerProvider({
   processors: [
     new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
   ],
 });
-logs.setGlobalLoggerProvider(logProvider);
+logs.setGlobalLoggerProvider(loggerProvider);
 
-registerInstrumentations({
-  instrumentations: [
-    new ErrorsInstrumentation(),
-    new NavigationInstrumentation(),
-    new NavigationTimingInstrumentation(),
-    new ResourceTimingInstrumentation(),
-    new UserActionInstrumentation(),
-    new WebVitalsInstrumentation(),
-  ],
-});
+const instrumentations = [
+  new ErrorsInstrumentation(),
+  new NavigationInstrumentation(),
+  new NavigationTimingInstrumentation(),
+  new ResourceTimingInstrumentation(),
+  new UserActionInstrumentation(),
+  new WebVitalsInstrumentation(),
+];
+for (const instrumentation of instrumentations) {
+  instrumentation.enable();
+}
 ```
 
 ---
@@ -97,7 +102,7 @@ new NavigationInstrumentation({
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at init during registration. `setConfig()` cannot change it later. |
+| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
 | `sanitizeUrl` | `(url: string) => string` | — | Called before the URL is written to `url.full`. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
@@ -395,64 +400,61 @@ Each `fetch` Span includes:
 
 ## Enabling and disabling
 
-An instrumentation does nothing until its providers are set.
-`registerInstrumentations()` or the Browser SDK sets the tracer and logger
-providers, and then enables it. At that time, it runs a one-time init. Init
-patches browser APIs and checks that the browser supports what the
-instrumentation needs. Then the instrumentation adds its listeners and emits.
+Each instrumentation has three methods: `enable()`, `disable()` and
+`isEnabled()`.
 
-To wait for a consent decision or another application signal, pass
-`enabled: false`. Registration then runs init, but nothing is emitted until you
-call `enable()`. Only your `enable()` calls make it emit. A new registration
-keeps it silent, also after `disable()`. So an SDK restart does not undo a
-revoked consent.
+- `new X()` does nothing. It only stores the config. It does not patch,
+  listen or emit.
+- The first `enable(deps?)` runs a one-time init and then starts emitting.
+  Init patches browser APIs and checks that the browser supports what the
+  instrumentation needs.
+- The first `enable()` also locks the dependencies (`deps`) for the life of
+  the instance. A dependency that you do not pass uses the global API from
+  `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
+  ignore `deps`, and log a warning if a passed dependency is different.
+- `disable()` stops emitting and removes listeners. Patched browser APIs stay
+  patched, because other code may have wrapped them after us. A later
+  `enable()` starts emitting again.
+- `isEnabled()` is `true` only while the instrumentation emits.
 
-You can also call `enable()` or `disable()` before registration, for example
-when a consent tool reports a stored choice right away. Nothing runs yet, and
-registration uses the last call. After `enable()`, registration runs init and
-the instrumentation emits. After `disable()`, registration runs init but does
-not emit. An early `disable()` also makes the instrumentation act as if it was
-created with `enabled: false`.
+The dependencies are:
+
+| Dependency | Used for | Default |
+|------------|----------|---------|
+| `tracerProvider` | Spans | The global tracer provider |
+| `loggerProvider` | Log records (events) | The global logger provider |
+| `propagator` | Trace context in outgoing requests | The global propagation API |
 
 ```typescript
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 
-const errors = new ErrorsInstrumentation({ enabled: false });
+const errors = new ErrorsInstrumentation();
+errors.isEnabled(); // false. Nothing is patched yet.
 
-// Sets the providers and runs init. Nothing is emitted yet.
-registerInstrumentations({ instrumentations: [errors] });
-
-errors.isEnabled(); // false
-
-// Later, once the user gives consent.
+// No deps are passed, so it uses the global providers.
 errors.enable();
 errors.isEnabled(); // true
+
+errors.disable();
+errors.isEnabled(); // false
 ```
+
+The [Browser SDK](../sdk) calls `enable()` and `disable()` for you. For
+example, to wait for user consent, start the SDK with `enabled: false` and call
+`sdk.enable()` later. See the SDK README.
 
 Listeners are added only when the instrumentation is enabled. So a late
 `enable()` still records the initial page load, buffered resource entries, and
-web vitals that are reported only once.
+web vitals that are reported only once. One-time events, such as the initial
+page load, are not emitted a second time after `disable()` and `enable()`.
 
-To keep an instrumentation fully off, with no patches, do not register it.
-Create or register it when you need it.
+To keep an instrumentation fully off, with no patches, do not call `enable()`.
 
-Enabling can fail, for example when a needed browser API is missing or another
+Init can fail, for example when a needed browser API is missing or another
 script has locked it. The reason is logged as a warning through the
-OpenTelemetry diag logger, so register one with `diag.setLogger()` to see it.
-If init fails, the instrumentation stays off. Later calls to `enable()` do not
-try again.
-
-`disable()` stops emission and removes listeners. Patched browser APIs stay
-patched, because other code may have wrapped them after us, so unpatching them
-is not safe. A later `enable()` enables the instrumentation again. A new
-registration also enables it again, unless it was created with
-`enabled: false` or disabled before registration. One-time events, such as
-the initial page load, are not emitted a second time.
-
-`setConfig()` does not enable or disable an instrumentation. Use `enable()` and
-`disable()` for that. Use `isEnabled()` to check whether an instrumentation
-emits now.
+OpenTelemetry diag logger, so set one with `diag.setLogger()` to see it. A
+failed instrumentation stays off for good. Later calls to `enable()` do
+nothing.
 
 ### Differences from classic instrumentations
 
@@ -460,17 +462,12 @@ These instrumentations do not use the base class from
 `@opentelemetry/instrumentation`. So they behave differently from the
 instrumentations in `opentelemetry-js` and `opentelemetry-js-contrib`:
 
-- Creating an instrumentation does not enable it. Register it. An `enable()`
-  before registration does nothing until registration sets the providers.
-- With `enabled: false`, registration runs init but does not emit. Call
-  `enable()` to emit. With a classic instrumentation, registration enables it
-  instead.
+- Creating an instrumentation does not enable it. Call `enable()`, or pass it
+  to the Browser SDK.
+- Providers and the propagator are passed once, to the first `enable()`. There
+  are no setters for them.
 - `disable()` does not unpatch browser APIs.
-- `setConfig()` ignores `enabled`.
-- After an unregister, a new registration enables the instrumentation again,
-  unless it was created with `enabled: false` or disabled before registration.
-- `getConfig().enabled` tells `registerInstrumentations()` whether it has
-  handled the instrumentation. Use `isEnabled()` to check whether it emits.
+- The config is set once, in the constructor. There is no `enabled` config option.
 
 Do not use a classic instrumentation for the same API as one of these. A
 classic instrumentation cannot detect our patches, so both would record every
@@ -478,37 +475,50 @@ call.
 
 ## Writing an instrumentation
 
-To write your own instrumentation, extend `InstrumentationBase`. It uses the
-lifecycle in [Enabling and disabling](#enabling-and-disabling).
+An instrumentation is any object that implements the `Instrumentation`
+interface: `instrumentationName`, `enable(deps?)`, `disable()` and
+`isEnabled()`. The Browser SDK accepts any such object.
 
-```typescript
-import { InstrumentationBase } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
-```
+The easiest way is to extend `InstrumentationBase`. It implements the
+lifecycle in [Enabling and disabling](#enabling-and-disabling).
+`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are all
+exported from
+`@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
 
 Override these hooks. All of them must be synchronous. A hook that returns a
-promise counts as failed.
+promise counts as failed. Hooks must not call `enable()` or `disable()`.
 
-- `_init()` runs once, at registration. Patch browser APIs here with
-  `_wrap()`, check that the browser supports what the instrumentation needs,
-  and make one-time choices. Throw if the instrumentation cannot run. A failed
+- `_init()` runs once, at the first `enable()`. It only patches browser APIs
+  with `_wrap()` and checks that the browser supports what the
+  instrumentation needs. Throw if the instrumentation cannot run. A failed
   init is final.
-- `_onEnable()` runs each time `enable()` turns emission on. Add listeners and observers here,
-  including buffered ones. If it throws, `_onDisable()` runs to remove what it
-  added.
-- `_onDisable()` runs each time `disable()` turns emission off. Remove what `_onEnable()` added.
+- `_onEnable()` runs each time `enable()` turns emission on. Add listeners and
+  observers here, including buffered ones. If it throws, `_onDisable()` runs
+  to remove what it added, and a later `enable()` tries again.
+- `_onDisable()` runs each time `disable()` turns emission off. Remove what
+  `_onEnable()` added.
 
-Patches are never removed. So a patch must check `isEnabled()`, and pass the
-call through when it is false. Run user hooks and emit code through
+From the first `enable()`, use `this.tracer`, `this.logger` and
+`this.propagator`. They come from the locked dependencies. Use
+`this.propagator` instead of the global `propagation` API, so a second SDK on
+the page can inject its own trace context.
+
+There is `_wrap()` but no unwrap. Patches are never removed, because other
+code may have wrapped on top of ours. So a patch must check `isEnabled()`, and
+pass the call through when it is false. Run user hooks and emit code through
 `_safeExecute()`, so that a throw does not break the page.
 
 ```typescript
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 import { InstrumentationBase } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
 
-export class RouteInstrumentation extends InstrumentationBase {
+export interface RouteConfig {
+  includeHash?: boolean;
+}
+
+export class RouteInstrumentation extends InstrumentationBase<RouteConfig> {
   private _onPopState: (() => void) | undefined;
 
-  constructor(config: InstrumentationConfig = {}) {
+  constructor(config: RouteConfig = {}) {
     super('route-example', '0.1.0', config);
   }
 
@@ -545,9 +555,12 @@ export class RouteInstrumentation extends InstrumentationBase {
 
   private _record(): void {
     this._safeExecute('failed to record a route change', () => {
+      const url = this._config.includeHash
+        ? location.href
+        : location.href.split('#')[0];
       this.logger.emit({
         eventName: 'example.route_change',
-        attributes: { 'url.full': location.href },
+        attributes: { 'url.full': url },
       });
     });
   }

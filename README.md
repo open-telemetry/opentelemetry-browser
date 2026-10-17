@@ -18,8 +18,7 @@ See the [Browser Packages](#browser-packages) section below for a full list of b
 npm install @opentelemetry/browser-instrumentation \
   @opentelemetry/api \
   @opentelemetry/api-logs \
-  @opentelemetry/sdk-logs \
-  @opentelemetry/instrumentation
+  @opentelemetry/sdk-logs
 ```
 
 ### Basic example
@@ -31,7 +30,6 @@ import {
   LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -45,16 +43,20 @@ const logProvider = new LoggerProvider({
 });
 logs.setGlobalLoggerProvider(logProvider);
 
-registerInstrumentations({
-  instrumentations: [
-    new NavigationTimingInstrumentation(),
-    new ResourceTimingInstrumentation(),
-    new UserActionInstrumentation(),
-    new WebVitalsInstrumentation(),
-    new ConsoleInstrumentation(),
-  ],
-});
+const instrumentations = [
+  new NavigationTimingInstrumentation(),
+  new ResourceTimingInstrumentation(),
+  new UserActionInstrumentation(),
+  new WebVitalsInstrumentation(),
+  new ConsoleInstrumentation(),
+];
+// An instrumentation does nothing until enable(). Without deps, it uses the global providers.
+for (const instrumentation of instrumentations) {
+  instrumentation.enable();
+}
 ```
+
+The [Browser SDK](./packages/sdk) can also enable the instrumentations for you, with its own providers.
 
 For detailed configuration options, see the [instrumentation package README](./packages/instrumentation/README.md).
 
@@ -103,8 +105,8 @@ When you migrate:
 
 - Remove the classic instrumentation when you add its replacement. A classic instrumentation cannot detect our patches, so if you use both for the same API, every call is recorded twice.
 - Some replacements emit events (log records), not spans. For example, `instrumentation-document-load` and `instrumentation-user-interaction` create spans, but their replacements create events. Set up a `LoggerProvider` for them.
-- The instrumentations in this repository are enabled when you register them, not when you create them. With `enabled: false`, registration runs init but does not emit until you call `enable()`. See [Differences from classic instrumentations](./packages/instrumentation/README.md#differences-from-classic-instrumentations).
-- `auto-instrumentations-web` turns on the classic instrumentations. Replace it with the instrumentations from this repository, registered with `registerInstrumentations()` or the [Browser SDK](./packages/sdk).
+- The instrumentations in this repository do nothing when you create them. Call `enable()` on each one, or pass them to the [Browser SDK](./packages/sdk). Do not use `registerInstrumentations()` from `@opentelemetry/instrumentation` with them. See [Differences from classic instrumentations](./packages/instrumentation/README.md#differences-from-classic-instrumentations).
+- `auto-instrumentations-web` turns on the classic instrumentations. Replace it with the instrumentations from this repository, passed to the [Browser SDK](./packages/sdk).
 
 #### Event-based instrumentations (other repositories)
 

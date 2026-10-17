@@ -84,8 +84,8 @@ export interface CommonConfig {
   /**
    * Set `setGlobals: false` to keep the SDK from setting the global tracer
    * provider, logger provider, propagator and context manager. Use it when
-   * another SDK on the page owns the globals. The instrumentations still get
-   * this SDK's providers and propagator.
+   * another SDK on the page owns the globals. With `startBrowserSdk`, the
+   * instrumentations still get this SDK's providers and propagator.
    *
    * @defaultValue true
    */
@@ -194,7 +194,8 @@ export type LogsConfig = CommonConfig & {
 export type TracesConfig = CommonConfig & {
   // Context and Propagation
   /**
-   * Manager use to carry context accross function boundaries
+   * Manager use to carry context accross function boundaries. Ignored when
+   * `setGlobals` is `false`.
    *
    * @defaultValue undefined
    */
@@ -277,6 +278,7 @@ export interface TracesSdk {
   tracerProvider?: TracerProvider;
   /** The propagator. `undefined` when the configuration is invalid. */
   propagator?: TextMapPropagator;
+  /** Flushes and shuts down the tracer provider. */
   shutdown(): Promise<void>;
 }
 
@@ -288,5 +290,6 @@ export interface LogsSdk {
   invalidConfig?: boolean;
   /** The logger provider. `undefined` when the configuration is invalid. */
   loggerProvider?: LoggerProvider;
+  /** Flushes and shuts down the logger provider. */
   shutdown(): Promise<void>;
 }
