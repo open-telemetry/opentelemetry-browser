@@ -5,12 +5,11 @@
 
 import type { WebSdk } from './types.ts';
 
-// Returned when the SDK is intentionally turned off via `config.disabled`.
-export const NOOP_SDK: WebSdk = { shutdown: () => Promise.resolve() };
 // Returned when the SDK refuses to start because of an invalid configuration
-// (e.g. a bad export URL). `invalidConfig` lets callers tell this apart from an
-// intentional disable and surface the mistake.
+// (e.g. a bad export URL), so callers can surface the mistake.
 export const INVALID_CONFIG_SDK: WebSdk = {
   invalidConfig: true,
+  enable: () => {},
+  disable: () => {},
   shutdown: () => Promise.resolve(),
 };

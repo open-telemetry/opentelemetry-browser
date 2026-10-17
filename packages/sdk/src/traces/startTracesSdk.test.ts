@@ -11,38 +11,22 @@ import {
   ROOT_CONTEXT,
   trace,
 } from '@opentelemetry/api';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
 import {
   AlwaysOffSampler,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import type { WebSdk } from '../core/types.ts';
+import type { TracesSdk } from '../core/types.ts';
 import { startTracesSdk } from './startTracesSdk.ts';
 
 const BSP_SCHEDULE_DELAY = 10;
-
-function createFakeInstrumentation(): Instrumentation {
-  return {
-    instrumentationName: 'test-instrumentation',
-    instrumentationVersion: '1.0.0',
-    enable: vi.fn(),
-    disable: vi.fn(),
-    setTracerProvider: vi.fn(),
-    setMeterProvider: vi.fn(),
-    setLoggerProvider: vi.fn(),
-    setConfig: vi.fn(),
-    getConfig: () => ({ enabled: false }),
-  };
-}
 
 describe('startTracesSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
-  const diagDebugSpy = vi.spyOn(diag, 'debug');
-  let tracesSdk: WebSdk;
+  let tracesSdk: TracesSdk;
 
   // NOTE: we mock the registration of the tracer provider because
   // the trace API only allow to register once. With the mock we can use
@@ -58,24 +42,6 @@ describe('startTracesSdk', () => {
     trace.disable();
     context.disable();
     propagation.disable();
-  });
-
-  it('should not start if disabled by configuration', async () => {
-    // Act
-    tracesSdk = startTracesSdk({
-      disabled: true,
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      batchProcessorConfig: {
-        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
-      },
-    });
-    trace.getTracer('traces-sdk-test').startSpan('test').end();
-    await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
-
-    // Assert
-    expect(diagDebugSpy).toHaveBeenCalled();
-    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Traces SDK disabled/);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {
@@ -400,48 +366,6 @@ describe('startTracesSdk', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('should register instrumentations on start and disable them on shutdown', async () => {
-    // Arrange
-    const instrumentation = createFakeInstrumentation();
-
-    // Act
-    tracesSdk = startTracesSdk({
-      instrumentations: [instrumentation],
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      batchProcessorConfig: {
-        scheduledDelayMillis: BSP_SCHEDULE_DELAY,
-      },
-    });
-
-    // Assert: the tracer provider is set and the instrumentation is enabled
-    expect(instrumentation.enable).toHaveBeenCalled();
-    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
-
-    // Act
-    await tracesSdk.shutdown();
-    // Prevent the afterEach hook from shutting down the same SDK again
-    tracesSdk = { shutdown: () => Promise.resolve() };
-
-    // Assert: shutting down the SDK disables the instrumentation
-    expect(instrumentation.disable).toHaveBeenCalled();
-  });
-
-  it('should not register instrumentations when disabled by configuration', async () => {
-    // Arrange
-    const instrumentation = createFakeInstrumentation();
-
-    // Act
-    tracesSdk = startTracesSdk({
-      disabled: true,
-      instrumentations: [instrumentation],
-    });
-    await tracesSdk.shutdown();
-
-    // Assert
-    expect(instrumentation.enable).not.toHaveBeenCalled();
-    expect(instrumentation.disable).not.toHaveBeenCalled();
-  });
-
   it('should install default context manager and propagators when none are provided', () => {
     tracesSdk = startTracesSdk({
       batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
@@ -476,5 +400,41 @@ describe('startTracesSdk', () => {
 
     expect(enableSpy).toHaveBeenCalledOnce();
     expect(propagation.fields()).toEqual(['x-custom-trace']);
+  });
+
+  it('setGlobals: false does not set globals and returns the provider', () => {
+    // Arrange
+    const setTracerProviderSpy = vi.spyOn(trace, 'setGlobalTracerProvider');
+    const setPropagatorSpy = vi.spyOn(propagation, 'setGlobalPropagator');
+    const setContextManagerSpy = vi.spyOn(context, 'setGlobalContextManager');
+    const enableSpy = vi.fn().mockReturnThis();
+    const contextManager: ContextManager = {
+      active: () => ROOT_CONTEXT,
+      with: (_ctx, fn, thisArg, ...args) => fn.call(thisArg, ...args),
+      bind: (_ctx, target) => target,
+      enable: enableSpy,
+      disable: vi.fn().mockReturnThis(),
+    };
+
+    try {
+      // Act
+      tracesSdk = startTracesSdk({
+        setGlobals: false,
+        contextManager,
+        batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+      });
+
+      // Assert
+      expect(setTracerProviderSpy).not.toHaveBeenCalled();
+      expect(setPropagatorSpy).not.toHaveBeenCalled();
+      expect(setContextManagerSpy).not.toHaveBeenCalled();
+      expect(enableSpy).not.toHaveBeenCalled();
+      expect(tracesSdk.tracerProvider).toBeDefined();
+      expect(tracesSdk.propagator).toBeDefined();
+    } finally {
+      setTracerProviderSpy.mockRestore();
+      setPropagatorSpy.mockRestore();
+      setContextManagerSpy.mockRestore();
+    }
   });
 });

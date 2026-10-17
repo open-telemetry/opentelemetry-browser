@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { ProxyTracerProvider } from '@opentelemetry/api';
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
+import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+import { SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -45,26 +46,20 @@ function resourceAttributesFromBody(
   return attributes;
 }
 
-function createFakeInstrumentation(): Instrumentation {
+function createFakeInstrumentation(instrumentationName = 'fake') {
   return {
-    instrumentationName: 'test-instrumentation',
-    instrumentationVersion: '1.0.0',
+    instrumentationName,
     enable: vi.fn(),
     disable: vi.fn(),
-    setTracerProvider: vi.fn(),
-    setMeterProvider: vi.fn(),
-    setLoggerProvider: vi.fn(),
-    setConfig: vi.fn(),
-    getConfig: () => ({ enabled: false }),
-  };
+    isEnabled: vi.fn(),
+  } satisfies Instrumentation;
 }
 
 describe('startBrowserSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const diagErrorSpy = vi.spyOn(diag, 'error');
-  const diagDebugSpy = vi.spyOn(diag, 'debug');
-  let browserSdk: WebSdk;
+  let browserSdk: WebSdk | undefined;
 
   // NOTE: we mock the registration of the logger/tracer provider because
   // the APIs only allow to register once. With the mock we can use
@@ -74,31 +69,12 @@ describe('startBrowserSdk', () => {
   });
   afterEach(async () => {
     await browserSdk?.shutdown();
+    browserSdk = undefined;
     fetchSpy.mockClear();
     logs.disable();
     trace.disable();
     context.disable();
     propagation.disable();
-  });
-
-  it('should not start disabled by configuration', async () => {
-    // Act
-    browserSdk = startBrowserSdk({
-      disabled: true,
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      batchProcessorConfig: {
-        scheduledDelayMillis: SCHEDULE_DELAY,
-      },
-    });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    trace.getTracer('traces-sdk-test').startSpan('test').end();
-    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
-
-    // Assert: an intentional disable is not flagged as an invalid config
-    expect(browserSdk.invalidConfig).toBeFalsy();
-    expect(diagDebugSpy).toHaveBeenCalled();
-    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {
@@ -244,48 +220,174 @@ describe('startBrowserSdk', () => {
     });
   });
 
-  it('should register instrumentations on start and disable them on shutdown', async () => {
+  it("enables instrumentations with the SDK's providers and propagator", () => {
     // Arrange
     const instrumentation = createFakeInstrumentation();
 
     // Act
     browserSdk = startBrowserSdk({
       instrumentations: [instrumentation],
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      batchProcessorConfig: {
-        scheduledDelayMillis: SCHEDULE_DELAY,
-      },
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
     });
-
-    // Assert: providers are set and the instrumentation is enabled
-    expect(instrumentation.enable).toHaveBeenCalled();
-    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
-    expect(instrumentation.setMeterProvider).toHaveBeenCalled();
-    expect(instrumentation.setLoggerProvider).toHaveBeenCalled();
-
-    // Act
-    await browserSdk.shutdown();
-    // Prevent the afterEach hook from shutting down the same SDK again
-    browserSdk = { shutdown: () => Promise.resolve() };
-
-    // Assert: shutting down the SDK disables the instrumentations
-    expect(instrumentation.disable).toHaveBeenCalled();
-  });
-
-  it('should not register instrumentations when disabled by configuration', async () => {
-    // Arrange
-    const instrumentation = createFakeInstrumentation();
-
-    // Act
-    browserSdk = startBrowserSdk({
-      disabled: true,
-      instrumentations: [instrumentation],
-    });
-    await browserSdk.shutdown();
 
     // Assert
+    expect(instrumentation.enable).toHaveBeenCalledOnce();
+    const deps = instrumentation.enable.mock.lastCall?.[0];
+    expect(deps).toStrictEqual({
+      tracerProvider: expect.anything(),
+      loggerProvider: expect.anything(),
+      propagator: expect.anything(),
+    });
+    expect(
+      (trace.getTracerProvider() as ProxyTracerProvider).getDelegate(),
+    ).toBe(deps.tracerProvider);
+  });
+
+  it('enabled: false builds the SDK but does not enable instrumentations, and sdk.enable() does', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      enabled: false,
+      instrumentations: [instrumentation],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+    // Consent covers instrumentations only, so manual telemetry still exports
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await new Promise((r) => setTimeout(r, SCHEDULE_DELAY + 5));
+
+    // Assert
+    expect(browserSdk.invalidConfig).toBeFalsy();
     expect(instrumentation.enable).not.toHaveBeenCalled();
-    expect(instrumentation.disable).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+    // Act
+    browserSdk.enable();
+
+    // Assert
+    expect(instrumentation.enable).toHaveBeenCalledOnce();
+    expect(instrumentation.enable.mock.lastCall?.[0]).toMatchObject({
+      tracerProvider: expect.anything(),
+      loggerProvider: expect.anything(),
+      propagator: expect.anything(),
+    });
+  });
+
+  it('sdk.disable() then sdk.enable() passes the same deps object both times', () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+    browserSdk = startBrowserSdk({
+      instrumentations: [instrumentation],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Act
+    browserSdk.disable();
+    browserSdk.enable();
+
+    // Assert
+    expect(instrumentation.disable).toHaveBeenCalledOnce();
+    expect(instrumentation.enable).toHaveBeenCalledTimes(2);
+    const [first, second] = instrumentation.enable.mock.calls;
+    expect(second?.[0]).toBe(first?.[0]);
+  });
+
+  it('shutdown disables instrumentations, then enable() does nothing', async () => {
+    // Arrange
+    const instrumentation = createFakeInstrumentation();
+    const sdk = startBrowserSdk({
+      instrumentations: [instrumentation],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Act
+    await sdk.shutdown();
+    sdk.enable();
+    sdk.disable();
+
+    // Assert
+    expect(instrumentation.enable).toHaveBeenCalledOnce();
+    expect(instrumentation.disable).toHaveBeenCalledOnce();
+  });
+
+  it('one instrumentation that throws from enable or disable does not stop the others; the error is logged', async () => {
+    // Arrange
+    const failing = createFakeInstrumentation('failing');
+    failing.enable.mockImplementation(() => {
+      throw new Error('enable failed');
+    });
+    failing.disable.mockImplementation(() => {
+      throw new Error('disable failed');
+    });
+    const healthy = createFakeInstrumentation('healthy');
+    diagErrorSpy.mockClear();
+
+    // Act
+    const sdk = startBrowserSdk({
+      instrumentations: [failing, healthy],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/failing/);
+
+    // Act
+    sdk.disable();
+
+    // Assert
+    expect(healthy.disable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy.mock.lastCall?.[0]).toMatch(/failing/);
+
+    // Act
+    sdk.enable();
+    await sdk.shutdown();
+
+    // Assert: shutdown also continues past the failing instance
+    expect(healthy.enable).toHaveBeenCalledTimes(2);
+    expect(healthy.disable).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('setGlobals: false does not set the global tracer provider, logger provider, propagator or context manager', () => {
+    // Arrange
+    const earlierTracerProvider = new TracerProvider();
+    trace.setGlobalTracerProvider(earlierTracerProvider);
+    const setLoggerProviderSpy = vi.spyOn(logs, 'setGlobalLoggerProvider');
+    const setPropagatorSpy = vi.spyOn(propagation, 'setGlobalPropagator');
+    const setContextManagerSpy = vi.spyOn(context, 'setGlobalContextManager');
+    const instrumentation = createFakeInstrumentation();
+
+    try {
+      // Act
+      browserSdk = startBrowserSdk({
+        setGlobals: false,
+        instrumentations: [instrumentation],
+        batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+      });
+
+      // Assert
+      expect(
+        (trace.getTracerProvider() as ProxyTracerProvider).getDelegate(),
+      ).toBe(earlierTracerProvider);
+      expect(setLoggerProviderSpy).not.toHaveBeenCalled();
+      expect(setPropagatorSpy).not.toHaveBeenCalled();
+      expect(setContextManagerSpy).not.toHaveBeenCalled();
+      // The instances still get the SDK's own providers through deps
+      const deps = instrumentation.enable.mock.lastCall?.[0];
+      expect(deps?.tracerProvider).toBeDefined();
+      expect(deps?.tracerProvider).not.toBe(earlierTracerProvider);
+      expect(deps?.loggerProvider).toBeDefined();
+      expect(deps?.propagator).toBeDefined();
+    } finally {
+      setLoggerProviderSpy.mockRestore();
+      setPropagatorSpy.mockRestore();
+      setContextManagerSpy.mockRestore();
+    }
   });
 
   it('should not register instrumentations when an invalid URL is provided', async () => {
@@ -321,14 +423,12 @@ describe('quickStartBrowserSdk', () => {
   // spy and restores it in its `afterAll`.
   let fetchSpy: MockInstance;
   let consoleDirSpy: MockInstance;
-  let diagDebugSpy: MockInstance;
   let diagErrorSpy: MockInstance;
   let browserSdk: WebSdk;
 
   beforeEach(() => {
     fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
     consoleDirSpy = vi.spyOn(console, 'dir').mockImplementation(() => {});
-    diagDebugSpy = vi.spyOn(diag, 'debug');
     diagErrorSpy = vi.spyOn(diag, 'error');
   });
   afterEach(async () => {
@@ -342,29 +442,11 @@ describe('quickStartBrowserSdk', () => {
     }
     fetchSpy.mockRestore();
     consoleDirSpy.mockRestore();
-    diagDebugSpy.mockRestore();
     diagErrorSpy.mockRestore();
     logs.disable();
     trace.disable();
     context.disable();
     propagation.disable();
-  });
-
-  it('should not start when disabled by configuration', async () => {
-    // Act
-    browserSdk = quickStartBrowserSdk({
-      disabled: true,
-      exportUrl: 'http://otlp-signal-endpoint:4318',
-    });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    trace.getTracer('traces-sdk-test').startSpan('test').end();
-    // A started SDK would flush and export here; a disabled one must not
-    await browserSdk.shutdown();
-
-    // Assert
-    expect(diagDebugSpy).toHaveBeenCalled();
-    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Browser SDK disabled/);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should forward the export URL and headers to the exporters', async () => {
@@ -485,39 +567,25 @@ describe('quickStartBrowserSdk', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('should forward instrumentations to the SDK', async () => {
+  it('quickStartBrowserSdk forwards enabled and instrumentations', () => {
     // Arrange
     const instrumentation = createFakeInstrumentation();
 
     // Act
     browserSdk = quickStartBrowserSdk({
       exportUrl: 'http://otlp-signal-endpoint:4318',
+      enabled: false,
       instrumentations: [instrumentation],
     });
 
-    // Assert: the SDK registers and enables the instrumentation
-    expect(instrumentation.enable).toHaveBeenCalled();
-    expect(instrumentation.setTracerProvider).toHaveBeenCalled();
+    // Assert
+    expect(instrumentation.enable).not.toHaveBeenCalled();
 
     // Act
-    await browserSdk.shutdown();
+    browserSdk.enable();
 
-    // Assert: shutting down the SDK disables the instrumentation
-    expect(instrumentation.disable).toHaveBeenCalled();
-  });
-
-  it('should not validate or emit URL errors when disabled even in DEBUG mode', async () => {
-    diagErrorSpy.mockClear();
-
-    browserSdk = quickStartBrowserSdk({
-      disabled: true,
-      exportUrl: 'not_a_valid_url',
-      logLevel: 'DEBUG',
-    });
-
-    expect(browserSdk.invalidConfig).toBeFalsy();
-    expect(diagErrorSpy).not.toHaveBeenCalled();
-    expect(fetchSpy).not.toHaveBeenCalled();
+    // Assert
+    expect(instrumentation.enable).toHaveBeenCalledOnce();
   });
 
   it('should emit only one error for an invalid URL in DEBUG mode', async () => {

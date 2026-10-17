@@ -8,8 +8,10 @@ import type {
   ContextManager,
   DiagLogLevel,
   TextMapPropagator,
+  TracerProvider,
 } from '@opentelemetry/api';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
+import type { LoggerProvider } from '@opentelemetry/api-logs';
+import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
 import type {
   LogRecordLimits,
   LogRecordProcessor,
@@ -80,11 +82,14 @@ export interface BatchProcessorConfig {
  */
 export interface CommonConfig {
   /**
-   * Set `disabled: true` to disable the SDK
+   * Set `setGlobals: false` to keep the SDK from setting the global tracer
+   * provider, logger provider, propagator and context manager. Use it when
+   * another SDK on the page owns the globals. The instrumentations still get
+   * this SDK's providers and propagator.
    *
-   * @defaultValue undefined
+   * @defaultValue true
    */
-  disabled?: boolean;
+  setGlobals?: boolean;
   /**
    * Log level for SDK's internal logger
    *
@@ -109,12 +114,6 @@ export interface CommonConfig {
    * @defaultValue undefined
    */
   resourceAttributes?: Attributes;
-  /**
-   * List of instrumentations to be registered when the SDK starts
-   *
-   * @defaultValue undefined
-   */
-  instrumentations?: Instrumentation[];
 }
 
 /**
@@ -132,6 +131,22 @@ export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
  * here to avoid type collision.
  */
 export type RootConfig = CommonConfig & {
+  /**
+   * Set `enabled: false` to start the SDK without enabling the
+   * instrumentations, for example until the user gives consent. Call
+   * `sdk.enable()` later to enable them. The providers and exporters run in
+   * both cases, so manual spans and logs are still recorded and exported.
+   *
+   * @defaultValue true
+   */
+  enabled?: boolean;
+  /**
+   * The instrumentations that the SDK enables with its own providers and
+   * propagator.
+   *
+   * @defaultValue undefined
+   */
+  instrumentations?: Instrumentation[];
   /**
    * Configuration for processors. If defined it will be applied to
    * `BatchSpanProcessor` and `BatchLogRecordProcessor` unless signal
@@ -232,10 +247,46 @@ export interface WebSdk {
   /**
    * `true` when the SDK refused to start because its configuration is invalid
    * — e.g. a malformed export URL or no usable processors. Left `undefined` on
-   * a started SDK and on one intentionally turned off via `config.disabled`
-   * (that is not an error). Callers can check this to surface a
-   * misconfiguration, e.g. `if (sdk.invalidConfig) { throw ... }`.
+   * a started SDK. Callers can check this to surface a misconfiguration,
+   * e.g. `if (sdk.invalidConfig) { throw ... }`.
    */
   invalidConfig?: boolean;
+  /**
+   * Enables every instrumentation with the SDK's providers and propagator.
+   * Does nothing after `shutdown()`.
+   */
+  enable(): void;
+  /**
+   * Disables every instrumentation. Data that was already recorded is still
+   * exported. Does nothing after `shutdown()`.
+   */
+  disable(): void;
+  /**
+   * Disables every instrumentation, then shuts down the providers.
+   */
+  shutdown(): Promise<void>;
+}
+
+/**
+ * The result of `startTracesSdk`.
+ */
+export interface TracesSdk {
+  /** `true` when the SDK refused to start because its configuration is invalid. */
+  invalidConfig?: boolean;
+  /** The tracer provider. `undefined` when the configuration is invalid. */
+  tracerProvider?: TracerProvider;
+  /** The propagator. `undefined` when the configuration is invalid. */
+  propagator?: TextMapPropagator;
+  shutdown(): Promise<void>;
+}
+
+/**
+ * The result of `startLogsSdk`.
+ */
+export interface LogsSdk {
+  /** `true` when the SDK refused to start because its configuration is invalid. */
+  invalidConfig?: boolean;
+  /** The logger provider. `undefined` when the configuration is invalid. */
+  loggerProvider?: LoggerProvider;
   shutdown(): Promise<void>;
 }
