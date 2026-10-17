@@ -3,6 +3,7 @@
   "bootstrap-sha": "07491d86505adfc79d7951cb6567400734296d80",
   "bump-minor-pre-major": true,
   "sequential-calls": true,
+  "plugins": [{ "type": "node-workspace", "updatePeerDependencies": true }],
   "packages": {
     "packages/instrumentation": {
       "component": "browser-instrumentation",
