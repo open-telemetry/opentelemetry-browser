@@ -53,8 +53,12 @@ const sdk = quickStartBrowserSdk({
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
   serviceVersion: '1.0',
-  // Required - URL of the collector that will accept the export requests
-  exportUrl: 'https://collector.mycompany.com',
+  // Optional - URL the SDK sends log records to, used as configured.
+  // Default value is 'http://localhost:4318/v1/logs'
+  logsExportUrl: 'https://collector.mycompany.com/v1/logs',
+  // Optional - URL the SDK sends spans to, used as configured.
+  // Default value is 'http://localhost:4318/v1/traces'
+  tracesExportUrl: 'https://collector.mycompany.com/v1/traces',
   // Optional - Headers to be added in each export request for all signals
   exportHeaders: { foo: 'bar' },
 });
@@ -82,9 +86,9 @@ const sdk = startBrowserSdk({
   resourceAttributes: {
     'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
   },
-  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318', headers: {} }
+  // Optional - headers shared by every signal exporter. Each signal's URL is
+  // configured per signal (see the logs / traces sections below)
   exportConfig: {
-    url: 'https://collector.mycompany.com',
     headers: { foo: 'bar' }
   },
   // Optional - list of instrumentations to register when the SDK starts
@@ -230,7 +234,8 @@ import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
 
 const sdk = quickStartBrowserSdk({
-  exportUrl: 'https://collector.mycompany.com',
+  logsExportUrl: 'https://collector.mycompany.com/v1/logs',
+  tracesExportUrl: 'https://collector.mycompany.com/v1/traces',
   instrumentations: [
     new FetchInstrumentation({ propagateTraceHeaderCorsUrls: [/.*/] }),
   ],
@@ -285,20 +290,18 @@ Key-value pairs to be used as resource attributes.
 
 #### exportConfig
 
-Object containing configuration options for the HTTP exporters. These options
+Object containing the headers shared by the HTTP exporters. These options
 are:
 
-- `url`: Base endpoint for the OTLP/HTTP exporters. The SDK appends the
-  per-signal path to it, keeping any path of its own: with
-  `url: 'https://collector.mycompany.com/otlp-http'` the logs and traces
-  exporters send to `https://collector.mycompany.com/otlp-http/v1/logs` and
-  `https://collector.mycompany.com/otlp-http/v1/traces` respectively.
 - `headers`: Key-value pairs to be used as headers associated with HTTP
-  requests.
+  requests. They are applied to every signal that does not define its own
+  `exportConfig`.
 
-Each signal can set its own `exportConfig` (see the signal configuration
-sections). A signal URL is used as-is, without the per-signal path being
-added.
+There is no root `url`: logs and traces need different signal paths, so each
+signal configures its own full URL in its `exportConfig` (see the signal
+configuration sections). A signal URL is used as-is, without the per-signal
+path being added, and defaults to `http://localhost:4318/v1/logs` for logs
+and `http://localhost:4318/v1/traces` for traces.
 
 ### Logs configuration
 
@@ -318,11 +321,12 @@ the option is defined at the top level and within the signal configuration the l
 
 Object containing configuraiton options for the HTTP log record exporter. These options are:
 
-- `url`: Target to which the exporter is going to send logs.
+- `url`: Target to which the exporter is going to send logs, used exactly as
+  configured. Defaults to `http://localhost:4318/v1/logs`.
 - `headers`: Key-value pairs to be used as headers associated with HTTP requests.
 
-Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
-the option is defined at the top level and within the signal configuration the later wins.
+Note: when this option is not defined for the signal, the root `exportConfig`
+headers are applied to it. The URL is always per signal.
 
 Note: an invalid `url` stops the whole browser SDK from starting, including the other signals and any
 `processors` they define. It logs a `diag.error` and returns a no-op SDK (with `invalidConfig: true`,
@@ -361,11 +365,12 @@ the option is defined at the top level and within the `traces` signal configurat
 
 Object containing configuraiton options for the HTTP span exporter. These options are:
 
-- `url`: Target to which the exporter is going to send traces.
+- `url`: Target to which the exporter is going to send traces, used exactly as
+  configured. Defaults to `http://localhost:4318/v1/traces`.
 - `headers`: Key-value pairs to be used as headers associated with HTTP requests.
 
-Note: you can pass this option to `startBrowserSdk` if you want to apply the same to all signals. If
-the option is defined at the top level and within the `traces` signal configuration the later wins.
+Note: when this option is not defined for the signal, the root `exportConfig`
+headers are applied to it. The URL is always per signal.
 
 Note: an invalid `url` stops the SDK from starting — it logs a `diag.error` and returns a no-op SDK
 (with `invalidConfig: true`, so callers can detect it) instead of starting and silently dropping the

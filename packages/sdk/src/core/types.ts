@@ -21,14 +21,12 @@ import type {
 } from '@opentelemetry/sdk-trace';
 
 /**
- * Export configuration. Can be used globally or per signal
+ * Export configuration for a signal's HTTP exporter.
  */
 export interface ExportConfig {
   /**
-   * URL to send the data. For signal specific exports you might need to
-   * specify the signal path like `/v1/traces`. Default values depend on where
-   * this config is defined:
-   * - globally: the default is http://localhost:4318
+   * URL to send the data, used exactly as configured - the signal path is
+   * not added. Default values depend on the signal:
    * - logs: the default is http://localhost:4318/v1/logs
    * - traces: the default is http://localhost:4318/v1/traces
    */
@@ -40,6 +38,14 @@ export interface ExportConfig {
    */
   headers?: Record<string, string>;
 }
+
+/**
+ * Export configuration shared by every signal. There is intentionally no
+ * `url` here: logs and traces need different signal paths, so each signal
+ * configures its own full URL (see `LogsConfig.exportConfig` and
+ * `TracesConfig.exportConfig`).
+ */
+export type RootExportConfig = Pick<ExportConfig, 'headers'>;
 
 /**
  * Batch processor configuration. Can be used globally or per signal
@@ -139,11 +145,13 @@ export type RootConfig = CommonConfig & {
    */
   batchProcessorConfig?: BatchProcessorConfig;
   /**
-   * Configuration for exporters. If defined it will be applied to the
-   * exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`
-   * unless signal specific configuration is set for the signal.
+   * Configuration for exporters. If defined, its `headers` are applied to
+   * the exporters of the `BatchSpanProcessor` and `BatchLogRecordProcessor`
+   * unless signal specific configuration is set for the signal. The URL
+   * each signal exports to is configured per signal - see
+   * `LogsConfig.exportConfig` and `TracesConfig.exportConfig`.
    */
-  exportConfig?: ExportConfig;
+  exportConfig?: RootExportConfig;
   // TODO: to be discussed in Browser SIG
   // Basic options that could translate to more complex ones
   // in specific signals like

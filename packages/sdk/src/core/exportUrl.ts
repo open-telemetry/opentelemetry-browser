@@ -36,29 +36,3 @@ export function parseExportUrl(url: string, scope = 'Browser SDK'): URL | null {
   }
   return parsed;
 }
-
-/**
- * Builds a per-signal export URL by appending the signal resource path (for
- * example `v1/logs`) to the path of the base endpoint URL.
- *
- * Per the OTLP/HTTP spec, the path of the configured endpoint is a *prefix*
- * of the per-signal URLs rather than something they replace
- * (https://opentelemetry.io/docs/specs/otel/protocol/exporter/#endpoint-urls-for-otlp-http),
- * so a collector behind a proxy path keeps its prefix:
- * `http://collector:8080/otlp-http` exports logs to
- * `http://collector:8080/otlp-http/v1/logs`. A missing trailing slash on the
- * base path is tolerated, matching the other OTLP exporters, so both
- * spellings of the base URL produce the same per-signal URL.
- *
- * @param endpoint The validated base endpoint URL. Not modified.
- * @param resourcePath The signal resource path, without a leading slash.
- * @returns The per-signal export URL string.
- */
-export function withResourcePath(endpoint: URL, resourcePath: string): string {
-  const url = new URL(endpoint.href);
-  if (!url.pathname.endsWith('/')) {
-    url.pathname += '/';
-  }
-  url.pathname += resourcePath;
-  return url.href;
-}
