@@ -3,13 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  DiagLogger,
-  Meter,
-  TextMapPropagator,
-  Tracer,
-} from '@opentelemetry/api';
-import { diag, metrics, propagation, trace } from '@opentelemetry/api';
+import type { DiagLogger, TextMapPropagator, Tracer } from '@opentelemetry/api';
+import { diag, propagation, trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { toError } from '../utils/toError.ts';
@@ -28,9 +23,6 @@ type State = 'new' | 'enabled' | 'disabled' | 'failed';
 interface Locked<Deps> {
   deps: Readonly<Deps> | undefined;
   tracer: Tracer;
-  // Undefined when no meterProvider was passed: `metrics.getMeterProvider()` is
-  // not a proxy, so the global is read on each access instead.
-  meter: Meter | undefined;
   logger: Logger;
   propagator: TextMapPropagator;
 }
@@ -116,14 +108,13 @@ export abstract class InstrumentationBase<
     const name = this.instrumentationName;
     const version = this.instrumentationVersion;
     // The trace and logs APIs return proxies, so a provider set as global after
-    // this call still receives the data. The metrics API does not; see `meter`.
+    // this call still receives the data.
     this._locked = {
       deps: deps && { ...deps },
       tracer: (deps?.tracerProvider ?? trace.getTracerProvider()).getTracer(
         name,
         version,
       ),
-      meter: deps?.meterProvider?.getMeter(name, version),
       logger: (deps?.loggerProvider ?? logs.getLoggerProvider()).getLogger(
         name,
         version,
@@ -198,17 +189,6 @@ export abstract class InstrumentationBase<
   /** The tracer from the locked provider. Available from the first `enable()`. */
   protected get tracer(): Tracer {
     return this._requireLocked('tracer').tracer;
-  }
-
-  /**
-   * The meter from the locked provider, or else from the current global meter
-   * provider. Available from the first `enable()`.
-   */
-  protected get meter(): Meter {
-    return (
-      this._requireLocked('meter').meter ??
-      metrics.getMeter(this.instrumentationName, this.instrumentationVersion)
-    );
   }
 
   /** The logger from the locked provider. Available from the first `enable()`. */

@@ -3,11 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-  MeterProvider,
-  TextMapPropagator,
-  TracerProvider,
-} from '@opentelemetry/api';
+import type { TextMapPropagator, TracerProvider } from '@opentelemetry/api';
 import type { LoggerProvider } from '@opentelemetry/api-logs';
 
 /**
@@ -20,8 +16,6 @@ import type { LoggerProvider } from '@opentelemetry/api-logs';
 export interface InstrumentationDeps {
   /** Used for spans. The default is the global tracer provider. */
   tracerProvider?: TracerProvider;
-  /** Used for metrics. The default is the global meter provider. */
-  meterProvider?: MeterProvider;
   /** Used for log records. The default is the global logger provider. */
   loggerProvider?: LoggerProvider;
   /** Used to inject trace context. The default is the global propagation API. */
