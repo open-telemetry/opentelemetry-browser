@@ -18,6 +18,19 @@ import type {
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
 import { version } from '../../package.json' with { type: 'json' };
 import {
+  ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY,
+  ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TARGET,
+  ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TYPE,
+  ATTR_WEB_VITAL_ATTRIBUTION_LOAD_STATE,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART,
+  ATTR_WEB_VITAL_ATTRIBUTION_NEXT_PAINT_TIME,
+  ATTR_WEB_VITAL_ATTRIBUTION_PRESENTATION_DELAY,
+  ATTR_WEB_VITAL_ATTRIBUTION_PROCESSING_DURATION,
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
@@ -117,6 +130,55 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     return metric.value;
   }
 
+  private _getINPAttributionAttributes(
+    attribution: INPMetricWithAttribution['attribution'],
+  ): Attributes {
+    const attributes: Attributes = {
+      [ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY]: attribution.inputDelay,
+      [ATTR_WEB_VITAL_ATTRIBUTION_PROCESSING_DURATION]:
+        attribution.processingDuration,
+      [ATTR_WEB_VITAL_ATTRIBUTION_PRESENTATION_DELAY]:
+        attribution.presentationDelay,
+      [ATTR_WEB_VITAL_ATTRIBUTION_LOAD_STATE]: attribution.loadState,
+    };
+
+    if (attribution.interactionTarget !== undefined) {
+      attributes[ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TARGET] =
+        attribution.interactionTarget;
+    }
+    if (attribution.interactionType !== undefined) {
+      attributes[ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TYPE] =
+        attribution.interactionType;
+    }
+    if (attribution.nextPaintTime !== undefined) {
+      attributes[ATTR_WEB_VITAL_ATTRIBUTION_NEXT_PAINT_TIME] =
+        attribution.nextPaintTime;
+    }
+
+    const longestScript = attribution.longestScript;
+    if (longestScript) {
+      // web-vitals supplies this entry only when LoAF is supported.
+      /* eslint-disable baseline-js/use-baseline */
+      Object.assign(attributes, {
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER]:
+          longestScript.entry.invoker,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL]:
+          longestScript.entry.sourceURL,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME]:
+          longestScript.entry.sourceFunctionName,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION]:
+          longestScript.entry.duration,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART]:
+          longestScript.subpart,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION]:
+          longestScript.intersectingDuration,
+      });
+      /* eslint-enable baseline-js/use-baseline */
+    }
+
+    return attributes;
+  }
+
   private _emitWebVital(metric: MetricWithAttribution): void {
     if (!this._isEnabled) {
       return;
@@ -130,6 +192,13 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       [ATTR_WEB_VITAL_ID]: metric.id,
       [ATTR_WEB_VITAL_NAVIGATION_TYPE]: metric.navigationType,
     };
+
+    if (this._includeRawAttribution && metric.name === 'INP') {
+      Object.assign(
+        attributes,
+        this._getINPAttributionAttributes(metric.attribution),
+      );
+    }
 
     const timestamp = this._getTimestampForMetric(metric);
 
