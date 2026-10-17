@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>React INP log enrichment</title>
+  </head>
+  <body>
+    <h1>React INP log enrichment</h1>
+    <p>
+      Click the React button, then hide this tab to report INP. Inspect the
+      console or your configured OTLP receiver.
+    </p>
+    <div id="root"></div>
+    <button id="stop" type="button">Stop telemetry and unmount</button>
+    <p id="status" role="status"></p>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
