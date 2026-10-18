@@ -11,6 +11,16 @@ experimental. The fetch and XHR comparisons use the legacy packages at 0.223.0;
 check your installed versions before applying the behavior tables to older
 releases. The overall consolidation is tracked in [#209][consolidation].
 
+> [!WARNING]
+> Older `@opentelemetry/instrumentation-fetch` versions emitted
+> `http.response_content_length` and `http.response_content_length_uncompressed`.
+> These keys are absent from the new fetch spans, with no span replacement.
+> Update collector processors and queries that depend on them.
+> For response sizes, register `ResourceTimingInstrumentation` and export logs:
+> `browser.resource_timing.encoded_body_size` and
+> `browser.resource_timing.decoded_body_size` carry the corresponding sizes on
+> `browser.resource_timing` log records when the browser exposes them.
+
 ## Key changes at a glance
 
 The table summarizes the changes below for the versions listed above. Follow the
