@@ -3,6 +3,8 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
+**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
+
 OpenTelemetry browser instrumentations, available as subpath exports under `./experimental/*`.
 
 Moving from `opentelemetry-js` or `opentelemetry-js-contrib`? See the [migration guide](../../docs/migration-guide.md) for import paths, behavior changes, and remaining gaps.
