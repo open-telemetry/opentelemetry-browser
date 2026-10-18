@@ -16,6 +16,7 @@ npm install @opentelemetry/browser-instrumentation
 ## Instrumentations
 
 - [Navigation](#navigation) — automatic instrumentation for browser navigations (initial load and SPA route changes)
+- [Document Load](#document-load) — a document load span carrying server trace context
 - [Navigation Timing](#navigation-timing) — automatic instrumentation for navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
 - [User Action](#user-action) — automatic instrumentation for user actions (clicks)
@@ -115,6 +116,65 @@ Each `browser.navigation` event includes:
 | `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads. |
 | `browser.navigation.hash_change` | `true` when the navigation only adds or changes the URL fragment. |
 | `browser.navigation.type` | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
+
+---
+
+### Document Load
+
+```typescript
+import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/document-load';
+```
+
+Creates one `documentLoad` span from the navigation entry's `fetchStart` to
+`loadEventEnd`, with `url.full` and `user_agent.original` attributes. The span
+continues the server trace from `<meta name="traceparent" content="...">`, using
+the configured propagator. Configure W3C trace-context propagation to read this
+format. An optional `tracestate` meta tag is passed to the propagator too. Without
+a valid parent, the span starts a new trace. The server's sampling decision is
+handled by the configured sampler.
+
+Configure a tracer provider before enabling document load, and enable it before
+navigation timing and resource timing. For example, with your configured
+`tracerProvider` and `loggerProvider`:
+
+```typescript
+const documentLoad = new DocumentLoadInstrumentation({ enabled: false });
+documentLoad.setTracerProvider(tracerProvider);
+documentLoad.enable();
+
+for (const instrumentation of [
+  new NavigationTimingInstrumentation({ enabled: false }),
+  new ResourceTimingInstrumentation({ enabled: false }),
+]) {
+  instrumentation.setLoggerProvider(loggerProvider);
+  instrumentation.enable();
+}
+```
+
+The `browser.navigation_timing` event and resource-timing events share this span's
+context. A fetch/XHR registry match always takes precedence for resource events.
+Only resources whose entire `[fetchStart, responseEnd]` interval falls inside
+`[navigation.fetchStart, navigation.loadEventEnd]` receive the fallback context,
+including equal boundaries. The fallback is reusable for every matching resource.
+Two requests for the same URL are checked independently, so a later request or one
+that finishes after `loadEventEnd` does not inherit the document context. Existing
+network matches still apply outside the document interval.
+
+Enabling after the page has loaded reads the buffered navigation entry and keeps
+its original interval. During load, collection waits until `loadEventEnd` is
+populated. A timing-event lookup can finalize the span before the scheduled
+collection callback, so callback order does not lose the correlation. Missing or
+invalid navigation timing produces no span rather than a made-up end time.
+Disabling cancels collection and removes fallback correlation. Re-enabling uses
+the same span if this instance already collected the document, it does not emit a
+second span for that load.
+
+This is the reduced scope proposed in [the document-load migration
+issue](https://github.com/open-telemetry/opentelemetry-browser/issues/327). There
+are no `documentFetch` or `resourceFetch` child spans and no span events. Detailed
+timings remain on navigation-timing and resource-timing events. Paint timing is
+not collected here, FCP is covered by the web-vitals instrumentation. The old
+contrib child-span and span-event options are not carried over.
 
 ---
 
