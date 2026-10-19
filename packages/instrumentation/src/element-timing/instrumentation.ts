@@ -102,6 +102,7 @@ export class ElementTimingInstrumentation extends InstrumentationBase<ElementTim
 
       const logRecord: LogRecord = {
         eventName: ELEMENT_TIMING_EVENT_NAME,
+        timestamp: entry.startTime,
         severityNumber: SeverityNumber.INFO,
         attributes,
       };
