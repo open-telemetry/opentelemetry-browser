@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { hrTimeToMilliseconds } from '@opentelemetry/core';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -104,6 +105,26 @@ describe('ElementTimingInstrumentation', () => {
       getEntriesByType: () => entries,
     } as PerformanceObserverEntryList;
   }
+
+  it('should set the record timestamp from entry.startTime', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+
+    const paintTime = 1500;
+    observerCallback(
+      createMockPerformanceObserverEntryList([
+        createMockElementEntry({ startTime: paintTime }),
+      ]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+
+    const logTimes = getElementTimingLogs().map((log) =>
+      hrTimeToMilliseconds(log.hrTime),
+    );
+    expect(logTimes).toEqual([
+      expect.closeTo(performance.timeOrigin + paintTime, 0),
+    ]);
+  });
 
   it('should observe element entries with buffered: true', () => {
     instrumentation = new ElementTimingInstrumentation();
