@@ -65,6 +65,7 @@ npm install -g npm@latest
 ## Guidelines
 
 - Follow [conventional commits](https://www.conventionalcommits.org/)
+- Mark breaking changes and follow the deprecation rules in [VERSIONING.md](VERSIONING.md)
 - Sign all commits
 - Add tests for new functionality
 - Run `npm run lint` before submitting

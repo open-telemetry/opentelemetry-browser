@@ -3,6 +3,8 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
+**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
+
 OpenTelemetry browser instrumentations, available as subpath exports under `./experimental/*`.
 
 ## Installation
