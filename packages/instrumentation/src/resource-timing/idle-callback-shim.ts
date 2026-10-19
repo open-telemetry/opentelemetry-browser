@@ -7,8 +7,13 @@ const IDLE_DEADLINE_MS = 50;
 
 // requestIdleCallback is not yet Baseline (not supported in Safari).
 // Feature-detect here so we can shim it below for unsupported browsers.
-// eslint-disable-next-line baseline-js/use-baseline
-const supportsIdleCallback = typeof window.requestIdleCallback === 'function';
+
+function supportsIdleCallback(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    typeof Reflect.get(window, 'requestIdleCallback') === 'function'
+  );
+}
 
 export interface IdleCallbackHandle {
   id: number;
@@ -24,7 +29,7 @@ export function requestIdleCallbackShim(
   callback: IdleRequestCallback,
   options?: IdleRequestOptions,
 ): IdleCallbackHandle {
-  if (supportsIdleCallback) {
+  if (supportsIdleCallback()) {
     // requestIdleCallback is not yet Baseline (not supported in Safari).
     // eslint-disable-next-line baseline-js/use-baseline
     const id = window.requestIdleCallback(callback, options);

@@ -56,6 +56,15 @@ describe('idle-callback-shim', () => {
     });
   });
 
+  it('should import without window being defined', async () => {
+    vi.stubGlobal('window', undefined);
+    vi.resetModules();
+
+    await expect(import('./idle-callback-shim.ts')).resolves.toBeDefined();
+
+    vi.resetModules();
+  });
+
   describe('when requestIdleCallback is not available', () => {
     beforeEach(() => {
       vi.stubGlobal('window', {
