@@ -241,7 +241,7 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
-| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. Set before listeners are first registered, later config changes do not replace existing listeners. |
+| `reportAllChanges` | `boolean` | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`. Set this before the listeners are registered. Later config changes have no effect. `web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production. |
 
 ### Console
 
