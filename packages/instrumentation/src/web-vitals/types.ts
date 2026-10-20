@@ -26,9 +26,15 @@ export interface WebVitalsInstrumentationConfig {
   applyCustomLogRecordData?: (logRecord: LogRecord) => void;
 
   /**
-   * Passed through to `web-vitals` to report metric updates according to its
-   * reporting behavior. `delta` is the change since its previous report.
+   * When true, CLS, INP and LCP are reported each time their value changes,
+   * not only when the value is final. FCP and TTFB are not affected. `delta`
+   * is the change since the previous report for the same metric `id`.
+   *
+   * Set this before the listeners are registered. Later changes have no effect.
+   * `web-vitals` recommends this for debugging, not for production.
    * Defaults to `false`.
+   *
+   * See https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change
    */
   reportAllChanges?: boolean;
 }
