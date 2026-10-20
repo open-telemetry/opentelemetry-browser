@@ -70,6 +70,24 @@ describe('LocalStorageSessionStore', () => {
     );
   });
 
+  it('returns null when the stored JSON is not a session', async () => {
+    const wrongShapes = [
+      '{}',
+      '{"id":1,"startTimestamp":2}',
+      '{"id":"id"}',
+      '[]',
+      'null',
+      '"text"',
+    ];
+    for (const stored of wrongShapes) {
+      getItemSpy.mockReturnValue(stored);
+      await expect(store.get()).resolves.toBeNull();
+    }
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Ignoring a stored session without a string id and a number startTimestamp',
+    );
+  });
+
   it('resolves when setItem throws because storage is full', async () => {
     setItemSpy.mockImplementation(() => {
       throw new DOMException('quota exceeded', 'QuotaExceededError');

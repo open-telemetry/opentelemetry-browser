@@ -9,6 +9,16 @@ import type { SessionStore } from './types/SessionStore.ts';
 
 const SESSION_STORAGE_KEY = 'opentelemetry-session';
 
+// JSON.parse returns whatever was stored, so the shape is checked before it is used as a session.
+function isSession(value: unknown): value is Session {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Session).id === 'string' &&
+    typeof (value as Session).startTimestamp === 'number'
+  );
+}
+
 // localStorage throws where storage is blocked or full, so every access is guarded.
 export class LocalStorageSessionStore implements SessionStore {
   save(session: Session): Promise<void> {
@@ -34,7 +44,13 @@ export class LocalStorageSessionStore implements SessionStore {
 
       const sessionData = localStorage.getItem(SESSION_STORAGE_KEY);
       if (sessionData) {
-        return Promise.resolve(JSON.parse(sessionData) as Session);
+        const parsed: unknown = JSON.parse(sessionData);
+        if (isSession(parsed)) {
+          return Promise.resolve(parsed);
+        }
+        diag.debug(
+          'Ignoring a stored session without a string id and a number startTimestamp',
+        );
       }
     } catch (error) {
       // blocked storage or invalid JSON
