@@ -6,6 +6,7 @@ import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrume
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
 import {
   createDefaultSessionIdGenerator,
   createLocalStorageSessionStore,
@@ -18,7 +19,6 @@ import {
   W3CBaggagePropagator,
   W3CTraceContextPropagator,
 } from '@opentelemetry/core';
-import { browserDetector } from '@opentelemetry/opentelemetry-browser-detector';
 import {
   detectResources,
   resourceFromAttributes,

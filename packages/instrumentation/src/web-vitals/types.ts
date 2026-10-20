@@ -24,4 +24,11 @@ export interface WebVitalsInstrumentationConfig {
    * Use this to add custom attributes or modify the log record.
    */
   applyCustomLogRecordData?: (logRecord: LogRecord) => void;
+
+  /**
+   * Passed through to `web-vitals` to report metric updates according to its
+   * reporting behavior. `delta` is the change since its previous report.
+   * Defaults to `false`.
+   */
+  reportAllChanges?: boolean;
 }

@@ -36,6 +36,7 @@ import {
 const webVitalsMock = vi.hoisted(() => ({
   failing: undefined as string | undefined,
   calls: [] as string[],
+  options: {} as Record<string, unknown>,
 }));
 
 vi.mock('web-vitals/attribution', async (importOriginal) => {
@@ -48,6 +49,7 @@ vi.mock('web-vitals/attribution', async (importOriginal) => {
     ) =>
     (...args: Args) => {
       webVitalsMock.calls.push(name);
+      webVitalsMock.options[name] = args[1];
       if (webVitalsMock.failing === name) {
         throw new Error(`${name} subscribe failed`);
       }
@@ -409,6 +411,60 @@ describe('WebVitalsInstrumentation', () => {
       const inpLog = await waitForMetric('inp');
       expect(inpLog.attributes['custom.page']).toBe('test-page');
       expect(customHook).toHaveBeenCalled();
+    });
+  });
+
+  describe('reportAllChanges', () => {
+    const metrics = ['CLS', 'INP', 'LCP', 'FCP', 'TTFB'];
+
+    beforeEach(() => {
+      webVitalsMock.calls.length = 0;
+      webVitalsMock.options = {};
+    });
+
+    const expectOptions = (reportAllChanges: boolean) => {
+      for (const name of metrics) {
+        expect(webVitalsMock.options[name]).toEqual({ reportAllChanges });
+      }
+    };
+
+    it('should pass reportAllChanges to every web-vitals listener', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: true,
+      });
+      enableForTest(instrumentation);
+
+      expectOptions(true);
+    });
+
+    it('should default reportAllChanges to false', () => {
+      instrumentation = new WebVitalsInstrumentation();
+      enableForTest(instrumentation);
+
+      expectOptions(false);
+    });
+
+    it('should preserve explicit false', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: false,
+      });
+      enableForTest(instrumentation);
+
+      expectOptions(false);
+    });
+
+    it('should subscribe once, on the first enable', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: true,
+      });
+      expect(webVitalsMock.calls).toEqual([]);
+
+      enableForTest(instrumentation);
+      instrumentation.disable();
+      instrumentation.enable();
+
+      expect(webVitalsMock.calls).toEqual(metrics);
+      expectOptions(true);
     });
   });
 });

@@ -3,7 +3,7 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
-**Note: This is an experimental package under active development. New releases may include breaking changes.**
+**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
 
 This package provides the required components to start an OpenTelemetry SDK for Browser including
 logs and traces. Metrics are out of the scope for now
@@ -124,6 +124,7 @@ code related to other signals.
 | ------------------------------- | -------------------------------------------------------------- |
 | `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — sets up logs and sets the global LoggerProvider (unless `setGlobals` is `false`) |
 | `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — sets up traces and sets the global TracerProvider (unless `setGlobals` is `false`) |
+| `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes |
 
 
 #### Initialize logs SDK
@@ -254,6 +255,29 @@ Consent covers the instrumentations only. The providers and exporters still
 run, so your own manual spans and logs are still recorded and exported.
 `sdk.disable()` does not drop data. Data that was recorded before it is still
 exported.
+
+### Browser resource detection
+
+The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
+detector for browser attributes. It detects the user agent and preferred
+language, plus platform, brands, and mobile status when the User-Agent Client
+Hints API is available.
+
+```javascript
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
+import {
+  detectResources,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+
+const resource = resourceFromAttributes({
+  'service.name': 'my-app',
+}).merge(
+  detectResources({
+    detectors: [browserDetector],
+  }),
+);
+```
 
 ## Configuration
 

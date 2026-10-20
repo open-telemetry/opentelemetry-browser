@@ -53,6 +53,9 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       return;
     }
     this._diag.debug('Subscribing listeners');
+    const opts = {
+      reportAllChanges: this._config.reportAllChanges ?? false,
+    };
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
     const subscribers = [
@@ -66,8 +69,9 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       // Not retried: web-vitals cannot unsubscribe, so a retry would double
       // the metrics that did subscribe.
       try {
-        subscribe((metric: MetricWithAttribution) =>
-          this._emitWebVital(metric),
+        subscribe(
+          (metric: MetricWithAttribution) => this._emitWebVital(metric),
+          opts,
         );
       } catch (err) {
         this._diag.warn(`could not subscribe to ${name}`, toError(err));
