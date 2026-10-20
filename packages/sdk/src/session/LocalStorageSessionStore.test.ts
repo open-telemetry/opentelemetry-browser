@@ -58,6 +58,18 @@ describe('LocalStorageSessionStore', () => {
     vi.stubGlobal('localStorage', undefined);
     const retrieved = await store.get();
     expect(retrieved).toBeNull();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'localStorage is not available, the session stays in memory only',
+    );
+  });
+
+  it('resolves save and logs when localStorage is not available', async () => {
+    vi.stubGlobal('localStorage', undefined);
+    const session: Session = { id: 'id', startTimestamp: Date.now() };
+    await expect(store.save(session)).resolves.toBeUndefined();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'localStorage is not available, the session stays in memory only',
+    );
   });
 
   it('returns null if stored session is invalid', async () => {

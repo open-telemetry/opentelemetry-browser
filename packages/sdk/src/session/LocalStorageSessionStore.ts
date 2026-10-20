@@ -8,6 +8,8 @@ import type { Session } from './types/Session.ts';
 import type { SessionStore } from './types/SessionStore.ts';
 
 const SESSION_STORAGE_KEY = 'opentelemetry-session';
+const NO_LOCAL_STORAGE =
+  'localStorage is not available, the session stays in memory only';
 
 // JSON.parse returns whatever was stored, so the shape is checked before it is used as a session.
 function isSession(value: unknown): value is Session {
@@ -23,7 +25,9 @@ function isSession(value: unknown): value is Session {
 export class LocalStorageSessionStore implements SessionStore {
   save(session: Session): Promise<void> {
     try {
-      if (typeof localStorage !== 'undefined') {
+      if (typeof localStorage === 'undefined') {
+        diag.debug(NO_LOCAL_STORAGE);
+      } else {
         localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
       }
     } catch (error) {
@@ -39,6 +43,7 @@ export class LocalStorageSessionStore implements SessionStore {
   get(): Promise<Session | null> {
     try {
       if (typeof localStorage === 'undefined') {
+        diag.debug(NO_LOCAL_STORAGE);
         return Promise.resolve(null);
       }
 
