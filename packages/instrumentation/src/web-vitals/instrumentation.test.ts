@@ -16,6 +16,7 @@ import {
   vi,
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
+import type { LCPMetricWithAttribution } from 'web-vitals/attribution';
 import {
   enableForTest,
   setupTestDiagLogger,
@@ -26,17 +27,21 @@ import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
+  ATTR_WEB_VITAL_NAVIGATION_ID,
   ATTR_WEB_VITAL_NAVIGATION_TYPE,
+  ATTR_WEB_VITAL_NAVIGATION_URL,
   ATTR_WEB_VITAL_RATING,
   ATTR_WEB_VITAL_VALUE,
   WEB_VITAL_EVENT_NAME,
 } from './semconv.ts';
 
-// Passes through to the real library, but can make one subscriber throw.
+// Passes through to the real library, but can make one subscriber throw or
+// report a fake metric instead.
 const webVitalsMock = vi.hoisted(() => ({
   failing: undefined as string | undefined,
   calls: [] as string[],
   options: {} as Record<string, unknown>,
+  metrics: {} as Record<string, unknown>,
 }));
 
 vi.mock('web-vitals/attribution', async (importOriginal) => {
@@ -52,6 +57,11 @@ vi.mock('web-vitals/attribution', async (importOriginal) => {
       webVitalsMock.options[name] = args[1];
       if (webVitalsMock.failing === name) {
         throw new Error(`${name} subscribe failed`);
+      }
+      const metric = webVitalsMock.metrics[name];
+      if (metric) {
+        (args[0] as (metric: unknown) => void)(metric);
+        return;
       }
       subscribe(...args);
     };
@@ -406,7 +416,10 @@ describe('WebVitalsInstrumentation', () => {
 
     const expectOptions = (reportAllChanges: boolean) => {
       for (const name of metrics) {
-        expect(webVitalsMock.options[name]).toEqual({ reportAllChanges });
+        expect(webVitalsMock.options[name]).toEqual({
+          reportAllChanges,
+          reportSoftNavs: false,
+        });
       }
     };
 
@@ -447,6 +460,98 @@ describe('WebVitalsInstrumentation', () => {
 
       expect(webVitalsMock.calls).toEqual(metrics);
       expectOptions(true);
+    });
+  });
+
+  describe('reportSoftNavs', () => {
+    const metrics = ['CLS', 'INP', 'LCP', 'FCP', 'TTFB'];
+
+    beforeEach(() => {
+      webVitalsMock.options = {};
+    });
+
+    afterEach(() => {
+      webVitalsMock.metrics = {};
+    });
+
+    const softNavLCP = {
+      name: 'LCP',
+      value: 500,
+      delta: 500,
+      rating: 'good',
+      id: 'v5-soft',
+      entries: [],
+      navigationType: 'soft-navigation',
+      navigationId: 7,
+      navigationInteractionId: 3,
+      navigationStartTime: 1000,
+      navigationURL: 'https://example.com/next',
+      attribution: {},
+    } as unknown as LCPMetricWithAttribution;
+
+    const toPerformanceMs = ([seconds, nanos]: [number, number]) =>
+      seconds * 1e3 + nanos / 1e6 - performance.timeOrigin;
+
+    it.each([
+      { config: { reportSoftNavs: true }, expected: true },
+      { config: { reportSoftNavs: false }, expected: false },
+      { config: {}, expected: false },
+    ])(
+      'should register listeners with reportSoftNavs $expected for config $config',
+      ({ config, expected }) => {
+        instrumentation = new WebVitalsInstrumentation(config);
+        enableForTest(instrumentation);
+
+        for (const name of metrics) {
+          expect(webVitalsMock.options[name]).toEqual({
+            reportAllChanges: false,
+            reportSoftNavs: expected,
+          });
+        }
+      },
+    );
+
+    it('should add navigation id and url attributes', () => {
+      webVitalsMock.metrics['LCP'] = softNavLCP;
+      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
+      enableForTest(instrumentation);
+
+      const [lcpLog] = getWebVitalLogs();
+      expect(lcpLog?.attributes[ATTR_WEB_VITAL_NAVIGATION_TYPE]).toBe(
+        'soft-navigation',
+      );
+      expect(lcpLog?.attributes[ATTR_WEB_VITAL_NAVIGATION_ID]).toBe(7);
+      expect(lcpLog?.attributes[ATTR_WEB_VITAL_NAVIGATION_URL]).toBe(
+        'https://example.com/next',
+      );
+    });
+
+    it('should omit navigation attributes when web-vitals has none', () => {
+      webVitalsMock.metrics['LCP'] = {
+        ...softNavLCP,
+        navigationId: 0,
+        navigationURL: undefined,
+      };
+      instrumentation = new WebVitalsInstrumentation();
+      enableForTest(instrumentation);
+
+      const [lcpLog] = getWebVitalLogs();
+      expect(lcpLog?.attributes).not.toHaveProperty(
+        ATTR_WEB_VITAL_NAVIGATION_ID,
+      );
+      expect(lcpLog?.attributes).not.toHaveProperty(
+        ATTR_WEB_VITAL_NAVIGATION_URL,
+      );
+    });
+
+    it('should offset the timestamp by the soft navigation start', () => {
+      webVitalsMock.metrics['LCP'] = softNavLCP;
+      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
+      enableForTest(instrumentation);
+
+      const [lcpLog] = getWebVitalLogs();
+      expect(lcpLog).toBeDefined();
+      expect(toPerformanceMs(lcpLog?.hrTime ?? [0, 0])).toBeCloseTo(1500, 0);
     });
   });
 });
