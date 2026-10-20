@@ -76,13 +76,17 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
 
     this._listenersRegistered = true;
     this._diag.debug(`Registering listeners`);
+    // Read from the config: this first runs inside super(), before fields are set.
+    const opts = {
+      reportAllChanges: this.getConfig().reportAllChanges ?? false,
+    };
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
-    onCLS((metric) => this._emitWebVital(metric));
-    onINP((metric) => this._emitWebVital(metric));
-    onLCP((metric) => this._emitWebVital(metric));
-    onFCP((metric) => this._emitWebVital(metric));
-    onTTFB((metric) => this._emitWebVital(metric));
+    onCLS((metric) => this._emitWebVital(metric), opts);
+    onINP((metric) => this._emitWebVital(metric), opts);
+    onLCP((metric) => this._emitWebVital(metric), opts);
+    onFCP((metric) => this._emitWebVital(metric), opts);
+    onTTFB((metric) => this._emitWebVital(metric), opts);
   }
 
   /**

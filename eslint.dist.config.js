@@ -51,4 +51,20 @@ export default [
       ],
     },
   },
+  // browser-detector reads User-Agent Client Hints when available and falls
+  // back to the widely available user agent string.
+  {
+    files: ['packages/sdk/dist/browser-detector/**/*.js'],
+    rules: {
+      'baseline-js/use-baseline': [
+        'error',
+        {
+          available: 'widely',
+          includeWebApis: { preset: 'auto' },
+          includeJsBuiltins: { preset: 'auto' },
+          ignoreFeatures: ['ua-client-hints'],
+        },
+      ],
+    },
+  },
 ];
