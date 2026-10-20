@@ -100,6 +100,20 @@ describe('LocalStorageSessionStore', () => {
     );
   });
 
+  it('removes the stored session when it cannot be saved', async () => {
+    setItemSpy.mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError');
+    });
+    const removeSpy = vi.spyOn(globalThis.localStorage, 'removeItem');
+    const session: Session = { id: 'id', startTimestamp: Date.now() };
+    await expect(store.save(session)).resolves.toBeUndefined();
+    expect(removeSpy).toHaveBeenCalledWith('opentelemetry-session');
+    removeSpy.mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    await expect(store.save(session)).resolves.toBeUndefined();
+  });
+
   it('resolves when setItem throws because storage is full', async () => {
     setItemSpy.mockImplementation(() => {
       throw new DOMException('quota exceeded', 'QuotaExceededError');

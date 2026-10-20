@@ -35,6 +35,11 @@ export class LocalStorageSessionStore implements SessionStore {
         'Session not saved to localStorage, it stays in memory only',
         error,
       );
+      try {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      } catch {
+        // blocked storage: nothing stored to go stale
+      }
     }
 
     return Promise.resolve();

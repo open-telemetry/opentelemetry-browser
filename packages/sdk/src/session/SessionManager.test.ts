@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionManagerConfig } from './SessionManager.ts';
 import { SessionManager } from './SessionManager.ts';
@@ -184,5 +185,62 @@ describe('SessionManager', () => {
     sessionManager = new SessionManager(config);
     const sessionId = sessionManager.getSessionId();
     expect((await store.get())?.id).toBe(sessionId);
+  });
+
+  it('keeps the session when the store throws on save', () => {
+    const debugSpy = vi.spyOn(diag, 'debug');
+    const throwingStore: SessionStore = {
+      get: () => Promise.resolve(null),
+      save: () => {
+        throw new Error('store down');
+      },
+    };
+    sessionManager = new SessionManager({
+      ...config,
+      sessionStore: throwingStore,
+    });
+    expect(() => sessionManager.getSessionId()).not.toThrow();
+    expect(sessionManager.getSessionId()).toBeTruthy();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Session not saved by the session store',
+      expect.any(Error),
+    );
+  });
+
+  it('logs when the store rejects on save', async () => {
+    const debugSpy = vi.spyOn(diag, 'debug');
+    const rejectingStore: SessionStore = {
+      get: () => Promise.resolve(null),
+      save: () => Promise.reject(new Error('store down')),
+    };
+    sessionManager = new SessionManager({
+      ...config,
+      sessionStore: rejectingStore,
+    });
+    sessionManager.getSessionId();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Session not saved by the session store',
+      expect.any(Error),
+    );
+  });
+
+  it('starts a new session when the store cannot be read', async () => {
+    const debugSpy = vi.spyOn(diag, 'debug');
+    const failingStore: SessionStore = {
+      get: () => Promise.reject(new Error('store down')),
+      save: () => Promise.resolve(),
+    };
+    sessionManager = new SessionManager({
+      ...config,
+      sessionStore: failingStore,
+    });
+    await expect(sessionManager.start()).resolves.toBeUndefined();
+    expect(sessionManager.getSessionId()).toBeTruthy();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Could not read the session from the session store',
+      expect.any(Error),
+    );
   });
 });
