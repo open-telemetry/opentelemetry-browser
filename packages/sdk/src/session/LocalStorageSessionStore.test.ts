@@ -130,6 +130,46 @@ describe('LocalStorageSessionStore', () => {
     );
   });
 
+  it('does not restore an ended session after the next save fails', async () => {
+    vi.useFakeTimers();
+    const removeItemSpy = vi.spyOn(globalThis.localStorage, 'removeItem');
+    const manager = new SessionManager({
+      sessionIdGenerator: {
+        generateSessionId: vi
+          .fn()
+          .mockReturnValueOnce('A')
+          .mockReturnValue('B'),
+      },
+      sessionStore: store,
+      maxDuration: 1,
+    });
+    const onSessionEnded = vi.fn();
+    manager.addObserver({ onSessionStarted: vi.fn(), onSessionEnded });
+    const reloaded = new SessionManager({
+      sessionIdGenerator: { generateSessionId: () => 'C' },
+      sessionStore: new LocalStorageSessionStore(),
+    });
+    try {
+      await manager.start();
+      expect((await store.get())?.id).toBe('A');
+      setItemSpy.mockImplementation(() => {
+        throw new DOMException('quota exceeded', 'QuotaExceededError');
+      });
+      vi.advanceTimersByTime(1000);
+      expect(onSessionEnded).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'A' }),
+      );
+      expect(manager.getSessionId()).toBe('B');
+      await reloaded.start();
+      expect(reloaded.getSessionId()).toBe('C');
+      expect(removeItemSpy).toHaveBeenCalledWith('opentelemetry-session');
+    } finally {
+      manager.shutdown();
+      reloaded.shutdown();
+      vi.useRealTimers();
+    }
+  });
+
   describe('when reading localStorage throws', () => {
     // Firefox with cookies blocked and sandboxed iframes throw a
     // SecurityError as soon as `window.localStorage` is read.

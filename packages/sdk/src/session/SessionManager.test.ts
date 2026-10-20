@@ -4,9 +4,12 @@
  */
 
 import { diag } from '@opentelemetry/api';
+import type { Span } from '@opentelemetry/sdk-trace';
+import { TracerProvider } from '@opentelemetry/sdk-trace';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionManagerConfig } from './SessionManager.ts';
 import { SessionManager } from './SessionManager.ts';
+import { SessionSpanProcessor } from './SessionSpanProcessor.ts';
 import type { Session } from './types/Session.ts';
 import type { SessionIdGenerator } from './types/SessionIdGenerator.ts';
 import type { SessionObserver } from './types/SessionObserver.ts';
@@ -68,7 +71,73 @@ describe('SessionManager', () => {
   afterEach(() => {
     sessionManager.shutdown();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
+
+  it('starts an in-memory session when a custom get throws synchronously', async () => {
+    const failure = new Error('store unavailable');
+    vi.spyOn(store, 'get').mockImplementation(() => {
+      throw failure;
+    });
+    const debugSpy = vi.spyOn(diag, 'debug');
+    sessionManager = new SessionManager(config);
+    sessionManager.addObserver(observer);
+    await expect(sessionManager.start()).resolves.toBeUndefined();
+    expect(sessionManager.getSessionId()).toBe('session-1');
+    expect(observer.startedSessions).toHaveLength(1);
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Could not read the session from the session store',
+      failure,
+    );
+  });
+
+  describe.each(['throw', 'reject'] as const)(
+    'when a custom save fails with %s',
+    (mode) => {
+      const failure = new Error('store unavailable');
+      const fail = (): never | Promise<never> => {
+        if (mode === 'throw') {
+          throw failure;
+        }
+        return Promise.reject(failure);
+      };
+
+      it('lets spans start without awaiting start when save fails', async () => {
+        let saveCalls = 0;
+        store.save = () => {
+          saveCalls++;
+          return fail();
+        };
+        const debugSpy = vi.spyOn(diag, 'debug');
+        sessionManager = new SessionManager(config);
+        const tracer = new TracerProvider({
+          spanProcessors: [new SessionSpanProcessor(sessionManager)],
+        }).getTracer('custom-store-testing');
+        vi.useRealTimers();
+        const onUnhandledRejection = vi.fn();
+        window.addEventListener('unhandledrejection', onUnhandledRejection);
+        try {
+          for (const name of ['first', 'second']) {
+            const span = tracer.startSpan(name) as Span;
+            expect(span.attributes['session.id']).toBe('session-1');
+            span.end();
+          }
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          expect(onUnhandledRejection).not.toHaveBeenCalled();
+          expect(saveCalls).toBe(1);
+          expect(debugSpy).toHaveBeenCalledWith(
+            'Session not saved by the session store',
+            failure,
+          );
+        } finally {
+          window.removeEventListener(
+            'unhandledrejection',
+            onUnhandledRejection,
+          );
+        }
+      });
+    },
+  );
 
   it('should start a new session if none exists', async () => {
     sessionManager = new SessionManager(config);
