@@ -179,6 +179,29 @@ describe('export requests are not instrumented', () => {
     ]);
   });
 
+  it('startLogsSdk appends the endpoint in the browser serialized form', () => {
+    // A configured host in mixed case with an explicit default port is
+    // requested as `new URL(url).href`: lowercased host, port dropped. The
+    // instrumentations compare ignoreUrls strings exactly, so the SDK must
+    // append that serialized spelling or its own export requests would be
+    // instrumented again (resource-timing entry -> new export -> loop).
+    const instrumentation = createInstrumentationWithIgnoreUrls();
+    const configured = 'http://COLLECTOR.EXAMPLE:80/v1/logs';
+
+    sdk = startLogsSdk({
+      exportConfig: { url: configured },
+      instrumentations: [instrumentation],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    const ignoreUrls = ignoreUrlsOf(instrumentation);
+    // The spelling an actual request carries, and what the resource-timing
+    // entry name and the fetch instrumentation's url will be.
+    const requested = new URL(configured).href;
+    expect(requested).toBe('http://collector.example/v1/logs');
+    expect(ignoreUrls).toEqual([requested]);
+  });
+
   it('startLogsSdk appends the default endpoint when none is configured', () => {
     // Arrange: no exportConfig at all is the plainest way to start the SDK;
     // it must start with the default endpoint and keep that endpoint out of

@@ -121,4 +121,39 @@ describe('appendIgnoreUrls', () => {
 
     expect(instrumentation.setConfig).not.toHaveBeenCalled();
   });
+
+  it('normalizes string URLs to the browser serialized form', () => {
+    // The instrumentations compare string entries exactly, and an actual
+    // request is seen as `new URL(url).href`: the browser lowercases the
+    // host and drops the default port. Keeping the configured spelling in
+    // the ignore list would never match the SDK's own export request.
+    const instrumentation = createFakeInstrumentation();
+
+    appendIgnoreUrls(instrumentation, ['http://COLLECTOR.EXAMPLE:80/v1/logs']);
+
+    expect(instrumentation.setConfig).toHaveBeenCalledWith({
+      ignoreUrls: ['http://collector.example/v1/logs'],
+    });
+  });
+
+  it('passes RegExp entries and unparseable strings through untouched', () => {
+    const pattern = /collector\.example/;
+    const instrumentation = createFakeInstrumentation();
+
+    appendIgnoreUrls(instrumentation, [pattern, 'not a url']);
+
+    expect(instrumentation.setConfig).toHaveBeenCalledWith({
+      ignoreUrls: [pattern, 'not a url'],
+    });
+  });
+
+  it('skips an SDK URL that normalizes to an entry the user configured', () => {
+    const instrumentation = createFakeInstrumentation({
+      ignoreUrls: ['http://collector.example/v1/logs'],
+    });
+
+    appendIgnoreUrls(instrumentation, ['http://COLLECTOR.EXAMPLE:80/v1/logs']);
+
+    expect(instrumentation.setConfig).not.toHaveBeenCalled();
+  });
 });
