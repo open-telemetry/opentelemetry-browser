@@ -98,6 +98,11 @@ was `GlobalErrorsInstrumentationConfig`.
 
 ## Migrate fetch and XHR first
 
+These examples use `@opentelemetry/browser-sdk` 0.5.0 and
+`@opentelemetry/browser-instrumentation` 0.8.2, which still require the 2.x SDK
+and 0.223.x experimental packages. Keep that dependency graph until Browser
+releases support SDK 3.0 and experimental 0.300.x packages.
+
 Install the new instrumentation package, keeping the SDK and registration
 dependencies your application already uses:
 
@@ -317,7 +322,14 @@ exports `startLogsSdk()` from `@opentelemetry/browser-sdk/logs`.
 
 If you choose to move SDK initialization, replace the existing provider startup
 with a single Browser SDK setup; do not initialize a second global provider for
-the same signal. Install the SDK and the API peer dependency:
+the same signal.
+
+These examples use `@opentelemetry/browser-sdk` 0.5.0 and
+`@opentelemetry/browser-instrumentation` 0.8.2, which still require the 2.x SDK
+and 0.223.x experimental packages. Keep that dependency graph until Browser
+releases support SDK 3.0 and experimental 0.300.x packages.
+
+Install the SDK and the API peer dependency:
 
 ```sh
 npm install @opentelemetry/browser-sdk @opentelemetry/browser-instrumentation @opentelemetry/api
