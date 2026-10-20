@@ -87,6 +87,9 @@ export abstract class InstrumentationBase<
       this._runOnEnable();
       return;
     }
+    if (this._state === 'failed') {
+      return;
+    }
     if (deps) {
       this._warnIgnoredDeps(deps);
     }
@@ -144,12 +147,9 @@ export abstract class InstrumentationBase<
     } catch (err) {
       // Not `failed`: init is done, so a retry cannot wrap twice.
       this._state = 'disabled';
-      this._runOnDisable();
       const error = toError(err);
-      this._diag.warn(
-        `enable failed; a later enable() can retry: ${error.message}`,
-        error,
-      );
+      this._diag.warn(`enable failed: ${error.message}`, error);
+      this._runOnDisable();
     }
   }
 

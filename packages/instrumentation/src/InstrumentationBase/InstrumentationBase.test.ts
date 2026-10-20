@@ -346,13 +346,20 @@ describe('InstrumentationBase', () => {
     it('a provider that throws from getTracer leaves the instance failed and enable() does not throw', () => {
       const probe = new Probe();
       const tracerProvider = {
-        getTracer: () => {
+        getTracer: vi.fn(() => {
           throw new Error('no tracer');
-        },
+        }),
       };
 
       expect(() => probe.enable({ tracerProvider })).not.toThrow();
 
+      expect(probe.initCount).toBe(0);
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+
+      probe.enable({ tracerProvider });
+
+      expect(tracerProvider.getTracer).toHaveBeenCalledTimes(1);
       expect(probe.initCount).toBe(0);
       expect(probe.isEnabled()).toBe(false);
       expect(diagLogger.warn).toHaveBeenCalledTimes(1);
@@ -379,6 +386,31 @@ describe('InstrumentationBase', () => {
       expect(probe.isEnabled()).toBe(true);
       expect(probe.initCount).toBe(1);
       expect(probe.onEnableCount).toBe(2);
+    });
+
+    it('_onEnable and the rollback _onDisable both throw: enable error is logged first', () => {
+      const probe = new Probe();
+      probe.onEnableError = new Error('enable broke');
+      probe.onDisableError = new Error('cleanup broke');
+
+      expect(() => probe.enable()).not.toThrow();
+
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.warn).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('enable broke'),
+        probe.onEnableError,
+      );
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.any(String),
+        probe.onDisableError,
+      );
+      expect(
+        vi.mocked(diagLogger.warn).mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        vi.mocked(diagLogger.error).mock.invocationCallOrder[0] ?? 0,
+      );
     });
 
     it('_onDisable throws: logged with diag.error, isEnabled() false, no throw', () => {
