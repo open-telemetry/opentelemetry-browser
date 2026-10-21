@@ -3,19 +3,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
+import type { Span } from '@opentelemetry/sdk-trace';
+import { TracerProvider } from '@opentelemetry/sdk-trace';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalStorageSessionStore } from './LocalStorageSessionStore.ts';
+import { SessionManager } from './SessionManager.ts';
+import { SessionSpanProcessor } from './SessionSpanProcessor.ts';
 import type { Session } from './types/Session.ts';
 
 describe('LocalStorageSessionStore', () => {
   let store: LocalStorageSessionStore;
   let getItemSpy: ReturnType<typeof vi.spyOn>;
   let setItemSpy: ReturnType<typeof vi.spyOn>;
+  let debugSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     store = new LocalStorageSessionStore();
     getItemSpy = vi.spyOn(globalThis.localStorage, 'getItem');
     setItemSpy = vi.spyOn(globalThis.localStorage, 'setItem');
+    debugSpy = vi.spyOn(diag, 'debug');
   });
 
   afterEach(() => {
@@ -51,11 +58,192 @@ describe('LocalStorageSessionStore', () => {
     vi.stubGlobal('localStorage', undefined);
     const retrieved = await store.get();
     expect(retrieved).toBeNull();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'localStorage is not available, the session stays in memory only',
+    );
+  });
+
+  it('resolves save and logs when localStorage is not available', async () => {
+    vi.stubGlobal('localStorage', undefined);
+    const session: Session = { id: 'id', startTimestamp: Date.now() };
+    await expect(store.save(session)).resolves.toBeUndefined();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'localStorage is not available, the session stays in memory only',
+    );
   });
 
   it('returns null if stored session is invalid', async () => {
     getItemSpy.mockReturnValue('invalid-json');
     const retrieved = await store.get();
     expect(retrieved).toBeNull();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Could not read the session from localStorage',
+      expect.any(SyntaxError),
+    );
+  });
+
+  it('returns null when the stored JSON is not a session', async () => {
+    const wrongShapes = [
+      '{}',
+      '{"id":1,"startTimestamp":2}',
+      '{"id":"id"}',
+      '[]',
+      'null',
+      '"text"',
+    ];
+    for (const stored of wrongShapes) {
+      getItemSpy.mockReturnValue(stored);
+      await expect(store.get()).resolves.toBeNull();
+    }
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Ignoring a stored session without a string id and a number startTimestamp',
+    );
+  });
+
+  it('removes the stored session when it cannot be saved', async () => {
+    setItemSpy.mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError');
+    });
+    const removeSpy = vi.spyOn(globalThis.localStorage, 'removeItem');
+    const session: Session = { id: 'id', startTimestamp: Date.now() };
+    await expect(store.save(session)).resolves.toBeUndefined();
+    expect(removeSpy).toHaveBeenCalledWith('opentelemetry-session');
+    removeSpy.mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    await expect(store.save(session)).resolves.toBeUndefined();
+  });
+
+  it('resolves when setItem throws because storage is full', async () => {
+    setItemSpy.mockImplementation(() => {
+      throw new DOMException('quota exceeded', 'QuotaExceededError');
+    });
+    const session: Session = { id: 'id', startTimestamp: Date.now() };
+    let result: Promise<void> | undefined;
+    expect(() => {
+      result = store.save(session);
+    }).not.toThrow();
+    await expect(result).resolves.toBeUndefined();
+    expect(debugSpy).toHaveBeenCalledWith(
+      'Session not saved to localStorage, it stays in memory only',
+      expect.any(DOMException),
+    );
+  });
+
+  it('does not restore an ended session after the next save fails', async () => {
+    vi.useFakeTimers();
+    const removeItemSpy = vi.spyOn(globalThis.localStorage, 'removeItem');
+    const manager = new SessionManager({
+      sessionIdGenerator: {
+        generateSessionId: vi
+          .fn()
+          .mockReturnValueOnce('A')
+          .mockReturnValue('B'),
+      },
+      sessionStore: store,
+      maxDuration: 1,
+    });
+    const onSessionEnded = vi.fn();
+    manager.addObserver({ onSessionStarted: vi.fn(), onSessionEnded });
+    const reloaded = new SessionManager({
+      sessionIdGenerator: { generateSessionId: () => 'C' },
+      sessionStore: new LocalStorageSessionStore(),
+    });
+    try {
+      await manager.start();
+      expect((await store.get())?.id).toBe('A');
+      setItemSpy.mockImplementation(() => {
+        throw new DOMException('quota exceeded', 'QuotaExceededError');
+      });
+      vi.advanceTimersByTime(1000);
+      expect(onSessionEnded).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'A' }),
+      );
+      expect(manager.getSessionId()).toBe('B');
+      await reloaded.start();
+      expect(reloaded.getSessionId()).toBe('C');
+      expect(removeItemSpy).toHaveBeenCalledWith('opentelemetry-session');
+    } finally {
+      manager.shutdown();
+      reloaded.shutdown();
+      vi.useRealTimers();
+    }
+  });
+
+  describe('when reading localStorage throws', () => {
+    // Firefox with cookies blocked and sandboxed iframes throw a
+    // SecurityError as soon as `window.localStorage` is read.
+    let original: PropertyDescriptor | undefined;
+
+    beforeEach(() => {
+      original = Object.getOwnPropertyDescriptor(window, 'localStorage');
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        get() {
+          throw new DOMException('The operation is insecure.', 'SecurityError');
+        },
+      });
+    });
+
+    afterEach(() => {
+      if (original) {
+        Object.defineProperty(window, 'localStorage', original);
+      }
+    });
+
+    it('resolves save without throwing', async () => {
+      const session: Session = { id: 'id', startTimestamp: Date.now() };
+      let result: Promise<void> | undefined;
+      expect(() => {
+        result = store.save(session);
+      }).not.toThrow();
+      await expect(result).resolves.toBeUndefined();
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Session not saved to localStorage, it stays in memory only',
+        expect.any(DOMException),
+      );
+    });
+
+    it('resolves get with null', async () => {
+      let result: Promise<Session | null> | undefined;
+      expect(() => {
+        result = store.get();
+      }).not.toThrow();
+      await expect(result).resolves.toBeNull();
+      expect(debugSpy).toHaveBeenCalledWith(
+        'Could not read the session from localStorage',
+        expect.any(DOMException),
+      );
+    });
+
+    it('lets the session manager start', async () => {
+      const manager = new SessionManager({
+        sessionIdGenerator: { generateSessionId: () => 'session-1' },
+        sessionStore: store,
+      });
+      try {
+        await expect(manager.start()).resolves.toBeUndefined();
+        expect(manager.getSessionId()).toBe('session-1');
+      } finally {
+        manager.shutdown();
+      }
+    });
+
+    it('lets spans start through the session span processor', () => {
+      const manager = new SessionManager({
+        sessionIdGenerator: { generateSessionId: () => 'session-1' },
+        sessionStore: store,
+      });
+      try {
+        const tracer = new TracerProvider({
+          spanProcessors: [new SessionSpanProcessor(manager)],
+        }).getTracer('session-testing');
+        const span = tracer.startSpan('test-span') as Span;
+        expect(span.attributes['session.id']).toBe('session-1');
+        span.end();
+      } finally {
+        manager.shutdown();
+      }
+    });
   });
 });
