@@ -330,8 +330,10 @@ new FetchInstrumentation({
 | `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
 | `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
 | `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
-| `requestHook` | `(span: Span, request: Request) => void` | — | Function that allows you to interact with the Span and the Request object before the request starts. |
-| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+| `requestHook` | `(span: Span, request: Request \| RequestInit) => void` | — | Function for adding Span attributes or request headers before the request starts and trace headers are injected. |
+| `applyCustomAttributesOnSpan` | `(span: Span, request: Request \| RequestInit, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished, before the Span ends. |
+
+See [Sharing fetch and XHR hooks](#sharing-fetch-and-xhr-hooks) to reuse callbacks across both instrumentations.
 
 #### Captured Attributes
 
@@ -376,11 +378,61 @@ new XhrInstrumentation({
 | `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
 | `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
 | `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
-| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+| `requestHook` | `(span: Span, xhr: XMLHttpRequest) => void` | — | Function for adding Span attributes or request headers via `xhr.setRequestHeader`. Called after `open`, before `send` and trace-header injection. |
+| `applyCustomAttributesOnSpan` | `(span: Span, xhr: XMLHttpRequest) => void` | — | Function that allows you to interact with the Span and completed XHR once the request is finished, before the Span ends. |
+
+#### Sharing fetch and XHR hooks
+
+Both instrumentations accept the same callbacks when the request parameter is typed as `Request | RequestInit | XMLHttpRequest`. For `applyCustomAttributesOnSpan`, make the third parameter optional: fetch supplies a `Response` or `FetchError`, while XHR supplies no third argument. Read XHR response information from the `XMLHttpRequest` itself.
+
+Hooks run synchronously. Errors thrown by either hook are caught and reported through the instrumentation's diagnostic logger without interrupting the request or preventing the Span from ending. Ignored requests and disabled instrumentations do not invoke hooks.
+
+```typescript
+import type { Span } from '@opentelemetry/api';
+import {
+  FetchInstrumentation,
+  type FetchError,
+} from '@opentelemetry/browser-instrumentation/experimental/fetch';
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
+
+type HttpRequest = Request | RequestInit | XMLHttpRequest;
+
+const hooks = {
+  requestHook: (span: Span, request: HttpRequest) => {
+    span.setAttribute(
+      'request.api',
+      request instanceof XMLHttpRequest ? 'xhr' : 'fetch',
+    );
+    if (request instanceof XMLHttpRequest) {
+      request.setRequestHeader('x-custom-header', 'value');
+    } else if (request instanceof Request) {
+      request.headers.set('x-custom-header', 'value');
+    } else {
+      const headers = new Headers(request.headers);
+      headers.set('x-custom-header', 'value');
+      request.headers = headers;
+    }
+  },
+  applyCustomAttributesOnSpan: (
+    span: Span,
+    request: HttpRequest,
+    result?: Response | FetchError,
+  ) => {
+    const status =
+      request instanceof XMLHttpRequest ? request.status : result?.status;
+    if (status !== undefined) {
+      span.setAttribute('custom.response.status', status);
+    }
+  },
+};
+
+new FetchInstrumentation(hooks);
+new XhrInstrumentation(hooks);
+```
 
 #### Captured Attributes
 
-Each `fetch` Span includes:
+Each `xhr` Span includes:
 
 | Attribute | Description |
 |-----------|-------------|
