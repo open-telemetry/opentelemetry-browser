@@ -92,6 +92,7 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 | Package | Description | Status |
 | --- | --- | --- |
 | [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Event-based browser instrumentations (navigation timing, resource timing, user actions, web vitals, console). | experimental |
+| [@opentelemetry/browser-sdk](./packages/sdk) | Browser SDK components, including browser resource detection, document context, and session management. | experimental |
 
 ### Event-based instrumentations (other repositories)
 
@@ -114,7 +115,6 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 | Package | Location | Description | Status |
 | --- | --- | --- | --- |
-| opentelemetry-browser-detector | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-browser-detector) | Resource detector for browser environment attributes. | experimental |
 | web-common | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/web-common) | Shared utilities for browser/web instrumentations. | experimental |
 | opentelemetry-context-zone | [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js/tree/main/packages/opentelemetry-context-zone) | Zone.js-based context manager for maintaining trace context in browsers. | stable |
 | auto-instrumentations-web | [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib/tree/main/packages/auto-instrumentations-web) | Bundle that auto-enables common web instrumentations. | experimental |
