@@ -755,6 +755,89 @@ describe('ResourceTimingInstrumentation', () => {
 
       expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
     });
+
+    it('should process entries when the idle callback fires on its timeout', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        batchSize: 2,
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+        createMockResourceEntry({ name: '3' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      // Per spec, a callback run on its timeout gets timeRemaining() of 0
+      triggerIdleCallback(0, true);
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records).toHaveLength(2);
+      expect(records[0]?.attributes[ATTR_RESOURCE_URL]).toBe('1');
+      expect(records[1]?.attributes[ATTR_RESOURCE_URL]).toBe('2');
+
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+    });
+
+    it('should stop a timed-out chunk when its positive processing budget is spent', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        maxProcessingTime: 5,
+        batchSize: 100,
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+      ];
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      vi.spyOn(performance, 'now')
+        .mockReturnValue(5)
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(0);
+
+      triggerIdleCallback(0, true);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+
+      triggerIdleCallback(0, true);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(2);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+    });
+
+    it('should respect maxProcessingTime when the idle callback fires on its timeout', () => {
+      instrumentation = new ResourceTimingInstrumentation({
+        maxProcessingTime: 0,
+        batchSize: 100,
+      });
+      instrumentation.enable();
+
+      const entries = [
+        createMockResourceEntry({ name: '1' }),
+        createMockResourceEntry({ name: '2' }),
+      ];
+
+      observerCallback(
+        createMockPerformanceObserverEntryList(entries),
+        mockObserver as unknown as PerformanceObserver,
+      );
+
+      triggerIdleCallback(0, true);
+
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+      expect(shimModule.requestIdleCallbackShim).toHaveBeenCalledTimes(2);
+    });
   });
 });
 
