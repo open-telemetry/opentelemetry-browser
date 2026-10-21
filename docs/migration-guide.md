@@ -12,9 +12,10 @@ check your installed versions before applying the behavior tables to older
 releases. The overall consolidation is tracked in [#209][consolidation].
 
 > [!WARNING]
-> Older `@opentelemetry/instrumentation-fetch` versions emitted
+> `@opentelemetry/instrumentation-fetch` and `@opentelemetry/instrumentation-xml-http-request`
+> versions before 0.220.0 emitted
 > `http.response_content_length` and `http.response_content_length_uncompressed`.
-> These keys are absent from the new fetch spans, with no span replacement.
+> These keys are absent from the new fetch and XHR spans, with no span replacement.
 > Update collector processors and queries that depend on them.
 > For response sizes, register `ResourceTimingInstrumentation` and export logs:
 > `browser.resource_timing.encoded_body_size` and
@@ -54,7 +55,7 @@ linked sections for configuration details, outcome comparisons, and unresolved g
 | Exporter endpoints behind a path prefix | Full signal URLs in `logs.exportConfig` / `traces.exportConfig` | Use full URLs to retain prefixes. Quick-start and root `exportConfig.url` replace the path with `/v1/logs` and `/v1/traces`; exclude telemetry traffic and check `invalidConfig`. |
 | Existing metrics SDK | No metrics provider in Browser SDK | Keep independently configured metrics. |
 | `@opentelemetry/web-common` session utilities | `@opentelemetry/browser-sdk/session` | Move supported session API imports. Old network-timing and DOM utilities are not re-exported; see [session management](./session-management.md). |
-| `@opentelemetry/opentelemetry-browser-detector` | No exported Browser SDK detector subpath yet | Keep the existing detector as needed; #458 tracks its move and automatic SDK integration is a separate discussion. |
+| `@opentelemetry/opentelemetry-browser-detector` | `browserDetector` from `@opentelemetry/browser-sdk/browser-detector` | Replace the import. See [browser resource detection](../packages/sdk/README.md#browser-resource-detection). |
 
 ## Package and import mapping
 
@@ -93,7 +94,7 @@ was `GlobalErrorsInstrumentationConfig`.
 | --- | --- |
 | `@opentelemetry/sdk-trace-web` | `@opentelemetry/browser-sdk` exports `startBrowserSdk()` and `quickStartBrowserSdk()` for logs and traces. `@opentelemetry/browser-sdk/traces` exports `startTracesSdk()` for traces alone. These initialize SDKs; they are not renamed `WebTracerProvider` classes. See [SDK setup](#sdk-setup) and the [JavaScript trace SDK migration notes][trace-sdk-migration]. |
 | `@opentelemetry/web-common` session utilities | Import session APIs such as `createSessionManager`, `createSessionSpanProcessor`, `createSessionLogRecordProcessor`, `createDefaultSessionIdGenerator`, and `createLocalStorageSessionStore` from `@opentelemetry/browser-sdk/session`. See [session management](./session-management.md). This subpath does not re-export the old network-timing or DOM utility functions. |
-| `@opentelemetry/opentelemetry-browser-detector` | The proposed `@opentelemetry/browser-sdk/browser-detector` subpath is not exported yet. Keep the existing detector where required; [#458][browser-detector-migration] tracks its move. Automatic detector integration with SDK startup is a separate discussion. |
+| `@opentelemetry/opentelemetry-browser-detector` | Import `browserDetector` from `@opentelemetry/browser-sdk/browser-detector`. See [browser resource detection](../packages/sdk/README.md#browser-resource-detection). |
 | `@opentelemetry/context-zone` / `@opentelemetry/context-zone-peer-dep` | No replacement package is exported here. If your application depends on a Zone context manager, keep that dependency and pass the manager when configuring traces. The Browser SDK's default manager only carries context through synchronous calls and explicitly bound callbacks. |
 
 ## Migrate fetch and XHR first
@@ -414,7 +415,6 @@ See the [SDK README](../packages/sdk/README.md) for the full configuration API.
 [document-load-decision]: https://github.com/open-telemetry/opentelemetry-browser/issues/327
 [document-load-direction]: https://github.com/open-telemetry/opentelemetry-browser/issues/327#issuecomment-6052435295
 [react-load-removal]: https://github.com/open-telemetry/opentelemetry-js/issues/7110
-[browser-detector-migration]: https://github.com/open-telemetry/opentelemetry-browser/issues/458
 [trace-sdk-migration]: https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md
 [http-spans]: https://github.com/open-telemetry/semantic-conventions/blob/main/docs/http/http-spans.md#status
 [fetch-parity]: ../e2e-tests/migration/fetch-migration/fetch-migration.test.ts
@@ -422,8 +422,8 @@ See the [SDK README](../packages/sdk/README.md) for the full configuration API.
 [xhr-tests]: ../packages/instrumentation/src/xhr/instrumentation.test.ts
 [legacy-fetch]: https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-fetch/src/fetch.ts
 [legacy-xhr]: https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-xml-http-request/src/xhr.ts
-[legacy-fetch-readme]: https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-fetch/README.md#semantic-conventions
-[legacy-xhr-readme]: https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-xml-http-request/README.md#semantic-conventions
+[legacy-fetch-readme]: https://github.com/open-telemetry/opentelemetry-js/blob/experimental/v0.219.0/experimental/packages/opentelemetry-instrumentation-fetch/README.md#semantic-conventions
+[legacy-xhr-readme]: https://github.com/open-telemetry/opentelemetry-js/blob/experimental/v0.219.0/experimental/packages/opentelemetry-instrumentation-xml-http-request/README.md#semantic-conventions
 [legacy-navigation]: https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/packages/instrumentation-browser-navigation/src/instrumentation.ts
 [legacy-exceptions]: https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/packages/instrumentation-web-exception/src/instrumentation.ts
 [legacy-user-interaction]: https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/packages/instrumentation-user-interaction/src/types.ts
