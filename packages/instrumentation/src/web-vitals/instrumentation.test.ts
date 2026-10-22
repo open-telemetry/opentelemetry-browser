@@ -248,64 +248,55 @@ describe('WebVitalsInstrumentation', () => {
   });
 
   describe('reportAllChanges', () => {
-    const subscribers = [onCLS, onINP, onLCP, onFCP, onTTFB];
+    const subscribers = [onCLS, onINP, onLCP, onFCP, onTTFB].map((fn) =>
+      vi.mocked(fn),
+    );
 
-    it('should pass reportAllChanges to every web-vitals listener', () => {
-      instrumentation = new WebVitalsInstrumentation({
-        reportAllChanges: true,
-      });
-
+    // restoreAllMocks() does not clear automocked spies, so calls from earlier tests would remain.
+    beforeEach(() => {
       for (const subscribe of subscribers) {
-        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
-          reportAllChanges: true,
-        });
+        subscribe.mockClear();
       }
     });
 
-    it('should default reportAllChanges to false', () => {
-      instrumentation = new WebVitalsInstrumentation();
+    it.each([
+      { config: { reportAllChanges: true }, expected: true },
+      { config: { reportAllChanges: false }, expected: false },
+      { config: {}, expected: false },
+    ])(
+      'should register listeners with reportAllChanges $expected for config $config',
+      ({ config, expected }) => {
+        instrumentation = new WebVitalsInstrumentation(config);
 
-      for (const subscribe of subscribers) {
-        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
-          reportAllChanges: false,
-        });
-      }
-    });
-
-    it('should preserve explicit false', () => {
-      instrumentation = new WebVitalsInstrumentation({
-        reportAllChanges: false,
-      });
-      for (const subscribe of subscribers) {
-        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
-          reportAllChanges: false,
-        });
-      }
-    });
+        for (const subscribe of subscribers) {
+          expect(subscribe).toHaveBeenCalledOnce();
+          expect(subscribe.mock.lastCall?.[1]).toEqual({
+            reportAllChanges: expected,
+          });
+        }
+      },
+    );
 
     it('should defer registration when disabled and keep options on re-enable', () => {
-      const callCounts = subscribers.map(
-        (subscribe) => vi.mocked(subscribe).mock.calls.length,
-      );
       instrumentation = new WebVitalsInstrumentation({
         enabled: false,
         reportAllChanges: true,
       });
-      subscribers.forEach((subscribe, index) => {
-        expect(vi.mocked(subscribe).mock.calls.length).toBe(callCounts[index]);
-      });
+      for (const subscribe of subscribers) {
+        expect(subscribe).not.toHaveBeenCalled();
+      }
+
       instrumentation.enable();
       instrumentation.disable();
       instrumentation.setConfig({ reportAllChanges: false });
       instrumentation.enable();
-      subscribers.forEach((subscribe, index) => {
-        expect(vi.mocked(subscribe).mock.calls.length).toBe(
-          (callCounts[index] ?? 0) + 1,
-        );
-        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+
+      for (const subscribe of subscribers) {
+        expect(subscribe).toHaveBeenCalledOnce();
+        expect(subscribe.mock.lastCall?.[1]).toEqual({
           reportAllChanges: true,
         });
-      });
+      }
     });
   });
 });
