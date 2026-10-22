@@ -9,6 +9,8 @@ This package provides the required components to start an OpenTelemetry SDK for 
 logs and traces. Metrics are out of the scope for now
 <!-- TODO: add referecnce to the discussion about metrics for browser  -->
 
+For existing `opentelemetry-js` browser setups, see the [migration guide](../../docs/migration-guide.md) before replacing SDK initialization or instrumentations.
+
 ## Quick Start
 
 **Note: This documentation assumes you have a bundler in your tool chain that can handle ESM modules.**

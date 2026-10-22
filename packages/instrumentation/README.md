@@ -7,6 +7,8 @@
 
 OpenTelemetry browser instrumentations, available as subpath exports under `./experimental/*`.
 
+Moving from `opentelemetry-js` or `opentelemetry-js-contrib`? See the [migration guide](../../docs/migration-guide.md) for import paths, behavior changes, and remaining gaps.
+
 ## Installation
 
 ```bash
