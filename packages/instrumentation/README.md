@@ -390,6 +390,8 @@ Both instrumentations accept the same callbacks when the request parameter is ty
 
 Hooks run synchronously. Errors thrown by either hook are caught and reported through the instrumentation's diagnostic logger without interrupting the request or preventing the Span from ending. Ignored requests and disabled instrumentations do not invoke hooks.
 
+**Note:** For `fetch(url, init)`, the example below changes the caller's `init.headers`. These changes persist if `init` is reused; pass a fresh `init` object for each request to keep them request-specific.
+
 ```typescript
 import type { Span } from '@opentelemetry/api';
 import {
