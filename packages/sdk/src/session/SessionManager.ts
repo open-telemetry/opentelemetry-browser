@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import type { Session } from './types/Session.ts';
 import type { SessionIdGenerator } from './types/SessionIdGenerator.ts';
 import type { SessionObserver } from './types/SessionObserver.ts';
@@ -49,7 +50,12 @@ export class SessionManager implements SessionProvider, SessionPublisher {
   }
 
   async start(): Promise<void> {
-    this._session = await this._store.get();
+    try {
+      this._session = await this._store.get();
+    } catch (error) {
+      diag.debug('Could not read the session from the session store', error);
+      this._session = null;
+    }
     if (!this._session) {
       this._session = await this.startSession();
     }
@@ -101,8 +107,14 @@ export class SessionManager implements SessionProvider, SessionPublisher {
       startTimestamp: Date.now(),
     };
 
-    // this is async call, but we don't wait for it
-    void this._store.save(session);
+    // the save is not awaited, and a store that throws or rejects must not stop the session
+    try {
+      Promise.resolve(this._store.save(session)).catch((error: unknown) => {
+        diag.debug('Session not saved by the session store', error);
+      });
+    } catch (error) {
+      diag.debug('Session not saved by the session store', error);
+    }
 
     const previousSession = this._session ?? undefined;
     this._session = session;

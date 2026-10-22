@@ -37,8 +37,12 @@ describe('UserActionInstrumentation', () => {
     return element;
   };
 
-  const dispatchMouseDownEvent = (element: HTMLElement, button: number) => {
-    const clickEvent = new MouseEvent('click', {
+  const dispatchMouseDownEvent = (
+    element: HTMLElement,
+    button: number,
+    type: 'click' | 'auxclick' | 'contextmenu' = 'click',
+  ) => {
+    const clickEvent = new MouseEvent(type, {
       button,
       bubbles: true,
       clientX: 100,
@@ -68,8 +72,8 @@ describe('UserActionInstrumentation', () => {
   it('should emit a log when the element triggers a mousedown event with the right and middle click', () => {
     const element = createTestElement();
 
-    dispatchMouseDownEvent(element, 1); // Middle click
-    dispatchMouseDownEvent(element, 2); // Right click
+    dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
+    dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
     const logs = inMemoryExporter.getFinishedLogRecords();
     expect(logs.length).toBe(2);
@@ -83,6 +87,42 @@ describe('UserActionInstrumentation', () => {
     expect(rightClickLog?.attributes['browser.mouse_event.button']).toBe(
       'right',
     );
+  });
+
+  it.each(['contextmenu-first', 'auxclick-first'])(
+    'records one right click with both events (%s)',
+    (order) => {
+      const element = createTestElement();
+      const events =
+        order === 'contextmenu-first'
+          ? (['contextmenu', 'auxclick'] as const)
+          : (['auxclick', 'contextmenu'] as const);
+      for (const type of events) {
+        dispatchMouseDownEvent(element, 2, type);
+      }
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes['browser.mouse_event.button']).toBe('right');
+    },
+  );
+
+  it('ignores keyboard context menus and non-right contextmenu events', () => {
+    const element = createTestElement();
+    for (const button of [0, 1, 3, 4]) {
+      dispatchMouseDownEvent(element, button, 'contextmenu');
+    }
+    expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+  });
+
+  it('should not emit a log for buttons other than left, middle and right', () => {
+    const element = createTestElement();
+
+    dispatchMouseDownEvent(element, 3, 'auxclick'); // Back button
+    dispatchMouseDownEvent(element, 4, 'auxclick'); // Forward button
+    dispatchMouseDownEvent(element, 3); // Unknown button on a click event
+
+    const logs = inMemoryExporter.getFinishedLogRecords();
+    expect(logs.length).toBe(0);
   });
 
   it('should not emit a log when the event target is not an HTMLElement', () => {
@@ -138,6 +178,20 @@ describe('UserActionInstrumentation', () => {
 
     const element = createTestElement();
     dispatchMouseDownEvent(element, 0); // Left click
+    dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
+    dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
+
+    const logs = inMemoryExporter.getFinishedLogRecords();
+    expect(logs.length).toBe(0);
+  });
+
+  it('should stop emitting logs once the instrumentation is disabled', () => {
+    const element = createTestElement();
+
+    disableInstrumentations();
+    dispatchMouseDownEvent(element, 0); // Left click
+    dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
+    dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
     const logs = inMemoryExporter.getFinishedLogRecords();
     expect(logs.length).toBe(0);

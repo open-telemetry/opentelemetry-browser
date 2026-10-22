@@ -3,11 +3,13 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
-**Note: This is an experimental package under active development. New releases may include breaking changes.**
+**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
 
 This package provides the required components to start an OpenTelemetry SDK for Browser including
 logs and traces. Metrics are out of the scope for now
 <!-- TODO: add referecnce to the discussion about metrics for browser  -->
+
+For existing `opentelemetry-js` browser setups, see the [migration guide](../../docs/migration-guide.md) before replacing SDK initialization or instrumentations.
 
 ## Quick Start
 
@@ -23,8 +25,7 @@ events or tasks performed by your application.
 npm install @opentelemetry/browser-sdk
 
 # Install the instrumentations
-npm install @opentelemetry/browser-instrumentation \ # add OTEL instrumentations for browser
-    @opentelemetry/instrumentation-fetch # or any other instrumentation outside this repo
+npm install @opentelemetry/browser-instrumentation
 ```
 
 `@opentelemetry/api` is a **peer dependency** (v1.9+). Install it in your application if you intend
@@ -49,7 +50,7 @@ const sdk = quickStartBrowserSdk({
   // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
   disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
-  logLevel: 'DEBUG',
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -74,7 +75,7 @@ const sdk = startBrowserSdk({
   // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
   disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
-  logLevel: 'DEBUG',
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -129,6 +130,7 @@ code related to other signals.
 | ------------------------------- | -------------------------------------------------------------- |
 | `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
 | `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
+| `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes |
 
 
 #### Initialize logs SDK
@@ -144,7 +146,7 @@ const logsSdk = startLogsSdk({
   // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
   disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
-  logLevel: 'DEBUG',
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -186,7 +188,7 @@ const tracesSdk = startTracesSdk({
   // Optional - you may disable the SDK in certain situations. For example if the UA is a bot.
   disabled: false,
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
-  logLevel: 'DEBUG',
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -241,6 +243,29 @@ const sdk = quickStartBrowserSdk({
 Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
 call.
 
+### Browser resource detection
+
+The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
+detector for browser attributes. It detects the user agent and preferred
+language, plus platform, brands, and mobile status when the User-Agent Client
+Hints API is available.
+
+```javascript
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
+import {
+  detectResources,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+
+const resource = resourceFromAttributes({
+  'service.name': 'my-app',
+}).merge(
+  detectResources({
+    detectors: [browserDetector],
+  }),
+);
+```
+
 ## Configuration
 
 ### Common configuration
@@ -269,7 +294,8 @@ Set `disabled: true` to disable the SDK.
 
 #### logLevel
 
-Log level for SDK's internal logger. Default value is 'INFO'.
+Log level for SDK's internal logger. Default value is 'INFO'. If the value is set to 'DEBUG' or higher
+the SDK functions will append a console exporter to ease inspection of the data being send.
 
 #### serviceName
 

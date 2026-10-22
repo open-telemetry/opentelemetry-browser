@@ -5,10 +5,12 @@ import { trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
 import type { TracesConfig } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import {
@@ -25,12 +27,6 @@ import {
   createSessionSpanProcessor,
 } from '@opentelemetry/browser-sdk/session';
 import {
-  W3CBaggagePropagator,
-  W3CTraceContextPropagator,
-} from '@opentelemetry/core';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { XMLHttpRequestInstrumentation } from '@opentelemetry/instrumentation-xml-http-request';
-import {
   ConsoleLogRecordExporter,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
@@ -38,7 +34,6 @@ import {
   ConsoleSpanExporter,
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
-import { StackContextManager } from '@opentelemetry/sdk-trace-web';
 import type { OtelConfig } from './app/types/OtelConfig.type.ts';
 import {
   createUILogExporter,
@@ -133,11 +128,6 @@ export async function initOtel(
       processors: spanProcessors,
       exportConfig: { url: config.tracesUrl, headers: {} },
       batchProcessorConfig: BATCH_PROCESSOR_CONFIG,
-      contextManager: new StackContextManager().enable(),
-      propagators: [
-        new W3CTraceContextPropagator(),
-        new W3CBaggagePropagator(),
-      ],
     },
     logs: {
       processors: logProcessors,
@@ -155,10 +145,9 @@ export async function initOtel(
       new WebVitalsInstrumentation({ includeRawAttribution: true }),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
-        clearTimingResources: true,
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
-      new XMLHttpRequestInstrumentation({
+      new XhrInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),

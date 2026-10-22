@@ -3,7 +3,11 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
+**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
+
 OpenTelemetry browser instrumentations, available as subpath exports under `./experimental/*`.
+
+Moving from `opentelemetry-js` or `opentelemetry-js-contrib`? See the [migration guide](../../docs/migration-guide.md) for import paths, behavior changes, and remaining gaps.
 
 ## Installation
 
@@ -185,7 +189,7 @@ Compatible with OpenTelemetry JS API and SDK `1.0+`.
 
 #### Configuration
 
-By default the instrumentation captures `click` events. You can configure which events to capture by passing an options object:
+By default the instrumentation captures `click` events. Middle clicks are captured through `auxclick` and right clicks through `contextmenu`, since native context menus can consume the mouse release before `auxclick` fires. Only button 2 context menus are recorded, so keyboard menu events are ignored. Right-button `auxclick` events are ignored to avoid duplicate records. You can configure which events to capture by passing an options object:
 
 ```typescript
 new UserActionInstrumentation({
@@ -226,6 +230,7 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
+| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. Set before listeners are first registered, later config changes do not replace existing listeners. |
 
 > [!NOTE]
 > To add custom attributes to emitted log records, use a custom `LogRecordProcessor` on the `LoggerProvider` (see [#359](https://github.com/open-telemetry/opentelemetry-browser/issues/359)).

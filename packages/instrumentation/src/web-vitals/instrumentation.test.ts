@@ -14,6 +14,7 @@ import {
   vi,
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
+import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
 import { setupTestLogExporter } from '#utils/test';
 import { WebVitalsInstrumentation } from './instrumentation.ts';
 import {
@@ -25,6 +26,9 @@ import {
   ATTR_WEB_VITAL_VALUE,
   WEB_VITAL_EVENT_NAME,
 } from './semconv.ts';
+
+// Keeps the real library, the spies only record the options each call gets.
+vi.mock('web-vitals/attribution', { spy: true });
 
 describe('WebVitalsInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
@@ -203,6 +207,68 @@ describe('WebVitalsInstrumentation', () => {
       expect(inpLog.body).toBeDefined();
       const parsed = JSON.parse(inpLog.body as string);
       expect(parsed).toHaveProperty('interactionTime');
+    });
+  });
+
+  describe('reportAllChanges', () => {
+    const subscribers = [onCLS, onINP, onLCP, onFCP, onTTFB];
+
+    it('should pass reportAllChanges to every web-vitals listener', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: true,
+      });
+
+      for (const subscribe of subscribers) {
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: true,
+        });
+      }
+    });
+
+    it('should default reportAllChanges to false', () => {
+      instrumentation = new WebVitalsInstrumentation();
+
+      for (const subscribe of subscribers) {
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: false,
+        });
+      }
+    });
+
+    it('should preserve explicit false', () => {
+      instrumentation = new WebVitalsInstrumentation({
+        reportAllChanges: false,
+      });
+      for (const subscribe of subscribers) {
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: false,
+        });
+      }
+    });
+
+    it('should defer registration when disabled and keep options on re-enable', () => {
+      const callCounts = subscribers.map(
+        (subscribe) => vi.mocked(subscribe).mock.calls.length,
+      );
+      instrumentation = new WebVitalsInstrumentation({
+        enabled: false,
+        reportAllChanges: true,
+      });
+      subscribers.forEach((subscribe, index) => {
+        expect(vi.mocked(subscribe).mock.calls.length).toBe(callCounts[index]);
+      });
+      instrumentation.enable();
+      instrumentation.disable();
+      instrumentation.setConfig({ reportAllChanges: false });
+      instrumentation.enable();
+      subscribers.forEach((subscribe, index) => {
+        expect(vi.mocked(subscribe).mock.calls.length).toBe(
+          (callCounts[index] ?? 0) + 1,
+        );
+        expect(vi.mocked(subscribe).mock.lastCall?.[1]).toEqual({
+          reportAllChanges: true,
+        });
+      });
     });
   });
 });

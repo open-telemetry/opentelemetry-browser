@@ -273,7 +273,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
             // Also, this means the hook will see `options.headers` in the same type as passed in,
             // rather than as a `Headers` instance set by `_addHeaders()`.
             instrumentation._callRequestHook(createdSpan, options);
-            instrumentation._addHeaders(options, url, fetchContext);
+            options = instrumentation._addHeaders(options, url, fetchContext);
 
             return original
               .apply(
@@ -410,13 +410,14 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   }
 
   /**
-   * Add headers for the request and the given context if apply
+   * Add headers for the request and the given context if apply.
+   * Returns the options to send, a copy when the caller passed an init object.
    */
   private _addHeaders(
     options: Request | RequestInit,
     url: string,
     ctx: Context,
-  ): void {
+  ): Request | RequestInit {
     // Propagate only if in request goes to same origin or is in the allow list
     const urlsToPropagate = this.getConfig().propagateTraceHeaderCorsUrls;
     const urlOrigin = parseUrl(url).origin;
@@ -432,13 +433,13 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
           set: (h, k, v) => h.set(k, typeof v === 'string' ? v : String(v)),
         });
       } else {
-        // Otherwise, create a new Headers to avoid mutating the caller's
-        // possibly re-used headers.
+        // Otherwise, create a new Headers and a new init to avoid mutating
+        // the caller's possibly re-used init and headers.
         const headers = new Headers(options.headers);
         propagation.inject(ctx, headers, {
           set: (h, k, v) => h.set(k, typeof v === 'string' ? v : String(v)),
         });
-        options.headers = headers;
+        return { ...options, headers };
       }
     } else {
       const headers: Partial<Record<string, unknown>> = {};
@@ -447,5 +448,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         this._diag.debug('headers inject skipped due to CORS policy');
       }
     }
+    return options;
   }
 }
