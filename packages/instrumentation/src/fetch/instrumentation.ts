@@ -441,12 +441,9 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         });
         return { ...options, headers };
       }
-    } else {
-      const headers: Partial<Record<string, unknown>> = {};
-      propagation.inject(ctx, headers);
-      if (Object.keys(headers).length > 0) {
-        this._diag.debug('headers inject skipped due to CORS policy');
-      }
+    } else if (propagation.fields().length > 0) {
+      // Not calling inject: propagators may have side effects for headers that are never sent.
+      this._diag.debug('headers inject skipped due to CORS policy');
     }
     return options;
   }
