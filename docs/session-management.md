@@ -146,7 +146,13 @@ Persists the session as JSON under a single fixed key in `window.localStorage`. 
 origin share one session** — this is "one session per browser origin," not "one session per tab."
 If you need per-tab sessions, provide a custom `SessionStore` backed by `sessionStorage` instead
 (see [Custom implementations](#custom-implementations)). The store is a safe no-op in environments
-without `localStorage` (e.g. during server-side rendering).
+without `localStorage` (e.g. during server-side rendering) and where the browser blocks storage
+(e.g. Firefox with cookies blocked, or a sandboxed iframe). There the session lives in memory only
+and is not restored on the next page load. When saving fails, the store tries to remove the previous
+session so it cannot be restored after it has ended. If removal also fails, an older session may
+still be restored. A custom store that throws or rejects is caught by the session manager and
+logged the same way. Missing, blocked and full storage all log a `diag.debug` message. To
+see the ones from `sessionManager.start()`, set a debug diag logger before calling it.
 
 ## Registering Session Processors
 

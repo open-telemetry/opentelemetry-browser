@@ -9,6 +9,8 @@ This package provides the required components to start an OpenTelemetry SDK for 
 logs and traces. Metrics are out of the scope for now
 <!-- TODO: add referecnce to the discussion about metrics for browser  -->
 
+For existing `opentelemetry-js` browser setups, see the [migration guide](../../docs/migration-guide.md) before replacing SDK initialization or instrumentations.
+
 ## Quick Start
 
 **Note: This documentation assumes you have a bundler in your tool chain that can handle ESM modules.**
@@ -132,6 +134,7 @@ code related to other signals.
 | ------------------------------- | -------------------------------------------------------------- |
 | `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — setup logs and registers a LoggerProvider     |
 | `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — setup traces and registers a TracerProvider |
+| `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes |
 
 
 #### Initialize logs SDK
@@ -244,6 +247,29 @@ const sdk = quickStartBrowserSdk({
 
 Don't pass the same instrumentations to both the SDK and a manual `registerInstrumentations`
 call.
+
+### Browser resource detection
+
+The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
+detector for browser attributes. It detects the user agent and preferred
+language, plus platform, brands, and mobile status when the User-Agent Client
+Hints API is available.
+
+```javascript
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
+import {
+  detectResources,
+  resourceFromAttributes,
+} from '@opentelemetry/resources';
+
+const resource = resourceFromAttributes({
+  'service.name': 'my-app',
+}).merge(
+  detectResources({
+    detectors: [browserDetector],
+  }),
+);
+```
 
 ## Configuration
 

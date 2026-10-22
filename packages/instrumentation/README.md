@@ -7,6 +7,8 @@
 
 OpenTelemetry browser instrumentations, available as subpath exports under `./experimental/*`.
 
+Moving from `opentelemetry-js` or `opentelemetry-js-contrib`? See the [migration guide](../../docs/migration-guide.md) for import paths, behavior changes, and remaining gaps.
+
 ## Installation
 
 ```bash
@@ -241,6 +243,7 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
+| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. Set before listeners are first registered, later config changes do not replace existing listeners. |
 
 ### Console
 
