@@ -30,7 +30,6 @@ type CombinedConfig = RootConfig & {
   traces?: RemoveCommonProps<TracesConfig>;
 };
 
-const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
   disabled: false,
   logLevel: 'INFO',
@@ -67,45 +66,31 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       rootConfig.serviceVersion;
   }
 
-  // Export
-  rootConfig.exportConfig = {
-    url: DEFAULT_OTLP_ENDPOINT,
-    ...rootConfig.exportConfig,
-  };
-
   const sdks: WebSdk[] = [];
 
-  // Validate every export URL before starting any signal SDK, so an invalid
-  // URL cannot leave one signal exporting while the other refuses to start.
-  // `??` and not `||`: an empty `url` is a mistake, usually an unset env var,
-  // so it must fail loudly instead of falling back to the local collector
-  const endpointUrl = parseExportUrl(
-    rootConfig.exportConfig?.url ?? DEFAULT_OTLP_ENDPOINT,
-  );
-  if (!endpointUrl) {
-    return INVALID_CONFIG_SDK;
-  }
   // Resolve each signal's config once so it can be validated here and reused
   // when starting the signals below.
   const logsConfig: LogsConfig = config?.logs || {};
   const tracesConfig: TracesConfig = config?.traces || {};
+  // Validate every explicitly-configured signal export URL before starting
+  // any signal SDK, so an invalid URL cannot leave one signal exporting
+  // while the other refuses to start. Unset URLs keep the per-signal
+  // defaults (http://localhost:4318/v1/logs and /v1/traces), which are
+  // valid by construction. `!== undefined` and not a truthiness check: an
+  // empty `url` is a mistake, usually an unset env var, so it must fail
+  // loudly instead of silently falling back to the local collector.
   const signalExportUrls: [string, string | undefined][] = [
     ['Logs SDK', logsConfig.exportConfig?.url],
     ['Traces SDK', tracesConfig.exportConfig?.url],
   ];
   for (const [scope, signalUrl] of signalExportUrls) {
-    // Only bail out when a signal explicitly sets an invalid URL. An unset
-    // signal URL inherits the (already validated) root endpoint, so it must
-    // not block the SDK from starting.
-    if (signalUrl && !parseExportUrl(signalUrl, scope)) {
+    if (signalUrl !== undefined && !parseExportUrl(signalUrl, scope)) {
       return INVALID_CONFIG_SDK;
     }
   }
 
   // Start logs if configured
   if (logsConfig) {
-    const isGenericEndpoint = !logsConfig.exportConfig?.url;
-
     // Set the logLevel
     logsConfig.logLevel = rootConfig.logLevel;
 
@@ -122,19 +107,12 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       }
     }
 
-    // Set the path if endpoint comes from general config
-    if (isGenericEndpoint && logsConfig.exportConfig) {
-      endpointUrl.pathname = '/v1/logs';
-      logsConfig.exportConfig.url = endpointUrl.href;
-    }
     logsConfig.resourceAttributes = rootConfig.resourceAttributes;
     sdks.push(startLogsSdk(logsConfig));
   }
 
   // Start traces if configured
   if (tracesConfig) {
-    const isGenericEndpoint = !tracesConfig.exportConfig?.url;
-
     // Set the logLevel
     tracesConfig.logLevel = rootConfig.logLevel;
 
@@ -152,11 +130,6 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       }
     }
 
-    // Set the path if endpoint comes from general config
-    if (isGenericEndpoint && tracesConfig.exportConfig) {
-      endpointUrl.pathname = '/v1/traces';
-      tracesConfig.exportConfig.url = endpointUrl.href;
-    }
     tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
     sdks.push(startTracesSdk(tracesConfig));
   }
@@ -200,9 +173,15 @@ export type QuickStartConfig = Pick<
   | 'instrumentations'
 > & {
   /**
-   * Target URL for the SDK to send traces and logs.
+   * Target URL for the SDK to send log records, used exactly as configured.
+   * Default value is 'http://localhost:4318/v1/logs'
    */
-  exportUrl: string;
+  logsExportUrl?: string;
+  /**
+   * Target URL for the SDK to send spans, used exactly as configured.
+   * Default value is 'http://localhost:4318/v1/traces'
+   */
+  tracesExportUrl?: string;
   /**
    * Headers to be added to each traces/logs export request.
    * This is the place to add API keys or similar.
@@ -221,10 +200,20 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
     instrumentations: config.instrumentations,
-    // Explicit export configuration enables the Batch processors
-    exportConfig: {
-      url: config.exportUrl,
-      headers: config.exportHeaders,
+    // Explicit export configuration enables the Batch processors. Each
+    // signal exports to the full URL given here; when a URL is not set,
+    // the signal keeps its own default endpoint.
+    logs: {
+      exportConfig: {
+        url: config.logsExportUrl,
+        headers: config.exportHeaders,
+      },
+    },
+    traces: {
+      exportConfig: {
+        url: config.tracesExportUrl,
+        headers: config.exportHeaders,
+      },
     },
   };
 
