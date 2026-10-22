@@ -80,7 +80,9 @@ export function CodeSnippet({
       <span className="com">{'// ...more SDK options'}</span>
       {'\n});\n\n'}
       <span className="com">
-        {'// ...plus auto-instrumentations: fetch, XHR, web vitals, and more'}
+        {
+          '// ...plus auto-instrumentations: fetch, XHR, web vitals, long animation frames, and more'
+        }
       </span>
     </div>
   );
