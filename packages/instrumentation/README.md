@@ -28,6 +28,11 @@ npm install @opentelemetry/browser-instrumentation
 
 ## Usage
 
+The easiest way to use these instrumentations is the [Browser SDK](../sdk). Pass them to
+`startBrowserSdk()` and the SDK enables them with its own providers.
+
+You can also enable them yourself. Call `enable()` on each one:
+
 ```typescript
 import { logs } from '@opentelemetry/api-logs';
 import {
@@ -35,7 +40,6 @@ import {
   LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
@@ -43,23 +47,24 @@ import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrument
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 
-const logProvider = new LoggerProvider({
+const loggerProvider = new LoggerProvider({
   processors: [
-    new SimpleLogRecordProcessor(new ConsoleLogRecordExporter()),
+    new SimpleLogRecordProcessor({ exporter: new ConsoleLogRecordExporter() }),
   ],
 });
-logs.setGlobalLoggerProvider(logProvider);
+logs.setGlobalLoggerProvider(loggerProvider);
 
-registerInstrumentations({
-  instrumentations: [
-    new ErrorsInstrumentation(),
-    new NavigationInstrumentation(),
-    new NavigationTimingInstrumentation(),
-    new ResourceTimingInstrumentation(),
-    new UserActionInstrumentation(),
-    new WebVitalsInstrumentation(),
-  ],
-});
+const instrumentations = [
+  new ErrorsInstrumentation(),
+  new NavigationInstrumentation(),
+  new NavigationTimingInstrumentation(),
+  new ResourceTimingInstrumentation(),
+  new UserActionInstrumentation(),
+  new WebVitalsInstrumentation(),
+];
+for (const instrumentation of instrumentations) {
+  instrumentation.enable();
+}
 ```
 
 ---
@@ -101,7 +106,7 @@ new NavigationInstrumentation({
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. |
+| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
 | `sanitizeUrl` | `(url: string) => string` | — | Called before the URL is written to `url.full`. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
@@ -243,7 +248,7 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
-| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. Set before listeners are first registered, later config changes do not replace existing listeners. |
+| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. |
 
 ### Console
 
@@ -397,6 +402,180 @@ Each `fetch` Span includes:
 | `http.response.status_code` | HTTP response status code. |
 | `error.type` | If request failed. Describes a class of error the operation ended with. |
 
+
+## Enabling and disabling
+
+Each instrumentation has three methods: `enable()`, `disable()` and
+`isEnabled()`.
+
+- `new X()` does nothing. It only stores the config. It does not patch,
+  listen or emit.
+- The first `enable(deps?)` runs a one-time init and then starts emitting.
+  Init patches browser APIs and checks that the browser supports what the
+  instrumentation needs.
+- The first `enable()` also locks the dependencies (`deps`) for the life of
+  the instance. A dependency that you do not pass uses the global API from
+  `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
+  ignore `deps`, and log a warning if a passed dependency is different.
+- `disable()` stops emitting and removes listeners. Patched browser APIs stay
+  patched, because other code may have wrapped them after us. A later
+  `enable()` starts emitting again.
+- `isEnabled()` is `true` only while the instrumentation emits.
+
+The dependencies are:
+
+| Dependency | Used for | Default |
+|------------|----------|---------|
+| `tracerProvider` | Spans | The global tracer provider |
+| `loggerProvider` | Log records (events) | The global logger provider |
+| `propagator` | Trace context in outgoing requests | The global propagation API |
+
+```typescript
+import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
+
+const errors = new ErrorsInstrumentation();
+errors.isEnabled(); // false. Nothing is patched yet.
+
+// No deps are passed, so it uses the global providers.
+errors.enable();
+errors.isEnabled(); // true
+
+errors.disable();
+errors.isEnabled(); // false
+```
+
+The [Browser SDK](../sdk) calls `enable()` and `disable()` for you. For
+example, to wait for user consent, start the SDK with `enabled: false` and call
+`sdk.enable()` later. See the SDK README.
+
+Listeners are added only when the instrumentation is enabled. So a late
+`enable()` still records the initial page load, buffered resource entries, and
+web vitals that are reported only once. One-time events, such as the initial
+page load, are not emitted a second time after `disable()` and `enable()`.
+
+To keep an instrumentation fully off, with no patches, do not call `enable()`.
+
+Init can fail, for example when a needed browser API is missing or another
+script has locked it. The reason is logged as a warning through the
+OpenTelemetry diag logger, so set one with `diag.setLogger()` to see it. A
+failed instrumentation stays off for good. Later calls to `enable()` do
+nothing.
+
+### Differences from classic instrumentations
+
+These instrumentations do not use the base class from
+`@opentelemetry/instrumentation`. So they behave differently from the
+instrumentations in `opentelemetry-js` and `opentelemetry-js-contrib`:
+
+- Creating an instrumentation does not enable it. Call `enable()`, or pass it
+  to the Browser SDK.
+- Providers and the propagator are passed once, to the first `enable()`. There
+  are no setters for them.
+- `disable()` does not unpatch browser APIs.
+- The config is set once, in the constructor. There is no `enabled` config option.
+
+Do not use a classic instrumentation for the same API as one of these. A
+classic instrumentation cannot detect our patches, so both would record every
+call.
+
+## Writing an instrumentation
+
+An instrumentation is any object that implements the `Instrumentation`
+interface: `instrumentationName`, `enable(deps?)`, `disable()` and
+`isEnabled()`. The Browser SDK accepts any such object.
+
+The easiest way is to extend `InstrumentationBase`. It implements the
+lifecycle in [Enabling and disabling](#enabling-and-disabling).
+`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are all
+exported from
+`@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
+
+Override these hooks. All of them must be synchronous. A hook that returns a
+promise counts as failed. Hooks must not call `enable()` or `disable()`.
+
+- `_init()` runs once, at the first `enable()`. It only patches browser APIs
+  with `_wrap()` and checks that the browser supports what the
+  instrumentation needs. Throw if the instrumentation cannot run. A failed
+  init is final.
+- `_onEnable()` runs each time `enable()` turns emission on. Add listeners and
+  observers here, including buffered ones. If it throws, `_onDisable()` runs
+  to remove what it added, and a later `enable()` tries again.
+- `_onDisable()` runs each time `disable()` turns emission off. Remove what
+  `_onEnable()` added.
+
+From the first `enable()`, use `this.tracer`, `this.logger` and
+`this.propagator`. They come from the locked dependencies. Use
+`this.propagator` instead of the global `propagation` API, so a second SDK on
+the page can inject its own trace context.
+
+Extra subclass deps must be optional, because `startBrowserSdk` passes only
+`tracerProvider`, `loggerProvider` and `propagator`. An instance that needs
+required extra deps must be enabled by its owner, not passed to
+`startBrowserSdk`.
+
+There is `_wrap()` but no unwrap. Patches are never removed, because other
+code may have wrapped on top of ours. So a patch must check `isEnabled()`, and
+pass the call through when it is false. Run user hooks and emit code through
+`_safeExecute()`, so that a throw does not break the page.
+
+```typescript
+import { InstrumentationBase } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+
+export interface RouteConfig {
+  includeHash?: boolean;
+}
+
+export class RouteInstrumentation extends InstrumentationBase<RouteConfig> {
+  private _onPopState: (() => void) | undefined;
+
+  constructor(config: RouteConfig = {}) {
+    super('route-example', '0.1.0', config);
+  }
+
+  protected override _init(): void {
+    const instrumentation = this;
+    this._wrap(
+      history,
+      'pushState',
+      (original) =>
+        function patchedPushState(
+          this: History,
+          ...args: Parameters<History['pushState']>
+        ) {
+          const result = original.apply(this, args);
+          if (instrumentation.isEnabled()) {
+            instrumentation._record();
+          }
+          return result;
+        },
+    );
+  }
+
+  protected override _onEnable(): void {
+    this._onPopState = () => this._record();
+    window.addEventListener('popstate', this._onPopState);
+  }
+
+  protected override _onDisable(): void {
+    if (this._onPopState) {
+      window.removeEventListener('popstate', this._onPopState);
+      this._onPopState = undefined;
+    }
+  }
+
+  private _record(): void {
+    this._safeExecute('failed to record a route change', () => {
+      const url = this._config.includeHash
+        ? location.href
+        : location.href.split('#')[0];
+      this.logger.emit({
+        eventName: 'example.route_change',
+        attributes: { 'url.full': url },
+      });
+    });
+  }
+}
+```
 
 ## Useful links
 

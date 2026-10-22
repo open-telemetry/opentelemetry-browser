@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TextMapPropagator } from '@opentelemetry/api';
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
-import { isWrapped } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -26,7 +26,7 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { delay, HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
-import type { Mock } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 import {
   afterAll,
   afterEach,
@@ -35,12 +35,18 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
-import { setupTestSpanExporter } from '#utils/test';
+import {
+  enableForTest,
+  setupTestDiagLogger,
+  setupTestSpanExporter,
+} from '#utils/test';
 import { FetchInstrumentation } from './instrumentation.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
+import type { FetchInstrumentationConfig } from './types.ts';
 
 const VITEST_SERVER_URL = new URL(location.href);
 const VITEST_SERVER_NAME = VITEST_SERVER_URL.hostname;
@@ -284,26 +290,140 @@ describe('FetchInstrumentation', () => {
       globalThis.fetch = originalFetchFunction;
     });
 
-    it('should wrap global fetch when instantiated', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+    it('should wrap global fetch at the first enable(), not when instantiated', () => {
       instrumentation = new FetchInstrumentation();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
+      expect(instrumentation.isEnabled()).toBe(false);
+
+      enableForTest(instrumentation);
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
     });
 
-    it('should not wrap global fetch when instantiated with `enabled: false`', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
-      instrumentation = new FetchInstrumentation({ enabled: false });
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+    it('should keep a wrapper added on top of ours working across disable and enable', async () => {
+      instrumentation = new FetchInstrumentation();
+      enableForTest(instrumentation);
+      const ours = globalThis.fetch;
+      let thirdPartyCalls = 0;
+      globalThis.fetch = function (this: typeof globalThis, ...args) {
+        thirdPartyCalls += 1;
+        return ours.apply(this, args);
+      };
+      const offUrl = getUrlForPath('/api/get?phase=off');
+      const onUrl = getUrlForPath('/api/get?phase=on');
+
+      instrumentation.disable();
+      await fetch(offUrl);
+      expect(thirdPartyCalls).toBe(1);
+
       instrumentation.enable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      await fetch(onUrl);
+      await waitForSpan(onUrl);
+      expect(thirdPartyCalls).toBe(2);
+      // A fetch span ends when the body has fully downloaded, which is after
+      // `await fetch()` returns. So wait for the later span, then check both.
+      expect(
+        getFetchSpans().map((span) => span.attributes[ATTR_URL_FULL]),
+      ).toEqual([onUrl]);
+    });
+
+    it('should not patch or emit when constructed but not enabled, until enable()', async () => {
+      instrumentation = new FetchInstrumentation();
+      const url = getUrlForPath('/api/get');
+
+      await fetch(url);
+      expect(globalThis.fetch).toBe(originalFetchFunction);
+      expect(getFetchSpans()).toHaveLength(0);
+
+      enableForTest(instrumentation);
+      await fetch(url);
+      await waitForSpan(url);
+      expect(getFetchSpans()).toHaveLength(1);
     });
 
     it('should not unwrap global fetch when disabled', () => {
-      expect(isWrapped(globalThis.fetch)).toBeFalsy();
+      expect(globalThis.fetch).toBe(originalFetchFunction);
       instrumentation = new FetchInstrumentation();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      enableForTest(instrumentation);
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
       instrumentation.disable();
-      expect(isWrapped(globalThis.fetch)).toBeTruthy();
+      expect(globalThis.fetch).not.toBe(originalFetchFunction);
+    });
+
+    it('should not re-wrap global fetch across a disable/enable cycle', () => {
+      instrumentation = new FetchInstrumentation();
+      enableForTest(instrumentation);
+      const wrappedFetch = globalThis.fetch;
+
+      instrumentation.disable();
+      instrumentation.enable();
+
+      // Re-wrapping would stack a layer that, with no unwrap available, could
+      // never be removed.
+      expect(globalThis.fetch).toBe(wrappedFetch);
+    });
+
+    it('should stop and resume emitting spans across a disable/enable cycle', async () => {
+      instrumentation = new FetchInstrumentation();
+      enableForTest(instrumentation);
+      const offUrl = getUrlForPath('/api/get?phase=off');
+      const onUrl = getUrlForPath('/api/get?phase=on');
+
+      instrumentation.disable();
+      await fetch(offUrl);
+
+      instrumentation.enable();
+      await fetch(onUrl);
+      await waitForSpan(onUrl);
+      // A fetch span ends when the body has fully downloaded, which is after
+      // `await fetch()` returns. So wait for the later span, then check both.
+      expect(
+        getFetchSpans().map((span) => span.attributes[ATTR_URL_FULL]),
+      ).toEqual([onUrl]);
+    });
+
+    it('should stay off and warn when PerformanceObserver is not available', () => {
+      const { warn } = setupTestDiagLogger();
+      vi.stubGlobal('PerformanceObserver', undefined);
+      onTestFinished(() => {
+        vi.unstubAllGlobals();
+      });
+
+      instrumentation = new FetchInstrumentation();
+      enableForTest(instrumentation);
+
+      expect(instrumentation.isEnabled()).toBe(false);
+      expect(globalThis.fetch).toBe(originalFetchFunction);
+      expect(warn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.stringMatching(/PerformanceObserver is not available/),
+        expect.any(Error),
+      );
+    });
+
+    describe('when the fetch slot is non-writable', () => {
+      afterEach(() => {
+        Object.defineProperty(globalThis, 'fetch', {
+          value: originalFetchFunction,
+          writable: true,
+          configurable: true,
+        });
+      });
+
+      it('should still patch fetch', () => {
+        // `_wrap` redefines the slot, so `writable: false` alone does not block it.
+        Object.defineProperty(globalThis, 'fetch', {
+          value: originalFetchFunction,
+          writable: false,
+          configurable: true,
+        });
+
+        instrumentation = new FetchInstrumentation();
+        enableForTest(instrumentation);
+
+        expect(globalThis.fetch).not.toBe(originalFetchFunction);
+        expect(instrumentation.isEnabled()).toBe(true);
+      });
     });
 
     describe('when the fetch property cannot be wrapped', () => {
@@ -318,33 +438,63 @@ describe('FetchInstrumentation', () => {
         "Cannot assign to read only property 'fetch' of object '[object Window]'",
       );
 
+      let wrapSpy: MockInstance;
+
       beforeEach(() => {
-        // Construct with `enabled: false` so the stub is in place before
-        // `enable()` runs — `_wrap` is an instance-level field inherited
-        // from `InstrumentationBase`, not a prototype method.
-        instrumentation = new FetchInstrumentation({ enabled: false });
-        vi.spyOn(instrumentation, '_wrap').mockThrow(wrapError);
+        instrumentation = new FetchInstrumentation();
+        // Shadows the inherited prototype method with an own property.
+        wrapSpy = vi.spyOn(instrumentation, '_wrap').mockImplementation(() => {
+          throw wrapError;
+        });
       });
 
       it('should not throw when _wrap fails', () => {
-        expect(() => instrumentation.enable()).not.toThrow();
+        expect(() => enableForTest(instrumentation)).not.toThrow();
       });
 
       it('should leave fetch unwrapped when _wrap fails', () => {
-        instrumentation.enable();
-        expect(isWrapped(globalThis.fetch)).toBeFalsy();
+        enableForTest(instrumentation);
+        expect(globalThis.fetch).toBe(originalFetchFunction);
       });
 
-      it('should allow enable() to be retried after _wrap fails', () => {
-        instrumentation.enable();
+      it('should not retry _wrap after it fails', () => {
+        enableForTest(instrumentation);
         expect(() => instrumentation.enable()).not.toThrow();
+        instrumentation.enable();
+
+        expect(wrapSpy).toHaveBeenCalledTimes(1);
+        expect(instrumentation.isEnabled()).toBe(false);
+      });
+
+      it('should warn with the descriptive error', () => {
+        const { warn } = setupTestDiagLogger();
+        enableForTest(instrumentation);
+
+        // Component loggers forward to `diag.warn(namespace, message, error)`.
+        const error = warn.mock.calls[0]?.[2] as Error | undefined;
+        expect(error?.message).toBe(
+          `Failed to patch globalThis.fetch: ${wrapError.message}`,
+        );
+        expect(error?.cause).toBe(wrapError);
       });
     });
   });
 
   describe('instrumentation', () => {
-    beforeAll(() => {
-      instrumentation = new FetchInstrumentation();
+    // Each call creates a new instance that wraps fetch again on top of the old
+    // wrapper. Earlier layers are disabled and pass calls through.
+    const enableWithConfig = (config?: FetchInstrumentationConfig) => {
+      instrumentation?.disable();
+      instrumentation = new FetchInstrumentation(config);
+      instrumentation.enable();
+    };
+
+    beforeEach(() => {
+      enableWithConfig();
+    });
+
+    afterEach(() => {
+      instrumentation?.disable();
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {
@@ -591,11 +741,8 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with sanitizeUrl configuration', () => {
-      beforeAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
-      });
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
+      beforeEach(() => {
+        enableWithConfig({ sanitizeUrl: defaultSanitizeUrl });
       });
 
       it('should create spans for GET requests', async () => {
@@ -623,17 +770,13 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with ignoreUrls configuration', () => {
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
-      });
-
       it('should not create spans for GET requests if URL matches', async () => {
         const url = getUrlForPath('/api/get');
-        instrumentation.setConfig({ ignoreUrls: [url] });
+        enableWithConfig({ ignoreUrls: [url] });
         await fetch(url);
 
         // No spans to export
-        await expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });
@@ -651,7 +794,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should not measure the size if set to false', async () => {
-        instrumentation.setConfig({ measureRequestSize: false });
+        enableWithConfig({ measureRequestSize: false });
         const url = getUrlForPath('/api/post');
         await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
           r.json(),
@@ -662,11 +805,8 @@ describe('FetchInstrumentation', () => {
       });
 
       describe('with measureRequestSize set to true', () => {
-        beforeAll(() => {
-          instrumentation.setConfig({ measureRequestSize: true });
-        });
-        afterAll(() => {
-          instrumentation.setConfig({ measureRequestSize: undefined });
+        beforeEach(() => {
+          enableWithConfig({ measureRequestSize: true });
         });
 
         it('should measure the size with URL and init object', async () => {
@@ -749,12 +889,8 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with applyCustomAttributesOnSpan configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({ applyCustomAttributesOnSpan: undefined });
-      });
-
       it('should not break fetch or instrumentation of throws', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: () => {
             throw new Error('boom');
           },
@@ -781,7 +917,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to set attributes on the span', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -804,7 +940,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to acces to Request and Response', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span, req, res) => {
             const reqHeaders = req.headers as Headers;
             const resHeaders = (res as Response).headers;
@@ -861,7 +997,7 @@ describe('FetchInstrumentation', () => {
 
       // https://github.com/open-telemetry/opentelemetry-js/pull/5281
       it('should not be able to access the response body if already consumed', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span, _req, res) => {
             span.setAttribute('res.body.used', (res as Response).bodyUsed);
           },
@@ -885,12 +1021,8 @@ describe('FetchInstrumentation', () => {
     });
 
     describe('with requestHook configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({ requestHook: undefined });
-      });
-
       it('should be able to set attributes on the span', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -913,7 +1045,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a string param', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook: (span, req) => {
             const isInitObj =
               typeof req === 'object' && !(req instanceof Request);
@@ -936,7 +1068,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a a url and RequestInit param', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook: (span, req) => {
             const isInitObj =
               typeof req === 'object' && !(req instanceof Request);
@@ -962,7 +1094,7 @@ describe('FetchInstrumentation', () => {
       });
 
       it('should be able to modify headers with a Request param', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook: (span, req) => {
             span.setAttribute('is.req', req instanceof Request);
             (req as Request).headers.set('foo', 'bar');
@@ -1042,6 +1174,31 @@ describe('FetchInstrumentation', () => {
 
           expect(headers['foo']).toEqual('bar');
           expect(headers['content-type']).toEqual('application/json');
+        });
+      });
+
+      describe('with the propagator passed to enable()', () => {
+        it('injects with the propagator passed to enable()', async () => {
+          const fake: TextMapPropagator = {
+            inject: (_ctx, carrier, setter) =>
+              setter?.set(carrier, 'x-test', '1'),
+            extract: (ctx) => ctx,
+            fields: () => ['x-test'],
+          };
+          propagation.setGlobalPropagator(
+            new B3Propagator({ injectEncoding: B3InjectEncoding.MULTI_HEADER }),
+          );
+          onTestFinished(() => propagation.disable());
+          instrumentation?.disable();
+          instrumentation = new FetchInstrumentation();
+          enableForTest(instrumentation, { propagator: fake });
+
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await fetch(url);
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['x-test']).toEqual('1');
+          expect(headers[X_B3_TRACE_ID]).toBeUndefined();
         });
       });
 
@@ -1219,12 +1376,6 @@ describe('FetchInstrumentation', () => {
       });
 
       describe('with propagateTraceHeaderCorsUrls configuration', () => {
-        afterEach(() => {
-          instrumentation.setConfig({
-            propagateTraceHeaderCorsUrls: [],
-          });
-        });
-
         describe('without global propagator', () => {
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
             const url = 'http://example.com/api/echo-headers.json';
@@ -1234,7 +1385,7 @@ describe('FetchInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            enableWithConfig({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
@@ -1278,7 +1429,7 @@ describe('FetchInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            enableWithConfig({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
