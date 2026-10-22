@@ -1,0 +1,27 @@
+{
+  "name": "examples-react-inp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "check-types": "tsc",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/browser-instrumentation": "file:../../packages/instrumentation",
+    "@opentelemetry/browser-sdk": "file:../../packages/sdk",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.223.0",
+    "@opentelemetry/sdk-logs": "^0.223.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-inp-blame": "1.0.0"
+  },
+  "devDependencies": {
+    "@opentelemetry/core": "^2.12.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0"
+  }
+}
