@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.2...browser-instrumentation-v0.9.0) (2026-10-22)
+
+
+### Features
+
+* **web-vitals:** add reportAllChanges option ([#450](https://github.com/open-telemetry/opentelemetry-browser/issues/450)) ([65d996c](https://github.com/open-telemetry/opentelemetry-browser/commit/65d996ca7560eed04bc23e34f5dce912131d6488))
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#480](https://github.com/open-telemetry/opentelemetry-browser/issues/480)) ([2d99baf](https://github.com/open-telemetry/opentelemetry-browser/commit/2d99baf0665cca1b15b2f8a665469bbcefd5b27e))
+* **resource-timing:** process entries when the idle callback times out ([#453](https://github.com/open-telemetry/opentelemetry-browser/issues/453)) ([af2bb1e](https://github.com/open-telemetry/opentelemetry-browser/commit/af2bb1eee3209dd1a38076983ce5b3b06fb49331))
+* **user-action:** capture middle clicks and right context menus ([#448](https://github.com/open-telemetry/opentelemetry-browser/issues/448)) ([0c80b34](https://github.com/open-telemetry/opentelemetry-browser/commit/0c80b343742e43d3c0b8ed59f9eecf67b00a0c84))
+
 ## [0.8.2](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.1...browser-instrumentation-v0.8.2) (2026-10-09)
 
 
