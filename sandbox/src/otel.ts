@@ -138,18 +138,14 @@ export async function initOtel(
     instrumentations: [
       new ErrorsInstrumentation(),
       new NavigationTimingInstrumentation(),
-      new ResourceTimingInstrumentation({
-        ignoreUrls: [config.tracesUrl, config.logsUrl],
-      }),
+      new ResourceTimingInstrumentation(),
       new UserActionInstrumentation(),
       new WebVitalsInstrumentation({ includeRawAttribution: true }),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
-        ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
       new XhrInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
-        ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
     ],
   });

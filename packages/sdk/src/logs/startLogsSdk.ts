@@ -21,6 +21,7 @@ import {
 import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
+import { appendIgnoreUrls } from '../core/ignoreUrls.ts';
 import type { LogsConfig, WebSdk } from '../core/types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
@@ -58,9 +59,9 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   if (config?.processors) {
     processors.push(...config.processors);
   }
+  let logsEndpoint: string | undefined;
   if (!config?.processors || config?.exportConfig) {
-    const logsEndpoint =
-      config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
+    logsEndpoint = config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
 
     // Bail out on an invalid URL instead of silently skipping the exporter,
     // which would leave the SDK running without exporting the telemetry.
@@ -103,6 +104,16 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;
   if (config?.instrumentations?.length) {
+    // Keep the SDK's own export requests out of the instrumentations so
+    // emitting telemetry cannot recursively trigger new telemetry (e.g. a
+    // resource-timing entry for an export firing a new export). The URL is
+    // appended to each instrumentation's `ignoreUrls` list; instrumentations
+    // that do not support that option ignore the extra entry.
+    if (logsEndpoint) {
+      for (const instrumentation of config.instrumentations) {
+        appendIgnoreUrls(instrumentation, [logsEndpoint]);
+      }
+    }
     deregisterInstrumentations = registerInstrumentations({
       instrumentations: config.instrumentations,
     });

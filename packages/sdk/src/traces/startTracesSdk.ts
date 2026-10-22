@@ -28,6 +28,7 @@ import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
 import { getDefaultContextManager } from '../core/context.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
+import { appendIgnoreUrls } from '../core/ignoreUrls.ts';
 import { getDefaultPropagators } from '../core/propagation.ts';
 import type { TracesConfig, WebSdk } from '../core/types.ts';
 
@@ -62,9 +63,9 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   if (config?.processors) {
     spanProcessors.push(...config.processors);
   }
+  let tracesEndpoint: string | undefined;
   if (!config?.processors || config?.exportConfig) {
-    const tracesEndpoint =
-      config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDPOINT;
+    tracesEndpoint = config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDPOINT;
 
     // Bail out on an invalid URL instead of silently skipping the exporter,
     // which would leave the SDK running without exporting the telemetry.
@@ -113,6 +114,16 @@ export function startTracesSdk(config?: TracesConfig): WebSdk {
   // Register instrumentations
   let deregisterInstrumentations: (() => void) | undefined;
   if (config?.instrumentations?.length) {
+    // Keep the SDK's own export requests out of the instrumentations so
+    // emitting telemetry cannot recursively trigger new telemetry (e.g. a
+    // resource-timing entry for an export firing a new export). The URL is
+    // appended to each instrumentation's `ignoreUrls` list; instrumentations
+    // that do not support that option ignore the extra entry.
+    if (tracesEndpoint) {
+      for (const instrumentation of config.instrumentations) {
+        appendIgnoreUrls(instrumentation, [tracesEndpoint]);
+      }
+    }
     deregisterInstrumentations = registerInstrumentations({
       instrumentations: config.instrumentations,
     });
