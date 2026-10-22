@@ -189,6 +189,61 @@ describe('ConsoleInstrumentation', () => {
       expect(logs[0]?.body).toBe('string 123 true null undefined');
     });
 
+    it('should serialize Error arguments using their stack', () => {
+      const error = new Error('request failed');
+      error.stack = 'Error: request failed\n    at request (app.js:10:5)';
+
+      console.error(error);
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.body).toBe(error.stack);
+    });
+
+    it.each([undefined, ''])(
+      'should serialize Errors with stack %s using their name and message',
+      (stack) => {
+        const error = new TypeError('invalid request');
+        Object.defineProperty(error, 'stack', { value: stack });
+
+        console.error(error);
+
+        const logs = inMemoryExporter.getFinishedLogRecords();
+        expect(logs.length).toBe(1);
+        expect(logs[0]?.body).toBe('TypeError: invalid request');
+      },
+    );
+
+    it('should serialize Errors alongside other arguments', () => {
+      const error = new Error('request failed');
+      error.stack = 'Error: request failed\n    at request (app.js:10:5)';
+
+      console.error('Failed:', error, { retry: false });
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.body).toBe(`Failed: ${error.stack} {"retry":false}`);
+    });
+
+    it.each(['stack', 'name', 'message'])(
+      'should fall back to JSON when Error %s throws',
+      (property) => {
+        const error = new Error('failed');
+        Object.defineProperty(error, 'stack', {
+          value: '',
+          configurable: true,
+        });
+        Object.defineProperty(error, property, {
+          get() {
+            throw new Error('unreadable property');
+          },
+        });
+
+        expect(() => console.error(error)).not.toThrow();
+        expect(inMemoryExporter.getFinishedLogRecords()[0]?.body).toBe('{}');
+      },
+    );
+
     it('should serialize objects as JSON', () => {
       console.log({ name: 'test', value: 42 });
 
