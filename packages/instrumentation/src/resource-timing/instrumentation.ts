@@ -8,7 +8,6 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
-import { getDocumentLoadContextRegistry } from '../utils/DocumentLoadContextRegistry.ts';
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
@@ -277,7 +276,6 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
         record.context = ctx;
         registry.unregister(entry);
       }
-      record.context ??= getDocumentLoadContextRegistry().getContext(entry);
       this.logger.emit(record);
     } catch (error) {
       this._diag.error(

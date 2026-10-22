@@ -6,7 +6,6 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import { version } from '../../package.json' with { type: 'json' };
-import { getDocumentLoadContextRegistry } from '../utils/DocumentLoadContextRegistry.ts';
 import {
   ATTR_NAVIGATION_CONNECT_END,
   ATTR_NAVIGATION_CONNECT_START,
@@ -204,7 +203,6 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
     this.logger.emit({
       eventName: NAVIGATION_TIMING_EVENT_NAME,
-      context: getDocumentLoadContextRegistry().getContext(entry),
       severityNumber: SeverityNumber.INFO,
       attributes: {
         [ATTR_NAVIGATION_TYPE]: entry.type,
