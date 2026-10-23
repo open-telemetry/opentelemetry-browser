@@ -94,7 +94,19 @@ When more than one pull request is opened for the same issue, maintainers will u
 
 Small fixes such as typos or broken links don't need an issue. For anything that changes behavior or adds a feature, open or claim an issue first.
 
-If you use AI tools, follow the OpenTelemetry [Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md). Maintainers may close pull requests that don't follow it.
+## Using AI tools
+
+You can use AI tools to contribute. This project follows the OpenTelemetry [Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md), with a few additional expectations:
+
+- **Understand every line you submit.** If you can't explain what your change does and how it fits the rest of the codebase without help from an AI tool, don't open the pull request.
+- **Use your own words.** Write issues, pull request descriptions, review comments, and replies yourself, on GitHub and on Slack. Imperfect English is fine. We want to hear from you, not from a model.
+- **Check the output against this repo.** Models often have outdated knowledge of OpenTelemetry APIs, semantic conventions, and browser APIs. Verify generated code against the current code and specs, and run `npm run lint` and `npm test` before opening a pull request.
+- **Keep the change scoped to the issue.** Leave out unrelated cleanup and refactoring.
+- **Disclose AI usage** using the checkbox in the pull request template. If a significant part of a commit came from an AI tool without changes, add an `Assisted-by:` trailer naming the model, for example `Assisted-by: Claude Opus 4.5`. Use `Assisted-by:`, not `Co-authored-by:`.
+
+Maintainers may close issues and pull requests that don't meet these expectations without a full review.
+
+AI coding agents working in this repository should also follow [AGENTS.md](AGENTS.md).
 
 ## Raising issues
 
