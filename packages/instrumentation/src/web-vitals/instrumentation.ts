@@ -21,7 +21,9 @@ import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
+  ATTR_WEB_VITAL_NAVIGATION_ID,
   ATTR_WEB_VITAL_NAVIGATION_TYPE,
+  ATTR_WEB_VITAL_NAVIGATION_URL,
   ATTR_WEB_VITAL_RATING,
   ATTR_WEB_VITAL_VALUE,
   WEB_VITAL_EVENT_NAME,
@@ -77,8 +79,10 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     this._listenersRegistered = true;
     this._diag.debug(`Registering listeners`);
     // Read from the config: this first runs inside super(), before fields are set.
+    const { reportAllChanges, reportSoftNavs } = this.getConfig();
     const opts = {
-      reportAllChanges: this.getConfig().reportAllChanges ?? false,
+      reportAllChanges: reportAllChanges ?? false,
+      reportSoftNavs: reportSoftNavs ?? false,
     };
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
@@ -117,8 +121,9 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       const { attribution } = metric as INPMetricWithAttribution;
       return attribution.interactionTime;
     }
-    // FCP, LCP, TTFB: metric.value is already DOMHighResTimeStamp of the event
-    return metric.value;
+    // FCP, LCP, TTFB: metric.value is relative to the navigation start, which
+    // is 0 for hard navigations and the soft navigation's startTime otherwise.
+    return (metric.navigationStartTime ?? 0) + metric.value;
   }
 
   private _emitWebVital(metric: MetricWithAttribution): void {
@@ -134,6 +139,14 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       [ATTR_WEB_VITAL_ID]: metric.id,
       [ATTR_WEB_VITAL_NAVIGATION_TYPE]: metric.navigationType,
     };
+    // web-vitals uses 0 when the browser exposes no navigation id.
+    if (metric.navigationId) {
+      attributes[ATTR_WEB_VITAL_NAVIGATION_ID] = metric.navigationId;
+    }
+    // A metric can be reported after the route changed, so the current URL is not reliable.
+    if (metric.navigationURL !== undefined) {
+      attributes[ATTR_WEB_VITAL_NAVIGATION_URL] = metric.navigationURL;
+    }
 
     const timestamp = this._getTimestampForMetric(metric);
 

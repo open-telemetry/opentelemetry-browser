@@ -27,10 +27,30 @@ export interface WebVitalsInstrumentationConfig extends InstrumentationConfig {
   applyCustomLogRecordData?: (logRecord: LogRecord) => void;
 
   /**
-   * Passed through to `web-vitals` to report metric updates according to its
-   * reporting behavior. `delta` is the change since its previous report.
-   * Set before listeners are first registered, later changes have no effect.
+   * When true, CLS, INP and LCP are reported each time their value changes,
+   * not only when the value is final. FCP and TTFB are not affected. `delta`
+   * is the change since the previous report for the same metric `id`.
+   *
+   * Set this before the listeners are registered. Later changes have no effect.
+   * `web-vitals` recommends this for debugging, not for production.
    * Defaults to `false`.
+   *
+   * See https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change
    */
   reportAllChanges?: boolean;
+
+  /**
+   * When true, metrics are reported again after each soft navigation (a
+   * route change in a single-page app). CLS and INP start again from zero.
+   * FCP and LCP are the paints after the soft navigation. TTFB is always 0.
+   * Use `browser.web_vital.navigation_url` to group metrics by route, because
+   * a metric can be reported after the URL has changed.
+   *
+   * Requires Chromium 151 or later. Other browsers ignore this option.
+   * Set this before the listeners are registered. Later changes have no effect.
+   * Defaults to `false`.
+   *
+   * See https://github.com/GoogleChrome/web-vitals#report-metrics-for-soft-navigations
+   */
+  reportSoftNavs?: boolean;
 }

@@ -243,7 +243,8 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 |--------|------|---------|-------------|
 | `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
-| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. Set before listeners are first registered, later config changes do not replace existing listeners. |
+| `reportAllChanges` | `boolean` | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`. Set this before the listeners are registered. Later config changes have no effect. `web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production. |
+| `reportSoftNavs` | `boolean` | `false` | When true, metrics are reported again after each soft navigation (a route change in a single-page app). CLS and INP start again from zero. FCP and LCP are the paints after the soft navigation. TTFB is always 0. Use `browser.web_vital.navigation_url` to group metrics by route, because a metric can be reported after the URL has changed. Requires Chromium 151 or later. Other browsers ignore this option. Set this before the listeners are registered. Later config changes have no effect. See the [`web-vitals` docs](https://github.com/GoogleChrome/web-vitals#report-metrics-for-soft-navigations). |
 
 ### Console
 
