@@ -83,6 +83,7 @@ The sandbox is automatically deployed to GitHub Pages on every push to `main` vi
 
 ## Documentation
 
+- [Migration guide](./docs/migration-guide.md) — moving from the browser packages in `opentelemetry-js` and `opentelemetry-js-contrib`.
 - [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in session support.
 - [Browser Events](./docs/browser-observability-model.md) — catalog of browser telemetry events.
 - [Navigation event](./docs/navigation-event.md) — deep dive on the `browser.navigation` event.
