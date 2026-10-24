@@ -134,12 +134,22 @@ import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentat
 
 Creates one `documentLoad` span from the navigation entry's `fetchStart` to
 `loadEventEnd`, with `url.full` and `user_agent.original` attributes. The span
-starts a new trace. Configure a tracer provider before enabling document load:
+starts a new trace. Pass it to `startBrowserSdk()` and the SDK enables it with
+its tracer provider:
 
 ```typescript
-const documentLoad = new DocumentLoadInstrumentation({ enabled: false });
-documentLoad.setTracerProvider(tracerProvider);
-documentLoad.enable();
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+
+const sdk = startBrowserSdk({
+  instrumentations: [new DocumentLoadInstrumentation()],
+});
+```
+
+To enable it yourself, pass the tracer provider to `enable()`:
+
+```typescript
+const documentLoad = new DocumentLoadInstrumentation();
+documentLoad.enable({ tracerProvider });
 ```
 
 Enabling after the page has loaded reads the buffered navigation entry and keeps

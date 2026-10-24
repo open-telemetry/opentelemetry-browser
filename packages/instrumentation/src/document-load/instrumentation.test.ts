@@ -24,6 +24,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { enableForTest } from '#utils/test';
 import { NavigationTimingInstrumentation } from '../navigation-timing/instrumentation.ts';
 import { ResourceTimingInstrumentation } from '../resource-timing/instrumentation.ts';
 import { DocumentLoadInstrumentation } from './instrumentation.ts';
@@ -82,8 +83,7 @@ describe('DocumentLoadInstrumentation', () => {
     loggerProvider = new LoggerProvider({
       processors: [new SimpleLogRecordProcessor({ exporter: logExporter })],
     });
-    instrumentation = new DocumentLoadInstrumentation({ enabled: false });
-    instrumentation.setTracerProvider(tracerProvider);
+    instrumentation = new DocumentLoadInstrumentation();
   });
 
   afterEach(async () => {
@@ -113,7 +113,7 @@ describe('DocumentLoadInstrumentation', () => {
   }
 
   function finishLoad() {
-    instrumentation.enable();
+    instrumentation.enable({ tracerProvider });
     vi.runAllTimers();
   }
 
@@ -124,9 +124,8 @@ describe('DocumentLoadInstrumentation', () => {
   }
 
   function emitNavigation() {
-    navigation = new NavigationTimingInstrumentation({ enabled: false });
-    navigation.setLoggerProvider(loggerProvider);
-    navigation.enable();
+    navigation = new NavigationTimingInstrumentation();
+    navigation.enable({ loggerProvider });
     const log = logExporter.getFinishedLogRecords()[0];
     assert(log);
     return log;
@@ -135,14 +134,16 @@ describe('DocumentLoadInstrumentation', () => {
   function emitResources(entries: PerformanceResourceTiming[]) {
     vi.stubGlobal(
       'PerformanceObserver',
-      vi.fn(function (this: unknown, callback: PerformanceObserverCallback) {
-        resourceCallback = callback;
-        return { observe: vi.fn(), disconnect: vi.fn() };
-      }),
+      Object.assign(
+        vi.fn(function (this: unknown, callback: PerformanceObserverCallback) {
+          resourceCallback = callback;
+          return { observe: vi.fn(), disconnect: vi.fn() };
+        }),
+        { supportedEntryTypes: ['resource'] },
+      ),
     );
-    resources = new ResourceTimingInstrumentation({ enabled: false });
-    resources.setLoggerProvider(loggerProvider);
-    resources.enable();
+    resources = new ResourceTimingInstrumentation();
+    resources.enable({ loggerProvider });
     resourceCallback(
       {
         getEntries: () => entries,
@@ -168,10 +169,13 @@ describe('DocumentLoadInstrumentation', () => {
     expect(span.parentSpanContext).toBeUndefined();
   });
 
-  it('keeps the default-enabled constructor scheduling until deferred collection', () => {
-    instrumentation.disable();
-    instrumentation = new DocumentLoadInstrumentation();
-    instrumentation.setTracerProvider(tracerProvider);
+  it('has no side effects until enabled', () => {
+    expect(instrumentation.isEnabled()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    vi.runAllTimers();
+    expect(spanExporter.getFinishedSpans()).toHaveLength(0);
+    enableForTest(instrumentation, { tracerProvider });
+    expect(vi.getTimerCount()).toBe(1);
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
     vi.runAllTimers();
     expect(spanExporter.getFinishedSpans()).toHaveLength(1);
@@ -180,7 +184,7 @@ describe('DocumentLoadInstrumentation', () => {
   it('waits until after load handlers for a finalized navigation entry', () => {
     vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
     entry = { ...entry, loadEventEnd: 0 };
-    instrumentation.enable();
+    instrumentation.enable({ tracerProvider });
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
     window.dispatchEvent(new Event('load'));
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
@@ -191,7 +195,7 @@ describe('DocumentLoadInstrumentation', () => {
 
   it('retries while loadEventEnd is not finalized', () => {
     entry = { ...entry, loadEventEnd: 0 };
-    instrumentation.enable();
+    instrumentation.enable({ tracerProvider });
     vi.advanceTimersByTime(0);
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
     entry = { ...entry, loadEventEnd: 100 };
@@ -219,7 +223,7 @@ describe('DocumentLoadInstrumentation', () => {
   });
 
   it('cancels pending collection when disabled', () => {
-    instrumentation.enable();
+    instrumentation.enable({ tracerProvider });
     instrumentation.disable();
     vi.runAllTimers();
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
@@ -227,7 +231,7 @@ describe('DocumentLoadInstrumentation', () => {
 
   it('removes the load listener when disabled before load', () => {
     vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
-    instrumentation.enable();
+    instrumentation.enable({ tracerProvider });
     instrumentation.disable();
     window.dispatchEvent(new Event('load'));
     vi.runAllTimers();

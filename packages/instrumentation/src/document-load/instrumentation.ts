@@ -4,11 +4,11 @@
  */
 
 import { ROOT_CONTEXT } from '@opentelemetry/api';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
 import {
   ATTR_URL_FULL,
   ATTR_USER_AGENT_ORIGINAL,
 } from '@opentelemetry/semantic-conventions';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import type { DocumentLoadInstrumentationConfig } from './types.ts';
 
@@ -16,12 +16,10 @@ const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 50;
 
 export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoadInstrumentationConfig> {
-  // enable() is called by the base constructor, before field initializers run.
-  declare private _isEnabled: boolean;
-  declare private _collected: boolean;
-  declare private _onLoad: (() => void) | undefined;
-  declare private _timeout: number | undefined;
-  declare private _retryCount: number;
+  private _collected = false;
+  private _onLoad: (() => void) | undefined;
+  private _timeout: number | undefined;
+  private _retryCount = 0;
 
   constructor(config: DocumentLoadInstrumentationConfig = {}) {
     super(
@@ -31,16 +29,11 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
     );
   }
 
-  protected override init() {
-    return [];
-  }
-
-  override enable(): void {
-    if (this._isEnabled) {
+  protected override _onEnable(): void {
+    // Not reset by disable(): one page load gets one span.
+    if (this._collected) {
       return;
     }
-    this._isEnabled = true;
-    this._collected ??= false;
     this._retryCount = 0;
     this._onLoad = () => this._schedule();
     if (document.readyState === 'complete') {
@@ -50,13 +43,12 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
     }
   }
 
-  override disable(): void {
-    this._isEnabled = false;
+  protected override _onDisable(): void {
     this._cleanup();
   }
 
   private _schedule(): void {
-    if (!this._isEnabled || this._timeout !== undefined) {
+    if (!this.isEnabled() || this._timeout !== undefined) {
       return;
     }
     // loadEventEnd is only populated after the load handlers return.
@@ -77,7 +69,7 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
   }
 
   private _collect(): boolean {
-    if (!this._isEnabled || this._collected) {
+    if (!this.isEnabled() || this._collected) {
       return this._collected;
     }
     const entries = performance.getEntriesByType?.('navigation') as

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
-export interface DocumentLoadInstrumentationConfig
-  extends InstrumentationConfig {}
+/**
+ * DocumentLoadInstrumentation Configuration. It has no options yet.
+ */
+export type DocumentLoadInstrumentationConfig = Record<string, never>;
