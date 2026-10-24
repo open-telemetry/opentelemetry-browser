@@ -358,6 +358,7 @@ describe('ErrorsInstrumentation', () => {
       instrumentation = new ErrorsInstrumentation({
         applyCustomAttributes: hook,
       });
+      enableForTest(instrumentation);
       dispatchUnhandledRejection({ status: 500 });
       expect(hook).toHaveBeenCalledWith('{"status":500}');
     });
