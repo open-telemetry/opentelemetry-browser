@@ -4,16 +4,20 @@
  */
 
 import { diag } from '@opentelemetry/api';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { INVALID_CONFIG_SDK, NOOP_SDK } from './core/constants.ts';
+import type {
+  Instrumentation,
+  InstrumentationDeps,
+} from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+import { INVALID_CONFIG_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
 import type {
-  CommonConfig,
   LogsConfig,
+  LogsSdk,
   RemoveCommonProps,
   RootConfig,
   TracesConfig,
+  TracesSdk,
   WebSdk,
 } from './core/types.ts';
 import { startLogsSdk } from './logs/startLogsSdk.ts';
@@ -32,9 +36,28 @@ type CombinedConfig = RootConfig & {
 
 const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
-  disabled: false,
+  enabled: true,
+  setGlobals: true,
   logLevel: 'INFO',
 };
+
+// One instance that throws must not stop the SDK from reaching the others.
+function forEachInstrumentation(
+  instrumentations: Instrumentation[],
+  action: 'enable' | 'disable',
+  call: (instrumentation: Instrumentation) => void,
+): void {
+  for (const instrumentation of instrumentations) {
+    try {
+      call(instrumentation);
+    } catch (error) {
+      diag.error(
+        `Failed to ${action} instrumentation ${instrumentation.instrumentationName}`,
+        error,
+      );
+    }
+  }
+}
 
 /**
  * Combination of all singal SDKs into one. A shorthand for users to
@@ -47,11 +70,6 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
 
   // Set the logger
   setSdkLogger(rootConfig?.logLevel);
-
-  if (config?.disabled) {
-    diag.debug('Browser SDK disabled by configuration.');
-    return NOOP_SDK;
-  }
 
   // TODO: questions (for the SIG?)
   // - accept resource detectors?
@@ -73,7 +91,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     ...rootConfig.exportConfig,
   };
 
-  const sdks: WebSdk[] = [];
+  const sdks: (TracesSdk | LogsSdk)[] = [];
+  let logsSdk: LogsSdk | undefined;
+  let tracesSdk: TracesSdk | undefined;
 
   // Validate every export URL before starting any signal SDK, so an invalid
   // URL cannot leave one signal exporting while the other refuses to start.
@@ -108,6 +128,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
 
     // Set the logLevel
     logsConfig.logLevel = rootConfig.logLevel;
+    logsConfig.setGlobals = rootConfig.setGlobals;
 
     // Propagate root configs to the signal only when it has no custom
     // processors. A signal with its own processors manages its own exporter,
@@ -128,7 +149,8 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       logsConfig.exportConfig.url = endpointUrl.href;
     }
     logsConfig.resourceAttributes = rootConfig.resourceAttributes;
-    sdks.push(startLogsSdk(logsConfig));
+    logsSdk = startLogsSdk(logsConfig);
+    sdks.push(logsSdk);
   }
 
   // Start traces if configured
@@ -137,6 +159,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
 
     // Set the logLevel
     tracesConfig.logLevel = rootConfig.logLevel;
+    tracesConfig.setGlobals = rootConfig.setGlobals;
 
     // Propagate root configs to the signal only when it has no custom
     // processors. A signal with its own processors manages its own exporter,
@@ -158,20 +181,36 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       tracesConfig.exportConfig.url = endpointUrl.href;
     }
     tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
-    sdks.push(startTracesSdk(tracesConfig));
+    tracesSdk = startTracesSdk(tracesConfig);
+    sdks.push(tracesSdk);
   }
 
-  // Register instrumentations
-  let deregisterInstrumentations: (() => void) | undefined;
-  if (rootConfig.instrumentations?.length) {
-    deregisterInstrumentations = registerInstrumentations({
-      instrumentations: rootConfig.instrumentations,
-    });
-  }
+  const instrumentations = rootConfig.instrumentations ?? [];
+  // The same object on every enable(), because an instance keeps the deps
+  // from its first enable() for its whole life.
+  const deps: InstrumentationDeps = {
+    tracerProvider: tracesSdk?.tracerProvider,
+    loggerProvider: logsSdk?.loggerProvider,
+    propagator: tracesSdk?.propagator,
+  };
+  let isShutdown = false;
 
-  return {
+  const sdk: WebSdk = {
+    enable() {
+      if (isShutdown) {
+        return;
+      }
+      forEachInstrumentation(instrumentations, 'enable', (i) => i.enable(deps));
+    },
+    disable() {
+      if (isShutdown) {
+        return;
+      }
+      forEachInstrumentation(instrumentations, 'disable', (i) => i.disable());
+    },
     shutdown() {
-      deregisterInstrumentations?.();
+      sdk.disable();
+      isShutdown = true;
       return Promise.allSettled(sdks.map((s) => s.shutdown())).then(
         (results) => {
           const errors = [];
@@ -189,15 +228,17 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       );
     },
   };
+
+  if (rootConfig.enabled !== false) {
+    sdk.enable();
+  }
+
+  return sdk;
 }
 
 export type QuickStartConfig = Pick<
-  CommonConfig,
-  | 'disabled'
-  | 'logLevel'
-  | 'serviceName'
-  | 'serviceVersion'
-  | 'instrumentations'
+  RootConfig,
+  'enabled' | 'logLevel' | 'serviceName' | 'serviceVersion' | 'instrumentations'
 > & {
   /**
    * Target URL for the SDK to send traces and logs.
@@ -216,7 +257,7 @@ export type QuickStartConfig = Pick<
  */
 export function quickStartBrowserSdk(config: QuickStartConfig) {
   const sdkConfig: Parameters<typeof startBrowserSdk>[0] = {
-    disabled: config.disabled,
+    enabled: config.enabled,
     logLevel: config.logLevel,
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
