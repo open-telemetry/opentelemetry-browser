@@ -171,7 +171,7 @@ describe('XhrInstrumentation', () => {
   const msWorker = setupWorker(...handlers);
 
   beforeAll(async () => {
-    await msWorker.start();
+    await msWorker.start({ onUnhandledFrame: 'error', quiet: true });
     inMemoryExporter = setupTestSpanExporter();
   });
 
