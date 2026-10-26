@@ -3,13 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
 /**
  * ResourceTimingInstrumentation Configuration
  */
-export interface ResourceTimingInstrumentationConfig
-  extends InstrumentationConfig {
+export interface ResourceTimingInstrumentationConfig {
   /**
    * Number of resources to process per batch.
    * Default: 50

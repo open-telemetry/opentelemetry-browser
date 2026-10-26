@@ -5,35 +5,19 @@
 
 import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
-import type { Instrumentation } from '@opentelemetry/instrumentation';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import type { WebSdk } from '../core/types.ts';
+import type { LogsSdk } from '../core/types.ts';
 import { startLogsSdk } from './startLogsSdk.ts';
 
 const BLRP_SCHEDULE_DELAY = 10;
-
-function createFakeInstrumentation(): Instrumentation {
-  return {
-    instrumentationName: 'test-instrumentation',
-    instrumentationVersion: '1.0.0',
-    enable: vi.fn(),
-    disable: vi.fn(),
-    setTracerProvider: vi.fn(),
-    setMeterProvider: vi.fn(),
-    setLoggerProvider: vi.fn(),
-    setConfig: vi.fn(),
-    getConfig: () => ({ enabled: false }),
-  };
-}
 
 describe('startLogsSdk', () => {
   const response = { ok: true, json: async () => ({ ok: true }) } as Response;
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
-  const diagDebugSpy = vi.spyOn(diag, 'debug');
-  let logsSdk: WebSdk;
+  let logsSdk: LogsSdk;
 
   // NOTE: we mock the registration of the logger provider because
   // the logs API only allow to register once. With the mock we can use
@@ -47,24 +31,6 @@ describe('startLogsSdk', () => {
     consoleDirSpy.mockClear();
     await logsSdk?.shutdown();
     logs.disable();
-  });
-
-  it('should not start if disabled by configuration', async () => {
-    // Act
-    logsSdk = startLogsSdk({
-      disabled: true,
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      batchProcessorConfig: {
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
-      },
-    });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
-
-    // Assert
-    expect(diagDebugSpy).toHaveBeenCalled();
-    expect(diagDebugSpy.mock.lastCall?.[0]).toMatch(/Logs SDK disabled/);
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it('should not start if an invalid URL is provided', async () => {
@@ -376,45 +342,22 @@ describe('startLogsSdk', () => {
     expect(consoleDirSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('should register instrumentations on start and disable them on shutdown', async () => {
+  it('setGlobals: false does not set globals and returns the provider', () => {
     // Arrange
-    const instrumentation = createFakeInstrumentation();
+    const setLoggerProviderSpy = vi.spyOn(logs, 'setGlobalLoggerProvider');
 
-    // Act
-    logsSdk = startLogsSdk({
-      instrumentations: [instrumentation],
-      // NOTE: we set a short delay to speed up tests and avoid test timeouts
-      batchProcessorConfig: {
-        scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
-      },
-    });
+    try {
+      // Act
+      logsSdk = startLogsSdk({
+        setGlobals: false,
+        batchProcessorConfig: { scheduledDelayMillis: BLRP_SCHEDULE_DELAY },
+      });
 
-    // Assert: the logger provider is set and the instrumentation is enabled
-    expect(instrumentation.enable).toHaveBeenCalled();
-    expect(instrumentation.setLoggerProvider).toHaveBeenCalled();
-
-    // Act
-    await logsSdk.shutdown();
-    // Prevent the afterEach hook from shutting down the same SDK again
-    logsSdk = { shutdown: () => Promise.resolve() };
-
-    // Assert: shutting down the SDK disables the instrumentation
-    expect(instrumentation.disable).toHaveBeenCalled();
-  });
-
-  it('should not register instrumentations when disabled by configuration', async () => {
-    // Arrange
-    const instrumentation = createFakeInstrumentation();
-
-    // Act
-    logsSdk = startLogsSdk({
-      disabled: true,
-      instrumentations: [instrumentation],
-    });
-    await logsSdk.shutdown();
-
-    // Assert
-    expect(instrumentation.enable).not.toHaveBeenCalled();
-    expect(instrumentation.disable).not.toHaveBeenCalled();
+      // Assert
+      expect(setLoggerProviderSpy).not.toHaveBeenCalled();
+      expect(logsSdk.loggerProvider).toBeDefined();
+    } finally {
+      setLoggerProviderSpy.mockRestore();
+    }
   });
 });

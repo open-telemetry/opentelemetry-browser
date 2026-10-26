@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type { Instrumentation } from '@opentelemetry/instrumentation';
+export type {
+  Instrumentation,
+  InstrumentationDeps,
+} from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
 export type {
   LogsConfig,
   RootConfig,

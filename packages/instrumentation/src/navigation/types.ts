@@ -4,7 +4,6 @@
  */
 
 import type { LogRecord } from '@opentelemetry/api-logs';
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 export type ApplyCustomLogRecordDataFunction = (logRecord: LogRecord) => void;
 
@@ -15,7 +14,7 @@ export type NavigationType = 'push' | 'replace' | 'reload' | 'traverse';
 /**
  * NavigationInstrumentation Configuration
  */
-export interface NavigationInstrumentationConfig extends InstrumentationConfig {
+export interface NavigationInstrumentationConfig {
   /** Hook to modify log records before they are emitted. */
   applyCustomLogRecordData?: ApplyCustomLogRecordDataFunction;
   /** Use the Navigation API `currententrychange` event if available (experimental). Defaults to false. */
