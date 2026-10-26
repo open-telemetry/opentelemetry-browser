@@ -1165,6 +1165,14 @@ describe('XhrInstrumentation', () => {
             const span = await waitForSpan(url);
             await assertPropagationHeaders(response, span);
           });
+
+          it('should not call the propagator when propagation is skipped', async () => {
+            const injectSpy = vi.spyOn(propagation, 'inject');
+            const url = 'http://example.com/api/echo-headers.json';
+            await doXhrRequest({ method: 'GET', url });
+
+            expect(injectSpy).not.toHaveBeenCalled();
+          });
         });
       });
     });

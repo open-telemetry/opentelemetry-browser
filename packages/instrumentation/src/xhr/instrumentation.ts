@@ -278,16 +278,9 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           x.setRequestHeader(k, typeof v === 'string' ? v : String(v));
         },
       });
-    } else {
-      const headers: Partial<Record<string, unknown>> = {};
-      this.propagator.inject(ctx, headers, {
-        set: (h, k, v) => {
-          h[k] = v;
-        },
-      });
-      if (Object.keys(headers).length > 0) {
-        this._diag.debug('headers inject skipped due to CORS policy');
-      }
+    } else if (this.propagator.fields().length > 0) {
+      // Not calling inject: propagators may have side effects for headers that are never sent.
+      this._diag.debug('headers inject skipped due to CORS policy');
     }
   }
 }
