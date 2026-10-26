@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Logger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -13,9 +13,10 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#utils/test';
+import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { UserActionInstrumentation } from './instrumentation.ts';
 
 describe('UserActionInstrumentation', () => {
@@ -27,9 +28,9 @@ describe('UserActionInstrumentation', () => {
   });
 
   beforeEach(() => {
-    disableInstrumentations = registerInstrumentations({
-      instrumentations: [new UserActionInstrumentation()],
-    });
+    const instrumentation = new UserActionInstrumentation();
+    instrumentation.enable();
+    disableInstrumentations = () => instrumentation.disable();
   });
 
   afterEach(() => {
@@ -176,21 +177,20 @@ describe('UserActionInstrumentation', () => {
     });
   });
 
-  it('should not emit click logs when disabled', () => {
-    // Disable previous instrumentation and create a new one with click disabled
+  it('should not emit click logs when click is not an auto-captured action', () => {
     disableInstrumentations();
-    const disabledInstrumentation = new UserActionInstrumentation({
+    const instrumentation = new UserActionInstrumentation({
       autoCapturedActions: [],
     });
-    disabledInstrumentation.enable();
+    enableForTest(instrumentation);
+    expect(instrumentation.isEnabled()).toBe(true);
 
     const element = createTestElement();
     dispatchMouseDownEvent(element, 0); // Left click
     dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
     dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
-    const logs = inMemoryExporter.getFinishedLogRecords();
-    expect(logs.length).toBe(0);
+    expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
   });
 
   it('should stop emitting logs once the instrumentation is disabled', () => {
@@ -201,8 +201,69 @@ describe('UserActionInstrumentation', () => {
     dispatchMouseDownEvent(element, 1, 'auxclick'); // Middle click
     dispatchMouseDownEvent(element, 2, 'contextmenu'); // Right click
 
-    const logs = inMemoryExporter.getFinishedLogRecords();
-    expect(logs.length).toBe(0);
+    expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+  });
+
+  it('should not let a failed emit reach the page as an uncaught error', () => {
+    disableInstrumentations();
+    const instrumentation = new UserActionInstrumentation();
+    enableForTest(instrumentation);
+    // Stands in for a log processor that throws from onEmit.
+    const emitSpy = vi
+      .spyOn((instrumentation as unknown as { logger: Logger }).logger, 'emit')
+      .mockImplementation(() => {
+        throw new Error('processor broke');
+      });
+    onTestFinished(() => emitSpy.mockRestore());
+    const pageErrors: unknown[] = [];
+    const onPageError = (event: ErrorEvent) => {
+      pageErrors.push(event.error);
+      event.preventDefault();
+    };
+    window.addEventListener('error', onPageError);
+    onTestFinished(() => window.removeEventListener('error', onPageError));
+
+    dispatchMouseDownEvent(createTestElement(), 0);
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    expect(pageErrors).toEqual([]);
+  });
+
+  describe('lifecycle', () => {
+    it('should stop on disable() and resume once on enable()', () => {
+      disableInstrumentations();
+      const instrumentation = new UserActionInstrumentation();
+      const element = createTestElement();
+      enableForTest(instrumentation);
+      dispatchMouseDownEvent(element, 0);
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
+
+      instrumentation.disable();
+      dispatchMouseDownEvent(element, 0);
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
+
+      instrumentation.enable();
+      instrumentation.enable();
+      dispatchMouseDownEvent(element, 0);
+      // One more log, not two: the listener is added once per enable cycle.
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(2);
+
+      instrumentation.disable();
+    });
+
+    it('should not emit when constructed but not enabled, until enable()', () => {
+      disableInstrumentations();
+      const instrumentation = new UserActionInstrumentation();
+      onTestFinished(() => instrumentation.disable());
+      const element = createTestElement();
+
+      dispatchMouseDownEvent(element, 0);
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+
+      instrumentation.enable();
+      dispatchMouseDownEvent(element, 0);
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(1);
+    });
   });
 
   describe('applyCustomLogRecordData hook', () => {
@@ -216,9 +277,7 @@ describe('UserActionInstrumentation', () => {
           };
         },
       });
-      disableInstrumentations = registerInstrumentations({
-        instrumentations: [customInstrumentation],
-      });
+      enableForTest(customInstrumentation);
 
       const element = createTestElement();
       dispatchMouseDownEvent(element, 0); // Left click
@@ -248,9 +307,7 @@ describe('UserActionInstrumentation', () => {
         )
         .mockImplementation(() => {});
 
-      disableInstrumentations = registerInstrumentations({
-        instrumentations: [customInstrumentation],
-      });
+      enableForTest(customInstrumentation);
 
       const element = createTestElement();
 

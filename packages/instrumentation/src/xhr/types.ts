@@ -4,7 +4,6 @@
  */
 
 import type { Span } from '@opentelemetry/api';
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 export type XhrCustomAttributeFunction = (
   span: Span,
@@ -13,7 +12,7 @@ export type XhrCustomAttributeFunction = (
 
 export type XhrRequestHookFunction = (span: Span, xhr: XMLHttpRequest) => void;
 
-export interface XhrInstrumentationConfig extends InstrumentationConfig {
+export interface XhrInstrumentationConfig {
   /** URLs which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
   /**

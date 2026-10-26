@@ -3,10 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Span } from '@opentelemetry/api';
+import type { Span, TextMapPropagator } from '@opentelemetry/api';
 import { propagation, SpanKind, SpanStatusCode } from '@opentelemetry/api';
 import { hrTimeToMilliseconds, millisToHrTime } from '@opentelemetry/core';
-import { isWrapped } from '@opentelemetry/instrumentation';
 import {
   B3InjectEncoding,
   B3Propagator,
@@ -28,7 +27,7 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { HttpResponse, http } from 'msw';
 import { setupWorker } from 'msw/browser';
-import type { Mock } from 'vitest';
+import type { Mock, MockInstance } from 'vitest';
 import {
   afterAll,
   afterEach,
@@ -37,10 +36,16 @@ import {
   describe,
   expect,
   it,
+  onTestFinished,
   vi,
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
-import { setupTestSpanExporter } from '#utils/test';
+import {
+  enableForTest,
+  getWrapDepth,
+  setupTestDiagLogger,
+  setupTestSpanExporter,
+} from '#utils/test';
 import type { FetchError } from '../fetch/index.ts';
 import { FetchInstrumentation } from '../fetch/index.ts';
 import type {
@@ -49,6 +54,7 @@ import type {
 } from './index.ts';
 import { XhrInstrumentation } from './index.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
+import type { XhrInstrumentationConfig } from './types.ts';
 
 const VITEST_SERVER_URL = new URL(location.href);
 const VITEST_SERVER_NAME = VITEST_SERVER_URL.hostname;
@@ -171,7 +177,7 @@ describe('XhrInstrumentation', () => {
   const msWorker = setupWorker(...handlers);
 
   beforeAll(async () => {
-    await msWorker.start();
+    await msWorker.start({ onUnhandledFrame: 'error', quiet: true });
     inMemoryExporter = setupTestSpanExporter();
   });
 
@@ -273,35 +279,75 @@ describe('XhrInstrumentation', () => {
       XMLHttpRequest.prototype.send = originalSendFunction;
     });
 
-    it('should wrap XHR prototype when instantiated', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+    it('should wrap XHR prototype at the first enable(), not when instantiated', () => {
       instrumentation = new XhrInstrumentation();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+      expect(instrumentation.isEnabled()).toBe(false);
+
+      enableForTest(instrumentation);
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
 
-    it('should not wrap XHR prototype when instantiated with `enabled: false`', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
-      instrumentation = new XhrInstrumentation({ enabled: false });
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
-      instrumentation.enable();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+    it('should not patch or emit when constructed but not enabled, until enable()', async () => {
+      instrumentation = new XhrInstrumentation();
+      const url = getUrlForPath('/api/get');
+
+      await doXhrRequest({ method: 'GET', url });
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+      expect(getXhrSpans()).toHaveLength(0);
+
+      enableForTest(instrumentation);
+      await doXhrRequest({ method: 'GET', url });
+      await waitForSpan(url);
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(getXhrSpans()).toHaveLength(1);
     });
 
     it('should not unwrap XHR prototype when disabled', () => {
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeFalsy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeFalsy();
+      expect(XMLHttpRequest.prototype.open).toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
       instrumentation = new XhrInstrumentation();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      enableForTest(instrumentation);
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
       instrumentation.disable();
-      expect(isWrapped(XMLHttpRequest.prototype.open)).toBeTruthy();
-      expect(isWrapped(XMLHttpRequest.prototype.send)).toBeTruthy();
+      expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+      expect(XMLHttpRequest.prototype.send).not.toBe(originalSendFunction);
     });
+    it('should not re-wrap XHR prototype across a disable/enable cycle', () => {
+      instrumentation = new XhrInstrumentation();
+      enableForTest(instrumentation);
+      const wrappedOpen = XMLHttpRequest.prototype.open;
+      const wrappedSend = XMLHttpRequest.prototype.send;
+
+      instrumentation.disable();
+      instrumentation.enable();
+
+      // Re-wrapping would stack a layer that, with no unwrap available, could
+      // never be removed.
+      expect(XMLHttpRequest.prototype.open).toBe(wrappedOpen);
+      expect(XMLHttpRequest.prototype.send).toBe(wrappedSend);
+    });
+
+    it('should stop and resume emitting spans across a disable/enable cycle', async () => {
+      instrumentation = new XhrInstrumentation();
+      enableForTest(instrumentation);
+      const url = getUrlForPath('/api/get');
+
+      instrumentation.disable();
+      await doXhrRequest({ method: 'GET', url });
+      expect(getXhrSpans()).toHaveLength(0);
+
+      instrumentation.enable();
+      await doXhrRequest({ method: 'GET', url });
+      await waitForSpan(url);
+      expect(getXhrSpans()).toHaveLength(1);
+    });
+
     const wrappedMethods = ['open', 'send'];
     // Same behavior regardless the method that has the error
     wrappedMethods.forEach((method) => {
@@ -311,51 +357,153 @@ describe('XhrInstrumentation', () => {
         // configurable: false`) by stubbing `_wrap` to throw the same TypeError
         // the browser would throw. We stub the method rather than actually
         // locking the property because a non-configurable slot is irreversible
-        // within a realm, and the outer `afterEach` restores `globalThis.fetch`
-        // via assignment, which would itself throw.
+        // within a realm, and the outer `afterEach` restores the prototype
+        // methods via assignment, which would itself throw.
         const wrapError = new TypeError(
           `Cannot assign to read only property '${method}' of object '[object XMLHttpRequest.prototype]'`,
         );
 
+        let wrapSpy: MockInstance;
+
         beforeEach(() => {
-          // Construct with `enabled: false` so the stub is in place before
-          // `enable()` runs — `_wrap` is an instance-level field inherited
-          // from `InstrumentationBase`, not a prototype method.
-          instrumentation = new XhrInstrumentation({ enabled: false });
-          vi.spyOn(instrumentation, '_wrap').mockImplementation(
-            (_target: unknown, prop: string) => {
+          instrumentation = new XhrInstrumentation();
+          // Shadows the inherited prototype method with an own property.
+          wrapSpy = vi
+            .spyOn(instrumentation, '_wrap')
+            .mockImplementation((_target: unknown, prop: string) => {
               if (prop === method) {
                 throw wrapError;
               }
-            },
-          );
+            });
         });
 
         it('should not throw when _wrap fails', () => {
-          expect(() => instrumentation.enable()).not.toThrow();
+          expect(() => enableForTest(instrumentation)).not.toThrow();
         });
 
         it('should leave XHR prototype unwrapped when _wrap fails', () => {
-          instrumentation.enable();
-          expect(
-            isWrapped(globalThis.XMLHttpRequest.prototype.open),
-          ).toBeFalsy();
-          expect(
-            isWrapped(globalThis.XMLHttpRequest.prototype.send),
-          ).toBeFalsy();
+          enableForTest(instrumentation);
+          expect(globalThis.XMLHttpRequest.prototype.open).toBe(
+            originalOpenFunction,
+          );
+          expect(globalThis.XMLHttpRequest.prototype.send).toBe(
+            originalSendFunction,
+          );
         });
 
-        it('should allow enable() to be retried after _wrap fails', () => {
-          instrumentation.enable();
+        it('should not retry _wrap after it fails', () => {
+          enableForTest(instrumentation);
+          wrapSpy.mockClear();
           expect(() => instrumentation.enable()).not.toThrow();
+          instrumentation.enable();
+
+          expect(wrapSpy).not.toHaveBeenCalled();
+          expect(instrumentation.isEnabled()).toBe(false);
         });
+
+        it('should warn with the cause message', () => {
+          const { warn } = setupTestDiagLogger();
+          enableForTest(instrumentation);
+
+          // Component loggers forward to `diag.warn(namespace, message, error)`.
+          const error = warn.mock.calls[0]?.[2] as Error | undefined;
+          expect(error?.message).toContain(
+            `Failed to patch XMLHttpRequest.prototype.${method}: ${wrapError.message}`,
+          );
+          expect(error?.cause).toBe(wrapError);
+        });
+      });
+    });
+
+    // The partial-patch path, where `open` is really wrapped and `send` then
+    // really fails. The stubbed-`_wrap` blocks above never patch anything, so
+    // they cannot show what the orphaned `open` patch does.
+    describe('when "send" fails after "open" was wrapped', () => {
+      const OriginalXhr = globalThis.XMLHttpRequest;
+
+      beforeEach(() => {
+        // `_wrap` uses defineProperty, so only `configurable: false`
+        // defeats it. That is irreversible, hence a throwaway subclass
+        // prototype rather than the real XMLHttpRequest.prototype.
+        class LockedXhr extends OriginalXhr {}
+        Object.defineProperty(LockedXhr.prototype, 'send', {
+          value: originalSendFunction,
+          writable: false,
+          configurable: false,
+        });
+        globalThis.XMLHttpRequest = LockedXhr;
+      });
+
+      afterEach(() => {
+        globalThis.XMLHttpRequest = OriginalXhr;
+      });
+
+      it('should leave the "open" patch in place', () => {
+        instrumentation = new XhrInstrumentation();
+        enableForTest(instrumentation);
+
+        expect(XMLHttpRequest.prototype.open).not.toBe(originalOpenFunction);
+        expect(XMLHttpRequest.prototype.send).toBe(originalSendFunction);
+      });
+
+      it('should not stack another "open" patch on later enable() calls', () => {
+        // A second wrap could never be undone, which is why a failed init is final.
+        instrumentation = new XhrInstrumentation();
+        enableForTest(instrumentation);
+        expect(getWrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
+
+        instrumentation.enable();
+        instrumentation.enable();
+
+        expect(getWrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
+      });
+
+      it('should warn with the descriptive error', () => {
+        const { warn } = setupTestDiagLogger();
+        instrumentation = new XhrInstrumentation();
+        enableForTest(instrumentation);
+
+        // Component loggers forward to `diag.warn(namespace, message, error)`.
+        const error = warn.mock.calls[0]?.[2] as Error | undefined;
+        const cause = error?.cause as Error | undefined;
+        expect(cause).toBeInstanceOf(Error);
+        expect(error?.message).toBe(
+          `Failed to patch XMLHttpRequest.prototype.send: ${cause?.message}. The open patch stays in place and passes calls through.`,
+        );
+      });
+
+      it('should keep the orphaned "open" patch inert', async () => {
+        instrumentation = new XhrInstrumentation();
+        enableForTest(instrumentation);
+
+        const { request } = await doXhrRequest({
+          method: 'GET',
+          url: getUrlForPath('/api/get'),
+        });
+
+        // The failed init left `isEnabled()` false, so `patchedOpen`
+        // passes straight through: the request works and emits nothing.
+        expect(request.status).toBe(200);
+        expect(getXhrSpans()).toHaveLength(0);
       });
     });
   });
 
   describe('instrumentation', () => {
-    beforeAll(() => {
-      instrumentation = new XhrInstrumentation();
+    // Each call creates a new instance that wraps XHR again on top of the old
+    // wrapper. Earlier layers are disabled and pass calls through.
+    const enableWithConfig = (config?: XhrInstrumentationConfig) => {
+      instrumentation?.disable();
+      instrumentation = new XhrInstrumentation(config);
+      instrumentation.enable();
+    };
+
+    beforeEach(() => {
+      enableWithConfig();
+    });
+
+    afterEach(() => {
+      instrumentation?.disable();
     });
 
     it('should still do the Request even if the instrumentation fails', async () => {
@@ -699,11 +847,8 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with sanitizeUrl configuration', () => {
-      beforeAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: defaultSanitizeUrl });
-      });
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
+      beforeEach(() => {
+        enableWithConfig({ sanitizeUrl: defaultSanitizeUrl });
       });
 
       it('should create spans for GET requests', async () => {
@@ -731,17 +876,13 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with ignoreUrls configuration', () => {
-      afterAll(() => {
-        instrumentation.setConfig({ sanitizeUrl: undefined });
-      });
-
       it('should not create spans for GET requests if URL matches', async () => {
         const url = getUrlForPath('/api/get');
-        instrumentation.setConfig({ ignoreUrls: [url] });
+        enableWithConfig({ ignoreUrls: [url] });
         await doXhrRequest({ method: 'GET', url });
 
         // No spans to export
-        await expect(async () => await waitForSpan(url)).rejects.toThrow();
+        await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
       });
@@ -759,7 +900,7 @@ describe('XhrInstrumentation', () => {
       });
 
       it('should not measure the size if set to false', async () => {
-        instrumentation.setConfig({ measureRequestSize: false });
+        enableWithConfig({ measureRequestSize: false });
         const url = getUrlForPath('/api/post');
         await doXhrRequest({ method: 'POST', url, body: 'body_content' }).then(
           (r) => r.json(),
@@ -770,11 +911,8 @@ describe('XhrInstrumentation', () => {
       });
 
       describe('with measureRequestSize set to true', () => {
-        beforeAll(() => {
-          instrumentation.setConfig({ measureRequestSize: true });
-        });
-        afterAll(() => {
-          instrumentation.setConfig({ measureRequestSize: undefined });
+        beforeEach(() => {
+          enableWithConfig({ measureRequestSize: true });
         });
 
         it('should measure the size with string body', async () => {
@@ -809,12 +947,8 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with applyCustomAttributesOnSpan configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({ applyCustomAttributesOnSpan: undefined });
-      });
-
       it('should not break fetch or instrumentation if throws', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: () => {
             throw new Error('boom');
           },
@@ -841,7 +975,7 @@ describe('XhrInstrumentation', () => {
       });
 
       it('should be able to set attributes on the span', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span) => {
             span.setAttribute('custom.foo', 'bar');
           },
@@ -864,7 +998,7 @@ describe('XhrInstrumentation', () => {
       });
 
       it('should be able to access to XHR object', async () => {
-        instrumentation.setConfig({
+        enableWithConfig({
           applyCustomAttributesOnSpan: (span, xhr) => {
             span.setAttribute('has.xhr.access', xhr instanceof XMLHttpRequest);
           },
@@ -883,15 +1017,6 @@ describe('XhrInstrumentation', () => {
     });
 
     describe('with requestHook configuration', () => {
-      afterEach(() => {
-        instrumentation.setConfig({
-          requestHook: undefined,
-          applyCustomAttributesOnSpan: undefined,
-          ignoreUrls: undefined,
-        });
-        instrumentation.enable();
-      });
-
       it('should run once before send and allow attributes and headers to be set', async () => {
         let readyState: number | undefined;
         let recording: boolean | undefined;
@@ -902,7 +1027,7 @@ describe('XhrInstrumentation', () => {
           xhr.setRequestHeader('foo', 'bar');
         });
         const completionHook = vi.fn<XhrCustomAttributeFunction>();
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook,
           applyCustomAttributesOnSpan: completionHook,
         });
@@ -933,15 +1058,15 @@ describe('XhrInstrumentation', () => {
 
       it('should log hook errors without interrupting the request or span', async () => {
         const error = new Error('boom');
-        const diagSpy = vi.spyOn(instrumentation['_diag'], 'error');
         const requestHook = vi.fn<XhrRequestHookFunction>(() => {
           throw error;
         });
         const completionHook = vi.fn<XhrCustomAttributeFunction>();
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook,
           applyCustomAttributesOnSpan: completionHook,
         });
+        const diagSpy = vi.spyOn(instrumentation['_diag'], 'error');
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         const response = await doXhrRequest({ method: 'GET', url });
@@ -950,7 +1075,7 @@ describe('XhrInstrumentation', () => {
         expect(await response.json()).toEqual({ ok: true });
         const span = await waitForSpan(url);
         expect(requestHook).toHaveBeenCalledOnce();
-        expect(diagSpy).toHaveBeenCalledWith('requestHook', error);
+        expect(diagSpy).toHaveBeenCalledWith('requestHook failed', error);
         expect(completionHook).toHaveBeenCalledOnce();
         expect(span.attributes[ATTR_HTTP_RESPONSE_STATUS_CODE]).toBe(200);
         assertResourceRegistered({ span, url, startTime, endTime });
@@ -963,7 +1088,7 @@ describe('XhrInstrumentation', () => {
           order.push('inject');
           return inject(...args);
         });
-        instrumentation.setConfig({
+        enableWithConfig({
           requestHook: () => {
             order.push('hook');
           },
@@ -979,7 +1104,7 @@ describe('XhrInstrumentation', () => {
           const url = getUrlForPath('/api/get');
           const requestHook = vi.fn<XhrRequestHookFunction>();
           const completionHook = vi.fn<XhrCustomAttributeFunction>();
-          instrumentation.setConfig({
+          enableWithConfig({
             requestHook,
             applyCustomAttributesOnSpan: completionHook,
             ignoreUrls: mode === 'ignored' ? [url] : undefined,
@@ -998,7 +1123,7 @@ describe('XhrInstrumentation', () => {
 
       it('should invoke the hook for each send when an XHR is reused', async () => {
         const requestHook = vi.fn<XhrRequestHookFunction>();
-        instrumentation.setConfig({ requestHook });
+        enableWithConfig({ requestHook });
         const url = getUrlForPath('/api/get');
         const { request } = await doXhrRequest({ method: 'GET', url });
         await new Promise<void>((resolve, reject) => {
@@ -1024,18 +1149,10 @@ describe('XhrInstrumentation', () => {
 
       beforeAll(() => {
         originalFetch = globalThis.fetch;
-        fetchInstrumentation = new FetchInstrumentation();
       });
 
       afterEach(() => {
-        instrumentation.setConfig({
-          requestHook: undefined,
-          applyCustomAttributesOnSpan: undefined,
-        });
-        fetchInstrumentation.setConfig({
-          requestHook: undefined,
-          applyCustomAttributesOnSpan: undefined,
-        });
+        fetchInstrumentation?.disable();
       });
 
       afterAll(() => {
@@ -1076,8 +1193,9 @@ describe('XhrInstrumentation', () => {
             },
           );
           const hooks = { requestHook, applyCustomAttributesOnSpan };
-          instrumentation.setConfig(hooks);
-          fetchInstrumentation.setConfig(hooks);
+          enableWithConfig(hooks);
+          fetchInstrumentation = new FetchInstrumentation(hooks);
+          fetchInstrumentation.enable();
           msWorker.use(
             http.get('/api/echo-headers.json', ({ request }) =>
               HttpResponse.json(
@@ -1145,6 +1263,31 @@ describe('XhrInstrumentation', () => {
         });
       });
 
+      describe('with the propagator passed to enable()', () => {
+        it('injects with the propagator passed to enable()', async () => {
+          const fake: TextMapPropagator = {
+            inject: (_ctx, carrier, setter) =>
+              setter?.set(carrier, 'x-test', '1'),
+            extract: (ctx) => ctx,
+            fields: () => ['x-test'],
+          };
+          propagation.setGlobalPropagator(
+            new B3Propagator({ injectEncoding: B3InjectEncoding.MULTI_HEADER }),
+          );
+          onTestFinished(() => propagation.disable());
+          instrumentation?.disable();
+          instrumentation = new XhrInstrumentation();
+          enableForTest(instrumentation, { propagator: fake });
+
+          const url = getUrlForPath('/api/echo-headers.json');
+          const response = await doXhrRequest({ method: 'GET', url });
+          const headers = await assertPropagationHeaders(response);
+
+          expect(headers['x-test']).toEqual('1');
+          expect(headers[X_B3_TRACE_ID]).toBeUndefined();
+        });
+      });
+
       describe('with global propagator', () => {
         beforeAll(() => {
           propagation.setGlobalPropagator(
@@ -1204,12 +1347,6 @@ describe('XhrInstrumentation', () => {
       });
 
       describe('with propagateTraceHeaderCorsUrls configuration', () => {
-        afterEach(() => {
-          instrumentation.setConfig({
-            propagateTraceHeaderCorsUrls: [],
-          });
-        });
-
         describe('without global propagator', () => {
           it('should not set trace propagation headers with no `propagateTraceHeaderCorsUrls`', async () => {
             const url = 'http://example.com/api/echo-headers.json';
@@ -1219,7 +1356,7 @@ describe('XhrInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            enableWithConfig({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
@@ -1250,7 +1387,7 @@ describe('XhrInstrumentation', () => {
           });
 
           it('should not set trace propagation headers even with with `propagateTraceHeaderCorsUrls`', async () => {
-            instrumentation.setConfig({
+            enableWithConfig({
               propagateTraceHeaderCorsUrls: [/example.com/],
             });
             const url = 'http://example.com/api/echo-headers.json';
@@ -1258,6 +1395,14 @@ describe('XhrInstrumentation', () => {
 
             const span = await waitForSpan(url);
             await assertPropagationHeaders(response, span);
+          });
+
+          it('should not call the propagator when propagation is skipped', async () => {
+            const injectSpy = vi.spyOn(propagation, 'inject');
+            const url = 'http://example.com/api/echo-headers.json';
+            await doXhrRequest({ method: 'GET', url });
+
+            expect(injectSpy).not.toHaveBeenCalled();
           });
         });
       });

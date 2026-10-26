@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Logger } from '@opentelemetry/api-logs';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -13,7 +14,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#utils/test';
+import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { NavigationTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -57,7 +58,7 @@ describe('NavigationTimingInstrumentation', () => {
   beforeEach(() => {
     getEntriesByTypeSpy = vi.spyOn(performance, 'getEntriesByType');
 
-    instrumentation = new NavigationTimingInstrumentation({ enabled: false });
+    instrumentation = new NavigationTimingInstrumentation();
   });
 
   afterEach(() => {
@@ -78,7 +79,7 @@ describe('NavigationTimingInstrumentation', () => {
 
   it('should enable and disable without errors', () => {
     expect(() => {
-      instrumentation.enable();
+      enableForTest(instrumentation);
       instrumentation.disable();
     }).not.toThrow();
   });
@@ -118,7 +119,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
 
-    instrumentation.enable();
+    enableForTest(instrumentation);
 
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
@@ -126,7 +127,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
   });
 
-  it('should emit on construction when enabled by default and page is still loading', () => {
+  it('should emit after load when enabled by default and page is still loading', () => {
     setReadyState('loading');
 
     let entry = {
@@ -141,6 +142,7 @@ describe('NavigationTimingInstrumentation', () => {
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
 
     const inst = new NavigationTimingInstrumentation();
+    enableForTest(inst);
     expect(getNavigationTimingLogs().length).toBe(0);
 
     entry = { ...entry, loadEventEnd: 456 };
@@ -169,7 +171,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
 
-    instrumentation.enable();
+    enableForTest(instrumentation);
     expect(getNavigationTimingLogs().length).toBe(0);
 
     // Simulate the entry being finalized once the page load completes.
@@ -202,7 +204,7 @@ describe('NavigationTimingInstrumentation', () => {
     };
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
-    instrumentation.enable();
+    enableForTest(instrumentation);
     expect(getNavigationTimingLogs().length).toBe(0);
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
@@ -235,7 +237,7 @@ describe('NavigationTimingInstrumentation', () => {
     };
 
     getEntriesByTypeSpy.mockReturnValue([entry]);
-    instrumentation.enable();
+    enableForTest(instrumentation);
 
     for (let i = 0; i < 6; i++) {
       vi.runOnlyPendingTimers();
@@ -254,7 +256,7 @@ describe('NavigationTimingInstrumentation', () => {
     setReadyState('complete');
 
     getEntriesByTypeSpy.mockReturnValue([]);
-    instrumentation.enable();
+    enableForTest(instrumentation);
 
     // MAX_RETRIES + 1 timer firings to exhaust retries
     for (let i = 0; i < 6; i++) {
@@ -282,7 +284,7 @@ describe('NavigationTimingInstrumentation', () => {
     };
 
     getEntriesByTypeSpy.mockReturnValue([entry]);
-    instrumentation.enable();
+    enableForTest(instrumentation);
 
     const delays = [0, 50, 100];
     for (let i = 0; i < delays.length; i++) {
@@ -310,7 +312,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
 
-    instrumentation.enable();
+    enableForTest(instrumentation);
     expect(getNavigationTimingLogs().length).toBe(0);
 
     window.dispatchEvent(new Event('pagehide'));
@@ -334,7 +336,7 @@ describe('NavigationTimingInstrumentation', () => {
     };
 
     getEntriesByTypeSpy.mockReturnValue([entry]);
-    instrumentation.enable();
+    enableForTest(instrumentation);
 
     window.dispatchEvent(new Event('pagehide'));
     expect(getNavigationTimingLogs().length).toBe(1);
@@ -363,7 +365,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
 
-    instrumentation.enable();
+    enableForTest(instrumentation);
     expect(getNavigationTimingLogs().length).toBe(0);
 
     entry = {
@@ -413,7 +415,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     getEntriesByTypeSpy.mockReturnValueOnce([entry]);
 
-    instrumentation.enable();
+    enableForTest(instrumentation);
 
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
@@ -452,7 +454,7 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs[0]?.attributes[ATTR_NAVIGATION_DECODED_BODY_SIZE]).toBe(2000);
   });
 
-  it('should work correctly when disable() is called then immediately enable() again', () => {
+  it('should not emit the same page load again after disable() and enable()', () => {
     setReadyState('complete');
 
     const entry = {
@@ -464,19 +466,41 @@ describe('NavigationTimingInstrumentation', () => {
       loadEventEnd: 200,
     };
 
-    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
-    instrumentation.enable();
-    expect(getNavigationTimingLogs().length).toBe(1);
-
+    getEntriesByTypeSpy.mockReturnValue([entry]);
+    enableForTest(instrumentation);
     instrumentation.disable();
-    inMemoryExporter.reset();
-
-    getEntriesByTypeSpy.mockReturnValueOnce([entry]);
     instrumentation.enable();
 
     const logs = getNavigationTimingLogs();
     expect(logs.length).toBe(1);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(200);
+  });
+
+  it('should stay on and not throw when emitting fails', () => {
+    setReadyState('complete');
+    getEntriesByTypeSpy.mockReturnValue([
+      {
+        name: 'https://example.test/',
+        entryType: 'navigation',
+        startTime: 0,
+        duration: 100,
+        type: 'navigate',
+        loadEventEnd: 200,
+      },
+    ]);
+    // Stands in for a log processor that throws from onEmit.
+    const emitSpy = vi.fn(() => {
+      throw new Error('processor broke');
+    });
+    const logger: Logger = { emit: emitSpy, enabled: () => true };
+
+    expect(() =>
+      enableForTest(instrumentation, {
+        loggerProvider: { getLogger: () => logger },
+      }),
+    ).not.toThrow();
+    expect(emitSpy).toHaveBeenCalled();
+    expect(instrumentation.isEnabled()).toBe(true);
   });
 
   it('should re-subscribe pagehide listener after disable and enable', () => {
@@ -485,7 +509,7 @@ describe('NavigationTimingInstrumentation', () => {
 
     setReadyState('loading');
 
-    instrumentation.enable();
+    enableForTest(instrumentation);
     expect(addEventListenerSpy).toHaveBeenCalledWith(
       'pagehide',
       expect.any(Function),
@@ -521,7 +545,7 @@ describe('NavigationTimingInstrumentation', () => {
     getEntriesByTypeSpy.mockReturnValue([entry]);
 
     // Call enable() multiple times consecutively
-    instrumentation.enable();
+    enableForTest(instrumentation);
     instrumentation.enable();
     instrumentation.enable();
 
