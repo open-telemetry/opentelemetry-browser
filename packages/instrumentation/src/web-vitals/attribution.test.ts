@@ -19,7 +19,7 @@ import type {
   INPMetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
-import { setupTestLogExporter } from '#utils/test';
+import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { WebVitalsInstrumentation } from './instrumentation.ts';
 import {
   ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY,
@@ -144,6 +144,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
 
   it('keeps attribution out of attributes and body by default', () => {
     instrumentation = new WebVitalsInstrumentation();
+    enableForTest(instrumentation);
     reportINP(createINPMetric({ longestScript: createLongestScript() }));
 
     const log = getLog();
@@ -163,6 +164,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     instrumentation = new WebVitalsInstrumentation({
       includeRawAttribution: true,
     });
+    enableForTest(instrumentation);
     const metric = createINPMetric({ longestScript: createLongestScript() });
     reportINP(metric);
 
@@ -192,6 +194,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     instrumentation = new WebVitalsInstrumentation({
       includeRawAttribution: true,
     });
+    enableForTest(instrumentation);
     reportINP(
       createINPMetric({
         interactionTarget: '',
@@ -218,6 +221,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     instrumentation = new WebVitalsInstrumentation({
       includeRawAttribution: true,
     });
+    enableForTest(instrumentation);
     reportINP(
       createINPMetric({
         interactionTarget: undefined,
@@ -242,6 +246,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     instrumentation = new WebVitalsInstrumentation({
       includeRawAttribution: true,
     });
+    enableForTest(instrumentation);
     const metric: FCPMetricWithAttribution = {
       name: 'FCP',
       value: 100,
@@ -285,6 +290,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       includeRawAttribution: true,
       applyCustomLogRecordData: hook,
     });
+    enableForTest(instrumentation);
     reportINP(createINPMetric({ longestScript: createLongestScript() }));
 
     const log = getLog();
