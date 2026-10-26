@@ -186,7 +186,7 @@ describe('FetchInstrumentation', () => {
       'unhandledrejection',
       suppressBrokenStreamRejection,
     );
-    await msWorker.start();
+    await msWorker.start({ onUnhandledFrame: 'error', quiet: true });
     inMemoryExporter = setupTestSpanExporter();
   });
 
