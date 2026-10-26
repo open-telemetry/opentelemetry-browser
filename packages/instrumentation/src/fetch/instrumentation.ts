@@ -4,13 +4,7 @@
  */
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
-import {
-  context,
-  defaultTextMapSetter,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-} from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -381,12 +375,9 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         });
         return { ...options, headers };
       }
-    } else {
-      const headers: Partial<Record<string, unknown>> = {};
-      this.propagator.inject(ctx, headers, defaultTextMapSetter);
-      if (Object.keys(headers).length > 0) {
-        this._diag.debug('headers inject skipped due to CORS policy');
-      }
+    } else if (this.propagator.fields().length > 0) {
+      // Not calling inject: propagators may have side effects for headers that are never sent.
+      this._diag.debug('headers inject skipped due to CORS policy');
     }
     return options;
   }
