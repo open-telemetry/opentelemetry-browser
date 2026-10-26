@@ -4,12 +4,7 @@
  */
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
-import {
-  context,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-} from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
