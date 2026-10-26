@@ -4,7 +4,6 @@
  */
 
 import type { Span } from '@opentelemetry/api';
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 type XhrCustomAttributeFunction = (
   span: Span,
@@ -18,7 +17,7 @@ type XhrCustomAttributeFunction = (
 // - no `requestHook` is in this config although it could be implemented
 //   with similar signature `requestHook(span, xhr)
 // ISSUE: #400
-export interface XhrInstrumentationConfig extends InstrumentationConfig {
+export interface XhrInstrumentationConfig {
   /** URLs which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
   /**

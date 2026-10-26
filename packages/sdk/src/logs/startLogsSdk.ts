@@ -6,7 +6,6 @@
 import { DiagLogLevel, diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -18,25 +17,20 @@ import {
   LoggerProvider,
   SimpleLogRecordProcessor,
 } from '@opentelemetry/sdk-logs';
-import { INVALID_CONFIG_SDK, NOOP_SDK } from '../core/constants.ts';
+import { INVALID_CONFIG_SDK } from '../core/constants.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
-import type { LogsConfig, WebSdk } from '../core/types.ts';
+import type { LogsConfig, LogsSdk } from '../core/types.ts';
 
 const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
 
 /**
  * @param config The configuration for logs
- * @returns {WebSdk}
+ * @returns {LogsSdk}
  */
-export function startLogsSdk(config?: LogsConfig): WebSdk {
+export function startLogsSdk(config?: LogsConfig): LogsSdk {
   // Set the logger
   setSdkLogger(config?.logLevel);
-
-  if (config?.disabled) {
-    diag.debug('Logs SDK disabled by configuration.');
-    return NOOP_SDK;
-  }
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};
@@ -98,20 +92,12 @@ export function startLogsSdk(config?: LogsConfig): WebSdk {
     logRecordLimits: config?.logRecordLimits,
     processors,
   });
-  logs.setGlobalLoggerProvider(loggerProvider);
-
-  // Register instrumentations
-  let deregisterInstrumentations: (() => void) | undefined;
-  if (config?.instrumentations?.length) {
-    deregisterInstrumentations = registerInstrumentations({
-      instrumentations: config.instrumentations,
-    });
+  if (config?.setGlobals !== false) {
+    logs.setGlobalLoggerProvider(loggerProvider);
   }
 
   return {
-    shutdown() {
-      deregisterInstrumentations?.();
-      return loggerProvider.shutdown();
-    },
+    loggerProvider,
+    shutdown: () => loggerProvider.shutdown(),
   };
 }

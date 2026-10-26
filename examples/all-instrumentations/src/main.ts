@@ -11,7 +11,6 @@ import {
   createSessionLogRecordProcessor,
   createSessionManager,
 } from '@opentelemetry/browser-sdk/session';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,
@@ -41,16 +40,18 @@ const loggerProvider = new LoggerProvider({
 
 logs.setGlobalLoggerProvider(loggerProvider);
 
-registerInstrumentations({
-  instrumentations: [
-    new NavigationTimingInstrumentation(),
-    new ResourceTimingInstrumentation({
-      initiatorTypes: ['xmlhttprequest', 'fetch'],
-    }),
-    new UserActionInstrumentation(),
-    new WebVitalsInstrumentation({ includeRawAttribution: true }),
-  ],
-});
+const instrumentations = [
+  new NavigationTimingInstrumentation(),
+  new ResourceTimingInstrumentation({
+    initiatorTypes: ['xmlhttprequest', 'fetch'],
+  }),
+  new UserActionInstrumentation(),
+  new WebVitalsInstrumentation({ includeRawAttribution: true }),
+];
+
+for (const instrumentation of instrumentations) {
+  instrumentation.enable({ loggerProvider });
+}
 
 document.getElementById('xhr-button')?.addEventListener('click', () => {
   const xhr = new XMLHttpRequest();
