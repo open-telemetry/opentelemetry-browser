@@ -4,4 +4,4 @@
  */
 
 export { InstrumentationBase } from './InstrumentationBase.ts';
-export type { Instrumentation, InstrumentationDependencies } from './types.ts';
+export type { Instrumentation, InstrumentationDeps } from './types.ts';

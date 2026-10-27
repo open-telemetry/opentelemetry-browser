@@ -8,7 +8,7 @@ import { diag, propagation, trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { toError } from '../utils/toError.ts';
-import type { Instrumentation, InstrumentationDependencies } from './types.ts';
+import type { Instrumentation, InstrumentationDeps } from './types.ts';
 
 type State = 'new' | 'enabled' | 'disabled' | 'failed';
 
@@ -58,7 +58,7 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
    * calls ignore `deps`. After any failure that leaves the instrumentation off
    * for good, a call only logs at debug level.
    */
-  public enable(deps?: InstrumentationDependencies): void {
+  public enable(deps?: InstrumentationDeps): void {
     if (this._state === 'new') {
       try {
         this._resolve(deps);
@@ -118,7 +118,7 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
     );
   }
 
-  private _resolve(deps: InstrumentationDependencies | undefined): void {
+  private _resolve(deps: InstrumentationDeps | undefined): void {
     const name = this.instrumentationName;
     const version = this.instrumentationVersion;
     // The trace and logs APIs return proxies, so a provider set as global after

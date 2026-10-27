@@ -17,7 +17,7 @@ import type { LoggerProvider } from '@opentelemetry/api-logs';
  * to every instrumentation. An instrumentation's own dependencies belong in its
  * constructor.
  */
-export interface InstrumentationDependencies {
+export interface InstrumentationDeps {
   /** Used for spans. The default is the global tracer provider. */
   readonly tracerProvider?: TracerProvider;
   /** Used for log records. The default is the global logger provider. */
@@ -42,7 +42,7 @@ export interface Instrumentation {
    * cannot run, it stays off and `isEnabled()` returns false. It must not
    * throw, but the SDK catches a throw in case an implementation does.
    */
-  enable(deps?: InstrumentationDependencies): void;
+  enable(deps?: InstrumentationDeps): void;
 
   /**
    * Stops emitting and removes listeners. A later `enable()` starts emitting

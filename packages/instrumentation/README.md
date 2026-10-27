@@ -436,7 +436,7 @@ import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/ex
 const errors = new ErrorsInstrumentation();
 errors.isEnabled(); // false. Nothing is patched yet.
 
-// No dependencies are passed, so it uses the global providers.
+// No deps are passed, so it uses the global providers.
 errors.enable();
 errors.isEnabled(); // true
 
@@ -490,8 +490,8 @@ interface: `instrumentationName`, `enable(deps?)`, `disable()` and
 
 The easiest way is to extend `InstrumentationBase`. It implements the
 lifecycle in [Enabling and disabling](#enabling-and-disabling).
-`InstrumentationBase`, `Instrumentation` and `InstrumentationDependencies`
-are all exported from
+`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are all
+exported from
 `@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
 
 Override these hooks. All of them must be synchronous, because the lifecycle

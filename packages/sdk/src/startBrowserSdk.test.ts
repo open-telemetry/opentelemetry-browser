@@ -377,7 +377,7 @@ describe('startBrowserSdk', () => {
       expect(setLoggerProviderSpy).not.toHaveBeenCalled();
       expect(setPropagatorSpy).not.toHaveBeenCalled();
       expect(setContextManagerSpy).not.toHaveBeenCalled();
-      // The instances still get the SDK's own providers through dependencies
+      // The instances still get the SDK's own providers through deps
       const deps = instrumentation.enable.mock.lastCall?.[0];
       expect(deps?.tracerProvider).toBeDefined();
       expect(deps?.tracerProvider).not.toBe(earlierTracerProvider);
