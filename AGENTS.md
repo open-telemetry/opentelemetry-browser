@@ -11,6 +11,7 @@ This file steers AI-assisted contributions toward changes that are useful and do
 - **Keep changes scoped to the task.** No unrelated cleanup, refactoring, or drive-by improvements unless they are required for correctness.
 - **Match the surrounding code.** Follow the existing naming, structure, comments, and test patterns of the package you edit.
 - **Do not rely on training data for OpenTelemetry or browser APIs.** Check the current code in this repo, the [semantic conventions](https://github.com/open-telemetry/semantic-conventions), and the [specification](https://github.com/open-telemetry/opentelemetry-specification) instead.
+- **Target [Baseline Widely Available](https://web.dev/baseline).** `eslint-plugin-baseline-js` enforces it in [eslint.config.js](eslint.config.js). Do not add fallbacks or presence checks for a browser API that is Baseline Widely Available. If it is missing, the browser is not supported, and the normal failure is enough.
 - **Follow [VERSIONING.md](VERSIONING.md)** for breaking changes and deprecations.
 
 ## Before committing
