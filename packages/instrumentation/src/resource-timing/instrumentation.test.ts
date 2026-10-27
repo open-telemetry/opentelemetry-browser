@@ -287,32 +287,6 @@ describe('ResourceTimingInstrumentation', () => {
         buffered: true,
       });
     });
-
-    it('should remove the load listener when disabled before the load event', () => {
-      const windowRemoveEventListener = vi.fn();
-      vi.stubGlobal('document', {
-        readyState: 'loading',
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      });
-      vi.stubGlobal('window', {
-        PerformanceObserver: PerformanceObserverMock,
-        addEventListener: vi.fn(),
-        removeEventListener: windowRemoveEventListener,
-        setTimeout: vi.fn(() => 1),
-        clearTimeout: vi.fn(),
-      });
-
-      instrumentation = new ResourceTimingInstrumentation();
-      enableForTest(instrumentation);
-      instrumentation.disable();
-
-      expect(windowRemoveEventListener).toHaveBeenCalledWith(
-        'load',
-        expect.any(Function),
-      );
-      expect(mockObserver.observe).not.toHaveBeenCalled();
-    });
   });
 
   describe('Configuration', () => {

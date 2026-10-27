@@ -109,6 +109,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
   }
 
   protected override _onDisable(): void {
+    this._flush();
     this._observer?.disconnect();
     this._observer = undefined;
     if (this._loadHandler) {
@@ -122,8 +123,6 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       );
       this._visibilityChangeHandler = undefined;
     }
-    // Last, so a throw cannot skip the cleanup above and leave listeners behind.
-    this._flush();
   }
 
   private _setupObserver(): void {
