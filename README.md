@@ -50,7 +50,7 @@ const instrumentations = [
   new WebVitalsInstrumentation(),
   new ConsoleInstrumentation(),
 ];
-// An instrumentation does nothing until enable(). Without deps, it uses the global providers.
+// An instrumentation does nothing until enable(). Without dependencies, it uses the global providers.
 for (const instrumentation of instrumentations) {
   instrumentation.enable();
 }

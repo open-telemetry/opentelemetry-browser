@@ -6,7 +6,7 @@
 import { diag } from '@opentelemetry/api';
 import type {
   Instrumentation,
-  InstrumentationDeps,
+  InstrumentationDependencies,
 } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
 import { INVALID_CONFIG_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
@@ -186,9 +186,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   }
 
   const instrumentations = rootConfig.instrumentations ?? [];
-  // The same object on every enable(), because an instance keeps the deps
-  // from its first enable() for its whole life.
-  const deps: InstrumentationDeps = {
+  // An instance keeps the dependencies from its first enable() for its whole
+  // life.
+  const deps: InstrumentationDependencies = {
     tracerProvider: tracesSdk?.tracerProvider,
     loggerProvider: logsSdk?.loggerProvider,
     propagator: tracesSdk?.propagator,

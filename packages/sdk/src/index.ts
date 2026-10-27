@@ -5,7 +5,7 @@
 
 export type {
   Instrumentation,
-  InstrumentationDeps,
+  InstrumentationDependencies,
 } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
 export type {
   LogsConfig,

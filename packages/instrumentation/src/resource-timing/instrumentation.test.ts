@@ -212,7 +212,7 @@ describe('ResourceTimingInstrumentation', () => {
     });
 
     it('should roll back when observe() throws, and retry on the next enable()', () => {
-      const { warn } = setupTestDiagLogger();
+      const { error } = setupTestDiagLogger();
       mockObserver.observe.mockImplementationOnce(() => {
         throw new TypeError('observe failed');
       });
@@ -221,7 +221,7 @@ describe('ResourceTimingInstrumentation', () => {
       enableForTest(instrumentation);
 
       expect(instrumentation.isEnabled()).toBe(false);
-      expect(warn).toHaveBeenCalledWith(
+      expect(error).toHaveBeenCalledWith(
         expect.any(String),
         expect.stringMatching(/enable failed/),
         expect.any(TypeError),
@@ -237,13 +237,14 @@ describe('ResourceTimingInstrumentation', () => {
       });
     });
 
-    it('should log, not throw, when observe() fails from the load event', () => {
+    it('should turn off, as if enable() failed, when observe() fails from the load event', () => {
       const { error } = setupTestDiagLogger();
       const listeners = new Map();
+      const documentRemoveEventListener = vi.fn();
       vi.stubGlobal('document', {
         readyState: 'loading',
         addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
+        removeEventListener: documentRemoveEventListener,
       });
       vi.stubGlobal('window', {
         PerformanceObserver: PerformanceObserverMock,
@@ -260,13 +261,57 @@ describe('ResourceTimingInstrumentation', () => {
 
       instrumentation = new ResourceTimingInstrumentation();
       enableForTest(instrumentation);
+      const firstLoadHandler = listeners.get('load');
 
-      expect(() => listeners.get('load')?.()).not.toThrow();
+      expect(() => firstLoadHandler?.()).not.toThrow();
+      expect(instrumentation.isEnabled()).toBe(false);
       expect(error).toHaveBeenCalledWith(
         expect.any(String),
-        'Failed to start resource PerformanceObserver',
+        expect.stringMatching(/enable failed at the load event/),
         expect.any(TypeError),
       );
+      expect(documentRemoveEventListener).toHaveBeenCalledWith(
+        'visibilitychange',
+        expect.any(Function),
+      );
+
+      instrumentation.enable();
+      const secondLoadHandler = listeners.get('load');
+      // The stub never removes listeners, so a stale handler would also "work".
+      expect(secondLoadHandler).not.toBe(firstLoadHandler);
+      secondLoadHandler?.();
+
+      expect(instrumentation.isEnabled()).toBe(true);
+      expect(mockObserver.observe).toHaveBeenLastCalledWith({
+        type: 'resource',
+        buffered: true,
+      });
+    });
+
+    it('should remove the load listener when disabled before the load event', () => {
+      const windowRemoveEventListener = vi.fn();
+      vi.stubGlobal('document', {
+        readyState: 'loading',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      });
+      vi.stubGlobal('window', {
+        PerformanceObserver: PerformanceObserverMock,
+        addEventListener: vi.fn(),
+        removeEventListener: windowRemoveEventListener,
+        setTimeout: vi.fn(() => 1),
+        clearTimeout: vi.fn(),
+      });
+
+      instrumentation = new ResourceTimingInstrumentation();
+      enableForTest(instrumentation);
+      instrumentation.disable();
+
+      expect(windowRemoveEventListener).toHaveBeenCalledWith(
+        'load',
+        expect.any(Function),
+      );
+      expect(mockObserver.observe).not.toHaveBeenCalled();
     });
   });
 

@@ -8,20 +8,11 @@ import { diag, propagation, trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
 import { toError } from '../utils/toError.ts';
-import type { Instrumentation, InstrumentationDeps } from './types.ts';
-
-function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as { then?: unknown }).then === 'function'
-  );
-}
+import type { Instrumentation, InstrumentationDependencies } from './types.ts';
 
 type State = 'new' | 'enabled' | 'disabled' | 'failed';
 
-interface Locked<Deps> {
-  deps: Readonly<Deps> | undefined;
+interface Resolved {
   tracer: Tracer;
   logger: Logger;
   propagator: TextMapPropagator;
@@ -32,20 +23,19 @@ interface Locked<Deps> {
  *
  * The constructor only stores the config. The first `enable(deps)` locks the
  * dependencies, runs `_init()` once and then `_onEnable()`. After that,
- * `disable()` and `enable()` only run `_onDisable()` and `_onEnable()`.
+ * `disable()` and `enable()` only run `_onDisable()` and `_onEnable()`. If
+ * init or `_onDisable()` throws, the instrumentation stays off for good.
  * Hooks must be synchronous, and patches are never removed.
  */
-export abstract class InstrumentationBase<
-  ConfigType extends object = object,
-  Deps extends InstrumentationDeps = InstrumentationDeps,
-> implements Instrumentation
+export abstract class InstrumentationBase<ConfigType extends object = object>
+  implements Instrumentation
 {
   public readonly instrumentationName: string;
   public readonly instrumentationVersion: string;
   protected readonly _config: ConfigType;
   protected readonly _diag: DiagLogger;
   private _state: State = 'new';
-  private _locked: Locked<Deps> | undefined;
+  private _resolved: Resolved | undefined;
 
   constructor(
     instrumentationName: string,
@@ -64,34 +54,40 @@ export abstract class InstrumentationBase<
   }
 
   /**
-   * Starts emitting. The first call locks `deps` (a dependency that is not
-   * passed uses the global API) and runs init once. Later calls ignore `deps`
-   * and warn if a passed dependency differs from the locked one. After a
-   * failed init, calls do nothing.
+   * Starts emitting. The first call locks `deps` and runs init once. Later
+   * calls ignore `deps`. After any failure that leaves the instrumentation off
+   * for good, a call only logs at debug level.
    */
-  public enable(deps?: Deps): void {
+  public enable(deps?: InstrumentationDependencies): void {
     if (this._state === 'new') {
       try {
-        this._lock(deps);
-        this._assertSync(this._init());
+        this._resolve(deps);
+      } catch (err) {
+        this._markFailed({
+          reason: 'could not set up the tracer and logger',
+          cause: err,
+        });
+        return;
+      }
+      try {
+        this._init();
       } catch (err) {
         // Never retried: a second _init() could wrap an API twice.
-        this._state = 'failed';
-        const error = toError(err);
-        this._diag.warn(
-          `init failed, so this instrumentation stays off: ${error.message}`,
-          error,
-        );
+        this._markFailed({ reason: 'init failed', cause: err });
         return;
       }
       this._runOnEnable();
       return;
     }
     if (this._state === 'failed') {
+      // Not warn: the failure was logged once, and callers may call enable()
+      // often.
+      this._diag.debug('enable() ignored: this instrumentation failed earlier');
       return;
     }
     if (deps) {
-      this._warnIgnoredDeps(deps);
+      // Not warn: the SDK passes its dependencies on every enable().
+      this._diag.debug('enable() ignores deps after the first call');
     }
     if (this._state === 'disabled') {
       this._runOnEnable();
@@ -107,109 +103,88 @@ export abstract class InstrumentationBase<
     this._runOnDisable();
   }
 
-  private _lock(deps: Deps | undefined): void {
+  private _markFailed({
+    reason,
+    cause,
+  }: {
+    reason: string;
+    cause: unknown;
+  }): void {
+    this._state = 'failed';
+    const error = toError(cause);
+    this._diag.error(
+      `${reason}, so this instrumentation stays off: ${error.message}`,
+      error,
+    );
+  }
+
+  private _resolve(deps: InstrumentationDependencies | undefined): void {
     const name = this.instrumentationName;
     const version = this.instrumentationVersion;
     // The trace and logs APIs return proxies, so a provider set as global after
     // this call still receives the data.
-    this._locked = {
-      deps: deps && { ...deps },
-      tracer: (deps?.tracerProvider ?? trace.getTracerProvider()).getTracer(
-        name,
-        version,
-      ),
-      logger: (deps?.loggerProvider ?? logs.getLoggerProvider()).getLogger(
-        name,
-        version,
-      ),
+    const tracerProvider = deps?.tracerProvider ?? trace.getTracerProvider();
+    const loggerProvider = deps?.loggerProvider ?? logs.getLoggerProvider();
+    this._resolved = {
+      tracer: tracerProvider.getTracer(name, version),
+      logger: loggerProvider.getLogger(name, version),
       propagator: deps?.propagator ?? propagation,
     };
-  }
-
-  // Compares by key, so passing the same deps on every enable() logs nothing.
-  private _warnIgnoredDeps(deps: Deps): void {
-    const locked = this._locked?.deps ?? {};
-    const ignored = Object.entries(deps)
-      .filter(([key, value]) => value !== Reflect.get(locked, key))
-      .map(([key]) => key);
-    if (ignored.length > 0) {
-      this._diag.warn(
-        `enable() ignores deps after the first call; ignored: ${ignored.join(', ')}`,
-      );
-    }
   }
 
   private _runOnEnable(): void {
     // Set first, so emits made by the hook pass `isEnabled()` checks.
     this._state = 'enabled';
     try {
-      this._assertSync(this._onEnable());
+      this._onEnable();
     } catch (err) {
-      // Not `failed`: init is done, so a retry cannot wrap twice.
-      this._state = 'disabled';
       const error = toError(err);
-      this._diag.warn(`enable failed: ${error.message}`, error);
-      this._runOnDisable();
+      this._diag.error(`enable failed: ${error.message}`, error);
+      // Ends `disabled`, not `failed`: init is done, so a retry cannot wrap twice.
+      this.disable();
     }
   }
 
   private _runOnDisable(): void {
     try {
-      this._assertSync(this._onDisable());
+      this._onDisable();
     } catch (err) {
-      // Caught so a caller that disables many instances reaches the rest.
+      // Caught so a caller that disables many instances reaches the rest. State
+      // is `failed`, not `disabled`: a retry would add a second set of listeners.
+      this._state = 'failed';
+      const error = toError(err);
       this._diag.error(
-        'disable failed; some listeners may still be attached',
-        toError(err),
+        `disable failed, so this instrumentation stays off; some listeners may still be attached: ${error.message}`,
+        error,
       );
     }
   }
 
-  // `async` hooks type-check, but the lifecycle cannot wait for their promise.
-  private _assertSync(hookResult: unknown): void {
-    if (isPromiseLike(hookResult)) {
-      hookResult.then(undefined, (err: unknown) => {
-        this._diag.error('an async lifecycle hook rejected', toError(err));
-      });
+  private _requireResolved(name: string): Resolved {
+    if (!this._resolved) {
       throw new Error(
-        'the hook returned a promise, but hooks must be synchronous',
+        `${this.instrumentationName}: ${name} is not available until enable() succeeds`,
       );
     }
+    return this._resolved;
   }
 
-  private _requireLocked(name: string): Locked<Deps> {
-    if (!this._locked) {
-      throw new Error(
-        `${this.instrumentationName}: ${name} is not available before the first enable()`,
-      );
-    }
-    return this._locked;
-  }
-
-  /** The tracer from the locked provider. Available from the first `enable()`. */
+  /** Throws until the first `enable()` succeeds. */
   protected get tracer(): Tracer {
-    return this._requireLocked('tracer').tracer;
+    return this._requireResolved('tracer').tracer;
   }
 
-  /** The logger from the locked provider. Available from the first `enable()`. */
+  /** Throws until the first `enable()` succeeds. */
   protected get logger(): Logger {
-    return this._requireLocked('logger').logger;
+    return this._requireResolved('logger').logger;
   }
 
   /**
-   * The locked propagator, or the global propagation API. Use it instead of
+   * Throws until the first `enable()` succeeds. Use it instead of
    * `propagation`, so a second SDK on the page can inject its own context.
    */
   protected get propagator(): TextMapPropagator {
-    return this._requireLocked('propagator').propagator;
-  }
-
-  /**
-   * The deps as passed to the first `enable()`, for subclass-specific deps.
-   * Undefined if that call passed none.
-   */
-  protected get deps(): Readonly<Deps> | undefined {
-    return this._requireLocked('deps').deps;
+    return this._requireResolved('propagator').propagator;
   }
 
   /**
@@ -248,18 +223,12 @@ export abstract class InstrumentationBase<
   }
 
   /**
-   * If `fn` throws or returns a promise that rejects, logs `errorMessage` with
-   * `diag.error`, so a broken hook or emit path cannot break the host call.
+   * If `fn` throws, logs `errorMessage` with `diag.error`, so a broken hook or
+   * emit path cannot break the host call.
    */
   protected _safeExecute<T>(errorMessage: string, fn: () => T): T | undefined {
     try {
-      const result = fn();
-      if (isPromiseLike(result)) {
-        result.then(undefined, (err: unknown) => {
-          this._diag.error(errorMessage, toError(err));
-        });
-      }
-      return result;
+      return fn();
     } catch (err) {
       this._diag.error(errorMessage, toError(err));
       return undefined;
@@ -284,8 +253,9 @@ export abstract class InstrumentationBase<
 
   /**
    * Remove what `_onEnable()` added. `isEnabled()` is already false here, which
-   * is what stops the patches from emitting. Must not call `enable()` or
-   * `disable()`.
+   * is what stops the patches from emitting. If this throws, the
+   * instrumentation stays off for good and `enable()` does nothing.
+   * Must not call `enable()` or `disable()`.
    */
   protected _onDisable(): void {}
 }

@@ -21,7 +21,7 @@ import {
 import { onTestFinished, vi } from 'vitest';
 import type {
   Instrumentation,
-  InstrumentationDeps,
+  InstrumentationDependencies,
 } from '#instrumentation-base';
 
 /**
@@ -79,12 +79,12 @@ export const setupTestDiagLogger = () => {
 };
 
 /**
- * Enables `instrumentation` with `deps` (the globals by default) and disables
- * it when the test finishes.
+ * Enables `instrumentation` with `deps` (a provider left out uses the
+ * global) and disables it when the test finishes.
  */
 export const enableForTest = (
   instrumentation: Instrumentation,
-  deps?: InstrumentationDeps,
+  deps?: InstrumentationDependencies,
 ) => {
   instrumentation.enable(deps);
   onTestFinished(() => instrumentation.disable());

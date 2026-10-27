@@ -395,16 +395,16 @@ describe('XhrInstrumentation', () => {
           expect(instrumentation.isEnabled()).toBe(false);
         });
 
-        it('should warn with the cause message', () => {
-          const { warn } = setupTestDiagLogger();
+        it('should log an error with the cause message', () => {
+          const { error } = setupTestDiagLogger();
           enableForTest(instrumentation);
 
-          // Component loggers forward to `diag.warn(namespace, message, error)`.
-          const error = warn.mock.calls[0]?.[2] as Error | undefined;
-          expect(error?.message).toContain(
+          // Component loggers forward to `diag.error(namespace, message, error)`.
+          const loggedError = error.mock.calls[0]?.[2] as Error | undefined;
+          expect(loggedError?.message).toContain(
             `Failed to patch XMLHttpRequest.prototype.${method}: ${wrapError.message}`,
           );
-          expect(error?.cause).toBe(wrapError);
+          expect(loggedError?.cause).toBe(wrapError);
         });
       });
     });
@@ -452,16 +452,16 @@ describe('XhrInstrumentation', () => {
         expect(getWrapDepth(XMLHttpRequest.prototype.open)).toBe(1);
       });
 
-      it('should warn with the descriptive error', () => {
-        const { warn } = setupTestDiagLogger();
+      it('should log an error with the descriptive error', () => {
+        const { error } = setupTestDiagLogger();
         instrumentation = new XhrInstrumentation();
         enableForTest(instrumentation);
 
-        // Component loggers forward to `diag.warn(namespace, message, error)`.
-        const error = warn.mock.calls[0]?.[2] as Error | undefined;
-        const cause = error?.cause as Error | undefined;
+        // Component loggers forward to `diag.error(namespace, message, error)`.
+        const loggedError = error.mock.calls[0]?.[2] as Error | undefined;
+        const cause = loggedError?.cause as Error | undefined;
         expect(cause).toBeInstanceOf(Error);
-        expect(error?.message).toBe(
+        expect(loggedError?.message).toBe(
           `Failed to patch XMLHttpRequest.prototype.send: ${cause?.message}. The open patch stays in place and passes calls through.`,
         );
       });
