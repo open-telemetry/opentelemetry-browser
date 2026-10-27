@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
 /** A script timing entry reported by the Long Animation Frames API. */
 export interface PerformanceScriptTiming extends PerformanceEntry {
   invokerType: string;
@@ -31,8 +29,7 @@ export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
 /**
  * LongAnimationFrameInstrumentation Configuration
  */
-export interface LongAnimationFrameInstrumentationConfig
-  extends InstrumentationConfig {
+export interface LongAnimationFrameInstrumentationConfig {
   /**
    * Sanitizes the URL-bearing fields of a `scripts` entry before they are
    * written: `source_url`, and `invoker` for the entries whose `invoker` is a

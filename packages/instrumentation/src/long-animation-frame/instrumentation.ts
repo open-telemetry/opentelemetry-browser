@@ -10,11 +10,8 @@
 
 import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import {
-  InstrumentationBase,
-  safeExecuteInTheMiddle,
-} from '@opentelemetry/instrumentation';
-import { defaultSanitizeUrl } from '#utils';
+import { InstrumentationBase } from '#instrumentation-base';
+import { assertPerformanceObserver, defaultSanitizeUrl } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
@@ -47,9 +44,8 @@ const URL_VALUED_INVOKER_TYPES: ReadonlySet<string> = new Set([
 
 /** Captures Long Animation Frames API performance entries as OpenTelemetry logs. */
 export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongAnimationFrameInstrumentationConfig> {
-  declare private _isEnabled: boolean;
-  declare private _observer?: PerformanceObserver;
-  declare private _hasReplayedBufferedEntries: boolean;
+  private _observer: PerformanceObserver | undefined;
+  private _hasReplayedBufferedEntries = false;
 
   constructor(config: LongAnimationFrameInstrumentationConfig = {}) {
     super(
@@ -63,12 +59,21 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     );
   }
 
-  protected override init() {
-    return [];
+  protected override _init(): void {
+    assertPerformanceObserver();
+    if (
+      !PerformanceObserver.supportedEntryTypes?.includes(
+        LONG_ANIMATION_FRAME_ENTRY_TYPE,
+      )
+    ) {
+      throw new Error(
+        'Long Animation Frames API is not supported in this browser.',
+      );
+    }
   }
 
-  override enable(): void {
-    if (this._observer || !this._isSupported()) {
+  protected override _onEnable(): void {
+    if (this._observer) {
       return;
     }
 
@@ -77,20 +82,10 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
         // Building the record can throw — a `sanitizeUrl` hook that rejects its
         // argument, for example. Contain the failure to the entry itself so it
         // cannot skip the frames that follow it in the same callback.
-        safeExecuteInTheMiddle(
-          () =>
-            this._emitLongAnimationFrame(
-              entry as PerformanceLongAnimationFrameTiming,
-            ),
-          (error) => {
-            if (error) {
-              this._diag.error(
-                'Failed to process long-animation-frame entry',
-                error,
-              );
-            }
-          },
-          true,
+        this._safeExecute('Failed to process long-animation-frame entry', () =>
+          this._emitLongAnimationFrame(
+            entry as PerformanceLongAnimationFrameTiming,
+          ),
         );
       }
     });
@@ -104,7 +99,6 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
         buffered: !this._hasReplayedBufferedEntries,
       });
       this._observer = observer;
-      this._isEnabled = true;
       // Set only after a successful observe, so a failed first enable keeps
       // the replay pending for the next attempt.
       this._hasReplayedBufferedEntries = true;
@@ -117,38 +111,15 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     }
   }
 
-  override disable(): void {
-    this._isEnabled = false;
+  protected override _onDisable(): void {
     this._observer?.disconnect();
     this._observer = undefined;
-  }
-
-  private _isSupported(): boolean {
-    if (
-      typeof PerformanceObserver === 'undefined' ||
-      !PerformanceObserver.supportedEntryTypes
-    ) {
-      this._diag.debug(
-        'PerformanceObserver is not supported, long animation frames will not be collected',
-      );
-      return false;
-    }
-
-    const supported = PerformanceObserver.supportedEntryTypes.includes(
-      LONG_ANIMATION_FRAME_ENTRY_TYPE,
-    );
-    if (!supported) {
-      this._diag.debug(
-        'Long Animation Frames API is not supported, long animation frames will not be collected',
-      );
-    }
-    return supported;
   }
 
   private _emitLongAnimationFrame(
     entry: PerformanceLongAnimationFrameTiming,
   ): void {
-    if (!this._isEnabled) {
+    if (!this.isEnabled()) {
       return;
     }
 
@@ -159,7 +130,7 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     // and `sourceURL` is an empty string when the browser could not resolve it —
     // a sanitizer that parses its argument (`new URL(url)`, the obvious
     // implementation) would throw on either, so neither is handed to it.
-    const { sanitizeUrl } = this.getConfig();
+    const { sanitizeUrl } = this._config;
     const sanitize = (url: string): string =>
       sanitizeUrl && typeof url === 'string' ? sanitizeUrl(url) : url;
 
@@ -203,17 +174,8 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
       },
     };
 
-    safeExecuteInTheMiddle(
-      () => this.logger.emit(record),
-      (error) => {
-        if (error) {
-          this._diag.error(
-            'Failed to emit long-animation-frame log record',
-            error,
-          );
-        }
-      },
-      true,
+    this._safeExecute('Failed to emit long-animation-frame log record', () =>
+      this.logger.emit(record),
     );
   }
 }

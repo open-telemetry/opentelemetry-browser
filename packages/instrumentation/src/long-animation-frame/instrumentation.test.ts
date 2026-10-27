@@ -27,7 +27,20 @@ import {
   ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START,
   LONG_ANIMATION_FRAME_EVENT_NAME,
 } from './semconv.ts';
-import type { PerformanceLongAnimationFrameTiming } from './types.ts';
+import type {
+  LongAnimationFrameInstrumentationConfig,
+  PerformanceLongAnimationFrameTiming,
+} from './types.ts';
+
+// The browser-native base starts off and enables on request, unlike the
+// @opentelemetry/instrumentation base these tests were written against.
+function createInstrumentation(
+  config: LongAnimationFrameInstrumentationConfig = {},
+): LongAnimationFrameInstrumentation {
+  const created = new LongAnimationFrameInstrumentation(config);
+  created.enable();
+  return created;
+}
 
 describe('LongAnimationFrameInstrumentation', () => {
   let inMemoryExporter: InMemoryLogRecordExporter;
@@ -66,7 +79,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('observes buffered long-animation-frame entries and emits their attributes as logs', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     expect(observe).toHaveBeenCalledWith({
       type: 'long-animation-frame',
@@ -109,7 +122,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('does not repeat the constants the event name already carries', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     observerCallback(createEntryList([createLongAnimationFrameEntry()]), {
       disconnect,
@@ -130,7 +143,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('emits invoker and source_url unchanged when sanitizeUrl is disabled', () => {
-    instrumentation = new LongAnimationFrameInstrumentation({
+    instrumentation = createInstrumentation({
       sanitizeUrl: undefined,
     });
     const entry = createLongAnimationFrameEntry({
@@ -157,9 +170,15 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('sanitizes source_url with defaultSanitizeUrl when nothing is configured', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
-    expect(instrumentation.getConfig().sanitizeUrl).toBe(defaultSanitizeUrl);
+    expect(
+      (
+        instrumentation as unknown as {
+          _config: { sanitizeUrl?: unknown };
+        }
+      )._config.sanitizeUrl,
+    ).toBe(defaultSanitizeUrl);
 
     const entry = createLongAnimationFrameEntry({
       scripts: [
@@ -186,7 +205,7 @@ describe('LongAnimationFrameInstrumentation', () => {
 
   it('does not hand an invoker that is not a URL to a sanitizer that parses it', () => {
     const sanitizeUrl = vi.fn((url: string) => new URL(url).href);
-    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    instrumentation = createInstrumentation({ sanitizeUrl });
     const entry = createLongAnimationFrameEntry({
       scripts: [
         createScriptEntry({
@@ -228,7 +247,7 @@ describe('LongAnimationFrameInstrumentation', () => {
 
   it('does not hand an unresolved source_url to sanitizeUrl', () => {
     const sanitizeUrl = vi.fn((url: string) => new URL(url).href);
-    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    instrumentation = createInstrumentation({ sanitizeUrl });
     const entry = createLongAnimationFrameEntry({
       scripts: [
         createScriptEntry({
@@ -261,7 +280,7 @@ describe('LongAnimationFrameInstrumentation', () => {
       }
       return url;
     });
-    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    instrumentation = createInstrumentation({ sanitizeUrl });
     const diagError = vi
       .spyOn(
         (
@@ -303,7 +322,7 @@ describe('LongAnimationFrameInstrumentation', () => {
     const sanitizeUrl = vi.fn((url: string) =>
       url.replace('token=s3cret', 'token=REDACTED'),
     );
-    instrumentation = new LongAnimationFrameInstrumentation({ sanitizeUrl });
+    instrumentation = createInstrumentation({ sanitizeUrl });
     const entry = createLongAnimationFrameEntry({
       scripts: [
         createScriptEntry({
@@ -328,7 +347,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('uses the entry start time as the log timestamp', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
     const entry = createLongAnimationFrameEntry({ startTime: 456 });
 
     observerCallback(createEntryList([entry]), {
@@ -348,7 +367,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   it('does not create an observer when PerformanceObserver is unavailable', () => {
     vi.stubGlobal('PerformanceObserver', undefined);
 
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
   });
@@ -359,7 +378,7 @@ describe('LongAnimationFrameInstrumentation', () => {
       value: undefined,
     });
 
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
   });
@@ -370,13 +389,13 @@ describe('LongAnimationFrameInstrumentation', () => {
       value: ['resource'],
     });
 
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
   });
 
   it('disconnects the observer and can be enabled again', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     instrumentation.disable();
     instrumentation.disable();
@@ -387,7 +406,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('replays buffered entries on the first enable only', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
 
     instrumentation.disable();
     instrumentation.enable();
@@ -407,7 +426,7 @@ describe('LongAnimationFrameInstrumentation', () => {
     observe.mockImplementationOnce(() => {
       throw new Error('observe failed');
     });
-    instrumentation = new LongAnimationFrameInstrumentation({ enabled: false });
+    instrumentation = new LongAnimationFrameInstrumentation();
     vi.spyOn(
       (
         instrumentation as unknown as {
@@ -428,7 +447,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('does not emit a queued callback after being disabled', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
     instrumentation.disable();
 
     observerCallback(createEntryList([createLongAnimationFrameEntry()]), {
@@ -439,7 +458,7 @@ describe('LongAnimationFrameInstrumentation', () => {
   });
 
   it('omits scripts when the browser does not provide an array', () => {
-    instrumentation = new LongAnimationFrameInstrumentation();
+    instrumentation = createInstrumentation();
     const entry = createLongAnimationFrameEntry();
     Object.defineProperty(entry, 'scripts', { value: undefined });
 
@@ -457,7 +476,7 @@ describe('LongAnimationFrameInstrumentation', () => {
     observe.mockImplementation(() => {
       throw new Error('observe failed');
     });
-    instrumentation = new LongAnimationFrameInstrumentation({ enabled: false });
+    instrumentation = new LongAnimationFrameInstrumentation();
     const diagError = vi
       .spyOn(
         (
