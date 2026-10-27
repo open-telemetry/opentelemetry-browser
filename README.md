@@ -2,13 +2,24 @@
 
 ## About
 
-This repository is the home of OpenTelemetry Browser instrumentations and the future home of the OpenTelemetry Browser SDK.
+This repository is the home of OpenTelemetry Browser instrumentations and the future home of the
+OpenTelemetry Browser SDK.
 
-This repo provides **event-based instrumentations** that emit events (structured log records) for browser performance and user interactions. It also provides **span-based instrumentations** for `fetch` and `XMLHttpRequest`. Use the instrumentations from this repository. Do not mix them with the classic instrumentations from [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) or [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) for the same API, because both would record every call.
+This repo provides **event-based instrumentations** that emit events (structured log records) for
+browser performance and user interactions. It also provides **span-based instrumentations** for
+`fetch` and `XMLHttpRequest`. Use the instrumentations from this repository. Do not mix them with
+the classic instrumentations from
+[opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) or
+[opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) for the same
+API, because both would record every call.
 
-The classic browser instrumentations in other OpenTelemetry JS repositories are deprecated or will be deprecated soon. See [Migrate from classic browser instrumentations](#migrate-from-classic-browser-instrumentations) to move to this repository.
+The classic browser instrumentations in other OpenTelemetry JS repositories are deprecated or will
+be deprecated soon. See
+[Migrate from classic browser instrumentations](#migrate-from-classic-browser-instrumentations) to
+move to this repository.
 
-See the [Browser Packages](#browser-packages) section below for a full list of browser-related packages across all repositories.
+See the [Browser Packages](#browser-packages) section below for a full list of browser-related
+packages across all repositories.
 
 ## Quick Start
 
@@ -56,17 +67,21 @@ for (const instrumentation of instrumentations) {
 }
 ```
 
-The [Browser SDK](./packages/sdk) can also enable the instrumentations for you, with its own providers.
+The [Browser SDK](./packages/sdk) can also enable the instrumentations for you, with its own
+providers.
 
-For detailed configuration options, see the [instrumentation package README](./packages/instrumentation/README.md).
+For detailed configuration options, see the
+[instrumentation package README](./packages/instrumentation/README.md).
 
 ### More examples
 
-For a more complete setup that combines the event-based and span-based instrumentations from this repository, see the [examples](./examples/) directory.
+For a more complete setup that combines the event-based and span-based instrumentations from this
+repository, see the [examples](./examples/) directory.
 
 ### Sandbox
 
-Interactive playground for testing OpenTelemetry browser instrumentations. Configure the SDK, trigger actions (fetch, XHR, errors, navigation…), and inspect exported spans and logs in real time.
+Interactive playground for testing OpenTelemetry browser instrumentations. Configure the SDK,
+trigger actions (fetch, XHR, errors, navigation…), and inspect exported spans and logs in real time.
 
 #### Run locally
 
@@ -79,12 +94,16 @@ This starts the sandbox with hot-reload via Vite at `http://localhost:5173`.
 
 #### GitHub Pages
 
-The sandbox is automatically deployed to GitHub Pages on every push to `main` via the `deploy-sandbox.yml` workflow. The live site is available at [open-telemetry.github.io/opentelemetry-browser](https://open-telemetry.github.io/opentelemetry-browser/).
+The sandbox is automatically deployed to GitHub Pages on every push to `main` via the
+`deploy-sandbox.yml` workflow. The live site is available at
+[open-telemetry.github.io/opentelemetry-browser](https://open-telemetry.github.io/opentelemetry-browser/).
 
 ## Documentation
 
-- [Migration guide](./docs/migration-guide.md) — moving from the browser packages in `opentelemetry-js` and `opentelemetry-js-contrib`.
-- [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in session support.
+- [Migration guide](./docs/migration-guide.md) — moving from the browser packages in
+  `opentelemetry-js` and `opentelemetry-js-contrib`.
+- [Session Management](./docs/session-management.md) — configuring and using the SDK's built-in
+  session support.
 - [Browser Events](./docs/browser-observability-model.md) — catalog of browser telemetry events.
 - [Navigation event](./docs/navigation-event.md) — deep dive on the `browser.navigation` event.
 
@@ -101,14 +120,25 @@ The following tables list browser-related packages across all OpenTelemetry JS r
 
 ### Migrate from classic browser instrumentations
 
-The browser instrumentations in [opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and [opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) are deprecated or will be deprecated soon. Move to the instrumentations in this repository as soon as possible. The tables below show the replacement for each classic package.
+The browser instrumentations in
+[opentelemetry-js](https://github.com/open-telemetry/opentelemetry-js) and
+[opentelemetry-js-contrib](https://github.com/open-telemetry/opentelemetry-js-contrib) are
+deprecated or will be deprecated soon. Move to the instrumentations in this repository as soon as
+possible. The tables below show the replacement for each classic package.
 
 When you migrate:
 
-- Remove the classic instrumentation when you add its replacement. A classic instrumentation cannot detect our patches, so if you use both for the same API, every call is recorded twice.
-- Some replacements emit events (log records), not spans. For example, `instrumentation-document-load` and `instrumentation-user-interaction` create spans, but their replacements create events. Set up a `LoggerProvider` for them.
-- The instrumentations in this repository do nothing when you create them. Call `enable()` on each one, or pass them to the [Browser SDK](./packages/sdk). Do not use `registerInstrumentations()` from `@opentelemetry/instrumentation` with them. See [Differences from classic instrumentations](./packages/instrumentation/README.md#differences-from-classic-instrumentations).
-- `auto-instrumentations-web` turns on the classic instrumentations. Replace it with the instrumentations from this repository, passed to the [Browser SDK](./packages/sdk).
+- Remove the classic instrumentation when you add its replacement. A classic instrumentation cannot
+  detect our patches, so if you use both for the same API, every call is recorded twice.
+- Some replacements emit events (log records), not spans. For example,
+  `instrumentation-document-load` and `instrumentation-user-interaction` create spans, but their
+  replacements create events. Set up a `LoggerProvider` for them.
+- The instrumentations in this repository do nothing when you create them. Call `enable()` on each
+  one, or pass them to the [Browser SDK](./packages/sdk). Do not use `registerInstrumentations()`
+  from `@opentelemetry/instrumentation` with them. See
+  [Differences from classic instrumentations](./packages/instrumentation/README.md#differences-from-classic-instrumentations).
+- `auto-instrumentations-web` turns on the classic instrumentations. Replace it with the
+  instrumentations from this repository, passed to the [Browser SDK](./packages/sdk).
 
 #### Event-based instrumentations (other repositories)
 
@@ -148,13 +178,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md)
 - [Martin Kuba](https://github.com/martinkuba), Grafana Labs
 - [Wolfgang Therrien](https://github.com/wolfgangcodes), Honeycomb
 
-For more information about the maintainer role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
+For more information about the maintainer role, see the
+[community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#maintainer).
 
 ### Approvers
 
 - [Maxime Quentin](https://github.com/mquentin), Datadog
 
-For more information about the approver role, see the [community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
+For more information about the approver role, see the
+[community repository](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md#approver).
 
 ### Emeritus
 

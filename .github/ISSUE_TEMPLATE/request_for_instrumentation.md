@@ -1,5 +1,4 @@
 ---
-
 name: Suggest Instrumentation
 about: Suggest instrumentation for a browser API or library
 labels: instrumentation

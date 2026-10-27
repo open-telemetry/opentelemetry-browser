@@ -37,6 +37,15 @@
       "tailwindDirectives": true
     }
   },
+  "markdown": {
+    "parser": {
+      "frontmatter": true
+    },
+    "formatter": {
+      "proseWrap": "always",
+      "lineWidth": 100
+    }
+  },
   "html": {
     "formatter": {
       "enabled": true

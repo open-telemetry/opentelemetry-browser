@@ -1,5 +1,4 @@
 ---
-
 name: Discussion
 about: Ask a question or bring up points of consideration
 labels: discussion

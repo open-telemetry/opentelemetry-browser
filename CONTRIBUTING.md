@@ -4,11 +4,14 @@ Welcome! We're excited you're here, and we'd love your help!
 
 ## Prerequisites
 
-If you haven't yet, you will need to get set up following the main [OpenTelemetry Contributor Guide](https://github.com/open-telemetry/community/blob/main/guides/contributor/README.md).
+If you haven't yet, you will need to get set up following the main
+[OpenTelemetry Contributor Guide](https://github.com/open-telemetry/community/blob/main/guides/contributor/README.md).
 
-Node and npm versions are dictated by the `package.json` file's `packageManager` and `devEngines` sections.
+Node and npm versions are dictated by the `package.json` file's `packageManager` and `devEngines`
+sections.
 
-The easiest way to make sure you are using compatible Node and npm versions is to leverage [nvm](https://www.nvmnode.com/guide/download.html) and the checked in `.nvmrc` file.
+The easiest way to make sure you are using compatible Node and npm versions is to leverage
+[nvm](https://www.nvmnode.com/guide/download.html) and the checked in `.nvmrc` file.
 
 ```sh
 cd <cloned repo directory> 
@@ -24,7 +27,8 @@ npm install -g npm@latest
 
 ## Quick Start
 
-1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this page.
+1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this
+   page.
 2. Clone the repo forked and set the upstream
 
    ```sh
@@ -37,7 +41,8 @@ npm install -g npm@latest
 
 3. Install dependencies, set up git hooks, then build and run tests
 
-   `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run install scripts. Run `npm run prepare` once to install the git hooks.
+   `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run install scripts. Run
+   `npm run prepare` once to install the git hooks.
 
    ```sh
    npm ci
@@ -46,7 +51,8 @@ npm install -g npm@latest
    npm test
    ```
 
-4. **Prior to receiving review comments**, you can keep your branch up-to-date by using the "Update with rebase" button on Github.com. To rebase manually:
+4. **Prior to receiving review comments**, you can keep your branch up-to-date by using the "Update
+   with rebase" button on Github.com. To rebase manually:
 
    ```sh
    git fetch upstream
@@ -54,7 +60,8 @@ npm install -g npm@latest
    git rebase upstream/main
    ```
 
-5. **After opening a PR and receiving comments**, you can update your branch and retain comment history by clicking the "Update with merge commit" button on Github.com. To update manually:
+5. **After opening a PR and receiving comments**, you can update your branch and retain comment
+   history by clicking the "Update with merge commit" button on Github.com. To update manually:
 
    ```sh
     git fetch upstream
@@ -70,41 +77,61 @@ npm install -g npm@latest
 - Add tests for new functionality
 - Run `npm run lint` before submitting
 
-For detailed contribution guidelines, see the [OpenTelemetry JS Contributing Guide](https://github.com/open-telemetry/opentelemetry-js/blob/main/CONTRIBUTING.md).
+For detailed contribution guidelines, see the
+[OpenTelemetry JS Contributing Guide](https://github.com/open-telemetry/opentelemetry-js/blob/main/CONTRIBUTING.md).
 
 ## Find your first issue
 
 - Open the [Issues](https://github.com/open-telemetry/opentelemetry-browser/issues) tab
 - Filter down to label:"good first issue" or label:"available"
-- If you are having trouble finding an appropriately sized issue, reach out on Slack or ask in a SIG meeting
+- If you are having trouble finding an appropriately sized issue, reach out on Slack or ask in a SIG
+  meeting
 
 ## Claiming an issue
 
 Before you start working on an issue, check that nobody else is:
 
-- Read the comments and check the assignee. If someone has said they are working on it, it is theirs.
-- Look for a linked or open pull request. If one exists, review it or offer to help the author instead of opening another one.
-- Issues labeled `needs discussion` or `needs prototype` don't have an agreed approach yet. Join the discussion on the issue or in a SIG meeting before writing code.
+- Read the comments and check the assignee. If someone has said they are working on it, it is
+  theirs.
+- Look for a linked or open pull request. If one exists, review it or offer to help the author
+  instead of opening another one.
+- Issues labeled `needs discussion` or `needs prototype` don't have an agreed approach yet. Join the
+  discussion on the issue or in a SIG meeting before writing code.
 
-To claim an issue, comment on it saying you plan to work on it. This applies to every issue, not just ones labeled `available`. A draft pull request opened early is the clearest sign that work is in progress.
+To claim an issue, comment on it saying you plan to work on it. This applies to every issue, not
+just ones labeled `available`. A draft pull request opened early is the clearest sign that work is
+in progress.
 
-If a claim has had no pull request or update for two weeks, ask on the issue whether it is still in progress. If there is no reply within a few days, you can pick it up.
+If a claim has had no pull request or update for two weeks, ask on the issue whether it is still in
+progress. If there is no reply within a few days, you can pick it up.
 
-When more than one pull request is opened for the same issue, maintainers will usually keep the one that was claimed first and close the others.
+When more than one pull request is opened for the same issue, maintainers will usually keep the one
+that was claimed first and close the others.
 
-Small fixes such as typos or broken links don't need an issue. For anything that changes behavior or adds a feature, open or claim an issue first.
+Small fixes such as typos or broken links don't need an issue. For anything that changes behavior or
+adds a feature, open or claim an issue first.
 
 ## Using AI tools
 
-You can use AI tools to contribute. This project follows the OpenTelemetry [Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md), with a few additional expectations:
+You can use AI tools to contribute. This project follows the OpenTelemetry
+[Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md),
+with a few additional expectations:
 
-- **Understand every line you submit.** If you can't explain what your change does and how it fits the rest of the codebase without help from an AI tool, don't open the pull request.
-- **Use your own words.** Write issues, pull request descriptions, review comments, and replies yourself, on GitHub and on Slack. Imperfect English is fine. We want to hear from you, not from a model.
-- **Check the output against this repo.** Models often have outdated knowledge of OpenTelemetry APIs, semantic conventions, and browser APIs. Verify generated code against the current code and specs, and run `npm run lint` and `npm test` before opening a pull request.
+- **Understand every line you submit.** If you can't explain what your change does and how it fits
+  the rest of the codebase without help from an AI tool, don't open the pull request.
+- **Use your own words.** Write issues, pull request descriptions, review comments, and replies
+  yourself, on GitHub and on Slack. Imperfect English is fine. We want to hear from you, not from a
+  model.
+- **Check the output against this repo.** Models often have outdated knowledge of OpenTelemetry
+  APIs, semantic conventions, and browser APIs. Verify generated code against the current code and
+  specs, and run `npm run lint` and `npm test` before opening a pull request.
 - **Keep the change scoped to the issue.** Leave out unrelated cleanup and refactoring.
-- **Disclose AI usage** using the checkbox in the pull request template. If a significant part of a commit came from an AI tool without changes, add an `Assisted-by:` trailer naming the model, for example `Assisted-by: Claude Opus 4.5`. Use `Assisted-by:`, not `Co-authored-by:`.
+- **Disclose AI usage** using the checkbox in the pull request template. If a significant part of a
+  commit came from an AI tool without changes, add an `Assisted-by:` trailer naming the model, for
+  example `Assisted-by: Claude Opus 4.5`. Use `Assisted-by:`, not `Co-authored-by:`.
 
-Maintainers may close issues and pull requests that don't meet these expectations without a full review.
+Maintainers may close issues and pull requests that don't meet these expectations without a full
+review.
 
 AI coding agents working in this repository should also follow [AGENTS.md](AGENTS.md).
 
@@ -112,12 +139,18 @@ AI coding agents working in this repository should also follow [AGENTS.md](AGENT
 
 Have a feature request or a bug to report?
 
-Look through [open issues](https://github.com/open-telemetry/opentelemetry-browser/issues) to see if one has already been filed. If so, feel free to react or add a comment.
+Look through [open issues](https://github.com/open-telemetry/opentelemetry-browser/issues) to see if
+one has already been filed. If so, feel free to react or add a comment.
 
 If not, any of the following work:
-- Open an issue using one of the [issue templates](https://github.com/open-telemetry/opentelemetry-browser/issues/new/choose). Examples, screenshots, clear questions, and highlighting decisions to make will make issue triage easier. The Discussion template covers questions and points of consideration.
-- Start a thread in [#otel-browser](https://cloud-native.slack.com/archives/C093P0AMP0T) on the CNCF Slack ([create an account](https://slack.cncf.io/) if you need one).
-- Add it to the agenda in the [Browser SIG](https://github.com/open-telemetry/community/blob/main/sigs.md#browser) agenda.
+- Open an issue using one of the
+  [issue templates](https://github.com/open-telemetry/opentelemetry-browser/issues/new/choose).
+  Examples, screenshots, clear questions, and highlighting decisions to make will make issue triage
+  easier. The Discussion template covers questions and points of consideration.
+- Start a thread in [#otel-browser](https://cloud-native.slack.com/archives/C093P0AMP0T) on the CNCF
+  Slack ([create an account](https://slack.cncf.io/) if you need one).
+- Add it to the agenda in the
+  [Browser SIG](https://github.com/open-telemetry/community/blob/main/sigs.md#browser) agenda.
 
 ## SIG Operations
 
@@ -125,12 +158,18 @@ This section includes processes used by the Browser SIG to get work done.
 
 ### Meetings
 
-You can find all the SIG meetings on the main [OpenTelemetry Community](https://github.com/open-telemetry/community/tree/main) page.
+You can find all the SIG meetings on the main
+[OpenTelemetry Community](https://github.com/open-telemetry/community/tree/main) page.
 
 For this group, there are two relevant SIG meetings to attend:
 
-- **[Browser](https://github.com/open-telemetry/community/blob/main/sigs.md#browser):** Browser is the main implementation SIG meeting focused on issues related to collecting telemetry for web applications.
-- **[Client Instrumentation](https://github.com/open-telemetry/community/blob/main/sigs.md#client-instrumentation):** Client Instrumentation is a cross cutting group for client-side telemetry. This group focuses on semantic conventions and other concerns common for all client-side telemetry (e.g. session management).
+- **[Browser](https://github.com/open-telemetry/community/blob/main/sigs.md#browser):** Browser is
+  the main implementation SIG meeting focused on issues related to collecting telemetry for web
+  applications.
+- **[Client Instrumentation](https://github.com/open-telemetry/community/blob/main/sigs.md#client-instrumentation):**
+  Client Instrumentation is a cross cutting group for client-side telemetry. This group focuses on
+  semantic conventions and other concerns common for all client-side telemetry (e.g. session
+  management).
 
 ### Roadmap
 
@@ -146,16 +185,25 @@ TODO: Document the toolchain that we recommend folks use.
 
 ## Next Steps
 
-There is a lot more to learn for this SIG and OpenTelemetry in general. Here are some helpful links to contextualize the work you'll be doing.
+There is a lot more to learn for this SIG and OpenTelemetry in general. Here are some helpful links
+to contextualize the work you'll be doing.
 
 ### General OpenTelemetry Guides
 
-- [OpenTelemetry mission, vision, and values](https://github.com/open-telemetry/community/blob/main/mission-vision-values.md) - this guide helps you understand the direction OpenTelemetry as a whole is heading in and why.
-- [General Contribution Lifecycle and Processes](https://github.com/open-telemetry/community/blob/main/guides/contributor/processes.md) - this guide helps you understand how to find things to work on, get help, and how changes are merged and released.
-- [Membership, roles, and responsibilities](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md) - this guide helps the roles and responsibilities of contributors as well as how one advances beyond a member to a triager, approver, or maintainer.
+- [OpenTelemetry mission, vision, and values](https://github.com/open-telemetry/community/blob/main/mission-vision-values.md) -
+  this guide helps you understand the direction OpenTelemetry as a whole is heading in and why.
+- [General Contribution Lifecycle and Processes](https://github.com/open-telemetry/community/blob/main/guides/contributor/processes.md) -
+  this guide helps you understand how to find things to work on, get help, and how changes are
+  merged and released.
+- [Membership, roles, and responsibilities](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md) -
+  this guide helps the roles and responsibilities of contributors as well as how one advances beyond
+  a member to a triager, approver, or maintainer.
 
 ### OpenTelemetry Browser Guides
 
-- [Browser events](docs/browser-observability-model.md) - provides a comprehensive list of browser events emitted by the instrumentation library.
-- [Navigation event](docs/navigation-event.md) - documents different types of navigation events and how they are captured.
-- [Browser roadmap](docs/roadmap.md) - provides a detailed description of what we are working on and where we are heading.
+- [Browser events](docs/browser-observability-model.md) - provides a comprehensive list of browser
+  events emitted by the instrumentation library.
+- [Navigation event](docs/navigation-event.md) - documents different types of navigation events and
+  how they are captured.
+- [Browser roadmap](docs/roadmap.md) - provides a detailed description of what we are working on and
+  where we are heading.
