@@ -6,7 +6,7 @@
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '#instrumentation-base';
-import { assertPerformanceObserver, getNetworkContextRegistry } from '#utils';
+import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
@@ -73,15 +73,6 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
       version,
       config,
     );
-  }
-
-  protected override _init(): void {
-    assertPerformanceObserver();
-    if (!PerformanceObserver.supportedEntryTypes?.includes('resource')) {
-      throw new Error(
-        'PerformanceObserver does not support the "resource" entry type in this browser.',
-      );
-    }
   }
 
   protected override _onEnable(): void {

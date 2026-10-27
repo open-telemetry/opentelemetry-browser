@@ -744,51 +744,6 @@ describe('ResourceTimingInstrumentation', () => {
     });
   });
 
-  describe('Browser Compatibility', () => {
-    it('should bail early PerformanceObserver is unsupported', () => {
-      const { warn } = setupTestDiagLogger();
-      vi.stubGlobal('window', {
-        setTimeout: vi.fn(() => 1),
-        addEventListener: vi.fn(),
-      });
-      vi.stubGlobal('PerformanceObserver', undefined);
-
-      instrumentation = new ResourceTimingInstrumentation();
-      expect(() => enableForTest(instrumentation)).not.toThrow();
-
-      // No observer should be constructed
-      expect(PerformanceObserverMock).not.toHaveBeenCalled();
-      // No window/document listeners should be registered
-      expect(mockDocument.addEventListener).not.toHaveBeenCalled();
-      expect(shimModule.requestIdleCallbackShim).not.toHaveBeenCalled();
-      expect(warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringMatching(/PerformanceObserver is not available/),
-        expect.any(Error),
-      );
-    });
-
-    it('should stay off and warn once when the resource entry type is unsupported', () => {
-      const { warn } = setupTestDiagLogger();
-      Object.assign(PerformanceObserverMock, {
-        supportedEntryTypes: ['navigation'],
-      });
-
-      instrumentation = new ResourceTimingInstrumentation();
-      enableForTest(instrumentation);
-      instrumentation.enable();
-
-      expect(instrumentation.isEnabled()).toBe(false);
-      expect(PerformanceObserverMock).not.toHaveBeenCalled();
-      expect(warn).toHaveBeenCalledTimes(1);
-      expect(warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringMatching(/"resource" entry type/),
-        expect.any(Error),
-      );
-    });
-  });
-
   describe('Queueing and Batching', () => {
     it('should flush synchronously when maxQueueSize is reached', () => {
       instrumentation = new ResourceTimingInstrumentation({
