@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Welcome! We're excited you're here, and we'd love your help! 
+Welcome! We're excited you're here, and we'd love your help!
 
 ## Prerequisites
 
@@ -24,35 +24,35 @@ npm install -g npm@latest
 
 ## Quick Start
 
-1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this page. 
+1. Create a fork of this repo by clicking on the `Fork` button in the upper right corner of this page.
 2. Clone the repo forked and set the upstream
 
-    ```sh
-    # Set to your GitHub username or organization where the repo was forked
-    export FORK_OWNER="<your-github-user-or-org>"
-    git clone https://github.com/$FORK_OWNER/opentelemetry-browser.git
-    cd opentelemetry-browser
-    git remote add upstream https://github.com/open-telemetry/opentelemetry-browser.git
-    ```
+   ```sh
+   # Set to your GitHub username or organization where the repo was forked
+   export FORK_OWNER="<your-github-user-or-org>"
+   git clone https://github.com/$FORK_OWNER/opentelemetry-browser.git
+   cd opentelemetry-browser
+   git remote add upstream https://github.com/open-telemetry/opentelemetry-browser.git
+   ```
 
 3. Install dependencies, set up git hooks, then build and run tests
 
-    `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run install scripts. Run `npm run prepare` once to install the git hooks.
+   `.npmrc` sets `ignore-scripts=true`, so `npm ci` does not run install scripts. Run `npm run prepare` once to install the git hooks.
 
-    ```sh
-    npm ci
-    npm run prepare
-    npm run build
-    npm test
-    ```
+   ```sh
+   npm ci
+   npm run prepare
+   npm run build
+   npm test
+   ```
 
 4. **Prior to receiving review comments**, you can keep your branch up-to-date by using the "Update with rebase" button on Github.com. To rebase manually:
 
-    ```sh
-    git fetch upstream
-    git checkout <your-branch-name>
-    git rebase upstream/main 
-    ```
+   ```sh
+   git fetch upstream
+   git checkout <your-branch-name>
+   git rebase upstream/main
+   ```
 
 5. **After opening a PR and receiving comments**, you can update your branch and retain comment history by clicking the "Update with merge commit" button on Github.com. To update manually:
 
@@ -150,12 +150,12 @@ There is a lot more to learn for this SIG and OpenTelemetry in general. Here are
 
 ### General OpenTelemetry Guides
 
-* [OpenTelemetry mission, vision, and values](https://github.com/open-telemetry/community/blob/main/mission-vision-values.md) - this guide helps you understand the direction OpenTelemetry as a whole is heading in and why.
-* [General Contribution Lifecycle and Processes](https://github.com/open-telemetry/community/blob/main/guides/contributor/processes.md) - this guide helps you understand how to find things to work on, get help, and how changes are merged and released.
-* [Membership, roles, and responsibilities](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md) - this guide helps the roles and responsibilities of contributors as well as how one advances beyond a member to a triager, approver, or maintainer.
+- [OpenTelemetry mission, vision, and values](https://github.com/open-telemetry/community/blob/main/mission-vision-values.md) - this guide helps you understand the direction OpenTelemetry as a whole is heading in and why.
+- [General Contribution Lifecycle and Processes](https://github.com/open-telemetry/community/blob/main/guides/contributor/processes.md) - this guide helps you understand how to find things to work on, get help, and how changes are merged and released.
+- [Membership, roles, and responsibilities](https://github.com/open-telemetry/community/blob/main/guides/contributor/membership.md) - this guide helps the roles and responsibilities of contributors as well as how one advances beyond a member to a triager, approver, or maintainer.
 
 ### OpenTelemetry Browser Guides
 
-* [Browser events](docs/browser-observability-model.md) - provides a comprehensive list of browser events emitted by the instrumentation library.
-* [Navigation event](docs/navigation-event.md) - documents different types of navigation events and how they are captured.
-* [Browser roadmap](docs/roadmap.md) - provides a detailed description of what we are working on and where we are heading.
+- [Browser events](docs/browser-observability-model.md) - provides a comprehensive list of browser events emitted by the instrumentation library.
+- [Navigation event](docs/navigation-event.md) - documents different types of navigation events and how they are captured.
+- [Browser roadmap](docs/roadmap.md) - provides a detailed description of what we are working on and where we are heading.

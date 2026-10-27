@@ -27,8 +27,8 @@ TODO: Define how soft navigations are identified and represented in semantic con
 
 This event can also capture same-document navigations for deeper session and user-journey analysis. Examples can include:
 
-* Hash changes (for example, links to sections within the same document)
-* Query/search parameter changes when application state is encoded in the URL
-* Certain back/forward interactions that do not replace the document (depending on history state)
+- Hash changes (for example, links to sections within the same document)
+- Query/search parameter changes when application state is encoded in the URL
+- Certain back/forward interactions that do not replace the document (depending on history state)
 
 The main purpose of the navigation event is to cover hard page loads and soft navigations. Other same-document navigations can introduce noise. Therefore, by default the instrumentation SHOULD NOT collect these additional events, but MAY allow them to be enabled via configuration.

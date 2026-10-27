@@ -40,12 +40,12 @@ Loading the SDK after some library has pacthed Browser's API may affect the beha
 components, like exporters, and instrumentations in unexpected ways.
 
 This example shows how to setup the SDK exporting logs and traces to a specific OTLP endpoint URL with
-a couple of customized headers. 
+a couple of customized headers.
 
 ```javascript
 import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
 
-// Start the SDK 
+// Start the SDK
 const sdk = quickStartBrowserSdk({
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
@@ -68,7 +68,7 @@ The following example sets some extra resource attributes and the limits for spa
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
-// Start the SDK 
+// Start the SDK
 const sdk = startBrowserSdk({
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
@@ -78,12 +78,12 @@ const sdk = startBrowserSdk({
   serviceVersion: '1.0',
   // Optional - attributes to append to the resource. Default value is undefined
   resourceAttributes: {
-    'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
+    'browser.has_speech_recognition': typeof SpeechRecognition === 'function',
   },
   // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318', headers: {} }
   exportConfig: {
     url: 'https://collector.mycompany.com',
-    headers: { foo: 'bar' }
+    headers: { foo: 'bar' },
   },
   // Optional - list of instrumentations to enable when the SDK starts
   instrumentations: [
@@ -102,8 +102,8 @@ const sdk = startBrowserSdk({
 // You can also use the `shutdown` method to gracefuly shut down the SDK and stop collection and
 // data export.
 sdk.shutdown().then(
-  () => console.log("SDK shut down successfully"),
-  (err) => console.log("Error shutting down SDK", err)
+  () => console.log('SDK shut down successfully'),
+  (err) => console.log('Error shutting down SDK', err),
 );
 ```
 
@@ -122,11 +122,11 @@ For that purpose `@opentelemetry/browser-sdk` provides functions to start signal
 independently. Each signal SDK function has its own subpath point so bundlers can easily tree shake the
 code related to other signals.
 
-| Subpath                         | Purpose                                                        |
-| ------------------------------- | -------------------------------------------------------------- |
-| `@opentelemetry/browser-sdk/logs`   | `startLogsSdk` — sets up logs and sets the global LoggerProvider (unless `setGlobals` is `false`) |
-| `@opentelemetry/browser-sdk/traces` | `startTracesSdk` — sets up traces and sets the global TracerProvider (unless `setGlobals` is `false`) |
-| `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes |
+| Subpath                                       | Purpose                                                                                               |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `@opentelemetry/browser-sdk/logs`             | `startLogsSdk` — sets up logs and sets the global LoggerProvider (unless `setGlobals` is `false`)     |
+| `@opentelemetry/browser-sdk/traces`           | `startTracesSdk` — sets up traces and sets the global TracerProvider (unless `setGlobals` is `false`) |
+| `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes                                                |
 
 
 #### Initialize logs SDK
@@ -137,7 +137,7 @@ a couple of customized headers.
 ```javascript
 import { startLogsSdk } from '@opentelemetry/browser-sdk/logs';
 
-// Start the SDK 
+// Start the SDK
 const logsSdk = startLogsSdk({
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
@@ -147,13 +147,13 @@ const logsSdk = startLogsSdk({
   serviceVersion: '1.0',
   // Optional - attributes to append to the resource. Default value is undefined
   resourceAttributes: {
-    'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
+    'browser.has_speech_recognition': typeof SpeechRecognition === 'function',
   },
   // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318/v1/logs', headers: {} }
   // Note: this config expects the full URL. Signal path is not added.
   exportConfig: {
     url: 'https://collector.mycompany.com/v1/logs',
-    headers: { foo: 'bar' }
+    headers: { foo: 'bar' },
   },
   // Optional - record limits. Default is undefined.
   logRecordLimits: { attributeCountLimit: 128 },
@@ -163,8 +163,8 @@ const logsSdk = startLogsSdk({
 // You can also use the `shutdown` method to gracefuly shut down the logs SDK and stop collection and
 // data export.
 logsSdk.shutdown().then(
-  () => console.log("SDK shut down successfully"),
-  (err) => console.log("Error shutting down SDK", err)
+  () => console.log('SDK shut down successfully'),
+  (err) => console.log('Error shutting down SDK', err),
 );
 ```
 
@@ -177,7 +177,7 @@ a couple of customized headers.
 ```javascript
 import { startTracesSdk } from '@opentelemetry/browser-sdk/traces';
 
-// Start the SDK 
+// Start the SDK
 const tracesSdk = startTracesSdk({
   // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
   logLevel: 'INFO',
@@ -187,13 +187,13 @@ const tracesSdk = startTracesSdk({
   serviceVersion: '1.0',
   // Optional - attributes to append to the resource. Default value is undefined
   resourceAttributes: {
-    'browser.has_speech_recognition': typeof SpeechRecognition === 'function'
+    'browser.has_speech_recognition': typeof SpeechRecognition === 'function',
   },
   // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318/v1/traces', headers: {} }
   // Note: this config expects the full URL. Signal path is not added.
   exportConfig: {
     url: 'https://collector.mycompany.com/v1/traces',
-    headers: { foo: 'bar' }
+    headers: { foo: 'bar' },
   },
   // Optional - span limits. Default is undefined.
   spanLimits: { attributeCountLimit: 128 },
@@ -203,8 +203,8 @@ const tracesSdk = startTracesSdk({
 // You can also use the `shutdown` method to gracefuly shut down the traces SDK and stop collection and
 // data export.
 tracesSdk.shutdown().then(
-  () => console.log("SDK shut down successfully"),
-  (err) => console.log("Error shutting down SDK", err)
+  () => console.log('SDK shut down successfully'),
+  (err) => console.log('Error shutting down SDK', err),
 );
 ```
 
@@ -300,7 +300,7 @@ startBrowserSdk({
   logs: {
     // there is no need to specify `serviceName` here
   },
-})
+});
 ```
 
 #### enabled

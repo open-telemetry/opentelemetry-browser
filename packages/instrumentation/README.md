@@ -104,11 +104,11 @@ new NavigationInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
-| `sanitizeUrl` | `(url: string) => string` | — | Called before the URL is written to `url.full`. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                        | Type                             | Default | Description                                                                                                                                                                                                                                                     |
+| ----------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useNavigationApiIfAvailable` | `boolean`                        | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
+| `sanitizeUrl`                 | `(url: string) => string`        | —       | Called before the URL is written to `url.full`.                                                                                                                                                                                                                 |
+| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger.                                                                                                                     |
 
 `defaultSanitizeUrl` is exported for composition — it redacts `user:password@` credentials and a set of common sensitive query parameters (`api_key`, `token`, `password`, etc.).
 
@@ -116,12 +116,12 @@ new NavigationInstrumentation({
 
 Each `browser.navigation` event includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `url.full` | The destination URL (after `sanitizeUrl` if configured). |
-| `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads. |
-| `browser.navigation.hash_change` | `true` when the navigation only adds or changes the URL fragment. |
-| `browser.navigation.type` | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
+| Attribute                          | Description                                                                               |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| `url.full`                         | The destination URL (after `sanitizeUrl` if configured).                                  |
+| `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads.                                |
+| `browser.navigation.hash_change`   | `true` when the navigation only adds or changes the URL fragment.                         |
+| `browser.navigation.type`          | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
 
 ---
 
@@ -166,12 +166,12 @@ new ResourceTimingInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `batchSize` | `number` | `50` | Number of resources to process per batch. |
-| `forceProcessingAfter` | `number` | `1000` | Maximum time (ms) to wait for an idle callback before forcing processing. |
-| `maxProcessingTime` | `number` | `50` | Maximum time (ms) to spend processing resources per idle callback. |
-| `maxQueueSize` | `number` | `1000` | Maximum number of resources to queue before forcing immediate flush. |
+| Option                 | Type     | Default | Description                                                               |
+| ---------------------- | -------- | ------- | ------------------------------------------------------------------------- |
+| `batchSize`            | `number` | `50`    | Number of resources to process per batch.                                 |
+| `forceProcessingAfter` | `number` | `1000`  | Maximum time (ms) to wait for an idle callback before forcing processing. |
+| `maxProcessingTime`    | `number` | `50`    | Maximum time (ms) to spend processing resources per idle callback.        |
+| `maxQueueSize`         | `number` | `1000`  | Maximum number of resources to queue before forcing immediate flush.      |
 
 #### Captured Data
 
@@ -217,10 +217,10 @@ new UserActionInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `autoCapturedActions` | `AutoCapturedUserAction[]` | `['click']` | Array of actions to automatically capture. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                     | Type                             | Default     | Description                                                                                                                                 |
+| -------------------------- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoCapturedActions`      | `AutoCapturedUserAction[]`       | `['click']` | Array of actions to automatically capture.                                                                                                  |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —           | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
 #### Additional Attributes
 
@@ -244,11 +244,11 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 
 #### Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
-| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. |
+| Option                     | Type                             | Default | Description                                                                                                                                                                 |
+| -------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                         |
+| `reportAllChanges`         | `boolean`                        | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. |
 
 ### Console
 
@@ -267,10 +267,11 @@ new ConsoleInstrumentation({
 });
 ```
 #### Captured Attributes
+
 Each `browser.console` event includes the following attributes:
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
+| Attribute                | Description                        | Example                                 |
+| ------------------------ | ---------------------------------- | --------------------------------------- |
 | `browser.console.method` | The console method that was called | `error`, `warn`, `log`, `info`, `debug` |
 
 ---
@@ -297,18 +298,18 @@ new ErrorsInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | — | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                  | Type                                     | Default | Description                                                                                                                                            |
+| ----------------------- | ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
 #### Captured Attributes
 
 Each `exception` event includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `exception.type` | The error's `name` (omitted when the thrown value is a string). |
-| `exception.message` | The error's `message`, or the thrown string itself. |
+| Attribute              | Description                                                      |
+| ---------------------- | ---------------------------------------------------------------- |
+| `exception.type`       | The error's `name` (omitted when the thrown value is a string).  |
+| `exception.message`    | The error's `message`, or the thrown string itself.              |
 | `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string). |
 
 ---
@@ -334,28 +335,28 @@ new FetchInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
-| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
-| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
-| `requestHook` | `(span: Span, request: Request) => void` | — | Function that allows you to interact with the Span and the Request object before the request starts. |
-| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+| Option                         | Type                                                                     | Default | Description                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                                                | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
+| `measureRequestSize`           | `boolean`                                                                | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
+| `sanitizeUrl`                  | `(url: string) => string`                                                | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
+| `requestHook`                  | `(span: Span, request: Request) => void`                                 | —       | Function that allows you to interact with the Span and the Request object before the request starts.                                     |
+| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished.                                                         |
 
 #### Captured Attributes
 
 Each `fetch` Span includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
-| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
-| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
-| `server.address` | The hostmane of the request's URL. |
-| `server.port` | The port of the request's URL. |
-| `http.response.status_code` | HTTP response status code. |
-| `error.type` | If request failed. Describes a class of error the operation ended with. |
+| Attribute                      | Description                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `http.request.method`          | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY).                                              |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line..                                                       |
+| `url.full`                     | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address`               | The hostmane of the request's URL.                                                                                  |
+| `server.port`                  | The port of the request's URL.                                                                                      |
+| `http.response.status_code`    | HTTP response status code.                                                                                          |
+| `error.type`                   | If request failed. Describes a class of error the operation ended with.                                             |
 
 ---
 
@@ -380,27 +381,27 @@ new XhrInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
-| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
-| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
-| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+| Option                         | Type                                                                     | Default | Description                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                                                | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
+| `measureRequestSize`           | `boolean`                                                                | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
+| `sanitizeUrl`                  | `(url: string) => string`                                                | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
+| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished.                                                         |
 
 #### Captured Attributes
 
 Each `fetch` Span includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
-| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
-| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
-| `server.address` | The hostmane of the request's URL. |
-| `server.port` | The port of the request's URL. |
-| `http.response.status_code` | HTTP response status code. |
-| `error.type` | If request failed. Describes a class of error the operation ended with. |
+| Attribute                      | Description                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `http.request.method`          | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY).                                              |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line..                                                       |
+| `url.full`                     | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address`               | The hostmane of the request's URL.                                                                                  |
+| `server.port`                  | The port of the request's URL.                                                                                      |
+| `http.response.status_code`    | HTTP response status code.                                                                                          |
+| `error.type`                   | If request failed. Describes a class of error the operation ended with.                                             |
 
 
 ## Enabling and disabling
@@ -424,11 +425,11 @@ Each instrumentation has three methods: `enable()`, `disable()` and
 
 The dependencies are:
 
-| Dependency | Used for | Default |
-|------------|----------|---------|
-| `tracerProvider` | Spans | The global tracer provider |
-| `loggerProvider` | Log records (events) | The global logger provider |
-| `propagator` | Trace context in outgoing requests | The global propagation API |
+| Dependency       | Used for                           | Default                    |
+| ---------------- | ---------------------------------- | -------------------------- |
+| `tracerProvider` | Spans                              | The global tracer provider |
+| `loggerProvider` | Log records (events)               | The global logger provider |
+| `propagator`     | Trace context in outgoing requests | The global propagation API |
 
 ```typescript
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';

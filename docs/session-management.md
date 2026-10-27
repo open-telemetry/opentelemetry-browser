@@ -207,7 +207,10 @@ scope sessions to a single tab instead, provide a `SessionStore` backed by `sess
 is tab-scoped by design:
 
 ```javascript
-import { createDefaultSessionIdGenerator, createSessionManager } from '@opentelemetry/browser-sdk/session';
+import {
+  createDefaultSessionIdGenerator,
+  createSessionManager,
+} from '@opentelemetry/browser-sdk/session';
 
 const SESSION_STORAGE_KEY = 'otel-session';
 

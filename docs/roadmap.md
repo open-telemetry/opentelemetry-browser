@@ -19,24 +19,24 @@ to discuss and work on it.
 
 ## Table of Contents
 
-* [Background: From Phase 1 to This Roadmap](#background-from-phase-1-to-this-roadmap)
-* [Package Consolidation](#package-consolidation)
-* [Instrumentation](#instrumentation)
-* [Semantic Convention Stability](#semantic-convention-stability)
-* [Developer Experience: the Browser SDK](#developer-experience-the-browser-sdk)
-* [Browser Compatibility and Support](#browser-compatibility-and-support)
-* [Sessions and Page Context](#sessions-and-page-context)
-* [Open Data Model Questions](#open-data-model-questions)
-  * [Metrics Strategy](#metrics-strategy)
-  * [Browser API Surface](#browser-api-surface)
-* [Documentation](#documentation)
-* [Cross-Platform Coordination](#cross-platform-coordination)
-* [Growing Contributors](#growing-contributors)
-* [Distant Destinations](#distant-destinations)
-  * [Bundle Size](#bundle-size)
-  * [Protocol and Payload Efficiency](#protocol-and-payload-efficiency)
-  * [Sampling](#sampling)
-* [Conclusion](#conclusion)
+- [Background: From Phase 1 to This Roadmap](#background-from-phase-1-to-this-roadmap)
+- [Package Consolidation](#package-consolidation)
+- [Instrumentation](#instrumentation)
+- [Semantic Convention Stability](#semantic-convention-stability)
+- [Developer Experience: the Browser SDK](#developer-experience-the-browser-sdk)
+- [Browser Compatibility and Support](#browser-compatibility-and-support)
+- [Sessions and Page Context](#sessions-and-page-context)
+- [Open Data Model Questions](#open-data-model-questions)
+  - [Metrics Strategy](#metrics-strategy)
+  - [Browser API Surface](#browser-api-surface)
+- [Documentation](#documentation)
+- [Cross-Platform Coordination](#cross-platform-coordination)
+- [Growing Contributors](#growing-contributors)
+- [Distant Destinations](#distant-destinations)
+  - [Bundle Size](#bundle-size)
+  - [Protocol and Payload Efficiency](#protocol-and-payload-efficiency)
+  - [Sampling](#sampling)
+- [Conclusion](#conclusion)
 
 ## Background: From Phase 1 to This Roadmap
 
@@ -59,16 +59,16 @@ will be migrated here or deprecated
 ([#209](https://github.com/open-telemetry/opentelemetry-browser/issues/209)).
 This includes:
 
-* fetch instrumentation
+- fetch instrumentation
   ([#259](https://github.com/open-telemetry/opentelemetry-browser/issues/259),
   [#327](https://github.com/open-telemetry/opentelemetry-browser/issues/327))
-* XHR instrumentation
+- XHR instrumentation
   ([#258](https://github.com/open-telemetry/opentelemetry-browser/issues/258))
-* `instrumentation-web-exception`
+- `instrumentation-web-exception`
   ([#239](https://github.com/open-telemetry/opentelemetry-browser/issues/239))
-* `instrumentation-browser-navigation`
+- `instrumentation-browser-navigation`
   ([#238](https://github.com/open-telemetry/opentelemetry-browser/issues/238))
-* `web-common`
+- `web-common`
   ([#313](https://github.com/open-telemetry/opentelemetry-browser/issues/313))
 
 Deprecations of superseded packages will be batched into a coordinated sweep
@@ -83,15 +83,15 @@ user action telemetry.
 
 Near-term instrumentation goals:
 
-* Land the remaining network instrumentations — fetch
+- Land the remaining network instrumentations — fetch
   ([#281](https://github.com/open-telemetry/opentelemetry-browser/pull/281))
   and XHR
   ([#258](https://github.com/open-telemetry/opentelemetry-browser/issues/258)) —
   and align all instrumentations on a browser-native `InstrumentationBase`
   ([#278](https://github.com/open-telemetry/opentelemetry-browser/pull/278)).
-* Correlate resource timing entries with the network requests that produced
+- Correlate resource timing entries with the network requests that produced
   them via network context.
-* Keep the instrumentation status table in the
+- Keep the instrumentation status table in the
   [browser observability model](browser-observability-model.md) current.
 
 Beyond the core runtime set, instrumentation remains open-ended — the Phase 1
@@ -109,9 +109,9 @@ console) from experimental review to stability.
 
 Known open modeling questions we intend to resolve with written decisions:
 
-* Cardinality of document/page URL attributes (e.g., query parameters in
+- Cardinality of document/page URL attributes (e.g., query parameters in
   `browser.document.url.full`).
-* Modeling sessions and documents/page views as entities (see
+- Modeling sessions and documents/page views as entities (see
   [Sessions and Page Context](#sessions-and-page-context)).
 
 Following the approach taken by OpenTelemetry Android, we intend to document
@@ -132,14 +132,14 @@ provides for Node.js.
 
 Roadmap goals:
 
-* Iterate on the published SDK package and grow it toward a stable 1.0 API,
+- Iterate on the published SDK package and grow it toward a stable 1.0 API,
   informed by real-world usage of the initial releases.
-* Make session tracking, resource detection, and exporter configuration work
+- Make session tracking, resource detection, and exporter configuration work
   out of the box.
-* Consolidate configuration so common needs (e.g., enriching log records)
+- Consolidate configuration so common needs (e.g., enriching log records)
   have a single SDK-level surface
   ([#359](https://github.com/open-telemetry/opentelemetry-browser/issues/359)).
-* Keep examples, the sandbox, and the demo app on the SDK package so users
+- Keep examples, the sandbox, and the demo app on the SDK package so users
   always have a working reference.
 
 ## Browser Compatibility and Support
@@ -155,13 +155,13 @@ Phase 1 charter and remains to be documented.
 Sessions and page context are central to browser observability and a key
 differentiator from server-side telemetry. Goals:
 
-* First-class session management in the SDK, including session start/end
+- First-class session management in the SDK, including session start/end
   events.
-* Modeling sessions and documents/page views as entities, with session and
+- Modeling sessions and documents/page views as entities, with session and
   page context carried on telemetry via resource attributes
   ([#269](https://github.com/open-telemetry/opentelemetry-browser/pull/269),
   [semantic-conventions#3633](https://github.com/open-telemetry/semantic-conventions/pull/3633)).
-* Alignment with other client platforms on session semantics, in
+- Alignment with other client platforms on session semantics, in
   coordination with the Client Instrumentation SIG, since entity support may
   require engagement with the broader OpenTelemetry specification.
 
@@ -176,12 +176,12 @@ analysis rather than premature commitment.
 Should the browser emit metrics at all, or are events the primitive from
 which backends derive metrics? Options under discussion:
 
-* **Events-first:** no client-side metrics; backends aggregate. Simpler
+- **Events-first:** no client-side metrics; backends aggregate. Simpler
   client, smaller bundles, less data on the wire.
-* **Lightweight client-side metrics:** a small subset (e.g., error counters,
+- **Lightweight client-side metrics:** a small subset (e.g., error counters,
   key timing histograms) where client-side aggregation meaningfully reduces
   data volume.
-* **Unaggregated measurements:** a metrics API that emits individual
+- **Unaggregated measurements:** a metrics API that emits individual
   events/measurements without any client-side aggregation, leaving
   aggregation entirely to the backend while preserving the familiar metrics
   API shape for instrumentation authors.
@@ -204,14 +204,14 @@ and breadcrumb context identifiers
 
 As the SDK and instrumentations mature, documentation must mature with them:
 
-* Developer-facing documentation on
+- Developer-facing documentation on
   [opentelemetry.io](https://opentelemetry.io/) for browser instrumentation
   and the SDK package.
-* A dedicated session management guide
+- A dedicated session management guide
   ([#114](https://github.com/open-telemetry/opentelemetry-browser/issues/114)).
-* Task-oriented "How do I ..." recipes for common scenarios.
-* An up-to-date sandbox and demo, serving as living examples.
-* Representation in the
+- Task-oriented "How do I ..." recipes for common scenarios.
+- An up-to-date sandbox and demo, serving as living examples.
+- Representation in the
   [official OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo):
   its web frontend should showcase the new event-based instrumentations and
   the browser SDK, so users evaluating OpenTelemetry see browser telemetry
@@ -221,11 +221,11 @@ As the SDK and instrumentations mature, documentation must mature with them:
 
 Browser is one of several OpenTelemetry client platforms. We will:
 
-* Participate in the federated client semantic conventions repository
+- Participate in the federated client semantic conventions repository
   together with Android, iOS, and Flutter.
-* Increase browser representation in Semantic Conventions and specification
+- Increase browser representation in Semantic Conventions and specification
   meetings, so client-side concerns are represented early.
-* Coordinate on shared concepts — sessions in particular — through the
+- Coordinate on shared concepts — sessions in particular — through the
   Client Instrumentation SIG.
 
 ## Growing Contributors
