@@ -4,7 +4,6 @@
  */
 
 import type { Attributes } from '@opentelemetry/api';
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 export type ApplyCustomAttributesFunction = (
   error: Error | string,
@@ -13,7 +12,7 @@ export type ApplyCustomAttributesFunction = (
 /**
  * ErrorsInstrumentation Configuration
  */
-export interface ErrorsInstrumentationConfig extends InstrumentationConfig {
+export interface ErrorsInstrumentationConfig {
   /**
    * Optional callback invoked for each captured error or unhandled rejection.
    * Returned attributes are merged onto the emitted log record (after the

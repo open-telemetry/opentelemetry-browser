@@ -4,7 +4,6 @@
  */
 
 import type { Span } from '@opentelemetry/api';
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
 
 /**
  * Interface used to provide information to finish span on fetch response.
@@ -45,7 +44,7 @@ export type FetchRequestHookFunction = (
   request: Request | RequestInit,
 ) => void;
 
-export interface FetchInstrumentationConfig extends InstrumentationConfig {
+export interface FetchInstrumentationConfig {
   /** urls which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
   /**

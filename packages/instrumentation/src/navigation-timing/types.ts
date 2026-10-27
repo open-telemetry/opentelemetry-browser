@@ -3,12 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
 /**
- * NavigationTimingInstrumentation Configuration
+ * NavigationTimingInstrumentation Configuration. It has no options yet.
  */
-export interface NavigationTimingInstrumentationConfig
-  extends InstrumentationConfig {
-  // Configuration options will be added here
-}
+export type NavigationTimingInstrumentationConfig = Record<string, never>;

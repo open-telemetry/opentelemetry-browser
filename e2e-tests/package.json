@@ -14,7 +14,6 @@
     "@opentelemetry/browser-sdk": "file:../packages/sdk",
     "@opentelemetry/exporter-logs-otlp-http": "^0.223.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.223.0",
-    "@opentelemetry/instrumentation": "^0.223.0",
     "@opentelemetry/instrumentation-fetch": "^0.223.0",
     "@opentelemetry/sdk-logs": "^0.223.0",
     "@opentelemetry/sdk-trace": "^2.12.0",

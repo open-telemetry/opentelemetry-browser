@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.5.0...browser-sdk-v0.6.0) (2026-10-22)
+
+
+### Features
+
+* **sdk:** move browser detector from opentelemetry-js ([#459](https://github.com/open-telemetry/opentelemetry-browser/issues/459)) ([9133126](https://github.com/open-telemetry/opentelemetry-browser/commit/9133126695d0e0543e7bc5793eca2d3d74e86fb5))
+
+
+### Bug Fixes
+
+* **sdk:** don't throw from the session store where storage is blocked ([#451](https://github.com/open-telemetry/opentelemetry-browser/issues/451)) ([cbccc49](https://github.com/open-telemetry/opentelemetry-browser/commit/cbccc49acbddd4eff9ff5f73ff1ada237d3d3e88))
+* **sdk:** print console export for every level above DEBUG ([#437](https://github.com/open-telemetry/opentelemetry-browser/issues/437)) ([d04c6bf](https://github.com/open-telemetry/opentelemetry-browser/commit/d04c6bf60437597b2cf5dd7f673b745db1d52807))
+
 ## [0.5.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.4.0...browser-sdk-v0.5.0) (2026-10-09)
 
 
