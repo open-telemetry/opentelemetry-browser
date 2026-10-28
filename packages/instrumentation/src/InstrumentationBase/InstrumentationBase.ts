@@ -249,7 +249,8 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
    * One-time setup, run at the first `enable()`. It only patches browser APIs
    * and checks that the browser supports what this instrumentation needs.
    * Throw if the instrumentation cannot run. Listeners belong in
-   * `_onEnable()`. Must not call `enable()` or `disable()`.
+   * `_onEnable()`. Must be synchronous and must not call `enable()` or
+   * `disable()`.
    */
   protected _init(): void {}
 
@@ -257,7 +258,7 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
    * Add this instrumentation's listeners and observers, including buffered ones,
    * so a late `enable()` still receives earlier entries. If this throws,
    * `_onDisable()` must be able to remove whatever was added before the throw.
-   * Must not call `enable()` or `disable()`.
+   * Must be synchronous and must not call `enable()` or `disable()`.
    */
   protected _onEnable(): void {}
 
@@ -265,7 +266,7 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
    * Remove what `_onEnable()` added. `isEnabled()` is already false here, which
    * is what stops the patches from emitting. If this throws, the
    * instrumentation stays off for good and `enable()` does nothing.
-   * Must not call `enable()` or `disable()`.
+   * Must be synchronous and must not call `enable()` or `disable()`.
    */
   protected _onDisable(): void {}
 }

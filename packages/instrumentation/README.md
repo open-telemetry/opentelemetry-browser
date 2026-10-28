@@ -533,8 +533,9 @@ in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
 `@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
 
 Override these hooks. All of them must be synchronous, because the lifecycle
-does not wait for a returned promise, and a rejection is not logged. Hooks must
-not call `enable()` or `disable()`.
+does not wait for a returned promise. Do not use `async` here: a rejection is
+not logged, and it reaches the page as an unhandled rejection. Hooks must not
+call `enable()` or `disable()`.
 
 - `_init()` runs once, at the first `enable()`. It only patches browser APIs
   with `_wrap()` and checks that the browser supports what the instrumentation
