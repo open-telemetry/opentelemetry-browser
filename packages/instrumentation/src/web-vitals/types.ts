@@ -30,7 +30,6 @@ export interface WebVitalsInstrumentationConfig {
    * not only when the value is final. FCP and TTFB are not affected. `delta`
    * is the change since the previous report for the same metric `id`.
    *
-   * Set this before the listeners are registered. Later changes have no effect.
    * `web-vitals` recommends this for debugging, not for production.
    * Defaults to `false`.
    *
