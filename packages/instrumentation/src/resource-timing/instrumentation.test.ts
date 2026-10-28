@@ -289,6 +289,69 @@ describe('ResourceTimingInstrumentation', () => {
     });
   });
 
+  describe('load event handling', () => {
+    const stubLoadingPage = ({
+      windowRemoveEventListener = vi.fn(),
+    }: {
+      windowRemoveEventListener?: ReturnType<typeof vi.fn>;
+    } = {}) => {
+      const listeners = new Map();
+      vi.stubGlobal('document', {
+        readyState: 'loading',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      });
+      vi.stubGlobal('window', {
+        PerformanceObserver: PerformanceObserverMock,
+        addEventListener: vi.fn((event, handler) => {
+          listeners.set(event, handler);
+        }),
+        removeEventListener: windowRemoveEventListener,
+        setTimeout: vi.fn(() => 1),
+        clearTimeout: vi.fn(),
+      });
+      return listeners;
+    };
+
+    it('removes the load handler when disabled before the load event', () => {
+      const windowRemoveEventListener = vi.fn();
+      const listeners = stubLoadingPage({ windowRemoveEventListener });
+      instrumentation = new ResourceTimingInstrumentation();
+      enableForTest(instrumentation);
+
+      instrumentation.disable();
+
+      expect(windowRemoveEventListener).toHaveBeenCalledWith(
+        'load',
+        listeners.get('load'),
+      );
+    });
+
+    it('does not throw when the cleanup also fails after observe() fails from the load event', () => {
+      const { error } = setupTestDiagLogger();
+      const listeners = stubLoadingPage({
+        windowRemoveEventListener: vi.fn(() => {
+          throw new Error('cannot remove');
+        }),
+      });
+      mockObserver.observe.mockImplementationOnce(() => {
+        throw new TypeError('observe failed');
+      });
+      instrumentation = new ResourceTimingInstrumentation();
+      enableForTest(instrumentation);
+
+      expect(() => listeners.get('load')?.()).not.toThrow();
+
+      expect(instrumentation.isEnabled()).toBe(false);
+      expect(error).toHaveBeenCalledTimes(2);
+      expect(error).toHaveBeenLastCalledWith(
+        expect.any(String),
+        expect.stringMatching(/disable failed.*cannot remove/),
+        expect.any(Error),
+      );
+    });
+  });
+
   describe('Configuration', () => {
     it('should use default forceProcessingAfter of 1000ms', () => {
       instrumentation = new ResourceTimingInstrumentation();

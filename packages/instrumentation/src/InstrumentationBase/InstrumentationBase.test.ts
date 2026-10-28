@@ -237,6 +237,26 @@ describe('InstrumentationBase', () => {
       ).toEqual([['test', expect.stringMatching(/enable\(\) ignores deps/)]]);
     });
 
+    it('deps passed to enable on an enabled instance are ignored and logged at debug', () => {
+      const first = createTracerProvider();
+      const second = createTracerProvider();
+      const probe = new Probe();
+
+      probe.enable({ tracerProvider: first.provider });
+      probe.enable({ tracerProvider: second.provider });
+      probe.emitSpan('still-first');
+
+      expect(probe.onEnableCount).toBe(1);
+      expect(spanNames(first.exporter)).toEqual(['still-first']);
+      expect(spanNames(second.exporter)).toEqual([]);
+      expect(diagLogger.warn).not.toHaveBeenCalled();
+      expect(
+        vi
+          .mocked(diagLogger.debug)
+          .mock.calls.filter(([namespace]) => namespace === 'test'),
+      ).toEqual([['test', expect.stringMatching(/enable\(\) ignores deps/)]]);
+    });
+
     it('propagator defaults to the global propagation API', () => {
       const probe = new Probe();
 
@@ -305,6 +325,32 @@ describe('InstrumentationBase', () => {
       ).toEqual([
         ['test', expect.stringMatching(/enable\(\) ignored.*failed earlier/)],
       ]);
+    });
+
+    it('_init throws a non-Error: logged as an Error with the value as cause', () => {
+      const probe = new Probe();
+      probe.initError = 'cannot patch';
+
+      probe.enable();
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('cannot patch'),
+        expect.objectContaining({ cause: 'cannot patch' }),
+      );
+    });
+
+    it('_onEnable throws a non-Error: logged as an Error with the value as cause', () => {
+      const probe = new Probe();
+      probe.onEnableError = 'enable broke';
+
+      probe.enable();
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('enable broke'),
+        expect.objectContaining({ cause: 'enable broke' }),
+      );
     });
 
     it('a provider that throws from getTracer leaves the instance failed, logs an error, and enable() does not throw', () => {
