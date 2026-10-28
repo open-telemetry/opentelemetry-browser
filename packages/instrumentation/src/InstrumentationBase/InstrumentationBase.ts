@@ -24,7 +24,7 @@ interface Resolved {
  * The constructor only stores the config. The first `enable(deps)` locks the
  * dependencies, runs `_init()` once and then `_onEnable()`. After that,
  * `disable()` and `enable()` only run `_onDisable()` and `_onEnable()`. If
- * init or `_onDisable()` throws, the instrumentation stays off for good.
+ * setup, `_init()` or `_onDisable()` throws, the instrumentation stays off for good.
  * Hooks must be synchronous, and patches are never removed.
  */
 export abstract class InstrumentationBase<ConfigType extends object = object>
@@ -139,8 +139,9 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
       this._onEnable();
     } catch (err) {
       const error = toError(err);
+      // Rolls back to `disabled`, not `failed`, unless `_onDisable()` also
+      // throws: init is done, so a retry cannot wrap twice.
       this._diag.error(`enable failed: ${error.message}`, error);
-      // Ends `disabled`, not `failed`: init is done, so a retry cannot wrap twice.
       this.disable();
     }
   }

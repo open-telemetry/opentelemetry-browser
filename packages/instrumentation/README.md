@@ -501,8 +501,8 @@ diag logger, so set one with `diag.setLogger()` to see it. A failed
 instrumentation stays off for good. Later calls to `enable()` only log a debug
 line. A `disable()` that throws, for example when a listener cannot be removed,
 is also logged as an error and keeps the instrumentation off in the same way. An
-`_onEnable()` that throws is also logged as an error, and a later `enable()`
-tries again.
+`_onEnable()` that throws is logged as an error, and a later `enable()` tries
+again, unless the `_onDisable()` that cleans up after it throws too.
 
 ### Differences from classic instrumentations
 
@@ -533,15 +533,16 @@ in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
 `@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
 
 Override these hooks. All of them must be synchronous, because the lifecycle
-does not wait for a returned promise. Hooks must not call `enable()` or
-`disable()`.
+does not wait for a returned promise, and a rejection is not logged. Hooks must
+not call `enable()` or `disable()`.
 
 - `_init()` runs once, at the first `enable()`. It only patches browser APIs
   with `_wrap()` and checks that the browser supports what the instrumentation
   needs. Throw if the instrumentation cannot run. A failed init is final.
 - `_onEnable()` runs each time `enable()` turns emission on. Add listeners and
   observers here, including buffered ones. If it throws, `_onDisable()` runs to
-  remove what it added, and a later `enable()` tries again.
+  remove what it added, and a later `enable()` tries again. If that
+  `_onDisable()` throws too, the instrumentation stays off for good.
 - `_onDisable()` runs each time `disable()` turns emission off. Remove what
   `_onEnable()` added. If it throws, some listeners may still be attached, so
   the instrumentation stays off for good.
@@ -559,7 +560,8 @@ creates them after you construct the instrumentation.
 There is `_wrap()` but no unwrap. Patches are never removed, because other code
 may have wrapped on top of ours. So a patch must check `isEnabled()`, and pass
 the call through when it is false. Run user hooks and emit code through
-`_safeExecute()`, so that a throw does not break the page.
+`_safeExecute()`, so that a throw, or a rejected promise, is logged and does not
+break the page.
 
 ```typescript
 import { InstrumentationBase } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
