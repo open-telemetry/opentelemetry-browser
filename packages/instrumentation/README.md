@@ -5,9 +5,12 @@
 
 **Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
 
-OpenTelemetry browser instrumentations, available as subpath exports under `./experimental/*`.
+OpenTelemetry browser instrumentations, available as subpath exports under
+`./experimental/*`.
 
-Moving from `opentelemetry-js` or `opentelemetry-js-contrib`? See the [migration guide](../../docs/migration-guide.md) for import paths, behavior changes, and remaining gaps.
+Moving from `opentelemetry-js` or `opentelemetry-js-contrib`? See the
+[migration guide](../../docs/migration-guide.md) for import paths, behavior
+changes, and remaining gaps.
 
 ## Installation
 
@@ -17,19 +20,25 @@ npm install @opentelemetry/browser-instrumentation
 
 ## Instrumentations
 
-- [Navigation](#navigation) — automatic instrumentation for browser navigations (initial load and SPA route changes)
-- [Navigation Timing](#navigation-timing) — automatic instrumentation for navigation timing
-- [Resource Timing](#resource-timing) — automatic instrumentation for resource timing
-- [User Action](#user-action) — automatic instrumentation for user actions (clicks)
+- [Navigation](#navigation) — automatic instrumentation for browser navigations
+  (initial load and SPA route changes)
+- [Navigation Timing](#navigation-timing) — automatic instrumentation for
+  navigation timing
+- [Resource Timing](#resource-timing) — automatic instrumentation for resource
+  timing
+- [User Action](#user-action) — automatic instrumentation for user actions
+  (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
-- [Console](#console) — automatic instrumentation for console API calls (log, warn, error, info, debug)
-- [Errors](#errors) — automatic instrumentation for unhandled errors and promise rejections
+- [Console](#console) — automatic instrumentation for console API calls (log,
+  warn, error, info, debug)
+- [Errors](#errors) — automatic instrumentation for unhandled errors and promise
+  rejections
 - [Fetch](#fetch) — automatic instrumentation for request using the `fetch` API
 
 ## Usage
 
-The easiest way to use these instrumentations is the [Browser SDK](../sdk). Pass them to
-`startBrowserSdk()` and the SDK enables them with its own providers.
+The easiest way to use these instrumentations is the [Browser SDK](../sdk). Pass
+them to `startBrowserSdk()` and the SDK enables them with its own providers.
 
 You can also enable them yourself. Call `enable()` on each one:
 
@@ -75,7 +84,12 @@ for (const instrumentation of instrumentations) {
 import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 ```
 
-Emits a `browser.navigation` event for the initial page load (hard navigation) and for subsequent in-page navigations (soft navigations), including `history.pushState`, `history.replaceState`, `popstate`, and hash changes. When enabled via config, the [Navigation API](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API) is used in preference to patching `history`.
+Emits a `browser.navigation` event for the initial page load (hard navigation)
+and for subsequent in-page navigations (soft navigations), including
+`history.pushState`, `history.replaceState`, `popstate`, and hash changes. When
+enabled via config, the
+[Navigation API](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API)
+is used in preference to patching `history`.
 
 #### Configuration
 
@@ -104,24 +118,26 @@ new NavigationInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `useNavigationApiIfAvailable` | `boolean` | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
-| `sanitizeUrl` | `(url: string) => string` | — | Called before the URL is written to `url.full`. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                        | Type                             | Default | Description                                                                                                                                                                                                                                                     |
+| ----------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useNavigationApiIfAvailable` | `boolean`                        | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
+| `sanitizeUrl`                 | `(url: string) => string`        | —       | Called before the URL is written to `url.full`.                                                                                                                                                                                                                 |
+| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger.                                                                                                                     |
 
-`defaultSanitizeUrl` is exported for composition — it redacts `user:password@` credentials and a set of common sensitive query parameters (`api_key`, `token`, `password`, etc.).
+`defaultSanitizeUrl` is exported for composition — it redacts `user:password@`
+credentials and a set of common sensitive query parameters (`api_key`, `token`,
+`password`, etc.).
 
 #### Captured Attributes
 
 Each `browser.navigation` event includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `url.full` | The destination URL (after `sanitizeUrl` if configured). |
-| `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads. |
-| `browser.navigation.hash_change` | `true` when the navigation only adds or changes the URL fragment. |
-| `browser.navigation.type` | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
+| Attribute                          | Description                                                                               |
+| ---------------------------------- | ----------------------------------------------------------------------------------------- |
+| `url.full`                         | The destination URL (after `sanitizeUrl` if configured).                                  |
+| `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads.                                |
+| `browser.navigation.hash_change`   | `true` when the navigation only adds or changes the URL fragment.                         |
+| `browser.navigation.type`          | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
 
 ---
 
@@ -131,7 +147,9 @@ Each `browser.navigation` event includes:
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 ```
 
-Provides automatic instrumentation for [Navigation Timing](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming) in web applications.
+Provides automatic instrumentation for
+[Navigation Timing](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceNavigationTiming)
+in web applications.
 
 ---
 
@@ -141,11 +159,16 @@ Provides automatic instrumentation for [Navigation Timing](https://developer.moz
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 ```
 
-Provides automatic instrumentation for [Resource Timing](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming) in web applications, capturing performance metrics for all resources loaded by the browser (scripts, stylesheets, images, fonts, XHR/fetch requests, etc.).
+Provides automatic instrumentation for
+[Resource Timing](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceResourceTiming)
+in web applications, capturing performance metrics for all resources loaded by
+the browser (scripts, stylesheets, images, fonts, XHR/fetch requests, etc.).
 
-- Uses `requestIdleCallback` to avoid blocking the main thread (with automatic `setTimeout` fallback for Safari)
+- Uses `requestIdleCallback` to avoid blocking the main thread (with automatic
+  `setTimeout` fallback for Safari)
 - Processes resources in configurable batches
-- Captures historical resources loaded before instrumentation was enabled via buffered mode
+- Captures historical resources loaded before instrumentation was enabled via
+  buffered mode
 - Flushes pending entries on visibility change to prevent data loss
 
 #### Configuration
@@ -166,12 +189,12 @@ new ResourceTimingInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `batchSize` | `number` | `50` | Number of resources to process per batch. |
-| `forceProcessingAfter` | `number` | `1000` | Maximum time (ms) to wait for an idle callback before forcing processing. |
-| `maxProcessingTime` | `number` | `50` | Maximum time (ms) to spend processing resources per idle callback. |
-| `maxQueueSize` | `number` | `1000` | Maximum number of resources to queue before forcing immediate flush. |
+| Option                 | Type     | Default | Description                                                               |
+| ---------------------- | -------- | ------- | ------------------------------------------------------------------------- |
+| `batchSize`            | `number` | `50`    | Number of resources to process per batch.                                 |
+| `forceProcessingAfter` | `number` | `1000`  | Maximum time (ms) to wait for an idle callback before forcing processing. |
+| `maxProcessingTime`    | `number` | `50`    | Maximum time (ms) to spend processing resources per idle callback.        |
+| `maxQueueSize`         | `number` | `1000`  | Maximum number of resources to queue before forcing immediate flush.      |
 
 #### Captured Data
 
@@ -179,7 +202,8 @@ Each resource timing event includes:
 
 - **URL** and **Initiator Type** (script, css, img, xmlhttprequest, fetch, etc.)
 - **Duration** — total resource load time
-- **Timing Phases** — DNS lookup, TCP connection, TLS handshake, request, response
+- **Timing Phases** — DNS lookup, TCP connection, TLS handshake, request,
+  response
 - **Size Metrics** — transfer size, encoded size, decoded size
 - **Protocol** — HTTP version (h1, h2, h3)
 - **Redirect Info** — redirect timing if applicable
@@ -200,7 +224,12 @@ Compatible with OpenTelemetry JS API and SDK `1.0+`.
 
 #### Configuration
 
-By default the instrumentation captures `click` events. Middle clicks are captured through `auxclick` and right clicks through `contextmenu`, since native context menus can consume the mouse release before `auxclick` fires. Only button 2 context menus are recorded, so keyboard menu events are ignored. Right-button `auxclick` events are ignored to avoid duplicate records. You can configure which events to capture by passing an options object:
+By default the instrumentation captures `click` events. Middle clicks are
+captured through `auxclick` and right clicks through `contextmenu`, since native
+context menus can consume the mouse release before `auxclick` fires. Only button
+2 context menus are recorded, so keyboard menu events are ignored. Right-button
+`auxclick` events are ignored to avoid duplicate records. You can configure
+which events to capture by passing an options object:
 
 ```typescript
 new UserActionInstrumentation({
@@ -217,14 +246,15 @@ new UserActionInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `autoCapturedActions` | `AutoCapturedUserAction[]` | `['click']` | Array of actions to automatically capture. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                     | Type                             | Default     | Description                                                                                                                                 |
+| -------------------------- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoCapturedActions`      | `AutoCapturedUserAction[]`       | `['click']` | Array of actions to automatically capture.                                                                                                  |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —           | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
 #### Additional Attributes
 
-Data attributes with the prefix `data-otel-` on the target element will be added as additional attributes to the generated log record. For example:
+Data attributes with the prefix `data-otel-` on the target element will be added
+as additional attributes to the generated log record. For example:
 
 ```html
 <button id="btn1" data-otel-user-id="12345" data-otel-feature="signup">
@@ -240,15 +270,17 @@ Data attributes with the prefix `data-otel-` on the target element will be added
 import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/web-vitals';
 ```
 
-Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/) using the [`web-vitals`](https://github.com/GoogleChrome/web-vitals) library.
+Provides automatic instrumentation for
+[Core Web Vitals](https://web.dev/vitals/) using the
+[`web-vitals`](https://github.com/GoogleChrome/web-vitals) library.
 
 #### Configuration
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `includeRawAttribution` | `boolean` | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | — | Hook to modify log records before they are emitted. |
-| `reportAllChanges` | `boolean` | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. |
+| Option                     | Type                             | Default | Description                                                                                                                                                                 |
+| -------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                         |
+| `reportAllChanges`         | `boolean`                        | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. |
 
 ### Console
 
@@ -256,7 +288,8 @@ Provides automatic instrumentation for [Core Web Vitals](https://web.dev/vitals/
 import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/console';
 ```
 
-Provides automatic instrumentation for browser console API calls. By default captures `log`, `warn`, `error`, `info`, and `debug` methods.
+Provides automatic instrumentation for browser console API calls. By default
+captures `log`, `warn`, `error`, `info`, and `debug` methods.
 
 #### Configuration
 
@@ -267,10 +300,11 @@ new ConsoleInstrumentation({
 });
 ```
 #### Captured Attributes
+
 Each `browser.console` event includes the following attributes:
 
-| Attribute | Description | Example |
-|-----------|-------------|---------|
+| Attribute                | Description                        | Example                                 |
+| ------------------------ | ---------------------------------- | --------------------------------------- |
 | `browser.console.method` | The console method that was called | `error`, `warn`, `log`, `info`, `debug` |
 
 ---
@@ -281,7 +315,9 @@ Each `browser.console` event includes the following attributes:
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 ```
 
-Emits an `exception` event for every uncaught error (`window.addEventListener('error', ...)`) and unhandled promise rejection (`window.addEventListener('unhandledrejection', ...)`).
+Emits an `exception` event for every uncaught error
+(`window.addEventListener('error', ...)`) and unhandled promise rejection
+(`window.addEventListener('unhandledrejection', ...)`).
 
 #### Configuration
 
@@ -297,18 +333,18 @@ new ErrorsInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | — | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                  | Type                                     | Default | Description                                                                                                                                            |
+| ----------------------- | ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
 #### Captured Attributes
 
 Each `exception` event includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `exception.type` | The error's `name` (omitted when the thrown value is a string). |
-| `exception.message` | The error's `message`, or the thrown string itself. |
+| Attribute              | Description                                                      |
+| ---------------------- | ---------------------------------------------------------------- |
+| `exception.type`       | The error's `name` (omitted when the thrown value is a string).  |
+| `exception.message`    | The error's `message`, or the thrown string itself.              |
 | `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string). |
 
 ---
@@ -319,7 +355,8 @@ Each `exception` event includes:
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 ```
 
-Emits a Span for every HTTP request made using the `window.fetch` browser API. This instrumentation also propagates the context for distributed traces.
+Emits a Span for every HTTP request made using the `window.fetch` browser API.
+This instrumentation also propagates the context for distributed traces.
 
 #### Configuration
 
@@ -334,28 +371,28 @@ new FetchInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
-| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
-| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
-| `requestHook` | `(span: Span, request: Request) => void` | — | Function that allows you to interact with the Span and the Request object before the request starts. |
-| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+| Option                         | Type                                                                     | Default | Description                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                                                | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
+| `measureRequestSize`           | `boolean`                                                                | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
+| `sanitizeUrl`                  | `(url: string) => string`                                                | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
+| `requestHook`                  | `(span: Span, request: Request) => void`                                 | —       | Function that allows you to interact with the Span and the Request object before the request starts.                                     |
+| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished.                                                         |
 
 #### Captured Attributes
 
 Each `fetch` Span includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
-| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
-| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
-| `server.address` | The hostmane of the request's URL. |
-| `server.port` | The port of the request's URL. |
-| `http.response.status_code` | HTTP response status code. |
-| `error.type` | If request failed. Describes a class of error the operation ended with. |
+| Attribute                      | Description                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `http.request.method`          | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY).                                              |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line..                                                       |
+| `url.full`                     | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address`               | The hostmane of the request's URL.                                                                                  |
+| `server.port`                  | The port of the request's URL.                                                                                      |
+| `http.response.status_code`    | HTTP response status code.                                                                                          |
+| `error.type`                   | If request failed. Describes a class of error the operation ended with.                                             |
 
 ---
 
@@ -365,7 +402,9 @@ Each `fetch` Span includes:
 import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
 ```
 
-Emits a Span for every HTTP request made using the `window.XmlHttpRequest` browser API. This instrumentation also propagates the context for distributed traces.
+Emits a Span for every HTTP request made using the `window.XmlHttpRequest`
+browser API. This instrumentation also propagates the context for distributed
+traces.
 
 #### Configuration
 
@@ -380,27 +419,27 @@ new XhrInstrumentation({
 });
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `ignoreUrls` | `Array<string \| RegExp>` | — | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>` | — | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many. |
-| `measureRequestSize` | `boolean` | — | Set it to `true` to add the request size as a Span attribute. |
-| `sanitizeUrl` | `(url: string) => string` | — | Returns the given URL with sensitive fields `REDACTED`. |
-| `applyCustomAttributesOnSpan` | `(span: Span, request: Request, result: Response \| FetchError) => void` | — | Function that allows you to interact with the Span once the request is finished. |
+| Option                         | Type                                                                     | Default | Description                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                                                | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
+| `measureRequestSize`           | `boolean`                                                                | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
+| `sanitizeUrl`                  | `(url: string) => string`                                                | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
+| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished.                                                         |
 
 #### Captured Attributes
 
 Each `fetch` Span includes:
 
-| Attribute | Description |
-|-----------|-------------|
-| `http.request.method` | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY). |
-| `http.request.method_original` | Original HTTP method sent by the client in the request line.. |
-| `url.full` | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
-| `server.address` | The hostmane of the request's URL. |
-| `server.port` | The port of the request's URL. |
-| `http.response.status_code` | HTTP response status code. |
-| `error.type` | If request failed. Describes a class of error the operation ended with. |
+| Attribute                      | Description                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `http.request.method`          | The method of the request in uppercase (GET, POST, PUT, PATCH, QUERY).                                              |
+| `http.request.method_original` | Original HTTP method sent by the client in the request line..                                                       |
+| `url.full`                     | Absolute URL describing a network resource according to RFC3986 (sanitized if passing `sanitizeUrl` config option). |
+| `server.address`               | The hostmane of the request's URL.                                                                                  |
+| `server.port`                  | The port of the request's URL.                                                                                      |
+| `http.response.status_code`    | HTTP response status code.                                                                                          |
+| `error.type`                   | If request failed. Describes a class of error the operation ended with.                                             |
 
 
 ## Enabling and disabling
@@ -408,27 +447,27 @@ Each `fetch` Span includes:
 Each instrumentation has three methods: `enable()`, `disable()` and
 `isEnabled()`.
 
-- `new X()` does nothing. It only stores the config. It does not patch,
-  listen or emit.
-- The first `enable(deps?)` runs a one-time init and then starts emitting.
-  Init patches browser APIs and checks that the browser supports what the
+- `new X()` does nothing. It only stores the config. It does not patch, listen
+  or emit.
+- The first `enable(deps?)` runs a one-time init and then starts emitting. Init
+  patches browser APIs and checks that the browser supports what the
   instrumentation needs.
-- The first `enable()` also locks the dependencies (`deps`) for the life of
-  the instance. A dependency that you do not pass uses the global API from
+- The first `enable()` also locks the dependencies (`deps`) for the life of the
+  instance. A dependency that you do not pass uses the global API from
   `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
   ignore `deps`, and log a warning if a passed dependency is different.
 - `disable()` stops emitting and removes listeners. Patched browser APIs stay
-  patched, because other code may have wrapped them after us. A later
-  `enable()` starts emitting again.
+  patched, because other code may have wrapped them after us. A later `enable()`
+  starts emitting again.
 - `isEnabled()` is `true` only while the instrumentation emits.
 
 The dependencies are:
 
-| Dependency | Used for | Default |
-|------------|----------|---------|
-| `tracerProvider` | Spans | The global tracer provider |
-| `loggerProvider` | Log records (events) | The global logger provider |
-| `propagator` | Trace context in outgoing requests | The global propagation API |
+| Dependency       | Used for                           | Default                    |
+| ---------------- | ---------------------------------- | -------------------------- |
+| `tracerProvider` | Spans                              | The global tracer provider |
+| `loggerProvider` | Log records (events)               | The global logger provider |
+| `propagator`     | Trace context in outgoing requests | The global propagation API |
 
 ```typescript
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
@@ -444,8 +483,8 @@ errors.disable();
 errors.isEnabled(); // false
 ```
 
-The [Browser SDK](../sdk) calls `enable()` and `disable()` for you. For
-example, to wait for user consent, start the SDK with `enabled: false` and call
+The [Browser SDK](../sdk) calls `enable()` and `disable()` for you. For example,
+to wait for user consent, start the SDK with `enabled: false` and call
 `sdk.enable()` later. See the SDK README.
 
 Listeners are added only when the instrumentation is enabled. So a late
@@ -458,8 +497,7 @@ To keep an instrumentation fully off, with no patches, do not call `enable()`.
 Init can fail, for example when a needed browser API is missing or another
 script has locked it. The reason is logged as a warning through the
 OpenTelemetry diag logger, so set one with `diag.setLogger()` to see it. A
-failed instrumentation stays off for good. Later calls to `enable()` do
-nothing.
+failed instrumentation stays off for good. Later calls to `enable()` do nothing.
 
 ### Differences from classic instrumentations
 
@@ -467,16 +505,16 @@ These instrumentations do not use the base class from
 `@opentelemetry/instrumentation`. So they behave differently from the
 instrumentations in `opentelemetry-js` and `opentelemetry-js-contrib`:
 
-- Creating an instrumentation does not enable it. Call `enable()`, or pass it
-  to the Browser SDK.
+- Creating an instrumentation does not enable it. Call `enable()`, or pass it to
+  the Browser SDK.
 - Providers and the propagator are passed once, to the first `enable()`. There
   are no setters for them.
 - `disable()` does not unpatch browser APIs.
-- The config is set once, in the constructor. There is no `enabled` config option.
+- The config is set once, in the constructor. There is no `enabled` config
+  option.
 
-Do not use a classic instrumentation for the same API as one of these. A
-classic instrumentation cannot detect our patches, so both would record every
-call.
+Do not use a classic instrumentation for the same API as one of these. A classic
+instrumentation cannot detect our patches, so both would record every call.
 
 ## Writing an instrumentation
 
@@ -484,38 +522,36 @@ An instrumentation is any object that implements the `Instrumentation`
 interface: `instrumentationName`, `enable(deps?)`, `disable()` and
 `isEnabled()`. The Browser SDK accepts any such object.
 
-The easiest way is to extend `InstrumentationBase`. It implements the
-lifecycle in [Enabling and disabling](#enabling-and-disabling).
-`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are all
-exported from
+The easiest way is to extend `InstrumentationBase`. It implements the lifecycle
+in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
+`Instrumentation` and `InstrumentationDeps` are all exported from
 `@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
 
 Override these hooks. All of them must be synchronous. A hook that returns a
 promise counts as failed. Hooks must not call `enable()` or `disable()`.
 
 - `_init()` runs once, at the first `enable()`. It only patches browser APIs
-  with `_wrap()` and checks that the browser supports what the
-  instrumentation needs. Throw if the instrumentation cannot run. A failed
-  init is final.
+  with `_wrap()` and checks that the browser supports what the instrumentation
+  needs. Throw if the instrumentation cannot run. A failed init is final.
 - `_onEnable()` runs each time `enable()` turns emission on. Add listeners and
-  observers here, including buffered ones. If it throws, `_onDisable()` runs
-  to remove what it added, and a later `enable()` tries again.
+  observers here, including buffered ones. If it throws, `_onDisable()` runs to
+  remove what it added, and a later `enable()` tries again.
 - `_onDisable()` runs each time `disable()` turns emission off. Remove what
   `_onEnable()` added.
 
 From the first `enable()`, use `this.tracer`, `this.logger` and
-`this.propagator`. They come from the locked dependencies. Use
-`this.propagator` instead of the global `propagation` API, so a second SDK on
-the page can inject its own trace context.
+`this.propagator`. They come from the locked dependencies. Use `this.propagator`
+instead of the global `propagation` API, so a second SDK on the page can inject
+its own trace context.
 
 Extra subclass deps must be optional, because `startBrowserSdk` passes only
 `tracerProvider`, `loggerProvider` and `propagator`. An instance that needs
 required extra deps must be enabled by its owner, not passed to
 `startBrowserSdk`.
 
-There is `_wrap()` but no unwrap. Patches are never removed, because other
-code may have wrapped on top of ours. So a patch must check `isEnabled()`, and
-pass the call through when it is false. Run user hooks and emit code through
+There is `_wrap()` but no unwrap. Patches are never removed, because other code
+may have wrapped on top of ours. So a patch must check `isEnabled()`, and pass
+the call through when it is false. Run user hooks and emit code through
 `_safeExecute()`, so that a throw does not break the page.
 
 ```typescript
@@ -580,15 +616,21 @@ export class RouteInstrumentation extends InstrumentationBase<RouteConfig> {
 ## Useful links
 
 - For more information on OpenTelemetry, visit: <https://opentelemetry.io/>
-- For more about OpenTelemetry Browser: <https://github.com/open-telemetry/opentelemetry-browser>
-- For help or feedback on this project, join us in [GitHub Discussions][discussions-url]
+- For more about OpenTelemetry Browser:
+  <https://github.com/open-telemetry/opentelemetry-browser>
+- For help or feedback on this project, join us in
+  [GitHub Discussions][discussions-url]
 
 ## License
 
 Apache 2.0 - See [LICENSE][license-url] for more information.
 
-[discussions-url]: https://github.com/open-telemetry/opentelemetry-browser/discussions/landing
-[license-url]: https://github.com/open-telemetry/opentelemetry-browser/blob/main/LICENSE
-[license-image]: https://img.shields.io/badge/license-Apache_2.0-green.svg?style=flat
+[discussions-url]:
+  https://github.com/open-telemetry/opentelemetry-browser/discussions/landing
+[license-url]:
+  https://github.com/open-telemetry/opentelemetry-browser/blob/main/LICENSE
+[license-image]:
+  https://img.shields.io/badge/license-Apache_2.0-green.svg?style=flat
 [npm-url]: https://www.npmjs.com/package/@opentelemetry/browser-instrumentation
-[npm-img]: https://badge.fury.io/js/%40opentelemetry%2Fbrowser-instrumentation.svg
+[npm-img]:
+  https://badge.fury.io/js/%40opentelemetry%2Fbrowser-instrumentation.svg
