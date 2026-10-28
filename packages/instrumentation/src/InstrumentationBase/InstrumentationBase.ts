@@ -235,9 +235,9 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
     };
     try {
       const result = fn();
-      // Not `instanceof Promise`: that misses thenables and cross-realm Promises.
-      if (typeof (result as { then?: unknown } | null)?.then === 'function') {
-        Promise.resolve(result).catch(onError);
+      const then = (result as { then?: unknown } | null)?.then;
+      if (typeof then === 'function') {
+        then.call(result, undefined, onError);
       }
       return result;
     } catch (err) {
