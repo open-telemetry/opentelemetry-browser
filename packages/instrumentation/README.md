@@ -371,16 +371,17 @@ new FetchInstrumentation({
 });
 ```
 
-| Option                         | Type                                                                                       | Default | Description                                                                                                                              |
-| ------------------------------ | ------------------------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `ignoreUrls`                   | `Array<string \| RegExp>`                                                                  | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                                  | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
-| `measureRequestSize`           | `boolean`                                                                                  | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
-| `sanitizeUrl`                  | `(url: string) => string`                                                                  | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
-| `requestHook`                  | `(span: Span, request: Request \| RequestInit) => void`                                     | —       | Function for adding Span attributes or request headers before the request starts and trace headers are injected.                         |
-| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request \| RequestInit, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished, before the Span ends.                                  |
+| Option                         | Type                                                                                    | Default | Description                                                                                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                                                               | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                               | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
+| `measureRequestSize`           | `boolean`                                                                               | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
+| `sanitizeUrl`                  | `(url: string) => string`                                                               | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
+| `requestHook`                  | `(span: Span, request: Request \| RequestInit) => void`                                 | —       | Function for adding Span attributes or request headers before the request starts and trace headers are injected.                         |
+| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request \| RequestInit, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished, before the Span ends.                                   |
 
-See [Sharing fetch and XHR hooks](#sharing-fetch-and-xhr-hooks) to reuse callbacks across both instrumentations.
+See [Sharing fetch and XHR hooks](#sharing-fetch-and-xhr-hooks) to reuse
+callbacks across both instrumentations.
 
 #### Captured Attributes
 
@@ -421,22 +422,31 @@ new XhrInstrumentation({
 });
 ```
 
-| Option                         | Type                                        | Default | Description                                                                                                                                      |
-| ------------------------------ | ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ignoreUrls`                   | `Array<string \| RegExp>`                   | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many.         |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                   | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.          |
-| `measureRequestSize`           | `boolean`                                   | —       | Set it to `true` to add the request size as a Span attribute.                                                                                    |
-| `sanitizeUrl`                  | `(url: string) => string`                   | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                          |
+| Option                         | Type                                        | Default | Description                                                                                                                                       |
+| ------------------------------ | ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                   | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many.          |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                   | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.           |
+| `measureRequestSize`           | `boolean`                                   | —       | Set it to `true` to add the request size as a Span attribute.                                                                                     |
+| `sanitizeUrl`                  | `(url: string) => string`                   | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                           |
 | `requestHook`                  | `(span: Span, xhr: XMLHttpRequest) => void` | —       | Function for adding Span attributes or request headers via `xhr.setRequestHeader`. Called after `open`, before `send` and trace-header injection. |
-| `applyCustomAttributesOnSpan`  | `(span: Span, xhr: XMLHttpRequest) => void` | —       | Function that allows you to interact with the Span and completed XHR once the request is finished, before the Span ends.                         |
+| `applyCustomAttributesOnSpan`  | `(span: Span, xhr: XMLHttpRequest) => void` | —       | Function that allows you to interact with the Span and completed XHR once the request is finished, before the Span ends.                          |
 
 #### Sharing fetch and XHR hooks
 
-Both instrumentations accept the same callbacks when the request parameter is typed as `Request | RequestInit | XMLHttpRequest`. For `applyCustomAttributesOnSpan`, make the third parameter optional: fetch supplies a `Response` or `FetchError`, while XHR supplies no third argument. Read XHR response information from the `XMLHttpRequest` itself.
+Both instrumentations accept the same callbacks when the request parameter is
+typed as `Request | RequestInit | XMLHttpRequest`. For
+`applyCustomAttributesOnSpan`, make the third parameter optional: fetch supplies
+a `Response` or `FetchError`, while XHR supplies no third argument. Read XHR
+response information from the `XMLHttpRequest` itself.
 
-Hooks run synchronously. Errors thrown by either hook are caught and reported through the instrumentation's diagnostic logger without interrupting the request or preventing the Span from ending. Ignored requests and disabled instrumentations do not invoke hooks.
+Hooks run synchronously. Errors thrown by either hook are caught and reported
+through the instrumentation's diagnostic logger without interrupting the request
+or preventing the Span from ending. Ignored requests and disabled
+instrumentations do not invoke hooks.
 
-**Note:** For `fetch(url, init)`, the example below changes the caller's `init.headers`. These changes persist if `init` is reused; pass a fresh `init` object for each request to keep them request-specific.
+**Note:** For `fetch(url, init)`, the example below changes the caller's
+`init.headers`. These changes persist if `init` is reused; pass a fresh `init`
+object for each request to keep them request-specific.
 
 ```typescript
 import type { Span } from '@opentelemetry/api';
