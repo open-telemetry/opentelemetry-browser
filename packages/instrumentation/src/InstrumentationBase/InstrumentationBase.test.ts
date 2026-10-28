@@ -545,18 +545,32 @@ describe('InstrumentationBase', () => {
       );
     });
 
-    it('logs a rejected Promise returned by fn without leaving it unhandled', async () => {
+    it('logs a rejected Promise and returns it unchanged', async () => {
       const probe = new WrapProbe('test', '1.0.0', {});
       const rejected = new Error('late boom');
+      const promise = Promise.reject(rejected);
 
-      probe.exposedSafeExecute('hook failed', () => Promise.reject(rejected));
-      await Promise.resolve();
-
-      expect(diagLogger.error).toHaveBeenCalledWith(
-        'test',
-        'hook failed',
-        rejected,
+      expect(probe.exposedSafeExecute('hook failed', () => promise)).toBe(
+        promise,
       );
+
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          rejected,
+        ),
+      );
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs nothing for a Promise that resolves', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+
+      await probe.exposedSafeExecute('hook failed', () => Promise.resolve(1));
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(diagLogger.error).not.toHaveBeenCalled();
     });
 
     it('logs a throw from an async fn', async () => {
@@ -566,12 +580,47 @@ describe('InstrumentationBase', () => {
       probe.exposedSafeExecute('hook failed', async () => {
         throw thrown;
       });
-      await Promise.resolve();
 
-      expect(diagLogger.error).toHaveBeenCalledWith(
-        'test',
-        'hook failed',
-        thrown,
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          thrown,
+        ),
+      );
+    });
+
+    it('logs a rejected thenable that is not a native Promise', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+      const rejected = new Error('thenable boom');
+      const thenable = {
+        // biome-ignore lint/suspicious/noThenProperty: the test needs a thenable
+        then: (_onFulfilled: unknown, onRejected: (reason: unknown) => void) =>
+          onRejected(rejected),
+      };
+
+      probe.exposedSafeExecute('hook failed', () => thenable);
+
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          rejected,
+        ),
+      );
+    });
+
+    it('logs a non-Error rejection as an Error with the value as cause', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+
+      probe.exposedSafeExecute('hook failed', () => Promise.reject('oops'));
+
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          expect.objectContaining({ message: 'oops', cause: 'oops' }),
+        ),
       );
     });
   });

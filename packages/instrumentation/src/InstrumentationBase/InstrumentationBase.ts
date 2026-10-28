@@ -223,11 +223,9 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
   }
 
   /**
-   * If `fn` throws, logs `errorMessage` with `diag.error`, so a broken hook or
-   * emit path cannot break the host call. Hooks are synchronous, but if one
-   * returns a Promise that rejects, the rejection is logged too, so it cannot
-   * become an unhandled rejection. The Promise is not awaited and its result
-   * is ignored.
+   * If `fn` throws, or returns a thenable that rejects, logs `errorMessage`
+   * with `diag.error`, so a broken hook or emit path cannot break the host
+   * call. The returned value is passed through unchanged and never awaited.
    */
   protected _safeExecute<T>(errorMessage: string, fn: () => T): T | undefined {
     const onError = (err: unknown): undefined => {
@@ -236,8 +234,9 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
     };
     try {
       const result = fn();
-      if (result instanceof Promise) {
-        result.catch(onError);
+      // Not `instanceof Promise`: that misses thenables and cross-realm Promises.
+      if (typeof (result as { then?: unknown } | null)?.then === 'function') {
+        Promise.resolve(result).catch(onError);
       }
       return result;
     } catch (err) {
