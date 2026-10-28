@@ -189,6 +189,23 @@ describe('ConsoleInstrumentation', () => {
   });
 
   describe('default serialization', () => {
+    it('should serialize a Proxy with a throwing getPrototypeOf trap', () => {
+      const value = new Proxy(
+        { reason: 'request failed' },
+        {
+          getPrototypeOf() {
+            throw new Error('cannot read prototype');
+          },
+        },
+      );
+
+      console.error('before', value, 'after');
+
+      const logs = inMemoryExporter.getFinishedLogRecords();
+      expect(logs.length).toBe(1);
+      expect(logs[0]?.body).toBe('before {"reason":"request failed"} after');
+    });
+
     it('should serialize primitive values', () => {
       console.log('string', 123, true, null, undefined);
 
