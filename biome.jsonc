@@ -44,8 +44,7 @@
       "frontmatter": true
     },
     "formatter": {
-      "proseWrap": "always",
-      "lineWidth": 100
+      "proseWrap": "always"
     }
   },
   "html": {

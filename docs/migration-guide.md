@@ -1,28 +1,32 @@
 # Migrating from the JavaScript browser packages
 
-This guide covers moving browser telemetry from `opentelemetry-js` and `opentelemetry-js-contrib` to
-this repository. You can migrate fetch and XHR instrumentation while keeping your existing SDK
-setup. Other migrations change the telemetry signal or have gaps that need an application-specific
-decision.
+This guide covers moving browser telemetry from `opentelemetry-js` and
+`opentelemetry-js-contrib` to this repository. You can migrate fetch and XHR
+instrumentation while keeping your existing SDK setup. Other migrations change
+the telemetry signal or have gaps that need an application-specific decision.
 
-The APIs below match `@opentelemetry/browser-instrumentation` 0.8.2 and `@opentelemetry/browser-sdk`
-0.5.0 in this repository. Both packages are experimental. The fetch and XHR comparisons use the
-legacy packages at 0.223.0; check your installed versions before applying the behavior tables to
-older releases. The overall consolidation is tracked in [#209][consolidation].
+The APIs below match `@opentelemetry/browser-instrumentation` 0.8.2 and
+`@opentelemetry/browser-sdk` 0.5.0 in this repository. Both packages are
+experimental. The fetch and XHR comparisons use the legacy packages at 0.223.0;
+check your installed versions before applying the behavior tables to older
+releases. The overall consolidation is tracked in [#209][consolidation].
 
 > [!WARNING] `@opentelemetry/instrumentation-fetch` and
-> `@opentelemetry/instrumentation-xml-http-request` versions before 0.220.0 emitted
-> `http.response_content_length` and `http.response_content_length_uncompressed`. These keys are
-> absent from the new fetch and XHR spans, with no span replacement. Update collector processors and
-> queries that depend on them. For response sizes, register `ResourceTimingInstrumentation` and
-> export logs: `browser.resource_timing.encoded_body_size` and
+> `@opentelemetry/instrumentation-xml-http-request` versions before 0.220.0
+> emitted `http.response_content_length` and
+> `http.response_content_length_uncompressed`. These keys are absent from the
+> new fetch and XHR spans, with no span replacement. Update collector processors
+> and queries that depend on them. For response sizes, register
+> `ResourceTimingInstrumentation` and export logs:
+> `browser.resource_timing.encoded_body_size` and
 > `browser.resource_timing.decoded_body_size` carry the corresponding sizes on
 > `browser.resource_timing` log records when the browser exposes them.
 
 ## Key changes at a glance
 
-The table summarizes the changes below for the versions listed above. Follow the linked sections for
-configuration details, outcome comparisons, and unresolved gaps.
+The table summarizes the changes below for the versions listed above. Follow the
+linked sections for configuration details, outcome comparisons, and unresolved
+gaps.
 
 | Previous package or API                                                     | New package, API, or behavior                                                      | What to do                                                                                                                                                                                                                                      |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -56,9 +60,9 @@ configuration details, outcome comparisons, and unresolved gaps.
 
 ## Package and import mapping
 
-All new instrumentations come from `@opentelemetry/browser-instrumentation`. Import each one through
-its full `experimental/*` subpath. The package has no root export, and the `experimental/` segment
-is required.
+All new instrumentations come from `@opentelemetry/browser-instrumentation`.
+Import each one through its full `experimental/*` subpath. The package has no
+root export, and the `experimental/` segment is required.
 
 ### Instrumentations with a corresponding implementation
 
@@ -69,10 +73,11 @@ is required.
 | `@opentelemetry/instrumentation-browser-navigation`: `BrowserNavigationInstrumentation` | `@opentelemetry/browser-instrumentation/experimental/navigation` | `NavigationInstrumentation`; `browser.navigation` log events |
 | `@opentelemetry/instrumentation-web-exception`: `ExceptionInstrumentation`              | `@opentelemetry/browser-instrumentation/experimental/errors`     | `ErrorsInstrumentation`; `exception` log events              |
 
-Configuration types are exported from the same subpaths: `FetchInstrumentationConfig`,
-`XhrInstrumentationConfig`, `NavigationInstrumentationConfig`, and `ErrorsInstrumentationConfig`.
-The legacy XHR type was `XMLHttpRequestInstrumentationConfig`; the legacy exception type was
-`GlobalErrorsInstrumentationConfig`.
+Configuration types are exported from the same subpaths:
+`FetchInstrumentationConfig`, `XhrInstrumentationConfig`,
+`NavigationInstrumentationConfig`, and `ErrorsInstrumentationConfig`. The legacy
+XHR type was `XMLHttpRequestInstrumentationConfig`; the legacy exception type
+was `GlobalErrorsInstrumentationConfig`.
 
 ### Packages without a direct replacement
 
@@ -95,19 +100,20 @@ The legacy XHR type was `XMLHttpRequestInstrumentationConfig`; the legacy except
 
 ## Migrate fetch and XHR first
 
-These examples use `@opentelemetry/browser-sdk` 0.5.0 and `@opentelemetry/browser-instrumentation`
-0.8.2, which still require the 2.x SDK and 0.223.x experimental packages. Keep that dependency graph
-until Browser releases support SDK 3.0 and experimental 0.300.x packages.
+These examples use `@opentelemetry/browser-sdk` 0.5.0 and
+`@opentelemetry/browser-instrumentation` 0.8.2, which still require the 2.x SDK
+and 0.223.x experimental packages. Keep that dependency graph until Browser
+releases support SDK 3.0 and experimental 0.300.x packages.
 
-Install the new instrumentation package, keeping the SDK and registration dependencies your
-application already uses:
+Install the new instrumentation package, keeping the SDK and registration
+dependencies your application already uses:
 
 ```sh
 npm install @opentelemetry/browser-instrumentation
 ```
 
-Replace the old constructors in your existing registration. Run this after your existing tracer
-provider, context manager, and propagator are configured:
+Replace the old constructors in your existing registration. Run this after your
+existing tracer provider, context manager, and propagator are configured:
 
 ```typescript
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
@@ -127,14 +133,14 @@ registerInstrumentations({
 });
 ```
 
-Replace the example endpoints with your own. Same-origin requests can propagate trace context
-without a CORS allowlist; cross-origin propagation requires `propagateTraceHeaderCorsUrls` and a
-server that accepts the injected headers.
+Replace the example endpoints with your own. Same-origin requests can propagate
+trace context without a CORS allowlist; cross-origin propagation requires
+`propagateTraceHeaderCorsUrls` and a server that accepts the injected headers.
 
-Remove the old fetch and XHR instances from your startup code, including any enabled through
-`getWebAutoInstrumentations()`. Registering both implementations against the same browser API can
-patch it twice and produce duplicate telemetry. Use separate runs or isolated pages to compare old
-and new output.
+Remove the old fetch and XHR instances from your startup code, including any
+enabled through `getWebAutoInstrumentations()`. Registering both implementations
+against the same browser API can patch it twice and produce duplicate telemetry.
+Use separate runs or isolated pages to compare old and new output.
 
 ### Configuration changes
 
@@ -149,22 +155,23 @@ and new output.
 | `clearTimingResources`, `ignoreNetworkEvents` | Remove these options. The new implementations do not attach Resource Timing entries as network span events. Use `ResourceTimingInstrumentation` for separate timing events if needed. |
 | `sanitizeUrl`                                 | New opt-in callback in fetch and XHR. It changes the captured `url.full`, not the request URL. Supply your own `(url: string) => string` function if redaction is required.           |
 
-Fetch's `FetchError.status` is optional: no response means no HTTP status code. Check whether a
-status exists in custom hooks instead of treating every failure as status `0`. The new fetch
-instrumentation also preserves caller-owned `RequestInit` headers during trace-header injection; do
-not depend on those headers being modified in place. This does not imply every `Request` object is
+Fetch's `FetchError.status` is optional: no response means no HTTP status code.
+Check whether a status exists in custom hooks instead of treating every failure
+as status `0`. The new fetch instrumentation also preserves caller-owned
+`RequestInit` headers during trace-header injection; do not depend on those
+headers being modified in place. This does not imply every `Request` object is
 immutable during instrumentation.
 
-URL redaction is not enabled by default. A fetch or XHR `sanitizeUrl` callback also does not
-sanitize separately emitted resource-timing or navigation-timing records. Review those log records
-and their processing separately.
+URL redaction is not enabled by default. A fetch or XHR `sanitizeUrl` callback
+also does not sanitize separately emitted resource-timing or navigation-timing
+records. Review those log records and their processing separately.
 
 ### Fetch outcomes
 
-The [fetch migration tests][fetch-parity] exercise both implementations in separate iframes. They
-compare span name, kind, `http.request.method`, `url.full`, `server.address`, and `server.port` for
-six scenarios. For received responses, they also compare span status, HTTP status code, and
-`error.type`.
+The [fetch migration tests][fetch-parity] exercise both implementations in
+separate iframes. They compare span name, kind, `http.request.method`,
+`url.full`, `server.address`, and `server.port` for six scenarios. For received
+responses, they also compare span status, HTTP status code, and `error.type`.
 
 | Scenario                                  | Legacy fetch 0.223.0                                       | New fetch                                                                            |
 | ----------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
@@ -175,28 +182,30 @@ six scenarios. For received responses, they also compare span status, HTTP statu
 | Network failure                           | Status `UNSET`; no `error.type`; synthetic HTTP status `0` | Status `ERROR`; `error.type: "TypeError"` in the tested browser; HTTP status omitted |
 | `AbortSignal.timeout()` before a response | Status `UNSET`; no `error.type`; synthetic HTTP status `0` | Status `ERROR`; `error.type: "TimeoutError"`; HTTP status omitted                    |
 
-The new implementation distinguishes an intentional cancellation from a timeout or network failure
-and omits HTTP status when no response was received, following the
-[HTTP client span conventions][http-spans]. Error-rate dashboards may therefore show additional
-failed requests after migration even if application traffic is unchanged. Update queries that used
-HTTP status `0` to identify failures.
+The new implementation distinguishes an intentional cancellation from a timeout
+or network failure and omits HTTP status when no response was received,
+following the [HTTP client span conventions][http-spans]. Error-rate dashboards
+may therefore show additional failed requests after migration even if
+application traffic is unchanged. Update queries that used HTTP status `0` to
+identify failures.
 
-Cancellation is recognized when the rejected error's `name` is `AbortError`. Calling
-`AbortController.abort(reason)` with a custom reason whose name differs can therefore be classified
-as a failure rather than an intentional cancellation. The abort row above covers the default abort
-reason.
+Cancellation is recognized when the rejected error's `name` is `AbortError`.
+Calling `AbortController.abort(reason)` with a custom reason whose name differs
+can therefore be classified as a failure rather than an intentional
+cancellation. The abort row above covers the default abort reason.
 
-These tests establish the listed comparisons, not identical spans in every respect. Instrumentation
-scope names, timing events, and auxiliary spans change. The new fetch scope is
-`@opentelemetry/browser-instrumentation/fetch`; its version is the `browser-instrumentation` package
-version.
+These tests establish the listed comparisons, not identical spans in every
+respect. Instrumentation scope names, timing events, and auxiliary spans change.
+The new fetch scope is `@opentelemetry/browser-instrumentation/fetch`; its
+version is the `browser-instrumentation` package version.
 
 ### XHR outcomes and timing
 
-There is no legacy/new XHR parity harness yet. The comparison below comes from the
-[legacy XHR source at 0.223.0][legacy-xhr] and the new [implementation][new-xhr] and
-[XHR tests][xhr-tests]. Do not apply the fetch failure behavior to legacy XHR: that package already
-marks network failures and timeouts as errors.
+There is no legacy/new XHR parity harness yet. The comparison below comes from
+the [legacy XHR source at 0.223.0][legacy-xhr] and the new
+[implementation][new-xhr] and [XHR tests][xhr-tests]. Do not apply the fetch
+failure behavior to legacy XHR: that package already marks network failures and
+timeouts as errors.
 
 | Scenario                            | Legacy XHR 0.223.0                                                       | New XHR                                                           |
 | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
@@ -206,76 +215,83 @@ marks network failures and timeouts as errors.
 | Network error                       | Status `ERROR`; `error.type: "error"`; HTTP status omitted               | Status `ERROR`; `error.type: "Error"`; HTTP status omitted        |
 | Timeout                             | Status `ERROR`; `error.type: "timeout"`; HTTP status omitted             | Status `ERROR`; `error.type: "TimeoutError"`; HTTP status omitted |
 
-The legacy XHR span starts during `open()`; the new span starts during `send()`. A delay between the
-two calls therefore no longer contributes to the span's duration, and the active context at `send()`
-determines its parent. The new instrumentation ends the span on the terminal XHR event without the
-legacy 300 ms wait for Resource Timing collection. Its scope is
+The legacy XHR span starts during `open()`; the new span starts during `send()`.
+A delay between the two calls therefore no longer contributes to the span's
+duration, and the active context at `send()` determines its parent. The new
+instrumentation ends the span on the terminal XHR event without the legacy 300
+ms wait for Resource Timing collection. Its scope is
 `@opentelemetry/browser-instrumentation/xhr`.
 
-For both fetch and XHR, the new implementations omit the old network-timing span events and CORS
-preflight child spans. XHR also omits the legacy `open`, `send`, and terminal-event span events. If
-you need DNS, connection, transfer-size, or resource-duration data, register
-`ResourceTimingInstrumentation` from
-`@opentelemetry/browser-instrumentation/experimental/resource-timing` and configure logs export. It
-emits `browser.resource_timing` records and can attach the associated new fetch/XHR span context
-when a matching timing entry is found. It does not recreate the old trace structure.
+For both fetch and XHR, the new implementations omit the old network-timing span
+events and CORS preflight child spans. XHR also omits the legacy `open`, `send`,
+and terminal-event span events. If you need DNS, connection, transfer-size, or
+resource-duration data, register `ResourceTimingInstrumentation` from
+`@opentelemetry/browser-instrumentation/experimental/resource-timing` and
+configure logs export. It emits `browser.resource_timing` records and can attach
+the associated new fetch/XHR span context when a matching timing entry is found.
+It does not recreate the old trace structure.
 
 Both legacy packages at 0.223.0 already use stable HTTP attribute names such as
-`http.request.method`, `url.full`, and `http.response.status_code`. For older versions, also consult
-their [fetch][legacy-fetch-readme] and [XHR][legacy-xhr-readme] semantic-convention notes before
-reusing dashboards.
+`http.request.method`, `url.full`, and `http.response.status_code`. For older
+versions, also consult their [fetch][legacy-fetch-readme] and
+[XHR][legacy-xhr-readme] semantic-convention notes before reusing dashboards.
 
 ## Event-based migrations
 
-Navigation, errors, user actions, Web Vitals, and timing instrumentations emit structured log
-records. A tracer provider and a traces-only Collector pipeline will not export those records.
-Configure a logger provider and a logs pipeline, or use the combined
-[Browser SDK setup](#sdk-setup).
+Navigation, errors, user actions, Web Vitals, and timing instrumentations emit
+structured log records. A tracer provider and a traces-only Collector pipeline
+will not export those records. Configure a logger provider and a logs pipeline,
+or use the combined [Browser SDK setup](#sdk-setup).
 
 ### Navigation and exceptions
 
-Rename `BrowserNavigationInstrumentation` to `NavigationInstrumentation` and change its import to
-the navigation subpath in the mapping table. The `applyCustomLogRecordData`, `sanitizeUrl`, and
-`useNavigationApiIfAvailable` options remain available. When explicitly enabled, the Navigation API
-path observes committed `currententrychange` events. The current legacy navigation source also uses
-this event; check your installed release before assuming this behavior changed during migration.
-Exercise canceled navigations as well as successful route changes when checking application
-behavior.
+Rename `BrowserNavigationInstrumentation` to `NavigationInstrumentation` and
+change its import to the navigation subpath in the mapping table. The
+`applyCustomLogRecordData`, `sanitizeUrl`, and `useNavigationApiIfAvailable`
+options remain available. When explicitly enabled, the Navigation API path
+observes committed `currententrychange` events. The current legacy navigation
+source also uses this event; check your installed release before assuming this
+behavior changed during migration. Exercise canceled navigations as well as
+successful route changes when checking application behavior.
 
-The legacy navigation package also exported `defaultSanitizeUrl`. That helper is not a public export
-of the current Browser instrumentation package. Supply an application sanitizer through
-`sanitizeUrl` instead of copying the helper import.
+The legacy navigation package also exported `defaultSanitizeUrl`. That helper is
+not a public export of the current Browser instrumentation package. Supply an
+application sanitizer through `sanitizeUrl` instead of copying the helper
+import.
 
-Rename `ExceptionInstrumentation` to `ErrorsInstrumentation` and change its import to the errors
-subpath. It still records uncaught errors and unhandled promise rejections as `exception` log
-events. The custom-attribute hook remains
+Rename `ExceptionInstrumentation` to `ErrorsInstrumentation` and change its
+import to the errors subpath. It still records uncaught errors and unhandled
+promise rejections as `exception` log events. The custom-attribute hook remains
 `applyCustomAttributes: (error: Error | string) => Attributes`.
 
-In both cases, update filters based on the instrumentation scope as well as the import. The new
-scopes are `@opentelemetry/browser-instrumentation/navigation` and
-`@opentelemetry/browser-instrumentation/errors`.
+In both cases, update filters based on the instrumentation scope as well as the
+import. The new scopes are `@opentelemetry/browser-instrumentation/navigation`
+and `@opentelemetry/browser-instrumentation/errors`.
 
 ### User interactions
 
-The old `UserInteractionInstrumentation` creates spans and accepts arbitrary DOM `eventNames` plus
-`shouldPreventSpanCreation`. The new `UserActionInstrumentation` emits `browser.user_action.click`
-log events. `autoCapturedActions` currently accepts only `'click'`; an empty array disables
+The old `UserInteractionInstrumentation` creates spans and accepts arbitrary DOM
+`eventNames` plus `shouldPreventSpanCreation`. The new
+`UserActionInstrumentation` emits `browser.user_action.click` log events.
+`autoCapturedActions` currently accepts only `'click'`; an empty array disables
 automatic capture. `applyCustomLogRecordData` can customize emitted records.
 
-This is a change in the observability model. It does not create an interaction span to parent
-downstream requests, and it has no equivalent to the old `shouldPreventSpanCreation` callback. Keep
-or replace application-specific event coverage and interaction tracing deliberately before removing
-the legacy instrumentation. Changing to the new Browser SDK's default context manager is a separate
-decision from changing this instrumentation.
+This is a change in the observability model. It does not create an interaction
+span to parent downstream requests, and it has no equivalent to the old
+`shouldPreventSpanCreation` callback. Keep or replace application-specific event
+coverage and interaction tracing deliberately before removing the legacy
+instrumentation. Changing to the new Browser SDK's default context manager is a
+separate decision from changing this instrumentation.
 
 ## Document-load timing and trace gaps
 
-The [current SIG direction][document-load-direction] is to use navigation, navigation-timing, and
-resource-timing events rather than port the `documentLoad` spans. Register those three
-instrumentations and configure logs export as shown in [SDK setup](#sdk-setup) to collect the
-available timing data. They do not reproduce the document-load trace structure. The Browser SIG
-still needs to settle load duration as a span or event, related-record grouping, and paint timing
-coverage in [#327][document-load-decision].
+The [current SIG direction][document-load-direction] is to use navigation,
+navigation-timing, and resource-timing events rather than port the
+`documentLoad` spans. Register those three instrumentations and configure logs
+export as shown in [SDK setup](#sdk-setup) to collect the available timing data.
+They do not reproduce the document-load trace structure. The Browser SIG still
+needs to settle load duration as a span or event, related-record grouping, and
+paint timing coverage in [#327][document-load-decision].
 
 | Data previously represented by document-load instrumentation | Data available now                                                                                                                                                                                                                                                                                                                                                  | Gap                                                                                                                                             |
 | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -286,31 +302,36 @@ coverage in [#327][document-load-decision].
 | `firstPaint` and `firstContentfulPaint` span events          | `WebVitalsInstrumentation` at `@opentelemetry/browser-instrumentation/experimental/web-vitals` includes FCP among its `browser.web_vital` events.                                                                                                                                                                                                                   | Web Vitals events do not reproduce the old paint events on the load span; full paint coverage remains part of the decision.                     |
 | Server-provided `<meta name="traceparent">` connection       | The old document-load implementation extracts this context for its span tree.                                                                                                                                                                                                                                                                                       | The current navigation and timing event combination does not reproduce that extraction and tree.                                                |
 
-Navigation-timing values are milliseconds relative to the page's performance time origin. To recover
-the old load duration, subtract `browser.resource_timing.fetch_start` from
-`browser.navigation_timing.load_event_end` on the same record. Only calculate it when the end value
-is greater than zero and at least the start value. The instrumentation can emit incomplete timing on
-page hide or after retries, so a zero `load_event_end` does not mean the page loaded instantly.
+Navigation-timing values are milliseconds relative to the page's performance
+time origin. To recover the old load duration, subtract
+`browser.resource_timing.fetch_start` from
+`browser.navigation_timing.load_event_end` on the same record. Only calculate it
+when the end value is greater than zero and at least the start value. The
+instrumentation can emit incomplete timing on page hide or after retries, so a
+zero `load_event_end` does not mean the page loaded instantly.
 
-Keep the legacy document-load instrumentation if you still require its spans, server-to-document
-trace relationship, or span customization callbacks. You can evaluate the new timing events
-alongside it, but account for overlapping measurements in dashboards. Remove the legacy package only
-after deciding that the event data in the table is sufficient for your application. Applications
+Keep the legacy document-load instrumentation if you still require its spans,
+server-to-document trace relationship, or span customization callbacks. You can
+evaluate the new timing events alongside it, but account for overlapping
+measurements in dashboards. Remove the legacy package only after deciding that
+the event data in the table is sufficient for your application. Applications
 that need the missing trace or paint behavior should keep it while #327 is open.
 
 ## SDK setup
 
-Using the new instrumentations does not require adopting the Browser SDK. You can continue to
-configure compatible OpenTelemetry tracer and logger providers directly. For an existing tracing
-setup that only needs logs, the SDK also exports `startLogsSdk()` from
-`@opentelemetry/browser-sdk/logs`.
+Using the new instrumentations does not require adopting the Browser SDK. You
+can continue to configure compatible OpenTelemetry tracer and logger providers
+directly. For an existing tracing setup that only needs logs, the SDK also
+exports `startLogsSdk()` from `@opentelemetry/browser-sdk/logs`.
 
-If you choose to move SDK initialization, replace the existing provider startup with a single
-Browser SDK setup; do not initialize a second global provider for the same signal.
+If you choose to move SDK initialization, replace the existing provider startup
+with a single Browser SDK setup; do not initialize a second global provider for
+the same signal.
 
-These examples use `@opentelemetry/browser-sdk` 0.5.0 and `@opentelemetry/browser-instrumentation`
-0.8.2, which still require the 2.x SDK and 0.223.x experimental packages. Keep that dependency graph
-until Browser releases support SDK 3.0 and experimental 0.300.x packages.
+These examples use `@opentelemetry/browser-sdk` 0.5.0 and
+`@opentelemetry/browser-instrumentation` 0.8.2, which still require the 2.x SDK
+and 0.223.x experimental packages. Keep that dependency graph until Browser
+releases support SDK 3.0 and experimental 0.300.x packages.
 
 Install the SDK and the API peer dependency:
 
@@ -318,8 +339,8 @@ Install the SDK and the API peer dependency:
 npm install @opentelemetry/browser-sdk @opentelemetry/browser-instrumentation @opentelemetry/api
 ```
 
-This example assumes an ESM-capable bundler and an OTLP/HTTP endpoint with both logs and traces
-pipelines:
+This example assumes an ESM-capable bundler and an OTLP/HTTP endpoint with both
+logs and traces pipelines:
 
 ```typescript
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
@@ -355,27 +376,30 @@ if (sdk.invalidConfig) {
 }
 ```
 
-Start instrumentation early in the browser entry point. Replace the endpoint URLs and exclude your
-own telemetry traffic from network and resource-timing capture. For a Collector behind a path
-prefix, pass full signal URLs as above. The shorthand `quickStartBrowserSdk({ exportUrl, ... })` and
-root `exportConfig.url` derive `/v1/logs` and `/v1/traces` by replacing the URL path.
+Start instrumentation early in the browser entry point. Replace the endpoint
+URLs and exclude your own telemetry traffic from network and resource-timing
+capture. For a Collector behind a path prefix, pass full signal URLs as above.
+The shorthand `quickStartBrowserSdk({ exportUrl, ... })` and root
+`exportConfig.url` derive `/v1/logs` and `/v1/traces` by replacing the URL path.
 
 When transferring an existing configuration, review these settings:
 
-- Move the resource's service name and version to `serviceName` and `serviceVersion`; additional
-  resource attributes go in `resourceAttributes`.
-- Pass an existing context manager through `traces.contextManager` when needed. The default is
-  synchronous; it does not preserve context automatically across arbitrary `await`, timer, or
-  event-listener boundaries. Configure `traces.propagators` if you need something other than the
-  default W3C Trace Context and Baggage propagators.
-- Transfer the sampler, span limits, and span processors into the corresponding `traces` options.
-  Custom `processors` replace the default OTLP processor; adding that signal's `exportConfig`
-  explicitly also adds OTLP export. The same rule applies to `logs.processors`.
-- The Browser SDK currently configures logs and traces, not a metrics provider. Keep any
-  independently configured metrics SDK that your application needs.
-- Update backend queries for the new scope names, error classifications, and log-event signals.
-  Verify trace-header propagation and request parentage in the application, including asynchronous
-  interactions.
+- Move the resource's service name and version to `serviceName` and
+  `serviceVersion`; additional resource attributes go in `resourceAttributes`.
+- Pass an existing context manager through `traces.contextManager` when needed.
+  The default is synchronous; it does not preserve context automatically across
+  arbitrary `await`, timer, or event-listener boundaries. Configure
+  `traces.propagators` if you need something other than the default W3C Trace
+  Context and Baggage propagators.
+- Transfer the sampler, span limits, and span processors into the corresponding
+  `traces` options. Custom `processors` replace the default OTLP processor;
+  adding that signal's `exportConfig` explicitly also adds OTLP export. The same
+  rule applies to `logs.processors`.
+- The Browser SDK currently configures logs and traces, not a metrics provider.
+  Keep any independently configured metrics SDK that your application needs.
+- Update backend queries for the new scope names, error classifications, and
+  log-event signals. Verify trace-header propagation and request parentage in
+  the application, including asynchronous interactions.
 
 See the [SDK README](../packages/sdk/README.md) for the full configuration API.
 
@@ -390,11 +414,14 @@ See the [SDK README](../packages/sdk/README.md) for the full configuration API.
 | Document timing and correlation  | [Legacy document-load source][legacy-document-load], [navigation-timing attributes](../packages/instrumentation/src/navigation-timing/semconv.ts), [resource-timing attributes](../packages/instrumentation/src/resource-timing/semconv.ts), [pending decision][document-load-decision] |
 | SDK defaults                     | [SDK startup](../packages/sdk/src/startBrowserSdk.ts), [context manager](../packages/sdk/src/core/context.ts), [configuration types](../packages/sdk/src/core/types.ts)                                                                                                                 |
 
-[consolidation]: https://github.com/open-telemetry/opentelemetry-browser/issues/209
-[document-load-decision]: https://github.com/open-telemetry/opentelemetry-browser/issues/327
+[consolidation]:
+  https://github.com/open-telemetry/opentelemetry-browser/issues/209
+[document-load-decision]:
+  https://github.com/open-telemetry/opentelemetry-browser/issues/327
 [document-load-direction]:
   https://github.com/open-telemetry/opentelemetry-browser/issues/327#issuecomment-6052435295
-[react-load-removal]: https://github.com/open-telemetry/opentelemetry-js/issues/7110
+[react-load-removal]:
+  https://github.com/open-telemetry/opentelemetry-js/issues/7110
 [trace-sdk-migration]:
   https://github.com/open-telemetry/opentelemetry-js/blob/main/doc/3.x/migration-guide.md
 [http-spans]:
