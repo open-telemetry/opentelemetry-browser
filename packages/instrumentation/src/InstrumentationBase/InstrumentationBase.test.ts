@@ -544,5 +544,35 @@ describe('InstrumentationBase', () => {
         thrown,
       );
     });
+
+    it('logs a rejected Promise returned by fn without leaving it unhandled', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+      const rejected = new Error('late boom');
+
+      probe.exposedSafeExecute('hook failed', () => Promise.reject(rejected));
+      await Promise.resolve();
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        'hook failed',
+        rejected,
+      );
+    });
+
+    it('logs a throw from an async fn', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+      const thrown = new Error('async boom');
+
+      probe.exposedSafeExecute('hook failed', async () => {
+        throw thrown;
+      });
+      await Promise.resolve();
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        'hook failed',
+        thrown,
+      );
+    });
   });
 });
