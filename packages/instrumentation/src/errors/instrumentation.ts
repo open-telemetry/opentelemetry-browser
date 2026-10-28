@@ -116,7 +116,14 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     if (typeof error === 'object' && error !== null) {
       const candidate = error as Partial<Error>;
       // Keep Error-like values, including errors from another realm.
-      if (error instanceof Error || typeof candidate.message === 'string') {
+      try {
+        if (error instanceof Error) {
+          return error;
+        }
+      } catch {
+        // A Proxy can reject prototype inspection and still expose a message.
+      }
+      if (typeof candidate.message === 'string') {
         return candidate as Error;
       }
     }

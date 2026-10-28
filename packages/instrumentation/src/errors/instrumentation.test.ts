@@ -466,6 +466,42 @@ describe('ErrorsInstrumentation', () => {
       enableForTest(instrumentation);
     });
 
+    it.each([
+      [
+        'error',
+        (error: unknown) => dispatchErrorEvent(error, 'browser message'),
+      ],
+      ['unhandledrejection', dispatchUnhandledRejection],
+    ])(
+      'should preserve readable attributes when prototype lookup throws for %s',
+      (_, dispatch) => {
+        const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'error');
+        const getPrototypeOf = vi.fn(() => {
+          throw new Error('prototype lookup denied');
+        });
+        const error = new Proxy(
+          {
+            name: 'ProxyError',
+            message: 'readable message',
+            stack: 'readable stack',
+          },
+          { getPrototypeOf },
+        );
+
+        dispatch(error);
+
+        expect(getPrototypeOf).toHaveBeenCalledOnce();
+        const logs = getErrorLogs();
+        expect(logs).toHaveLength(1);
+        expect(logs[0]?.attributes).toEqual({
+          [ATTR_EXCEPTION_TYPE]: 'ProxyError',
+          [ATTR_EXCEPTION_MESSAGE]: 'readable message',
+          [ATTR_EXCEPTION_STACKTRACE]: 'readable stack',
+        });
+        expect(diagSpy).not.toHaveBeenCalled();
+      },
+    );
+
     it('should contain a throwing LogRecordProcessor and surface it via diag', () => {
       const accessor = internals(instrumentation);
       const diagSpy = vi.spyOn(accessor._diag, 'error');
