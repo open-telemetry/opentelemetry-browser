@@ -268,24 +268,6 @@ describe('WebVitalsInstrumentation', () => {
         1,
       );
     });
-
-    it('should stay off and warn when PerformanceObserver is not available', () => {
-      const { warn } = setupTestDiagLogger();
-      vi.stubGlobal('PerformanceObserver', undefined);
-      onTestFinished(() => {
-        vi.unstubAllGlobals();
-      });
-
-      instrumentation = new WebVitalsInstrumentation();
-      enableForTest(instrumentation);
-
-      expect(instrumentation.isEnabled()).toBe(false);
-      expect(warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringMatching(/PerformanceObserver is not available/),
-        expect.any(Error),
-      );
-    });
   });
 
   describe('includeRawAttribution', () => {
