@@ -8,6 +8,7 @@ import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '#instrumentation-base';
 import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
+import { toError } from '../utils/toError.ts';
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
@@ -79,11 +80,20 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     if (document.readyState === 'complete') {
       this._setupObserver();
     } else {
-      // Runs outside the lifecycle, so a throw here cannot roll back enable().
-      this._loadHandler = () =>
-        this._safeExecute('Failed to start resource PerformanceObserver', () =>
-          this._setupObserver(),
-        );
+      // Runs after enable() returned, so the base class cannot catch a throw.
+      // Mirrors its failed _onEnable() path: log an error, then disable().
+      this._loadHandler = () => {
+        try {
+          this._setupObserver();
+        } catch (err) {
+          const error = toError(err);
+          this._diag.error(
+            `enable failed at the load event: ${error.message}`,
+            error,
+          );
+          this.disable();
+        }
+      };
       window.addEventListener('load', this._loadHandler, { once: true });
     }
 
