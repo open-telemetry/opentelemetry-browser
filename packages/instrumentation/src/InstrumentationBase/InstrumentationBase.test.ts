@@ -215,7 +215,7 @@ describe('InstrumentationBase', () => {
       expect(spanNames(exporter)).toEqual(['late-global']);
     });
 
-    it('deps passed to a later enable are ignored and logged at debug', () => {
+    it('different deps passed to a later enable are ignored with a warning', () => {
       const first = createTracerProvider();
       const second = createTracerProvider();
       const probe = new Probe();
@@ -228,28 +228,38 @@ describe('InstrumentationBase', () => {
       expect(probe.isEnabled()).toBe(true);
       expect(spanNames(first.exporter)).toEqual(['after-second-enable']);
       expect(spanNames(second.exporter)).toEqual([]);
-      expect(diagLogger.warn).not.toHaveBeenCalled();
-      // Filtered by namespace, because diag.setLogger() also logs a debug line.
-      expect(
-        vi
-          .mocked(diagLogger.debug)
-          .mock.calls.filter(([namespace]) => namespace === 'test'),
-      ).toEqual([['test', expect.stringMatching(/enable\(\) ignores deps/)]]);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+      expect(diagLogger.warn).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('ignored: tracerProvider'),
+      );
     });
 
-    it('deps passed to enable on an enabled instance are ignored and logged at debug', () => {
-      const first = createTracerProvider();
-      const second = createTracerProvider();
+    it('deps passed to an instance enabled without deps are ignored with a warning', () => {
+      const { exporter, provider } = createTracerProvider();
       const probe = new Probe();
 
-      probe.enable({ tracerProvider: first.provider });
-      probe.enable({ tracerProvider: second.provider });
-      probe.emitSpan('still-first');
+      probe.enable();
+      probe.enable({ tracerProvider: provider });
+      probe.emitSpan('global');
+
+      expect(spanNames(exporter)).toEqual([]);
+      expect(diagLogger.warn).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('ignored: tracerProvider'),
+      );
+    });
+
+    it('the same deps passed to a later enable are logged at debug only', () => {
+      const { provider } = createTracerProvider();
+      const probe = new Probe();
+
+      probe.enable({ tracerProvider: provider });
+      probe.enable({ tracerProvider: provider });
 
       expect(probe.onEnableCount).toBe(1);
-      expect(spanNames(first.exporter)).toEqual(['still-first']);
-      expect(spanNames(second.exporter)).toEqual([]);
       expect(diagLogger.warn).not.toHaveBeenCalled();
+      // Filtered by namespace, because diag.setLogger() also logs a debug line.
       expect(
         vi
           .mocked(diagLogger.debug)

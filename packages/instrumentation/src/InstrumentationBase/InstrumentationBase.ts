@@ -13,6 +13,7 @@ import type { Instrumentation, InstrumentationDeps } from './types.ts';
 type State = 'new' | 'enabled' | 'disabled' | 'failed';
 
 interface Resolved {
+  deps: InstrumentationDeps | undefined;
   tracer: Tracer;
   logger: Logger;
   propagator: TextMapPropagator;
@@ -55,8 +56,9 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
 
   /**
    * Starts emitting. The first call locks `deps` and runs init once. Later
-   * calls ignore `deps`. After any failure that leaves the instrumentation off
-   * for good, a call only logs at debug level.
+   * calls ignore `deps` and warn if a passed dependency differs from the locked
+   * one. After any failure that leaves the instrumentation off for good, a call
+   * only logs at debug level.
    */
   public enable(deps?: InstrumentationDeps): void {
     if (this._state === 'new') {
@@ -86,8 +88,7 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
       return;
     }
     if (deps) {
-      // Not warn: the SDK passes its dependencies on every enable().
-      this._diag.debug('enable() ignores deps after the first call');
+      this._reportIgnoredDeps(deps);
     }
     if (this._state === 'disabled') {
       this._runOnEnable();
@@ -126,10 +127,28 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
     const tracerProvider = deps?.tracerProvider ?? trace.getTracerProvider();
     const loggerProvider = deps?.loggerProvider ?? logs.getLoggerProvider();
     this._resolved = {
+      deps: deps && { ...deps },
       tracer: tracerProvider.getTracer(name, version),
       logger: loggerProvider.getLogger(name, version),
       propagator: deps?.propagator ?? propagation,
     };
+  }
+
+  // Debug when nothing differs: the SDK passes the same deps on every enable().
+  // A difference means the instance was enabled outside the SDK, so its data
+  // goes to other providers than the caller expects.
+  private _reportIgnoredDeps(deps: InstrumentationDeps): void {
+    const resolvedDeps = this._resolved?.deps ?? {};
+    const ignored = Object.entries(deps)
+      .filter(([key, value]) => value !== Reflect.get(resolvedDeps, key))
+      .map(([key]) => key);
+    if (ignored.length > 0) {
+      this._diag.warn(
+        `enable() ignores deps after the first call; ignored: ${ignored.join(', ')}`,
+      );
+    } else {
+      this._diag.debug('enable() ignores deps after the first call');
+    }
   }
 
   private _runOnEnable(): void {
