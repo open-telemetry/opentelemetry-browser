@@ -53,6 +53,11 @@ export class ElementTimingInstrumentation extends InstrumentationBase<ElementTim
 
   protected override _onEnable(): void {
     const observer = new PerformanceObserver((list) => {
+      // A callback queued before disconnect() can still run after disable().
+      if (!this.isEnabled()) {
+        return;
+      }
+
       for (const entry of list.getEntries() as PerformanceElementTiming[]) {
         this._safeExecute(
           `Failed to emit element timing entry for "${entry.identifier}"`,
