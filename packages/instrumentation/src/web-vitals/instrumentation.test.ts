@@ -4,7 +4,12 @@
  */
 
 import type { Logger } from '@opentelemetry/api-logs';
-import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
+import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import {
+  InMemoryLogRecordExporter,
+  LoggerProvider,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import {
   afterEach,
   beforeAll,
@@ -393,6 +398,76 @@ describe('WebVitalsInstrumentation', () => {
       const inpLog = await waitForMetric('inp');
       expect(inpLog.attributes['custom.page']).toBe('test-page');
       expect(customHook).toHaveBeenCalled();
+    });
+
+    it('should emit a one-time deprecation warning when the hook is used', async () => {
+      const customHook = vi.fn((logRecord) => {
+        logRecord.attributes['custom.page'] = 'test-page';
+      });
+
+      instrumentation = new WebVitalsInstrumentation({
+        applyCustomLogRecordData: customHook,
+      });
+      const diagWarnSpy = vi
+        .spyOn(
+          (
+            instrumentation as unknown as {
+              _diag: { warn: (...a: unknown[]) => void };
+            }
+          )._diag,
+          'warn',
+        )
+        .mockImplementation(() => {});
+
+      enableForTest(instrumentation);
+
+      createButton('Deprecation test 1');
+      await triggerINP('Deprecation test 1');
+      await waitForMetric('inp');
+
+      createButton('Deprecation test 2');
+      await triggerINP('Deprecation test 2');
+      await waitForMetric('inp');
+
+      expect(diagWarnSpy).toHaveBeenCalledTimes(1);
+      expect(diagWarnSpy).toHaveBeenCalledWith(
+        'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+      );
+    });
+  });
+
+  describe('LogRecordProcessor custom attributes', () => {
+    it('should allow custom LogRecordProcessor to add attributes in onEmit', async () => {
+      const memoryExporter = new InMemoryLogRecordExporter();
+      const customProcessor: LogRecordProcessor = {
+        onEmit: (record: SdkLogRecord) => {
+          record.setAttribute('custom.processor.key', 'custom.processor.value');
+        },
+        shutdown: async () => {},
+        forceFlush: async () => {},
+      };
+      const loggerProvider = new LoggerProvider({
+        processors: [
+          customProcessor,
+          new SimpleLogRecordProcessor({ exporter: memoryExporter }),
+        ],
+      });
+
+      instrumentation = new WebVitalsInstrumentation();
+      enableForTest(instrumentation, { loggerProvider });
+
+      createButton('Processor test');
+      await triggerINP('Processor test');
+
+      await vi.waitFor(() => {
+        const records = memoryExporter
+          .getFinishedLogRecords()
+          .filter((log) => log.eventName === WEB_VITAL_EVENT_NAME);
+        expect(records.length).toBeGreaterThan(0);
+        expect(records[0]?.attributes['custom.processor.key']).toBe(
+          'custom.processor.value',
+        );
+      });
     });
   });
 
