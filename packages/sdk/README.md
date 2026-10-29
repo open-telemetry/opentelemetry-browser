@@ -373,6 +373,9 @@ These options are:
 - `maxQueueSize`: Maximum queue size.
 - `maxExportBatchSize`: Maximum batch size.
 
+Note: when `exportConfig` is omitted, no OTLP exporter is added and
+`batchProcessorConfig` has no effect. See [processors](#processors).
+
 Note: you can pass this option to `startBrowserSdk` if you want to apply the
 same to all signals. If the option is defined at the top level and within the
 signal configuration the later wins.
@@ -427,6 +430,9 @@ options are:
 - `exportTimeoutMillis`: Maximum allowed time (in milliseconds) to export data.
 - `maxQueueSize`: Maximum queue size.
 - `maxExportBatchSize`: Maximum batch size.
+
+Note: when `exportConfig` is omitted, no OTLP exporter is added and
+`batchProcessorConfig` has no effect. See [processors](#processors).
 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the
 same to all signals. If the option is defined at the top level and within the
