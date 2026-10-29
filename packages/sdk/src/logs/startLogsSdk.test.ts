@@ -8,7 +8,7 @@ import { logs } from '@opentelemetry/api-logs';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { LogsSdk } from '../core/types.ts';
-import { startLogsSdk } from './startLogsSdk.ts';
+import { DEFAULT_LOGS_EXPORT_CONFIG, startLogsSdk } from './startLogsSdk.ts';
 
 const BLRP_SCHEDULE_DELAY = 10;
 
@@ -17,6 +17,7 @@ describe('startLogsSdk', () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
   let logsSdk: LogsSdk;
 
   // NOTE: we mock the registration of the logger provider because
@@ -29,6 +30,8 @@ describe('startLogsSdk', () => {
   afterEach(async () => {
     fetchSpy.mockClear();
     consoleDirSpy.mockClear();
+    diagErrorSpy.mockClear();
+    diagWarnSpy.mockClear();
     await logsSdk?.shutdown();
     logs.disable();
   });
@@ -81,7 +84,7 @@ describe('startLogsSdk', () => {
     expect(exportCalled).toStrictEqual(false);
   });
 
-  it('should use the default configuration for exporters', async () => {
+  it('should warn that no export URL is configured', async () => {
     // Act
     logsSdk = startLogsSdk({
       batchProcessorConfig: {
@@ -93,16 +96,9 @@ describe('startLogsSdk', () => {
     await new Promise((r) => setTimeout(r, BLRP_SCHEDULE_DELAY + 5));
 
     // Assert
-    expect(fetchSpy).toHaveBeenCalledOnce();
-    expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://localhost:4318/v1/logs',
-    );
-    expect(fetchSpy.mock.lastCall?.[1]).containSubset({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(diagWarnSpy).toHaveBeenCalled();
+    expect(diagWarnSpy.mock.lastCall?.[0]).toMatch(/Logs SDK won't export/);
   });
 
   it('should accept signal specific OTLP endpoint and headers', async () => {
@@ -132,6 +128,7 @@ describe('startLogsSdk', () => {
         bar: 'baz',
       },
     });
+    expect(diagWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should append the resource attributes in exports', async () => {
@@ -141,6 +138,7 @@ describe('startLogsSdk', () => {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },
+      exportConfig: DEFAULT_LOGS_EXPORT_CONFIG,
       resourceAttributes: {
         'resource.attr1': 'value 1',
         'resource.attr2': 'value 2',
@@ -175,6 +173,7 @@ describe('startLogsSdk', () => {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BLRP_SCHEDULE_DELAY,
       },
+      exportConfig: DEFAULT_LOGS_EXPORT_CONFIG,
       serviceName: 'test-service',
       serviceVersion: '1.0.0',
       resourceAttributes: {
@@ -228,6 +227,9 @@ describe('startLogsSdk', () => {
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
+    // sdk warns about processors resposible for exports
+    expect(diagWarnSpy).toHaveBeenCalled();
+    expect(diagWarnSpy.mock.lastCall?.[0]).toMatch(/should handle LogRecord/);
   });
 
   it('should add a BatchLogRecordProcessor into the list if exporter config is set', async () => {
@@ -351,6 +353,7 @@ describe('startLogsSdk', () => {
       logsSdk = startLogsSdk({
         setGlobals: false,
         batchProcessorConfig: { scheduledDelayMillis: BLRP_SCHEDULE_DELAY },
+        exportConfig: DEFAULT_LOGS_EXPORT_CONFIG,
       });
 
       // Assert
