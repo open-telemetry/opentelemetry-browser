@@ -26,6 +26,8 @@ npm install @opentelemetry/browser-instrumentation
   navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource
   timing
+- [Element Timing](#element-timing) — automatic instrumentation for paint timing
+  of annotated elements
 - [User Action](#user-action) — automatic instrumentation for user actions
   (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
@@ -212,6 +214,45 @@ Each resource timing event includes:
 
 ---
 
+### Element Timing
+
+```typescript
+import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
+```
+
+Emits a `browser.element_timing` event for each element annotated with the
+[`elementtiming`](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming)
+attribute, reporting when the browser painted it.
+
+Only image elements and text-containing block elements are eligible, and the
+attribute must be present before the element is first painted:
+
+```html
+<img src="hero.jpg" elementtiming="hero-image">
+<p elementtiming="headline">Welcome</p>
+```
+
+Entries recorded before the instrumentation was enabled are captured via
+buffered mode. Element Timing is Chromium-only. On other browsers the
+instrumentation stays disabled and logs a diag message.
+
+#### Captured Attributes
+
+Each `browser.element_timing` event includes:
+
+| Attribute                               | Description                                                                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `browser.element_timing.identifier`     | The `elementtiming` attribute value.                                                                                               |
+| `browser.element_timing.element`        | The lower-cased tag name (omitted when the element left the document before the entry was processed).                              |
+| `browser.element_timing.render_time`    | Paint time relative to navigation start. Cross-origin images without a `Timing-Allow-Origin` header report 0 or a coarsened value. |
+| `browser.element_timing.start_time`     | `render_time` when non-zero, otherwise `load_time`. Always present, so prefer this for charting.                                   |
+| `browser.element_timing.load_time`      | Resource load time relative to navigation start. Image elements only.                                                              |
+| `url.full`                              | The image resource URL. Image elements only.                                                                                       |
+| `browser.element_timing.natural_width`  | Intrinsic width in CSS pixels. Image elements only.                                                                                |
+| `browser.element_timing.natural_height` | Intrinsic height in CSS pixels. Image elements only.                                                                               |
+
+---
+
 ### User Action
 
 ```typescript
@@ -276,11 +317,11 @@ Provides automatic instrumentation for
 
 #### Configuration
 
-| Option                     | Type                             | Default | Description                                                                                                                                                                 |
-| -------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                         |
-| `reportAllChanges`         | `boolean`                        | `false` | Passed through to `web-vitals`. When true, reports metric updates according to `web-vitals` reporting behavior, with `delta` carrying the change since its previous report. |
+| Option                     | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------- | -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                                                                                                                                                                                                     |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                                                                                                                                                                                                              |
+| `reportAllChanges`         | `boolean`                        | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`.`web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production. |
 
 ### Console
 
@@ -371,14 +412,17 @@ new FetchInstrumentation({
 });
 ```
 
-| Option                         | Type                                                                     | Default | Description                                                                                                                              |
-| ------------------------------ | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `ignoreUrls`                   | `Array<string \| RegExp>`                                                | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
-| `measureRequestSize`           | `boolean`                                                                | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
-| `sanitizeUrl`                  | `(url: string) => string`                                                | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
-| `requestHook`                  | `(span: Span, request: Request) => void`                                 | —       | Function that allows you to interact with the Span and the Request object before the request starts.                                     |
-| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished.                                                         |
+| Option                         | Type                                                                                    | Default | Description                                                                                                                              |
+| ------------------------------ | --------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                                                               | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                               | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
+| `measureRequestSize`           | `boolean`                                                                               | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
+| `sanitizeUrl`                  | `(url: string) => string`                                                               | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
+| `requestHook`                  | `(span: Span, request: Request \| RequestInit) => void`                                 | —       | Function for adding Span attributes or request headers before the request starts and trace headers are injected.                         |
+| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request \| RequestInit, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished, before the Span ends.                                   |
+
+See [Sharing fetch and XHR hooks](#sharing-fetch-and-xhr-hooks) to reuse
+callbacks across both instrumentations.
 
 #### Captured Attributes
 
@@ -419,17 +463,78 @@ new XhrInstrumentation({
 });
 ```
 
-| Option                         | Type                                                                     | Default | Description                                                                                                                              |
-| ------------------------------ | ------------------------------------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `ignoreUrls`                   | `Array<string \| RegExp>`                                                | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many. |
-| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                                                | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.  |
-| `measureRequestSize`           | `boolean`                                                                | —       | Set it to `true` to add the request size as a Span attribute.                                                                            |
-| `sanitizeUrl`                  | `(url: string) => string`                                                | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                  |
-| `applyCustomAttributesOnSpan`  | `(span: Span, request: Request, result: Response \| FetchError) => void` | —       | Function that allows you to interact with the Span once the request is finished.                                                         |
+| Option                         | Type                                        | Default | Description                                                                                                                                       |
+| ------------------------------ | ------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignoreUrls`                   | `Array<string \| RegExp>`                   | —       | List of URLs that we do not want its requests instrumented. You can use strings for a single match or regular expressions to match many.          |
+| `propagateTraceHeaderCorsUrls` | `Array<string \| RegExp>`                   | —       | List of cross origin URLs to appens trace context headers. You can use strings for a single match or regular expressions to match many.           |
+| `measureRequestSize`           | `boolean`                                   | —       | Set it to `true` to add the request size as a Span attribute.                                                                                     |
+| `sanitizeUrl`                  | `(url: string) => string`                   | —       | Returns the given URL with sensitive fields `REDACTED`.                                                                                           |
+| `requestHook`                  | `(span: Span, xhr: XMLHttpRequest) => void` | —       | Function for adding Span attributes or request headers via `xhr.setRequestHeader`. Called after `open`, before `send` and trace-header injection. |
+| `applyCustomAttributesOnSpan`  | `(span: Span, xhr: XMLHttpRequest) => void` | —       | Function that allows you to interact with the Span and completed XHR once the request is finished, before the Span ends.                          |
+
+#### Sharing fetch and XHR hooks
+
+Both instrumentations accept the same callbacks when the request parameter is
+typed as `Request | RequestInit | XMLHttpRequest`. For
+`applyCustomAttributesOnSpan`, make the third parameter optional: fetch supplies
+a `Response` or `FetchError`, while XHR supplies no third argument. Read XHR
+response information from the `XMLHttpRequest` itself.
+
+Hooks run synchronously. Errors thrown by either hook are caught and reported
+through the instrumentation's diagnostic logger without interrupting the request
+or preventing the Span from ending. Ignored requests and disabled
+instrumentations do not invoke hooks.
+
+**Note:** For `fetch(url, init)`, the example below changes the caller's
+`init.headers`. These changes persist if `init` is reused; pass a fresh `init`
+object for each request to keep them request-specific.
+
+```typescript
+import type { Span } from '@opentelemetry/api';
+import {
+  FetchInstrumentation,
+  type FetchError,
+} from '@opentelemetry/browser-instrumentation/experimental/fetch';
+import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
+
+type HttpRequest = Request | RequestInit | XMLHttpRequest;
+
+const hooks = {
+  requestHook: (span: Span, request: HttpRequest) => {
+    span.setAttribute(
+      'request.api',
+      request instanceof XMLHttpRequest ? 'xhr' : 'fetch',
+    );
+    if (request instanceof XMLHttpRequest) {
+      request.setRequestHeader('x-custom-header', 'value');
+    } else if (request instanceof Request) {
+      request.headers.set('x-custom-header', 'value');
+    } else {
+      const headers = new Headers(request.headers);
+      headers.set('x-custom-header', 'value');
+      request.headers = headers;
+    }
+  },
+  applyCustomAttributesOnSpan: (
+    span: Span,
+    request: HttpRequest,
+    result?: Response | FetchError,
+  ) => {
+    const status =
+      request instanceof XMLHttpRequest ? request.status : result?.status;
+    if (status !== undefined) {
+      span.setAttribute('custom.response.status', status);
+    }
+  },
+};
+
+new FetchInstrumentation(hooks);
+new XhrInstrumentation(hooks);
+```
 
 #### Captured Attributes
 
-Each `fetch` Span includes:
+Each `xhr` Span includes:
 
 | Attribute                      | Description                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
