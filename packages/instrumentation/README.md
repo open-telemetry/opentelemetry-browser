@@ -174,12 +174,13 @@ populated. Missing or invalid navigation timing produces no span rather than a
 made-up end time. Disabling cancels collection. Re-enabling an instance that
 already collected the document does not emit a second span for that load.
 
-This is the reduced scope proposed in [the document-load migration
-issue](https://github.com/open-telemetry/opentelemetry-browser/issues/327). There
-are no `documentFetch` or `resourceFetch` child spans and no span events. Detailed
-timings remain on navigation-timing and resource-timing events. Paint timing is
-not collected here, FCP is covered by the web-vitals instrumentation. The old
-contrib child-span and span-event options are not carried over.
+This is the reduced scope proposed in
+[the document-load migration
+issue](https://github.com/open-telemetry/opentelemetry-browser/issues/327).
+There are no `documentFetch` or `resourceFetch` child spans and no span events.
+Detailed timings remain on navigation-timing and resource-timing events. Paint
+timing is not collected here, FCP is covered by the web-vitals instrumentation.
+The old contrib child-span and span-event options are not carried over.
 
 ---
 
