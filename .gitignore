@@ -28,3 +28,6 @@ esbuild-why-*.html
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# AI agent rules
+.claude/settings.local.json
