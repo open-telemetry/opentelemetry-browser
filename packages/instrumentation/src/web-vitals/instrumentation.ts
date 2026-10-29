@@ -13,7 +13,6 @@ import type {
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
 import { InstrumentationBase } from '#instrumentation-base';
-import { assertPerformanceObserver } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import { toError } from '../utils/toError.ts';
 import {
@@ -53,10 +52,6 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
-  }
-
-  protected override _init(): void {
-    assertPerformanceObserver();
   }
 
   // Subscribes on the first enable, not in `_init()`: the library reports some

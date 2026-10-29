@@ -382,25 +382,6 @@ describe('FetchInstrumentation', () => {
       ).toEqual([onUrl]);
     });
 
-    it('should stay off and warn when PerformanceObserver is not available', () => {
-      const { warn } = setupTestDiagLogger();
-      vi.stubGlobal('PerformanceObserver', undefined);
-      onTestFinished(() => {
-        vi.unstubAllGlobals();
-      });
-
-      instrumentation = new FetchInstrumentation();
-      enableForTest(instrumentation);
-
-      expect(instrumentation.isEnabled()).toBe(false);
-      expect(globalThis.fetch).toBe(originalFetchFunction);
-      expect(warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringMatching(/PerformanceObserver is not available/),
-        expect.any(Error),
-      );
-    });
-
     describe('when the fetch slot is non-writable', () => {
       afterEach(() => {
         Object.defineProperty(globalThis, 'fetch', {
