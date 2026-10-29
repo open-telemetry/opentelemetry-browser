@@ -447,16 +447,16 @@ describe('FetchInstrumentation', () => {
         expect(instrumentation.isEnabled()).toBe(false);
       });
 
-      it('should warn with the descriptive error', () => {
-        const { warn } = setupTestDiagLogger();
+      it('should log an error with the descriptive error', () => {
+        const { error } = setupTestDiagLogger();
         enableForTest(instrumentation);
 
-        // Component loggers forward to `diag.warn(namespace, message, error)`.
-        const error = warn.mock.calls[0]?.[2] as Error | undefined;
-        expect(error?.message).toBe(
+        // Component loggers forward to `diag.error(namespace, message, error)`.
+        const loggedError = error.mock.calls[0]?.[2] as Error | undefined;
+        expect(loggedError?.message).toBe(
           `Failed to patch globalThis.fetch: ${wrapError.message}`,
         );
-        expect(error?.cause).toBe(wrapError);
+        expect(loggedError?.cause).toBe(wrapError);
       });
     });
   });
