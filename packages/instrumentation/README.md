@@ -26,8 +26,8 @@ npm install @opentelemetry/browser-instrumentation
   navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource
   timing
-- [Element Timing](#element-timing) — automatic instrumentation for paint
-  timing of annotated elements
+- [Element Timing](#element-timing) — automatic instrumentation for paint timing
+  of annotated elements
 - [User Action](#user-action) — automatic instrumentation for user actions
   (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
@@ -228,7 +228,7 @@ Only image elements and text-containing block elements are eligible, and the
 attribute must be present before the element is first painted:
 
 ```html
-<img src="hero.jpg" elementtiming="hero-image" />
+<img src="hero.jpg" elementtiming="hero-image">
 <p elementtiming="headline">Welcome</p>
 ```
 

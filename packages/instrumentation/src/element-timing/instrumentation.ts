@@ -5,8 +5,7 @@
 
 import type { LogAttributes, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/instrumentation';
-import { createPerformanceObserver } from '#utils';
+import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_ELEMENT_TIMING_ELEMENT,
@@ -31,12 +30,10 @@ import type {
  * attribute using PerformanceObserver.
  */
 export class ElementTimingInstrumentation extends InstrumentationBase<ElementTimingInstrumentationConfig> {
-  // Use `declare` to prevent JS class field initializers from running after
-  // super(), which would reset values set by the enable() call that
-  // InstrumentationBase makes during its constructor.
-  declare private _observer: PerformanceObserver | null;
-  declare private _isEnabled: boolean;
-  declare private _hasObserved: boolean;
+  private _observer: PerformanceObserver | undefined;
+  // The buffer still holds entries that were already reported. Replaying it
+  // on a later enable would emit them again.
+  private _hasReplayedBuffer = false;
 
   constructor(config: ElementTimingInstrumentationConfig = {}) {
     super(
@@ -46,72 +43,58 @@ export class ElementTimingInstrumentation extends InstrumentationBase<ElementTim
     );
   }
 
-  protected override init() {
-    return [];
+  protected override _init(): void {
+    if (!PerformanceObserver.supportedEntryTypes.includes('element')) {
+      throw new Error(
+        'PerformanceObserver does not support the "element" entry type in this browser.',
+      );
+    }
   }
 
-  override enable(): void {
-    if (this._isEnabled) {
-      return;
-    }
+  protected override _onEnable(): void {
+    const observer = new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as PerformanceElementTiming[]) {
+        this._safeExecute(
+          `Failed to emit element timing entry for "${entry.identifier}"`,
+          () => this._emitElementTiming(entry),
+        );
+      }
+    });
 
-    const observer = createPerformanceObserver<PerformanceElementTiming>(
-      'element',
-      (entry) => {
-        if (!this._isEnabled) {
-          return;
-        }
-        this._emitElementTiming(entry);
-      },
-      // Replay the timeline only on the first successful enable. Re-enabling
-      // with `buffered` would re-deliver every entry already emitted before
-      // disable(), duplicating them.
-      { diag: this._diag, buffered: !this._hasObserved },
-    );
-
-    if (!observer) {
-      return;
-    }
-
-    this._isEnabled = true;
-    this._hasObserved = true;
+    observer.observe({
+      type: 'element',
+      buffered: !this._hasReplayedBuffer,
+    });
     this._observer = observer;
+    this._hasReplayedBuffer = true;
   }
 
-  override disable(): void {
-    this._isEnabled = false;
+  protected override _onDisable(): void {
     this._observer?.disconnect();
-    this._observer = null;
+    this._observer = undefined;
   }
 
   private _emitElementTiming(entry: PerformanceElementTiming): void {
-    try {
-      const attributes: LogAttributes = {
-        [ATTR_ELEMENT_TIMING_IDENTIFIER]: entry.identifier,
-        [ATTR_ELEMENT_TIMING_ELEMENT]: entry.element?.tagName?.toLowerCase(),
-        [ATTR_ELEMENT_TIMING_RENDER_TIME]: entry.renderTime,
-        [ATTR_ELEMENT_TIMING_START_TIME]: entry.startTime,
-      };
+    const attributes: LogAttributes = {
+      [ATTR_ELEMENT_TIMING_IDENTIFIER]: entry.identifier,
+      [ATTR_ELEMENT_TIMING_ELEMENT]: entry.element?.tagName?.toLowerCase(),
+      [ATTR_ELEMENT_TIMING_RENDER_TIME]: entry.renderTime,
+      [ATTR_ELEMENT_TIMING_START_TIME]: entry.startTime,
+    };
 
-      if (entry.name === 'image-paint') {
-        attributes[ATTR_ELEMENT_TIMING_LOAD_TIME] = entry.loadTime;
-        attributes[ATTR_ELEMENT_TIMING_URL] = entry.url;
-        attributes[ATTR_ELEMENT_TIMING_NATURAL_WIDTH] = entry.naturalWidth;
-        attributes[ATTR_ELEMENT_TIMING_NATURAL_HEIGHT] = entry.naturalHeight;
-      }
-
-      const logRecord: LogRecord = {
-        eventName: ELEMENT_TIMING_EVENT_NAME,
-        timestamp: entry.startTime,
-        severityNumber: SeverityNumber.INFO,
-        attributes,
-      };
-      this.logger.emit(logRecord);
-    } catch (error) {
-      this._diag.error(
-        `Failed to emit element timing entry for "${entry.identifier}"`,
-        error,
-      );
+    if (entry.name === 'image-paint') {
+      attributes[ATTR_ELEMENT_TIMING_LOAD_TIME] = entry.loadTime;
+      attributes[ATTR_ELEMENT_TIMING_URL] = entry.url;
+      attributes[ATTR_ELEMENT_TIMING_NATURAL_WIDTH] = entry.naturalWidth;
+      attributes[ATTR_ELEMENT_TIMING_NATURAL_HEIGHT] = entry.naturalHeight;
     }
+
+    const logRecord: LogRecord = {
+      eventName: ELEMENT_TIMING_EVENT_NAME,
+      timestamp: entry.startTime,
+      severityNumber: SeverityNumber.INFO,
+      attributes,
+    };
+    this.logger.emit(logRecord);
   }
 }

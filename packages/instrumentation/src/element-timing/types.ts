@@ -3,15 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InstrumentationConfig } from '@opentelemetry/instrumentation';
-
 /**
- * ElementTimingInstrumentation Configuration
+ * ElementTimingInstrumentation Configuration. It has no options yet.
  */
-export interface ElementTimingInstrumentationConfig
-  extends InstrumentationConfig {
-  // Configuration options will be added here
-}
+export type ElementTimingInstrumentationConfig = Record<string, never>;
 
 /**
  * A PerformanceEntry produced by the Element Timing API.

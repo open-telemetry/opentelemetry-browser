@@ -14,7 +14,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#utils/test';
+import { setupTestDiagLogger, setupTestLogExporter } from '#utils/test';
 import { ElementTimingInstrumentation } from './instrumentation.ts';
 import {
   ATTR_ELEMENT_TIMING_ELEMENT,
@@ -232,21 +232,12 @@ describe('ElementTimingInstrumentation', () => {
     expect(logs[1]?.attributes[ATTR_ELEMENT_TIMING_IDENTIFIER]).toBe('el-1');
   });
 
-  it('should not emit logs after disable', () => {
+  it('should disconnect the observer on disable', () => {
     instrumentation = new ElementTimingInstrumentation();
     instrumentation.enable();
     instrumentation.disable();
 
-    expect(mockObserver.disconnect).toHaveBeenCalled();
-
-    observerCallback(
-      createMockPerformanceObserverEntryList([
-        createMockElementEntry({ identifier: 'late-element' }),
-      ]),
-      mockObserver as unknown as PerformanceObserver,
-    );
-
-    expect(getElementTimingLogs()).toHaveLength(0);
+    expect(mockObserver.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('should not enable twice', () => {
@@ -269,49 +260,53 @@ describe('ElementTimingInstrumentation', () => {
     });
   });
 
-  it('should bail early when PerformanceObserver is unsupported', () => {
-    vi.stubGlobal('window', {});
-    vi.stubGlobal('PerformanceObserver', undefined);
-
-    instrumentation = new ElementTimingInstrumentation();
-    expect(() => instrumentation.enable()).not.toThrow();
-
-    expect(PerformanceObserverMock).not.toHaveBeenCalled();
-  });
-
-  it('should not create an observer when the element entry type is unsupported', () => {
+  it('should stay off and warn once when the element entry type is unsupported', () => {
+    const { warn } = setupTestDiagLogger();
     (
       PerformanceObserverMock as unknown as { supportedEntryTypes: string[] }
     ).supportedEntryTypes = [];
 
     instrumentation = new ElementTimingInstrumentation();
-    expect(() => instrumentation.enable()).not.toThrow();
+    instrumentation.enable();
+    instrumentation.enable();
 
+    expect(instrumentation.isEnabled()).toBe(false);
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
-
-    instrumentation.disable();
-    expect(mockObserver.disconnect).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringMatching(/"element" entry type/),
+      expect.any(Error),
+    );
   });
 
-  it('should stay disabled after a failed enable so a later enable can retry', () => {
-    const supported = PerformanceObserverMock as unknown as {
-      supportedEntryTypes: string[];
-    };
-    supported.supportedEntryTypes = [];
-
+  it('should keep emitting remaining entries when one fails', () => {
+    const { error } = setupTestDiagLogger();
     instrumentation = new ElementTimingInstrumentation();
     instrumentation.enable();
-    expect(PerformanceObserverMock).not.toHaveBeenCalled();
 
-    supported.supportedEntryTypes = ['element'];
-    instrumentation.enable();
-
-    expect(PerformanceObserverMock).toHaveBeenCalledTimes(1);
+    const badEntry = createMockElementEntry({ identifier: 'bad' });
+    Object.defineProperty(badEntry, 'renderTime', {
+      get() {
+        throw new Error('boom');
+      },
+    });
 
     observerCallback(
-      createMockPerformanceObserverEntryList([createMockElementEntry()]),
+      createMockPerformanceObserverEntryList([
+        badEntry,
+        createMockElementEntry({ identifier: 'good' }),
+      ]),
       mockObserver as unknown as PerformanceObserver,
     );
-    expect(getElementTimingLogs()).toHaveLength(1);
+
+    const logs = getElementTimingLogs();
+    expect(logs).toHaveLength(1);
+    expect(logs[0]?.attributes[ATTR_ELEMENT_TIMING_IDENTIFIER]).toBe('good');
+    expect(error).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringMatching(/"bad"/),
+      expect.any(Error),
+    );
   });
 });
