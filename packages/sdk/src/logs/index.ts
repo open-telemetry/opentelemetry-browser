@@ -4,4 +4,4 @@
  */
 
 export type { LogsConfig, LogsSdk } from '../core/types.ts';
-export { startLogsSdk } from './startLogsSdk.ts';
+export { DEFAULT_LOGS_EXPORT_CONFIG, startLogsSdk } from './startLogsSdk.ts';
