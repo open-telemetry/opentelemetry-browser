@@ -5,18 +5,13 @@
 
 import type { Span } from '@opentelemetry/api';
 
-type XhrCustomAttributeFunction = (
+export type XhrCustomAttributeFunction = (
   span: Span,
   xhr: XMLHttpRequest,
-  // TODO: fetch instrumentation has a Response | FetchResult type
-  // check if we could do something similar here
 ) => void;
 
-// TODO: the only differences in config with `fetch` instrumentation are
-// - the custom attributes function has a different signature
-// - no `requestHook` is in this config although it could be implemented
-//   with similar signature `requestHook(span, xhr)
-// ISSUE: #400
+export type XhrRequestHookFunction = (span: Span, xhr: XMLHttpRequest) => void;
+
 export interface XhrInstrumentationConfig {
   /** URLs which should include trace headers when origin doesn't match */
   propagateTraceHeaderCorsUrls?: Array<string | RegExp>;
@@ -28,6 +23,8 @@ export interface XhrInstrumentationConfig {
   ignoreUrls?: Array<string | RegExp>;
   /** Function for adding custom attributes on the span */
   applyCustomAttributesOnSpan?: XhrCustomAttributeFunction;
+  /** Function for adding custom attributes or headers before the request is handled */
+  requestHook?: XhrRequestHookFunction;
   /** Measure outgoing request size */
   measureRequestSize?: boolean;
   /** Custom function to sanitize URLs before adding to log records. */
