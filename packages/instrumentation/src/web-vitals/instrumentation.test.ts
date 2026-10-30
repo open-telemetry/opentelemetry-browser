@@ -16,6 +16,7 @@ import {
   vi,
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
+import type { MetricWithAttribution } from 'web-vitals/attribution';
 import {
   enableForTest,
   setupTestDiagLogger,
@@ -143,6 +144,52 @@ describe('WebVitalsInstrumentation', () => {
     await new Promise((r) => setTimeout(r, 100));
     triggerVisibilityChange();
   };
+
+  describe('restored navigation timestamps', () => {
+    it.each(['FCP', 'LCP', 'TTFB'] as const)(
+      'should add prerender activation to %s durations',
+      (name) => {
+        instrumentation = new WebVitalsInstrumentation();
+        const metric = {
+          name,
+          value: 25,
+          navigationStartTime: 0,
+          attribution: { navigationEntry: { activationStart: 500 } },
+        } as unknown as MetricWithAttribution;
+        expect(instrumentation['_getTimestampForMetric'](metric)).toBe(525);
+        metric.value = 0;
+        expect(instrumentation['_getTimestampForMetric'](metric)).toBe(500);
+        metric.navigationStartTime = 1000;
+        expect(instrumentation['_getTimestampForMetric'](metric)).toBe(1000);
+        metric.navigationStartTime = 0;
+        Object.assign(metric.attribution, { navigationEntry: undefined });
+        metric.value = 25;
+        expect(instrumentation['_getTimestampForMetric'](metric)).toBe(25);
+      },
+    );
+    it('should timestamp TTFB and paint metrics relative to bfcache restore', async () => {
+      instrumentation = new WebVitalsInstrumentation();
+      enableForTest(instrumentation);
+      // Let initial navigation callbacks finish before simulating a restore.
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      inMemoryExporter.reset();
+      const restore = new PageTransitionEvent('pageshow', { persisted: true });
+      window.dispatchEvent(restore);
+
+      for (const name of ['ttfb', 'fcp', 'lcp']) {
+        const log = await waitForMetric(name);
+        const timestampMs = log.hrTime[0] * 1000 + log.hrTime[1] / 1e6;
+        const expected =
+          performance.timeOrigin +
+          restore.timeStamp +
+          Number(log.attributes[ATTR_WEB_VITAL_VALUE]);
+        expect(timestampMs).toBeCloseTo(expected, 2);
+        expect(log.attributes[ATTR_WEB_VITAL_NAVIGATION_TYPE]).toBe(
+          'back-forward-cache',
+        );
+      }
+    });
+  });
 
   describe('INP metric', () => {
     it('should emit INP after user interaction', async () => {
