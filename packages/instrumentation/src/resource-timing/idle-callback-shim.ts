@@ -7,8 +7,9 @@ const IDLE_DEADLINE_MS = 50;
 
 // requestIdleCallback is not yet Baseline (not supported in Safari).
 // Feature-detect here so we can shim it below for unsupported browsers.
-// eslint-disable-next-line baseline-js/use-baseline
-const supportsIdleCallback = typeof window.requestIdleCallback === 'function';
+const supportsIdleCallback =
+  // eslint-disable-next-line baseline-js/use-baseline
+  typeof globalThis.requestIdleCallback === 'function';
 
 export interface IdleCallbackHandle {
   id: number;
@@ -27,11 +28,11 @@ export function requestIdleCallbackShim(
   if (supportsIdleCallback) {
     // requestIdleCallback is not yet Baseline (not supported in Safari).
     // eslint-disable-next-line baseline-js/use-baseline
-    const id = window.requestIdleCallback(callback, options);
+    const id = globalThis.requestIdleCallback(callback, options);
     return { id, native: true };
   }
 
-  const id = window.setTimeout(() => {
+  const id = setTimeout(() => {
     const start = performance.now();
     callback({
       didTimeout: false,
@@ -48,7 +49,7 @@ export function requestIdleCallbackShim(
 export function cancelIdleCallbackShim(handle: IdleCallbackHandle): void {
   if (handle.native) {
     // eslint-disable-next-line baseline-js/use-baseline
-    window.cancelIdleCallback(handle.id);
+    globalThis.cancelIdleCallback(handle.id);
   } else {
     clearTimeout(handle.id);
   }
