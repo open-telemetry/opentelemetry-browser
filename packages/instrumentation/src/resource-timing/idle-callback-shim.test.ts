@@ -67,10 +67,7 @@ describe('idle-callback-shim', () => {
       const callback = vi.fn();
       const handle = requestIdleCallbackShim(callback);
 
-      expect(setTimeout).toHaveBeenCalledWith(
-        expect.any(Function),
-        1,
-      );
+      expect(setTimeout).toHaveBeenCalledWith(expect.any(Function), 1);
       expect(handle.native).toBe(false);
       expect(handle.id).toBe(99);
     });
