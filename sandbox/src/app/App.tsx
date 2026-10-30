@@ -106,7 +106,10 @@ export function App() {
     <main className="container">
       <header>
         <hgroup>
-          <h1>OTel Browser Instrumentation Sandbox</h1>
+          {/* React's DOM types lack `elementtiming`; the spread avoids the type error. */}
+          <h1 {...{ elementtiming: 'page-title' }}>
+            OTel Browser Instrumentation Sandbox
+          </h1>
           <p>
             Interactive development environment for{' '}
             <code>@opentelemetry/browser-instrumentation</code>

@@ -127,7 +127,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _setupObserver(): void {
     const observer = new PerformanceObserver((list) => {
-      // Fires asynchronously, so it can outlive disable().
+      // A callback queued before disconnect() can still run after disable().
       if (!this.isEnabled()) {
         return;
       }

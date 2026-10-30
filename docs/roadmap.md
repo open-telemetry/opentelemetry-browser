@@ -104,8 +104,8 @@ these areas.
 The data model remains the most important foundation for browser observability —
 it is what ingest and analysis tools build upon. We will drive the semantic
 conventions for browser events (navigation, navigation timing, resource timing,
-web vitals, user action, exception, console) from experimental review to
-stability.
+element timing, web vitals, user action, exception, console) from experimental
+review to stability.
 
 Known open modeling questions we intend to resolve with written decisions:
 
