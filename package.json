@@ -32,13 +32,18 @@
     "test": "turbo run test",
     "test:e2e": "turbo run test:e2e",
     "test:watch": "turbo run test:watch",
-    "test:coverage": "turbo run test:coverage"
+    "test:coverage": "turbo run test:coverage",
+    "size": "size-limit",
+    "test:bundle-size": "node --test scripts/bundle-size-report.test.js"
   },
   "devDependencies": {
     "@arethetypeswrong/core": "0.18.5",
     "@biomejs/biome": "2.6.3",
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
+    "@size-limit/esbuild": "14.2.0",
+    "@size-limit/esbuild-why": "14.2.0",
+    "@size-limit/file": "14.2.0",
     "@types/jsdom": "30.0.0",
     "@vitest/browser-playwright": "5.0.5",
     "@vitest/coverage-v8": "5.0.5",
@@ -48,6 +53,7 @@
     "jsdom": "30.1.3",
     "lefthook": "2.2.2",
     "publint": "0.3.25",
+    "size-limit": "14.2.0",
     "tsdown": "0.23.2",
     "turbo": "2.11.10",
     "typescript-eslint": "8.72.0",
