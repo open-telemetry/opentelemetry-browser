@@ -22,6 +22,7 @@ npm install @opentelemetry/browser-instrumentation
 
 - [Navigation](#navigation) — automatic instrumentation for browser navigations
   (initial load and SPA route changes)
+- [Document Load](#document-load) — one document load span
 - [Navigation Timing](#navigation-timing) — automatic instrumentation for
   navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource
@@ -140,6 +141,48 @@ Each `browser.navigation` event includes:
 | `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads.                                |
 | `browser.navigation.hash_change`   | `true` when the navigation only adds or changes the URL fragment.                         |
 | `browser.navigation.type`          | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
+
+---
+
+### Document Load
+
+```typescript
+import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/document-load';
+```
+
+Creates one `documentLoad` span from the navigation entry's `fetchStart` to
+`loadEventEnd`, with `url.full` and `user_agent.original` attributes. The span
+starts a new trace. Pass it to `startBrowserSdk()` and the SDK enables it with
+its tracer provider:
+
+```typescript
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+
+const sdk = startBrowserSdk({
+  instrumentations: [new DocumentLoadInstrumentation()],
+});
+```
+
+To enable it yourself, pass the tracer provider to `enable()`:
+
+```typescript
+const documentLoad = new DocumentLoadInstrumentation();
+documentLoad.enable({ tracerProvider });
+```
+
+Enabling after the page has loaded reads the buffered navigation entry and keeps
+its original interval. During load, collection waits until `loadEventEnd` is
+populated. Missing or invalid navigation timing produces no span rather than a
+made-up end time. Disabling cancels collection. Re-enabling an instance that
+already collected the document does not emit a second span for that load.
+
+This is the reduced scope proposed in
+[the document-load migration
+issue](https://github.com/open-telemetry/opentelemetry-browser/issues/327).
+There are no `documentFetch` or `resourceFetch` child spans and no span events.
+Detailed timings remain on navigation-timing and resource-timing events. Paint
+timing is not collected here, FCP is covered by the web-vitals instrumentation.
+The old contrib child-span and span-event options are not carried over.
 
 ---
 
