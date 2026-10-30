@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.10.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.9.0...browser-instrumentation-v0.10.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **instrumentation:** add browser-native InstrumentationBase and migrate instrumentations ([#278](https://github.com/open-telemetry/opentelemetry-browser/issues/278))
+
+### Features
+
+* add element timing instrumentation ([#396](https://github.com/open-telemetry/opentelemetry-browser/issues/396)) ([d1a3b7b](https://github.com/open-telemetry/opentelemetry-browser/commit/d1a3b7bd65831473ee9d314437252a02144df6c4))
+* **instrumentation:** align fetch and XHR hooks ([#515](https://github.com/open-telemetry/opentelemetry-browser/issues/515)) ([3e9bbb8](https://github.com/open-telemetry/opentelemetry-browser/commit/3e9bbb8824b888a8223491e37e5668e2b4d04f7b))
+
+
+### Bug Fixes
+
+* **element-timing:** ignore observer entries delivered after disable ([#533](https://github.com/open-telemetry/opentelemetry-browser/issues/533)) ([acf372d](https://github.com/open-telemetry/opentelemetry-browser/commit/acf372dfb9f65a26a045af02e138334b22b7cbc9))
+* **instrumentation:** skip the propagator when trace header propagation is skipped ([#500](https://github.com/open-telemetry/opentelemetry-browser/issues/500)) ([3e231e1](https://github.com/open-telemetry/opentelemetry-browser/commit/3e231e1da7930fa23a1ada15ab274277122b0f48))
+* **resource-timing:** remove refs to window in idle shim ([#536](https://github.com/open-telemetry/opentelemetry-browser/issues/536)) ([df1fd53](https://github.com/open-telemetry/opentelemetry-browser/commit/df1fd530682ee8c2f512778451533e1cca11cac0))
+
+
+### Code Refactoring
+
+* **instrumentation:** add browser-native InstrumentationBase and migrate instrumentations ([#278](https://github.com/open-telemetry/opentelemetry-browser/issues/278)) ([89802db](https://github.com/open-telemetry/opentelemetry-browser/commit/89802db94aa734fefc4f488a4281b4ce89d6c08c))
+
 ## [0.9.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.2...browser-instrumentation-v0.9.0) (2026-10-22)
 
 
