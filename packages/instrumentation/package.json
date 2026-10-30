@@ -65,13 +65,13 @@
     "web-vitals": "^6.2.3"
   },
   "peerDependencies": {
-    "@opentelemetry/api": "^1.9.1"
+    "@opentelemetry/api": "^1.10.0"
   },
   "devDependencies": {
-    "@opentelemetry/core": "2.12.0",
-    "@opentelemetry/propagator-b3": "2.12.0",
-    "@opentelemetry/sdk-logs": "0.223.0",
-    "@opentelemetry/sdk-trace": "2.12.0",
+    "@opentelemetry/core": "3.0.0",
+    "@opentelemetry/propagator-b3": "3.0.0",
+    "@opentelemetry/sdk-logs": "3.0.0",
+    "@opentelemetry/sdk-trace": "3.0.0",
     "msw": "3.0.3"
   },
   "publishConfig": {
