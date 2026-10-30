@@ -41,20 +41,89 @@ const DEFAULT_CONFIG: RootConfig = {
   logLevel: 'INFO',
 };
 
+interface ValidInstrumentation {
+  instrumentation: Instrumentation;
+  // Read once at filter time so the error path in forEachInstrumentation
+  // never touches a getter again.
+  name: string;
+}
+
+function describeInvalidInstrumentation(
+  instrumentation: Instrumentation,
+  index: number,
+): string | undefined {
+  if (instrumentation === null || instrumentation === undefined) {
+    return `instrumentations[${index}] is ${String(instrumentation)}; skipped`;
+  }
+  if (
+    typeof instrumentation.instrumentationName !== 'string' ||
+    instrumentation.instrumentationName === ''
+  ) {
+    return `instrumentations[${index}] has no instrumentationName; skipped`;
+  }
+  if (typeof instrumentation.enable !== 'function') {
+    return `instrumentations[${index}] has no enable(); skipped`;
+  }
+  if (typeof instrumentation.disable !== 'function') {
+    return `instrumentations[${index}] has no disable(); skipped`;
+  }
+  return undefined;
+}
+
+// Filtered once at start so each bad entry logs one error, not one per
+// enable()/disable().
+function filterValidInstrumentations(
+  instrumentations: unknown,
+): ValidInstrumentation[] {
+  if (instrumentations === undefined || instrumentations === null) {
+    return [];
+  }
+  if (!Array.isArray(instrumentations)) {
+    diag.error('instrumentations must be an array; ignored');
+    return [];
+  }
+  const valid: ValidInstrumentation[] = [];
+  try {
+    // Array.from turns holes into undefined; forEach would skip them
+    // silently.
+    const entries = Array.from(instrumentations as Instrumentation[]);
+    entries.forEach((instrumentation, index) => {
+      try {
+        const problem = describeInvalidInstrumentation(instrumentation, index);
+        if (problem !== undefined) {
+          diag.error(problem);
+          return;
+        }
+        valid.push({
+          instrumentation,
+          name: instrumentation.instrumentationName,
+        });
+      } catch (error) {
+        // A throwing getter or proxy must not abort startup.
+        diag.error(
+          `instrumentations[${index}] threw while being checked; skipped`,
+          error,
+        );
+      }
+    });
+  } catch (error) {
+    diag.error('instrumentations could not be read; ignored', error);
+    return [];
+  }
+  return valid;
+}
+
 // One instance that throws must not stop the SDK from reaching the others.
 function forEachInstrumentation(
-  instrumentations: Instrumentation[],
+  instrumentations: ValidInstrumentation[],
   action: 'enable' | 'disable',
   call: (instrumentation: Instrumentation) => void,
 ): void {
-  for (const instrumentation of instrumentations) {
+  for (const { instrumentation, name } of instrumentations) {
     try {
       call(instrumentation);
     } catch (error) {
-      diag.error(
-        `Failed to ${action} instrumentation ${instrumentation.instrumentationName}`,
-        error,
-      );
+      diag.error(`Failed to ${action} instrumentation ${name}`, error);
     }
   }
 }
@@ -122,6 +191,10 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     }
   }
 
+  const instrumentations = filterValidInstrumentations(
+    rootConfig.instrumentations,
+  );
+
   // Start logs if configured
   if (logsConfig) {
     const isGenericEndpoint = !logsConfig.exportConfig?.url;
@@ -185,7 +258,6 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     sdks.push(tracesSdk);
   }
 
-  const instrumentations = rootConfig.instrumentations ?? [];
   // The same object on every enable(), because an instance keeps the deps
   // from its first enable() for its whole life.
   const deps: InstrumentationDeps = {
