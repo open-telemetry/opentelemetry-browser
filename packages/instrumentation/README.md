@@ -319,9 +319,54 @@ Provides automatic instrumentation for
 
 | Option                     | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------------- | -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                                                                                                                                                                                                     |
+| `includeAttribution`       | `boolean`                        | `false` | When true, adds selected INP attribution attributes without including the raw attribution body.                                                                                                                                                                                                                                                                  |
+| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. This does not add attribution attributes.                                                                                                                                                                                                                           |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                                                                                                                                                                                                              |
 | `reportAllChanges`         | `boolean`                        | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`.`web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production. |
+
+#### INP Attribution
+
+With `includeAttribution: true`, INP events include the following attributes.
+This option is independent of `includeRawAttribution`, which controls the raw
+JSON body for all web-vital events. Both default to `false`. Enable either
+option on its own, or both to include attributes and the raw body. Other
+web-vital events do not receive these INP attributes.
+
+The `browser.web_vital.attribution.*` names are experimental implementation
+proposals for
+[INP attribution](https://github.com/open-telemetry/opentelemetry-browser/issues/471),
+pending semantic convention agreement.
+[Client-side semantic conventions #14](https://github.com/open-telemetry/semantic-conventions-client-side/pull/14)
+excludes web-vitals and does not define these names. They may change in a minor
+release.
+
+| Attribute                                                            | Description                                                                                                                                                                         |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `browser.web_vital.attribution.interaction_target`                   | The interaction target selector reported by `web-vitals`. Can be empty if the element was removed.                                                                                  |
+| `browser.web_vital.attribution.interaction_type`                     | `pointer` or `keyboard`.                                                                                                                                                            |
+| `browser.web_vital.attribution.input_delay`                          | Delay before interaction event processing begins, in milliseconds.                                                                                                                  |
+| `browser.web_vital.attribution.processing_duration`                  | Interaction event processing duration, in milliseconds.                                                                                                                             |
+| `browser.web_vital.attribution.presentation_delay`                   | Delay from the end of event processing to the next paint, in milliseconds.                                                                                                          |
+| `browser.web_vital.attribution.next_paint_time`                      | Estimated next paint time in milliseconds relative to the page's performance time origin. This is not a Unix timestamp.                                                             |
+| `browser.web_vital.attribution.load_state`                           | Document loading state at the interaction, as reported by `web-vitals`.                                                                                                             |
+| `browser.web_vital.attribution.longest_script.invoker`               | Invoker of the longest script intersecting the INP interaction.                                                                                                                     |
+| `browser.web_vital.attribution.longest_script.source_url`            | Source URL of that script.                                                                                                                                                          |
+| `browser.web_vital.attribution.longest_script.source_function_name`  | Source function name of that script.                                                                                                                                                |
+| `browser.web_vital.attribution.longest_script.duration`              | Full script entry duration in milliseconds.                                                                                                                                         |
+| `browser.web_vital.attribution.longest_script.subpart`               | The INP subpart assigned by `web-vitals`: `input-delay`, `processing-duration`, or `presentation-delay`. A script that starts before the interaction can be assigned `input-delay`. |
+| `browser.web_vital.attribution.longest_script.intersecting_duration` | Duration attributed to the script within the INP interaction, in milliseconds.                                                                                                      |
+
+Unavailable optional interaction fields are omitted. The longest-script fields
+are present only when `web-vitals` supplies a Long Animation Frame script
+summary. Browsers without that API still report the available interaction timing
+attributes. Zero timings and empty strings supplied by the library are
+preserved. No DOM nodes or raw performance entry arrays are added as attributes.
+
+Selectors, script invokers, source URLs and the raw attribution body can contain
+sensitive data. Opt in only when that data is appropriate to export.
+`applyCustomLogRecordData` runs after both attributes and body are set, so it
+can redact them before emission. Redacting attributes alone does not redact the
+JSON body.
 
 ### Console
 

@@ -23,6 +23,13 @@ import {
 } from '#utils/test';
 import { WebVitalsInstrumentation } from './instrumentation.ts';
 import {
+  ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY,
+  ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TARGET,
+  ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TYPE,
+  ATTR_WEB_VITAL_ATTRIBUTION_LOAD_STATE,
+  ATTR_WEB_VITAL_ATTRIBUTION_NEXT_PAINT_TIME,
+  ATTR_WEB_VITAL_ATTRIBUTION_PRESENTATION_DELAY,
+  ATTR_WEB_VITAL_ATTRIBUTION_PROCESSING_DURATION,
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
@@ -270,9 +277,10 @@ describe('WebVitalsInstrumentation', () => {
     });
   });
 
-  describe('includeRawAttribution', () => {
-    it('should include attribution as body when enabled', async () => {
+  describe('attribution options', () => {
+    it('should include attributes and body when both options are enabled', async () => {
       instrumentation = new WebVitalsInstrumentation({
+        includeAttribution: true,
         includeRawAttribution: true,
       });
       enableForTest(instrumentation);
@@ -284,6 +292,27 @@ describe('WebVitalsInstrumentation', () => {
       expect(inpLog.body).toBeDefined();
       const parsed = JSON.parse(inpLog.body as string);
       expect(parsed).toHaveProperty('interactionTime');
+      expect(
+        inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TARGET],
+      ).toBe(parsed.interactionTarget);
+      expect(
+        inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TYPE],
+      ).toBe('pointer');
+      expect(inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY]).toBe(
+        parsed.inputDelay,
+      );
+      expect(
+        inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_PROCESSING_DURATION],
+      ).toBe(parsed.processingDuration);
+      expect(
+        inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_PRESENTATION_DELAY],
+      ).toBe(parsed.presentationDelay);
+      expect(
+        inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_NEXT_PAINT_TIME],
+      ).toBe(parsed.nextPaintTime);
+      expect(inpLog.attributes[ATTR_WEB_VITAL_ATTRIBUTION_LOAD_STATE]).toBe(
+        parsed.loadState,
+      );
     });
   });
 
