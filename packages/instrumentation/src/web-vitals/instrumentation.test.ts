@@ -277,9 +277,10 @@ describe('WebVitalsInstrumentation', () => {
     });
   });
 
-  describe('includeRawAttribution', () => {
-    it('should include attribution as body when enabled', async () => {
+  describe('attribution options', () => {
+    it('should include attributes and body when both options are enabled', async () => {
       instrumentation = new WebVitalsInstrumentation({
+        includeAttribution: true,
         includeRawAttribution: true,
       });
       enableForTest(instrumentation);

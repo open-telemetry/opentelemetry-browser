@@ -278,15 +278,18 @@ Provides automatic instrumentation for
 
 | Option                     | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------------- | -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object and adds selected INP attribution attributes.                                                                                                                                                                                                                        |
+| `includeAttribution`       | `boolean`                        | `false` | When true, adds selected INP attribution attributes without including the raw attribution body.                                                                                                                                                                                                                                                                  |
+| `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object. This does not add attribution attributes.                                                                                                                                                                                                                           |
 | `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                                                                                                                                                                                                              |
 | `reportAllChanges`         | `boolean`                        | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`.`web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production. |
 
 #### INP Attribution
 
-With `includeRawAttribution: true`, INP events include the following attributes
-alongside the raw JSON body. Attribution attributes are absent by default. Other
-web-vital events retain their raw body behavior without these INP attributes.
+With `includeAttribution: true`, INP events include the following attributes.
+This option is independent of `includeRawAttribution`, which controls the raw
+JSON body for all web-vital events. Both default to `false`. Enable either
+option on its own, or both to include attributes and the raw body. Other
+web-vital events do not receive these INP attributes.
 
 The `browser.web_vital.attribution.*` names are experimental implementation
 proposals for

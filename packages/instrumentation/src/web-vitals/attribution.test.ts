@@ -160,9 +160,9 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     });
   });
 
-  it('adds selected INP attribution and retains the raw body when enabled', () => {
+  it('adds selected INP attribution without the raw body when enabled', () => {
     instrumentation = new WebVitalsInstrumentation({
-      includeRawAttribution: true,
+      includeAttribution: true,
     });
     enableForTest(instrumentation);
     const metric = createINPMetric({ longestScript: createLongestScript() });
@@ -187,12 +187,40 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART]: 'input-delay',
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION]: 50,
     });
-    expect(log.body).toBe(JSON.stringify(metric.attribution));
+    expect(log.body).toBeUndefined();
+  });
+
+  it.each([
+    { includeAttribution: false, includeRawAttribution: false },
+    { includeAttribution: true, includeRawAttribution: false },
+    { includeAttribution: false, includeRawAttribution: true },
+    { includeAttribution: true, includeRawAttribution: true },
+  ])('controls attributes and raw body independently: %j', (config) => {
+    instrumentation = new WebVitalsInstrumentation(config);
+    enableForTest(instrumentation);
+    const metric = createINPMetric({ longestScript: createLongestScript() });
+    reportINP(metric);
+
+    const log = getLog();
+    expect(Object.keys(getAttributionAttributes(log.attributes))).toHaveLength(
+      config.includeAttribution ? 13 : 0,
+    );
+    expect(log.body).toBe(
+      config.includeRawAttribution
+        ? JSON.stringify(metric.attribution)
+        : undefined,
+    );
+    if (config.includeRawAttribution) {
+      expect(JSON.parse(log.body as string).interactionTime).toBe(100);
+      expect(log.attributes).not.toHaveProperty(
+        'browser.web_vital.attribution.interaction_time',
+      );
+    }
   });
 
   it('preserves zero timings and an empty target without LoAF data', () => {
     instrumentation = new WebVitalsInstrumentation({
-      includeRawAttribution: true,
+      includeAttribution: true,
     });
     enableForTest(instrumentation);
     reportINP(
@@ -219,7 +247,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
 
   it('omits unavailable interaction and script fields for a dummy INP', () => {
     instrumentation = new WebVitalsInstrumentation({
-      includeRawAttribution: true,
+      includeAttribution: true,
     });
     enableForTest(instrumentation);
     reportINP(
@@ -242,33 +270,39 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     });
   });
 
-  it('does not add INP attributes to other web-vital events', () => {
-    instrumentation = new WebVitalsInstrumentation({
-      includeRawAttribution: true,
-    });
-    enableForTest(instrumentation);
-    const metric: FCPMetricWithAttribution = {
-      name: 'FCP',
-      value: 100,
-      delta: 100,
-      rating: 'good',
-      id: 'fcp-fixture',
-      entries: [],
-      navigationType: 'navigate',
-      navigationId: 1,
-      attribution: {
-        timeToFirstByte: 40,
-        firstByteToFCP: 60,
-        loadState: 'loading',
-      },
-    };
-    reportFCP(metric);
+  it.each([false, true])(
+    'does not add INP attributes to other web-vital events (raw body: %s)',
+    (includeRawAttribution) => {
+      instrumentation = new WebVitalsInstrumentation({
+        includeAttribution: true,
+        includeRawAttribution,
+      });
+      enableForTest(instrumentation);
+      const metric: FCPMetricWithAttribution = {
+        name: 'FCP',
+        value: 100,
+        delta: 100,
+        rating: 'good',
+        id: 'fcp-fixture',
+        entries: [],
+        navigationType: 'navigate',
+        navigationId: 1,
+        attribution: {
+          timeToFirstByte: 40,
+          firstByteToFCP: 60,
+          loadState: 'loading',
+        },
+      };
+      reportFCP(metric);
 
-    const log = getLog();
-    expect(log.attributes[ATTR_WEB_VITAL_NAME]).toBe('fcp');
-    expect(getAttributionAttributes(log.attributes)).toEqual({});
-    expect(log.body).toBe(JSON.stringify(metric.attribution));
-  });
+      const log = getLog();
+      expect(log.attributes[ATTR_WEB_VITAL_NAME]).toBe('fcp');
+      expect(getAttributionAttributes(log.attributes)).toEqual({});
+      expect(log.body).toBe(
+        includeRawAttribution ? JSON.stringify(metric.attribution) : undefined,
+      );
+    },
+  );
 
   it('lets the custom hook redact both attribution attributes and raw body', () => {
     let attributesAtHook: LogRecord['attributes'];
@@ -287,6 +321,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       logRecord.body = 'redacted';
     });
     instrumentation = new WebVitalsInstrumentation({
+      includeAttribution: true,
       includeRawAttribution: true,
       applyCustomLogRecordData: hook,
     });

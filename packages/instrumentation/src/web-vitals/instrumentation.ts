@@ -181,7 +181,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       [ATTR_WEB_VITAL_NAVIGATION_TYPE]: metric.navigationType,
     };
 
-    if (this._config.includeRawAttribution && metric.name === 'INP') {
+    if (this._config.includeAttribution && metric.name === 'INP') {
       Object.assign(
         attributes,
         this._getINPAttributionAttributes(metric.attribution),
