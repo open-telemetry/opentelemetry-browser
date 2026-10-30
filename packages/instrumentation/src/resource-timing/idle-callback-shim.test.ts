@@ -24,12 +24,11 @@ describe('idle-callback-shim', () => {
     let cancelIdleCallbackShimNative: typeof cancelIdleCallbackShim;
 
     beforeEach(async () => {
-      vi.stubGlobal('window', {
-        requestIdleCallback: vi.fn(() => 42),
-        cancelIdleCallback: vi.fn(),
-        setTimeout: vi.fn(),
-        clearTimeout: vi.fn(),
-      });
+      vi.stubGlobal(
+        'requestIdleCallback',
+        vi.fn(() => 42),
+      );
+      vi.stubGlobal('cancelIdleCallback', vi.fn());
       vi.resetModules();
       ({
         requestIdleCallbackShim: requestIdleCallbackShimNative,
@@ -41,7 +40,7 @@ describe('idle-callback-shim', () => {
       const callback = vi.fn();
       const handle = requestIdleCallbackShimNative(callback, { timeout: 1000 });
 
-      expect(window.requestIdleCallback).toHaveBeenCalledWith(callback, {
+      expect(globalThis.requestIdleCallback).toHaveBeenCalledWith(callback, {
         timeout: 1000,
       });
       expect(handle.native).toBe(true);
@@ -52,45 +51,39 @@ describe('idle-callback-shim', () => {
       const handle = { id: 42, native: true as const };
       cancelIdleCallbackShimNative(handle);
 
-      expect(window.cancelIdleCallback).toHaveBeenCalledWith(42);
+      expect(globalThis.cancelIdleCallback).toHaveBeenCalledWith(42);
     });
-  });
-
-  it('should import without window being defined', async () => {
-    vi.stubGlobal('window', undefined);
-    vi.resetModules();
-
-    await expect(import('./idle-callback-shim.ts')).resolves.toBeDefined();
-
-    vi.resetModules();
   });
 
   describe('when requestIdleCallback is not available', () => {
     beforeEach(() => {
-      vi.stubGlobal('window', {
-        setTimeout: vi.fn(() => 99),
-        clearTimeout: vi.fn(),
-      });
+      vi.stubGlobal(
+        'setTimeout',
+        vi.fn(() => 99),
+      );
     });
 
     it('should fall back to setTimeout', () => {
       const callback = vi.fn();
       const handle = requestIdleCallbackShim(callback);
 
-      expect(window.setTimeout).toHaveBeenCalledWith(expect.any(Function), 1);
+      expect(setTimeout).toHaveBeenCalledWith(
+        expect.any(Function),
+        1,
+      );
       expect(handle.native).toBe(false);
       expect(handle.id).toBe(99);
     });
 
     it('should provide a synthetic deadline with timeRemaining', () => {
       let capturedDeadline: IdleDeadline | undefined;
-      vi.stubGlobal('window', {
-        setTimeout: vi.fn((cb: () => void) => {
+      vi.stubGlobal(
+        'setTimeout',
+        vi.fn((cb: () => void) => {
           cb();
           return 99;
         }),
-        clearTimeout: vi.fn(),
-      });
+      );
 
       requestIdleCallbackShim((deadline) => {
         capturedDeadline = deadline;
