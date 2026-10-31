@@ -127,20 +127,14 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
         return candidate as Error;
       }
     }
-    if (eventMessage) {
-      return eventMessage;
-    }
-    if (typeof error === 'object' && error !== null) {
-      try {
-        const json = JSON.stringify(error);
-        if (json && json !== '{}') {
-          return json;
-        }
-      } catch {
-        // Circular objects and BigInt properties still have a string fallback.
+    try {
+      return String(error);
+    } catch (cause) {
+      if (eventMessage) {
+        return eventMessage;
       }
+      throw cause;
     }
-    return String(error);
   }
 
   private _applyCustomAttributes(error: Error | string): Attributes {
