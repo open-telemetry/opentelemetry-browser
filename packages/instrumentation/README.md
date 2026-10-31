@@ -378,6 +378,14 @@ new ErrorsInstrumentation({
 | ----------------------- | ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `applyCustomAttributes` | `(error: Error \| string) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
+Non-Error values are converted to strings before recording and before calling
+`applyCustomAttributes`, using `String(value)` without JSON serialization. Error
+events use the browser message only when the value is missing or string
+conversion fails. Error-like objects with a string `message` retain their
+attributes. Null or undefined rejection reasons are ignored. Failures during
+property access, or string conversion without a browser message fallback, are
+contained and reported through the diagnostic logger.
+
 #### Captured Attributes
 
 Each `exception` event includes:
