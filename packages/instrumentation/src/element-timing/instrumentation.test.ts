@@ -240,6 +240,33 @@ describe('ElementTimingInstrumentation', () => {
     expect(mockObserver.disconnect).toHaveBeenCalledTimes(1);
   });
 
+  it('should not emit entries delivered after disable', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+    instrumentation.disable();
+
+    observerCallback(
+      createMockPerformanceObserverEntryList([createMockElementEntry()]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+
+    expect(getElementTimingLogs()).toHaveLength(0);
+  });
+
+  it('should emit entries delivered after re-enable', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+    instrumentation.disable();
+    instrumentation.enable();
+
+    observerCallback(
+      createMockPerformanceObserverEntryList([createMockElementEntry()]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+
+    expect(getElementTimingLogs()).toHaveLength(1);
+  });
+
   it('should not enable twice', () => {
     instrumentation = new ElementTimingInstrumentation();
     instrumentation.enable();
@@ -260,8 +287,8 @@ describe('ElementTimingInstrumentation', () => {
     });
   });
 
-  it('should stay off and warn once when the element entry type is unsupported', () => {
-    const { warn } = setupTestDiagLogger();
+  it('should stay off and log one error when the element entry type is unsupported', () => {
+    const { error } = setupTestDiagLogger();
     (
       PerformanceObserverMock as unknown as { supportedEntryTypes: string[] }
     ).supportedEntryTypes = [];
@@ -272,8 +299,8 @@ describe('ElementTimingInstrumentation', () => {
 
     expect(instrumentation.isEnabled()).toBe(false);
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith(
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith(
       expect.any(String),
       expect.stringMatching(/"element" entry type/),
       expect.any(Error),
