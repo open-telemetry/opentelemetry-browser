@@ -85,7 +85,7 @@ const sdk = startBrowserSdk({
   resourceAttributes: {
     'browser.has_speech_recognition': typeof SpeechRecognition === 'function',
   },
-  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318', headers: {} }
+  // Optional - configuration for HTTP exporter. Default is no OTLP exporter; use `processors` or set this object.
   exportConfig: {
     url: 'https://collector.mycompany.com',
     headers: { foo: 'bar' },
@@ -158,7 +158,7 @@ const logsSdk = startLogsSdk({
   resourceAttributes: {
     'browser.has_speech_recognition': typeof SpeechRecognition === 'function',
   },
-  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318/v1/logs', headers: {} }
+  // Optional - configuration for HTTP exporter. Default is no OTLP exporter; use `processors` or set this object.
   // Note: this config expects the full URL. Signal path is not added.
   exportConfig: {
     url: 'https://collector.mycompany.com/v1/logs',
@@ -198,7 +198,7 @@ const tracesSdk = startTracesSdk({
   resourceAttributes: {
     'browser.has_speech_recognition': typeof SpeechRecognition === 'function',
   },
-  // Optional - configuration for HTTP exporter. Default value is { url: 'http://localhost:4318/v1/traces', headers: {} }
+  // Optional - configuration for HTTP exporter. Default is no OTLP exporter; use `processors` or set this object.
   // Note: this config expects the full URL. Signal path is not added.
   exportConfig: {
     url: 'https://collector.mycompany.com/v1/traces',
@@ -373,6 +373,9 @@ These options are:
 - `maxQueueSize`: Maximum queue size.
 - `maxExportBatchSize`: Maximum batch size.
 
+Note: when `exportConfig` is omitted, no OTLP exporter is added and
+`batchProcessorConfig` has no effect. See [processors](#processors).
+
 Note: you can pass this option to `startBrowserSdk` if you want to apply the
 same to all signals. If the option is defined at the top level and within the
 signal configuration the later wins.
@@ -385,6 +388,10 @@ options are:
 - `url`: Target to which the exporter is going to send logs.
 - `headers`: Key-value pairs to be used as headers associated with HTTP
   requests.
+
+Note: this option is required if you want the SDK to handle HTTP LogRecord
+exports. If it is not set, configure `processors` to export to a collector
+endpoint. See [processors](#processors).
 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the
 same to all signals. If the option is defined at the top level and within the
@@ -424,6 +431,9 @@ options are:
 - `maxQueueSize`: Maximum queue size.
 - `maxExportBatchSize`: Maximum batch size.
 
+Note: when `exportConfig` is omitted, no OTLP exporter is added and
+`batchProcessorConfig` has no effect. See [processors](#processors).
+
 Note: you can pass this option to `startBrowserSdk` if you want to apply the
 same to all signals. If the option is defined at the top level and within the
 `traces` signal configuration the later wins.
@@ -436,6 +446,10 @@ options are:
 - `url`: Target to which the exporter is going to send traces.
 - `headers`: Key-value pairs to be used as headers associated with HTTP
   requests.
+
+Note: this option is required if you want the SDK to handle HTTP Span exports.
+If it is not set, configure `processors` to export to a collector endpoint. See
+[processors](#processors).
 
 Note: you can pass this option to `startBrowserSdk` if you want to apply the
 same to all signals. If the option is defined at the top level and within the
