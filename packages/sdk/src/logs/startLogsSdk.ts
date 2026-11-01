@@ -22,7 +22,9 @@ import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
 import type { LogsConfig, LogsSdk } from '../core/types.ts';
 
-const DEFAULT_LOGS_OTLP_ENDPOINT = 'http://localhost:4318/v1/logs';
+export const DEFAULT_LOGS_EXPORT_CONFIG: LogsConfig['exportConfig'] = {
+  url: 'http://localhost:4318/v1/logs',
+};
 
 /**
  * @param config The configuration for logs
@@ -52,9 +54,19 @@ export function startLogsSdk(config?: LogsConfig): LogsSdk {
   if (config?.processors) {
     processors.push(...config.processors);
   }
-  if (!config?.processors || config?.exportConfig) {
-    const logsEndpoint =
-      config?.exportConfig?.url || DEFAULT_LOGS_OTLP_ENDPOINT;
+
+  if (typeof config?.exportConfig?.url !== 'string') {
+    if (processors.length) {
+      diag.warn(
+        'Export configuration URL is missing. Configured processors should handle LogRecord exports.',
+      );
+    } else {
+      diag.warn(
+        "Export configuration URL is missing. Logs SDK won't export any LogRecords.",
+      );
+    }
+  } else {
+    const logsEndpoint = config.exportConfig.url;
 
     // Bail out on an invalid URL instead of silently skipping the exporter,
     // which would leave the SDK running without exporting the telemetry.
@@ -71,6 +83,7 @@ export function startLogsSdk(config?: LogsConfig): LogsSdk {
       }),
     );
   }
+
   // For any level equal or louder than `DEBUG` add console exporters
   // to get logs and traces print into the DevTools console.
   const logLevel = config?.logLevel && DiagLogLevel[config?.logLevel];

@@ -26,6 +26,8 @@ npm install @opentelemetry/browser-instrumentation
   navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource
   timing
+- [Element Timing](#element-timing) — automatic instrumentation for paint timing
+  of annotated elements
 - [User Action](#user-action) — automatic instrumentation for user actions
   (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
@@ -209,6 +211,45 @@ Each resource timing event includes:
 - **Redirect Info** — redirect timing if applicable
 - **Service Worker** — worker start time if intercepted
 - **Render Blocking** — whether the resource blocked rendering (Chromium only)
+
+---
+
+### Element Timing
+
+```typescript
+import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
+```
+
+Emits a `browser.element_timing` event for each element annotated with the
+[`elementtiming`](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceElementTiming)
+attribute, reporting when the browser painted it.
+
+Only image elements and text-containing block elements are eligible, and the
+attribute must be present before the element is first painted:
+
+```html
+<img src="hero.jpg" elementtiming="hero-image">
+<p elementtiming="headline">Welcome</p>
+```
+
+Entries recorded before the instrumentation was enabled are captured via
+buffered mode. Element Timing is Chromium-only. On other browsers the
+instrumentation stays disabled and logs a diag message.
+
+#### Captured Attributes
+
+Each `browser.element_timing` event includes:
+
+| Attribute                               | Description                                                                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `browser.element_timing.identifier`     | The `elementtiming` attribute value.                                                                                               |
+| `browser.element_timing.element`        | The lower-cased tag name (omitted when the element left the document before the entry was processed).                              |
+| `browser.element_timing.render_time`    | Paint time relative to navigation start. Cross-origin images without a `Timing-Allow-Origin` header report 0 or a coarsened value. |
+| `browser.element_timing.start_time`     | `render_time` when non-zero, otherwise `load_time`. Always present, so prefer this for charting.                                   |
+| `browser.element_timing.load_time`      | Resource load time relative to navigation start. Image elements only.                                                              |
+| `url.full`                              | The image resource URL. Image elements only.                                                                                       |
+| `browser.element_timing.natural_width`  | Intrinsic width in CSS pixels. Image elements only.                                                                                |
+| `browser.element_timing.natural_height` | Intrinsic height in CSS pixels. Image elements only.                                                                               |
 
 ---
 
@@ -561,13 +602,14 @@ Each instrumentation has three methods: `enable()`, `disable()` and
 - The first `enable(deps?)` runs a one-time init and then starts emitting. Init
   patches browser APIs and checks that the browser supports what the
   instrumentation needs.
-- The first `enable()` also locks the dependencies (`deps`) for the life of the
-  instance. A dependency that you do not pass uses the global API from
+- The first `enable()` also locks the dependencies for the life of the instance.
+  A dependency that you do not pass uses the global API from
   `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
-  ignore `deps`, and log a warning if a passed dependency is different.
+  ignore `deps`. They log a warning if a passed dependency differs from the
+  locked one, and a debug message if it is the same.
 - `disable()` stops emitting and removes listeners. Patched browser APIs stay
   patched, because other code may have wrapped them after us. A later `enable()`
-  starts emitting again.
+  starts emitting again, unless `disable()` failed.
 - `isEnabled()` is `true` only while the instrumentation emits.
 
 The dependencies are:
@@ -604,9 +646,14 @@ page load, are not emitted a second time after `disable()` and `enable()`.
 To keep an instrumentation fully off, with no patches, do not call `enable()`.
 
 Init can fail, for example when a needed browser API is missing or another
-script has locked it. The reason is logged as a warning through the
-OpenTelemetry diag logger, so set one with `diag.setLogger()` to see it. A
-failed instrumentation stays off for good. Later calls to `enable()` do nothing.
+script has locked it. A passed provider that cannot give a tracer or logger
+fails the same way. The reason is logged as an error through the OpenTelemetry
+diag logger, so set one with `diag.setLogger()` to see it. A failed
+instrumentation stays off for good. Later calls to `enable()` only log a debug
+line. A `disable()` that throws, for example when a listener cannot be removed,
+is also logged as an error and keeps the instrumentation off in the same way. An
+`_onEnable()` that throws is logged as an error, and a later `enable()` tries
+again, unless the `_onDisable()` that cleans up after it throws too.
 
 ### Differences from classic instrumentations
 
@@ -636,32 +683,37 @@ in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
 `Instrumentation` and `InstrumentationDeps` are all exported from
 `@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
 
-Override these hooks. All of them must be synchronous. A hook that returns a
-promise counts as failed. Hooks must not call `enable()` or `disable()`.
+Override these hooks. All of them must be synchronous, because the lifecycle
+does not wait for a returned promise. Do not use `async` here: a rejection is
+not logged, and it reaches the page as an unhandled rejection. Hooks must not
+call `enable()` or `disable()`.
 
 - `_init()` runs once, at the first `enable()`. It only patches browser APIs
   with `_wrap()` and checks that the browser supports what the instrumentation
   needs. Throw if the instrumentation cannot run. A failed init is final.
 - `_onEnable()` runs each time `enable()` turns emission on. Add listeners and
   observers here, including buffered ones. If it throws, `_onDisable()` runs to
-  remove what it added, and a later `enable()` tries again.
+  remove what it added, and a later `enable()` tries again. If that
+  `_onDisable()` throws too, the instrumentation stays off for good.
 - `_onDisable()` runs each time `disable()` turns emission off. Remove what
-  `_onEnable()` added.
+  `_onEnable()` added. If it throws, some listeners may still be attached, so
+  the instrumentation stays off for good.
 
 From the first `enable()`, use `this.tracer`, `this.logger` and
 `this.propagator`. They come from the locked dependencies. Use `this.propagator`
 instead of the global `propagation` API, so a second SDK on the page can inject
 its own trace context.
 
-Extra subclass deps must be optional, because `startBrowserSdk` passes only
-`tracerProvider`, `loggerProvider` and `propagator`. An instance that needs
-required extra deps must be enabled by its owner, not passed to
-`startBrowserSdk`.
+Take the instrumentation's own dependencies, such as a store, in the
+constructor. Only `tracerProvider`, `loggerProvider` and `propagator` go through
+`enable()`. They cannot be constructor arguments, because `startBrowserSdk`
+creates them after you construct the instrumentation.
 
 There is `_wrap()` but no unwrap. Patches are never removed, because other code
 may have wrapped on top of ours. So a patch must check `isEnabled()`, and pass
 the call through when it is false. Run user hooks and emit code through
-`_safeExecute()`, so that a throw does not break the page.
+`_safeExecute()`, so that a throw, or a rejected promise, is logged and does not
+break the page.
 
 ```typescript
 import { InstrumentationBase } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';

@@ -4,9 +4,14 @@ import type { Instrumentation } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace';
+import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace';
 import { COLLECTOR_URL, LOGS_COLLECTOR_URL } from './test-collector.ts';
+
+// Simple processors start one export per record, and the exporter drops any
+// export past 30 in flight. A page with many resource entries hits that limit
+// and loses records, so the tests batch with a short delay instead.
+const BATCH_OPTIONS = { scheduledDelayMillis: 50 };
 
 export interface TestSdkHandle {
   shutdown: () => Promise<void>;
@@ -19,15 +24,17 @@ export function testSdkSetup(
     instrumentations,
     logs: {
       processors: [
-        new SimpleLogRecordProcessor({
+        new BatchLogRecordProcessor({
           exporter: new OTLPLogExporter({ url: LOGS_COLLECTOR_URL }),
+          ...BATCH_OPTIONS,
         }),
       ],
     },
     traces: {
       processors: [
-        new SimpleSpanProcessor({
+        new BatchSpanProcessor({
           exporter: new OTLPTraceExporter({ url: COLLECTOR_URL }),
+          ...BATCH_OPTIONS,
         }),
       ],
     },
