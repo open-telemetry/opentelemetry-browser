@@ -1,6 +1,7 @@
 import './style.css';
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -41,6 +42,7 @@ const loggerProvider = new LoggerProvider({
 logs.setGlobalLoggerProvider(loggerProvider);
 
 const instrumentations = [
+  new ElementTimingInstrumentation(),
   new NavigationTimingInstrumentation(),
   new ResourceTimingInstrumentation({
     initiatorTypes: ['xmlhttprequest', 'fetch'],

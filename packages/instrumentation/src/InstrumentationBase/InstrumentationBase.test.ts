@@ -18,7 +18,6 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupTestDiagLogger } from '#utils/test';
 import { InstrumentationBase } from './InstrumentationBase.ts';
-import type { InstrumentationDeps } from './types.ts';
 
 class Probe extends InstrumentationBase {
   public initCount = 0;
@@ -66,32 +65,6 @@ class Probe extends InstrumentationBase {
     if (this.onDisableError !== undefined) {
       throw this.onDisableError;
     }
-  }
-}
-
-// An `async` override type-checks, because a method that returns
-// Promise<void> can override one that returns void.
-class AsyncInitProbe extends Probe {
-  public readonly rejection = new Error('async init broke');
-
-  protected override async _init(): Promise<void> {
-    super._init();
-    await Promise.resolve();
-    throw this.rejection;
-  }
-}
-
-interface ExtraDeps extends InstrumentationDeps {
-  extra?: string;
-}
-
-class DepsProbe extends InstrumentationBase<Record<string, never>, ExtraDeps> {
-  constructor() {
-    super('test', '1.0.0', {});
-  }
-
-  public readExtra(): string | undefined {
-    return this.deps?.extra;
   }
 }
 
@@ -223,18 +196,12 @@ describe('InstrumentationBase', () => {
       ]);
     });
 
-    it('deps getter exposes subclass-specific deps', () => {
-      const probe = new DepsProbe();
-
-      probe.enable({ extra: 'value' });
-
-      expect(probe.readExtra()).toBe('value');
-    });
-
     it('tracer before the first enable() throws', () => {
       const probe = new Probe();
 
-      expect(() => probe.emitSpan('early')).toThrow(/first enable/);
+      expect(() => probe.emitSpan('early')).toThrow(
+        /not available until enable\(\) succeeds/,
+      );
     });
 
     it('falls back to the global proxy', () => {
@@ -248,21 +215,7 @@ describe('InstrumentationBase', () => {
       expect(spanNames(exporter)).toEqual(['late-global']);
     });
 
-    it('same deps on a later enable do not warn', () => {
-      const { provider } = createTracerProvider();
-      const deps = { tracerProvider: provider, propagator: propagation };
-      const probe = new Probe();
-
-      probe.enable(deps);
-      probe.enable(deps);
-      probe.disable();
-      // A new object with the same values is the same deps.
-      probe.enable({ ...deps });
-
-      expect(diagLogger.warn).not.toHaveBeenCalled();
-    });
-
-    it('different deps on a later enable warn once and are ignored', () => {
+    it('different deps passed to a later enable are ignored with a warning', () => {
       const first = createTracerProvider();
       const second = createTracerProvider();
       const probe = new Probe();
@@ -272,14 +225,46 @@ describe('InstrumentationBase', () => {
       probe.enable({ tracerProvider: second.provider });
       probe.emitSpan('after-second-enable');
 
-      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
-      expect(diagLogger.warn).toHaveBeenCalledWith(
-        'test',
-        expect.stringContaining('tracerProvider'),
-      );
       expect(probe.isEnabled()).toBe(true);
       expect(spanNames(first.exporter)).toEqual(['after-second-enable']);
       expect(spanNames(second.exporter)).toEqual([]);
+      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+      expect(diagLogger.warn).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('ignored: tracerProvider'),
+      );
+    });
+
+    it('deps passed to an instance enabled without deps are ignored with a warning', () => {
+      const { exporter, provider } = createTracerProvider();
+      const probe = new Probe();
+
+      probe.enable();
+      probe.enable({ tracerProvider: provider });
+      probe.emitSpan('global');
+
+      expect(spanNames(exporter)).toEqual([]);
+      expect(diagLogger.warn).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('ignored: tracerProvider'),
+      );
+    });
+
+    it('the same deps passed to a later enable are logged at debug only', () => {
+      const { provider } = createTracerProvider();
+      const probe = new Probe();
+
+      probe.enable({ tracerProvider: provider });
+      probe.enable({ tracerProvider: provider });
+
+      expect(probe.onEnableCount).toBe(1);
+      expect(diagLogger.warn).not.toHaveBeenCalled();
+      // Filtered by namespace, because diag.setLogger() also logs a debug line.
+      expect(
+        vi
+          .mocked(diagLogger.debug)
+          .mock.calls.filter(([namespace]) => namespace === 'test'),
+      ).toEqual([['test', expect.stringMatching(/enable\(\) ignores deps/)]]);
     });
 
     it('propagator defaults to the global propagation API', () => {
@@ -325,7 +310,7 @@ describe('InstrumentationBase', () => {
   });
 
   describe('failures', () => {
-    it('_init throws: state failed, one warn with cause, later enable does nothing', () => {
+    it('_init throws: state failed, one error with cause, later enable does nothing', () => {
       const probe = new Probe();
       probe.initError = new Error('cannot patch');
 
@@ -335,15 +320,50 @@ describe('InstrumentationBase', () => {
       expect(probe.initCount).toBe(1);
       expect(probe.onEnableCount).toBe(0);
       expect(probe.isEnabled()).toBe(false);
-      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
-      expect(diagLogger.warn).toHaveBeenCalledWith(
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledWith(
         'test',
         expect.stringContaining('cannot patch'),
         probe.initError,
       );
+      // The ignored second call is traceable at debug level only. Filtered by
+      // namespace, because diag.setLogger() also logs a debug line.
+      expect(
+        vi
+          .mocked(diagLogger.debug)
+          .mock.calls.filter(([namespace]) => namespace === 'test'),
+      ).toEqual([
+        ['test', expect.stringMatching(/enable\(\) ignored.*failed earlier/)],
+      ]);
     });
 
-    it('a provider that throws from getTracer leaves the instance failed and enable() does not throw', () => {
+    it('_init throws a non-Error: logged as an Error with the value as cause', () => {
+      const probe = new Probe();
+      probe.initError = 'cannot patch';
+
+      probe.enable();
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('cannot patch'),
+        expect.objectContaining({ cause: 'cannot patch' }),
+      );
+    });
+
+    it('_onEnable throws a non-Error: logged as an Error with the value as cause', () => {
+      const probe = new Probe();
+      probe.onEnableError = 'enable broke';
+
+      probe.enable();
+
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('enable broke'),
+        expect.objectContaining({ cause: 'enable broke' }),
+      );
+    });
+
+    it('a provider that throws from getTracer leaves the instance failed, logs an error, and enable() does not throw', () => {
       const probe = new Probe();
       const tracerProvider = {
         getTracer: vi.fn(() => {
@@ -355,17 +375,25 @@ describe('InstrumentationBase', () => {
 
       expect(probe.initCount).toBe(0);
       expect(probe.isEnabled()).toBe(false);
-      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringMatching(/tracer and logger.*stays off.*no tracer/),
+        expect.objectContaining({ message: 'no tracer' }),
+      );
+      expect(() => probe.emitSpan('late')).toThrow(
+        /not available until enable\(\) succeeds/,
+      );
 
       probe.enable({ tracerProvider });
 
       expect(tracerProvider.getTracer).toHaveBeenCalledTimes(1);
       expect(probe.initCount).toBe(0);
       expect(probe.isEnabled()).toBe(false);
-      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
     });
 
-    it('_onEnable throws: rolled back through _onDisable, warn, a later enable retries', () => {
+    it('_onEnable throws: rolled back through _onDisable, error, a later enable retries', () => {
       const probe = new Probe();
       probe.onEnableError = new Error('enable broke');
 
@@ -373,8 +401,8 @@ describe('InstrumentationBase', () => {
 
       expect(probe.isEnabled()).toBe(false);
       expect(probe.onDisableCount).toBe(1);
-      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
-      expect(diagLogger.warn).toHaveBeenCalledWith(
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledWith(
         'test',
         expect.stringContaining('enable broke'),
         probe.onEnableError,
@@ -396,24 +424,29 @@ describe('InstrumentationBase', () => {
       expect(() => probe.enable()).not.toThrow();
 
       expect(probe.isEnabled()).toBe(false);
-      expect(diagLogger.warn).toHaveBeenCalledWith(
+      expect(diagLogger.error).toHaveBeenCalledTimes(2);
+      expect(diagLogger.error).toHaveBeenNthCalledWith(
+        1,
         'test',
         expect.stringContaining('enable broke'),
         probe.onEnableError,
       );
-      expect(diagLogger.error).toHaveBeenCalledWith(
+      expect(diagLogger.error).toHaveBeenNthCalledWith(
+        2,
         'test',
-        expect.any(String),
+        expect.stringMatching(/disable failed.*cleanup broke/),
         probe.onDisableError,
       );
-      expect(
-        vi.mocked(diagLogger.warn).mock.invocationCallOrder[0],
-      ).toBeLessThan(
-        vi.mocked(diagLogger.error).mock.invocationCallOrder[0] ?? 0,
-      );
+
+      probe.onEnableError = undefined;
+      probe.onDisableError = undefined;
+      probe.enable();
+
+      expect(probe.isEnabled()).toBe(false);
+      expect(probe.onEnableCount).toBe(1);
     });
 
-    it('_onDisable throws: logged with diag.error, isEnabled() false, no throw', () => {
+    it('_onDisable throws: logged with its message, state failed, a later enable does nothing', () => {
       const probe = new Probe();
       probe.onDisableError = new Error('cleanup broke');
       probe.enable();
@@ -423,28 +456,35 @@ describe('InstrumentationBase', () => {
       expect(probe.isEnabled()).toBe(false);
       expect(diagLogger.error).toHaveBeenCalledWith(
         'test',
-        expect.any(String),
+        expect.stringMatching(/disable failed.*stays off.*cleanup broke/),
         probe.onDisableError,
       );
-    });
 
-    it('a hook that returns a promise counts as failed and its rejection is logged', async () => {
-      const probe = new AsyncInitProbe();
-
+      probe.onDisableError = undefined;
       probe.enable();
-      probe.enable();
+      probe.disable();
 
       expect(probe.isEnabled()).toBe(false);
-      expect(probe.initCount).toBe(1);
-      expect(probe.onEnableCount).toBe(0);
-      expect(diagLogger.warn).toHaveBeenCalledTimes(1);
+      expect(probe.onEnableCount).toBe(1);
+      expect(probe.onDisableCount).toBe(1);
+    });
 
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    it('a provider that throws from getLogger leaves the instance failed before _init runs', () => {
+      const probe = new Probe();
+      const loggerProvider = {
+        getLogger: vi.fn(() => {
+          throw new Error('no logger');
+        }),
+      };
 
+      expect(() => probe.enable({ loggerProvider })).not.toThrow();
+
+      expect(probe.initCount).toBe(0);
+      expect(probe.isEnabled()).toBe(false);
       expect(diagLogger.error).toHaveBeenCalledWith(
         'test',
-        expect.any(String),
-        probe.rejection,
+        expect.stringMatching(/stays off.*no logger/),
+        expect.objectContaining({ message: 'no logger' }),
       );
     });
   });
@@ -561,19 +601,82 @@ describe('InstrumentationBase', () => {
       );
     });
 
-    it('logs a rejected promise from an async hook', async () => {
+    it('logs a rejected Promise and returns it unchanged', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+      const rejected = new Error('late boom');
+      const promise = Promise.reject(rejected);
+
+      expect(probe.exposedSafeExecute('hook failed', () => promise)).toBe(
+        promise,
+      );
+
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          rejected,
+        ),
+      );
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs nothing for a Promise that resolves', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+
+      await probe.exposedSafeExecute('hook failed', () => Promise.resolve(1));
+      await new Promise((resolve) => setTimeout(resolve));
+
+      expect(diagLogger.error).not.toHaveBeenCalled();
+    });
+
+    it('logs a throw from an async fn', async () => {
       const probe = new WrapProbe('test', '1.0.0', {});
       const thrown = new Error('async boom');
 
-      // Unhandled, this rejection would reach `unhandledrejection` and be
-      // recorded as an application exception.
-      probe.exposedSafeExecute('hook failed', () => Promise.reject(thrown));
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      probe.exposedSafeExecute('hook failed', async () => {
+        throw thrown;
+      });
 
-      expect(diagLogger.error).toHaveBeenCalledWith(
-        'test',
-        'hook failed',
-        thrown,
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          thrown,
+        ),
+      );
+    });
+
+    it('logs a rejected thenable that is not a native Promise', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+      const rejected = new Error('thenable boom');
+      const thenable = {
+        // biome-ignore lint/suspicious/noThenProperty: the test needs a thenable
+        then: (_onFulfilled: unknown, onRejected: (reason: unknown) => void) =>
+          onRejected(rejected),
+      };
+
+      probe.exposedSafeExecute('hook failed', () => thenable);
+
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          rejected,
+        ),
+      );
+    });
+
+    it('logs a non-Error rejection as an Error with the value as cause', async () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+
+      probe.exposedSafeExecute('hook failed', () => Promise.reject('oops'));
+
+      await vi.waitFor(() =>
+        expect(diagLogger.error).toHaveBeenCalledWith(
+          'test',
+          'hook failed',
+          expect.objectContaining({ message: 'oops', cause: 'oops' }),
+        ),
       );
     });
   });
