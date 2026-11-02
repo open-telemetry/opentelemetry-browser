@@ -45,7 +45,7 @@ them to `startBrowserSdk()` and the SDK enables them with its own providers.
 You can also enable them yourself. Call `enable()` on each one:
 
 ```typescript
-import { logs } from '@opentelemetry/api-logs';
+import { logs } from '@opentelemetry/api';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,
@@ -559,7 +559,7 @@ Each instrumentation has three methods: `enable()`, `disable()` and
   instrumentation needs.
 - The first `enable()` also locks the dependencies for the life of the instance.
   A dependency that you do not pass uses the global API from
-  `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
+  `@opentelemetry/api`. Later `enable()` calls
   ignore `deps`. They log a warning if a passed dependency differs from the
   locked one, and a debug message if it is the same.
 - `disable()` stops emitting and removes listeners. Patched browser APIs stay
