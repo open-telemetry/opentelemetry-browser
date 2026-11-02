@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogRecord } from '@opentelemetry/api-logs';
+import type { LogRecord } from '@opentelemetry/api';
 
 export type ApplyCustomLogRecordDataFunction = (logRecord: LogRecord) => void;
 

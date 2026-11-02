@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogAttributes, LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Attributes, LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import {
@@ -80,7 +80,7 @@ export class ElementTimingInstrumentation extends InstrumentationBase<ElementTim
   }
 
   private _emitElementTiming(entry: PerformanceElementTiming): void {
-    const attributes: LogAttributes = {
+    const attributes: Attributes = {
       [ATTR_ELEMENT_TIMING_IDENTIFIER]: entry.identifier,
       [ATTR_ELEMENT_TIMING_ELEMENT]: entry.element?.tagName?.toLowerCase(),
       [ATTR_ELEMENT_TIMING_RENDER_TIME]: entry.renderTime,

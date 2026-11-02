@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TextMapPropagator, TracerProvider } from '@opentelemetry/api';
-import type { LoggerProvider } from '@opentelemetry/api-logs';
+import type {
+  LoggerProvider,
+  TextMapPropagator,
+  TracerProvider,
+} from '@opentelemetry/api';
 
 /**
  * The dependencies the SDK injects into every instrumentation. A dependency

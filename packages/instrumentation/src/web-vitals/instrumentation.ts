@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Attributes } from '@opentelemetry/api';
-import type { LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Attributes, LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,

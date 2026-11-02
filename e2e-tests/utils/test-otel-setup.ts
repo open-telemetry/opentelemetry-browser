@@ -1,5 +1,4 @@
-import { context, propagation, trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { context, logs, propagation, trace } from '@opentelemetry/api';
 import type { Instrumentation } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';

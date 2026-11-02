@@ -4,7 +4,10 @@
  */
 
 import type { Context } from '@opentelemetry/api';
-import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import type {
+  LogRecordProcessor,
+  ReadWriteLogRecord,
+} from '@opentelemetry/sdk-logs';
 import { ATTR_BROWSER_DOCUMENT_URL_FULL } from './semconv.ts';
 import type { DocumentProvider } from './types/DocumentProvider.ts';
 
@@ -19,7 +22,7 @@ export class DocumentLogRecordProcessor implements LogRecordProcessor {
     this._documentProvider = documentProvider;
   }
 
-  onEmit(logRecord: SdkLogRecord, _context?: Context | undefined): void {
+  onEmit(logRecord: ReadWriteLogRecord, _context?: Context | undefined): void {
     const documentUrl = this._documentProvider?.getDocumentUrl();
     if (documentUrl) {
       logRecord.setAttribute(ATTR_BROWSER_DOCUMENT_URL_FULL, documentUrl);
