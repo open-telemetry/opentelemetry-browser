@@ -374,12 +374,16 @@ new ErrorsInstrumentation({
 });
 ```
 
-| Option                  | Type                                     | Default | Description                                                                                                                                            |
-| ----------------------- | ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                  | Type                                                             | Default | Description                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `applyCustomAttributes` | `(error: Error \| string, originalError: unknown) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
 
-Non-Error values are converted to strings before recording and before calling
-`applyCustomAttributes`, using `String(value)` without JSON serialization. Error
+Non-Error values are converted to strings for recording and the first argument
+to `applyCustomAttributes`, using `String(value)` without JSON serialization.
+The second argument is the original thrown value or rejection reason, so the
+hook can select attributes after narrowing it. That value is not recorded
+automatically. On the browser-message fallback path it remains null or
+undefined. Existing callbacks that use only the first argument still work. Error
 events use the browser message only when the value is missing or string
 conversion fails. Error-like objects with a string `message` retain their
 attributes. Null or undefined rejection reasons are ignored. Failures during

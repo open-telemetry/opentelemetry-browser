@@ -42,7 +42,8 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
 
   private _onError(event: ErrorEvent | PromiseRejectionEvent): void {
     const isRejection = 'reason' in event;
-    let error: unknown = isRejection ? event.reason : event.error;
+    const originalError: unknown = isRejection ? event.reason : event.error;
+    let error = originalError;
 
     // Cross-origin scripts deliver an ErrorEvent with `event.error` null but
     // a populated `event.message` (the canonical "Script error." sanitized
@@ -97,7 +98,10 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
         };
       }
 
-      const customAttributes = this._applyCustomAttributes(normalizedError);
+      const customAttributes = this._applyCustomAttributes(
+        normalizedError,
+        originalError,
+      );
 
       const logRecord: LogRecord = {
         eventName: EXCEPTION_EVENT_NAME,
@@ -137,14 +141,17 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     }
   }
 
-  private _applyCustomAttributes(error: Error | string): Attributes {
+  private _applyCustomAttributes(
+    error: Error | string,
+    originalError: unknown,
+  ): Attributes {
     const hook = this._config.applyCustomAttributes;
     if (!hook) {
       return {};
     }
     return (
       this._safeExecute('applyCustomAttributes hook failed', () =>
-        hook(error),
+        hook(error, originalError),
       ) ?? {}
     );
   }

@@ -20,6 +20,7 @@ import {
 } from 'vitest';
 import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { ErrorsInstrumentation } from './instrumentation.ts';
+import type { ApplyCustomAttributesFunction } from './types.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
 const STRING_ERROR = 'Some error string.';
@@ -408,15 +409,84 @@ describe('ErrorsInstrumentation', () => {
   });
 
   describe('applyCustomAttributes', () => {
-    it('should pass normalized values to the custom hook', () => {
-      const hook = vi.fn(() => ({}));
+    it.each([
+      [
+        'error',
+        (reason: unknown) =>
+          dispatchErrorEvent(reason, 'Uncaught [object Object]'),
+      ],
+      ['unhandledrejection', dispatchUnhandledRejection],
+    ])(
+      'should pass the normalized and original values to the hook for %s',
+      (_, dispatch) => {
+        const reason = { status: 500 };
+        const hook = vi.fn<ApplyCustomAttributesFunction>(() => ({}));
+        instrumentation = new ErrorsInstrumentation({
+          applyCustomAttributes: hook,
+        });
+        enableForTest(instrumentation);
+
+        dispatch(reason);
+
+        expect(hook).toHaveBeenCalledWith('[object Object]', reason);
+        expect(hook.mock.calls[0]?.[1]).toBe(reason);
+      },
+    );
+
+    it('should let the hook read original fields without recording the object', () => {
+      const reason = { status: 503, token: 'private token' };
+      instrumentation = new ErrorsInstrumentation({
+        applyCustomAttributes: (_error, original) => {
+          if (
+            typeof original === 'object' &&
+            original !== null &&
+            'status' in original &&
+            typeof original.status === 'number'
+          ) {
+            return { 'app.error.status': original.status };
+          }
+          return {};
+        },
+      });
+      enableForTest(instrumentation);
+
+      dispatchUnhandledRejection(reason);
+
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+        'app.error.status': 503,
+      });
+    });
+
+    it('should preserve the Error object in both hook arguments', () => {
+      const error = new ValidationError('original error');
+      const hook = vi.fn<ApplyCustomAttributesFunction>(() => ({}));
       instrumentation = new ErrorsInstrumentation({
         applyCustomAttributes: hook,
       });
       enableForTest(instrumentation);
-      dispatchUnhandledRejection({ status: 500 });
-      expect(hook).toHaveBeenCalledWith('[object Object]');
+
+      dispatchErrorEvent(error);
+
+      expect(hook).toHaveBeenCalledWith(error, error);
+      expect(hook.mock.calls[0]?.[0]).toBe(error);
+      expect(hook.mock.calls[0]?.[1]).toBe(error);
     });
+
+    it.each([null, undefined])(
+      'should preserve the original %s on the event-message fallback path',
+      (original) => {
+        const hook = vi.fn<ApplyCustomAttributesFunction>(() => ({}));
+        instrumentation = new ErrorsInstrumentation({
+          applyCustomAttributes: hook,
+        });
+        enableForTest(instrumentation);
+
+        dispatchErrorEvent(original, 'Script error.');
+
+        expect(hook).toHaveBeenCalledWith('Script error.', original);
+      },
+    );
 
     it('should merge custom attributes for Error objects', () => {
       instrumentation = new ErrorsInstrumentation({
