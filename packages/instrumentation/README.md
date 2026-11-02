@@ -559,9 +559,9 @@ Each instrumentation has three methods: `enable()`, `disable()` and
   instrumentation needs.
 - The first `enable()` also locks the dependencies for the life of the instance.
   A dependency that you do not pass uses the global API from
-  `@opentelemetry/api`. Later `enable()` calls
-  ignore `deps`. They log a warning if a passed dependency differs from the
-  locked one, and a debug message if it is the same.
+  `@opentelemetry/api`. Later `enable()` calls ignore `deps`. They log a warning
+  if a passed dependency differs from the locked one, and a debug message if it
+  is the same.
 - `disable()` stops emitting and removes listeners. Patched browser APIs stay
   patched, because other code may have wrapped them after us. A later `enable()`
   starts emitting again, unless `disable()` failed.

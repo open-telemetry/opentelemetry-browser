@@ -101,8 +101,8 @@ was `GlobalErrorsInstrumentationConfig`.
 ## Migrate fetch and XHR first
 
 These examples use `@opentelemetry/browser-sdk` 0.8.0 and
-`@opentelemetry/browser-instrumentation` 0.11.0, which require the 3.0 SDK
-and 0.300.x experimental packages. Keep that dependency graph in sync when
+`@opentelemetry/browser-instrumentation` 0.11.0, which require the 3.0 SDK and
+0.300.x experimental packages. Keep that dependency graph in sync when
 upgrading.
 
 Install the new instrumentation package, keeping the SDK and registration
@@ -329,8 +329,8 @@ with a single Browser SDK setup; do not initialize a second global provider for
 the same signal.
 
 These examples use `@opentelemetry/browser-sdk` 0.8.0 and
-`@opentelemetry/browser-instrumentation` 0.11.0, which require the 3.0 SDK
-and 0.300.x experimental packages. Keep that dependency graph in sync when
+`@opentelemetry/browser-instrumentation` 0.11.0, which require the 3.0 SDK and
+0.300.x experimental packages. Keep that dependency graph in sync when
 upgrading.
 
 Install the SDK and the API peer dependency:
