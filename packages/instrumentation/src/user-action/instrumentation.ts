@@ -72,7 +72,7 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
 
     const element = event.target;
 
-    if (!(element instanceof HTMLElement)) {
+    if (!(element instanceof Element)) {
       return;
     }
 
