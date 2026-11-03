@@ -110,7 +110,8 @@ new NavigationInstrumentation({
   // path segments, query parameters, or tokens that should not be exported.
   sanitizeUrl: (url) => defaultSanitizeUrl(url),
 
-  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  // [Deprecated] Mutate the log record before it is emitted.
+  // Prefer using a custom LogRecordProcessor registered with LoggerProvider.
   applyCustomLogRecordData: (logRecord) => {
     logRecord.attributes = {
       ...logRecord.attributes,
@@ -124,7 +125,23 @@ new NavigationInstrumentation({
 | ----------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `useNavigationApiIfAvailable` | `boolean`                        | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
 | `sanitizeUrl`                 | `(url: string) => string`        | —       | Called before the URL is written to `url.full`.                                                                                                                                                                                                                 |
-| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger.                                                                                                                     |
+| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | **[Deprecated]** Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`.                       |
+
+> **Note on Custom Attributes:** `applyCustomLogRecordData` is deprecated. To
+> enrich or mutate log records with custom attributes, register a custom
+> `LogRecordProcessor` with `LoggerProvider`:
+>
+> ```typescript
+> import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+>
+> class CustomAttributesProcessor implements LogRecordProcessor {
+>   onEmit(logRecord: SdkLogRecord) {
+>     logRecord.setAttribute('app.route.id', '...');
+>   }
+>   async forceFlush() {}
+>   async shutdown() {}
+> }
+> ```
 
 `defaultSanitizeUrl` is exported for composition — it redacts `user:password@`
 credentials and a set of common sensitive query parameters (`api_key`, `token`,
@@ -277,7 +294,8 @@ new UserActionInstrumentation({
   // Array of actions to automatically capture. Default: ['click'].
   autoCapturedActions: [],
 
-  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  // [Deprecated] Mutate the log record before it is emitted.
+  // Prefer using a custom LogRecordProcessor registered with LoggerProvider.
   applyCustomLogRecordData: (logRecord) => {
     logRecord.attributes = {
       ...logRecord.attributes,
@@ -287,10 +305,10 @@ new UserActionInstrumentation({
 });
 ```
 
-| Option                     | Type                             | Default     | Description                                                                                                                                 |
-| -------------------------- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `autoCapturedActions`      | `AutoCapturedUserAction[]`       | `['click']` | Array of actions to automatically capture.                                                                                                  |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —           | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                     | Type                             | Default     | Description                                                                                                                                                                                                                               |
+| -------------------------- | -------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoCapturedActions`      | `AutoCapturedUserAction[]`       | `['click']` | Array of actions to automatically capture.                                                                                                                                                                                                |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —           | **[Deprecated]** Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`. |
 
 #### Additional Attributes
 
@@ -320,7 +338,7 @@ Provides automatic instrumentation for
 | Option                     | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                                      |
 | -------------------------- | -------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                                                                                                                                                                                                     |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                                                                                                                                                                                                              |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | **[Deprecated]** Hook to modify log records before they are emitted. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`.                                                                                                                                                                                                                |
 | `reportAllChanges`         | `boolean`                        | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`.`web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production. |
 
 ### Console
