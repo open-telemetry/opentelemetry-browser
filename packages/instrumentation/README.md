@@ -634,14 +634,22 @@ instrumentation cannot detect our patches, so both would record every call.
 
 ## Writing an instrumentation
 
-An instrumentation is any object that implements the `Instrumentation`
-interface: `instrumentationName`, `enable(deps?)`, `disable()` and
-`isEnabled()`. The Browser SDK accepts any such object.
+Extend `InstrumentationBase`. Do not implement the `Instrumentation` interface
+directly: the base class implements the `Instrumentation` contract the Browser
+SDK accepts (`instrumentationName`, `enable(deps?)`, `disable()` and
+`isEnabled()`) and the lifecycle in
+[Enabling and
+disabling](#enabling-and-disabling)
+— the dependency locking, the error containment of `_safeExecute()` and the
+enable/disable state machine. A direct interface implementation has to rebuild
+all of that, and misses the base class's guarantees.
 
-The easiest way is to extend `InstrumentationBase`. It implements the lifecycle
-in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
-`Instrumentation` and `InstrumentationDeps` are all exported from
-`@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
+`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are all
+exported from
+`@opentelemetry/browser-instrumentation/experimental/instrumentation-base`. The
+packaging and stability of this contract — a possible separate package that can
+stabilize independently — is being worked out in
+[#538](https://github.com/open-telemetry/opentelemetry-browser/issues/538).
 
 Override these hooks. All of them must be synchronous, because the lifecycle
 does not wait for a returned promise. Do not use `async` here: a rejection is
