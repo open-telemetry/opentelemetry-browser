@@ -18,6 +18,11 @@ changes, and remaining gaps.
 npm install @opentelemetry/browser-instrumentation
 ```
 
+`@opentelemetry/api` is a **peer dependency** and **1.10.x is required**
+(`>=1.10.0 <1.11.0`): the instrumentations import the `logs` API from
+`@opentelemetry/api` at runtime, so an application still on 1.9.x fails to
+bundle with a missing export.
+
 ## Instrumentations
 
 - [Navigation](#navigation) — automatic instrumentation for browser navigations
