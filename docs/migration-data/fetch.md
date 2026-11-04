@@ -5,9 +5,6 @@ This compares `@opentelemetry/instrumentation-fetch` 0.223.0 with
 from `experimental/fetch`. The configuration examples in
 [the migration guide](../migration-guide.md) describe their own listed versions.
 
-The tables cover built-in output. Application hooks, SDK processors, resources
-and exporters can add or change fields independently.
-
 ## Request span keys
 
 Both implementations emit HTTP client spans. No built-in span attribute is
@@ -27,8 +24,7 @@ renamed between these versions.
 Default cancellation identified by error name `AbortError` still leaves the span
 status `UNSET` without `error.type`. Other network failures now set span status
 `ERROR`, even when no HTTP status exists. A custom abort reason can be treated
-as an error if its name is not `AbortError`. Span status is an envelope field,
-not an attribute key.
+as an error if its name is not `AbortError`.
 
 The span name remains the normalized method and kind remains `CLIENT`. Scope
 name changes from `@opentelemetry/instrumentation-fetch` to
@@ -45,8 +41,7 @@ Legacy network events carried timestamps on the span. The new keys are numeric
 attributes on a separate log record, in milliseconds relative to the performance
 time origin. They are not Unix timestamps. Timing values can be zero or
 restricted by browser privacy and cross-origin timing rules. Old events could be
-suppressed by `ignoreNetworkEvents` and zero-value filtering. These are signal
-and representation changes, not attribute-only renames.
+suppressed by `ignoreNetworkEvents` and zero-value filtering.
 
 | Legacy span event name  | New log attribute                                 |
 | ----------------------- | ------------------------------------------------- |
@@ -84,10 +79,8 @@ supply their trace context. A timing record does not recreate the legacy
 Versions before 0.220.0 could also add `http.response_content_length` and
 `http.response_content_length_uncompressed` to spans. Both are absent from the
 new spans. The related log keys are `browser.resource_timing.encoded_body_size`
-and `browser.resource_timing.decoded_body_size`, respectively. The old
-uncompressed key was conditional on different encoded and decoded sizes, so this
-is not an identical presence test. The compared legacy 0.223.0 package already
-omits both old keys.
+and `browser.resource_timing.decoded_body_size`, respectively. The compared
+legacy 0.223.0 package already omits both old keys.
 
 ## Sources
 
