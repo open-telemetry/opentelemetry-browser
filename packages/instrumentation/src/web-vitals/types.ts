@@ -41,8 +41,11 @@ export interface WebVitalsInstrumentationConfig {
    * When true, metrics are reported again after each soft navigation (a
    * route change in a single-page app). CLS and INP start again from zero.
    * FCP and LCP are the paints after the soft navigation. TTFB is always 0.
-   * Use `browser.web_vital.navigation_url` to group metrics by route, because
-   * a metric can be reported after the URL has changed.
+   * Metrics for the first page are final at the first soft navigation, so its
+   * CLS and INP can be lower than without this option.
+   *
+   * Adds `browser.web_vital.navigation_url`. Use it to group metrics by
+   * route, because a metric can be reported after the URL has changed.
    *
    * Requires Chromium 151 or later. Other browsers ignore this option.
    * Defaults to `false`.
@@ -50,4 +53,10 @@ export interface WebVitalsInstrumentationConfig {
    * See https://github.com/GoogleChrome/web-vitals#report-metrics-for-soft-navigations
    */
   reportSoftNavs?: boolean;
+
+  /**
+   * Custom function to sanitize `browser.web_vital.navigation_url` before
+   * adding it to log records.
+   */
+  sanitizeUrl?: (url: string) => string;
 }

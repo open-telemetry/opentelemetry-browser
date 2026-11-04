@@ -17,6 +17,7 @@ import {
 } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 import type { LCPMetricWithAttribution } from 'web-vitals/attribution';
+import { defaultSanitizeUrl } from '#utils';
 import {
   enableForTest,
   setupTestDiagLogger,
@@ -532,7 +533,7 @@ describe('WebVitalsInstrumentation', () => {
         navigationId: 0,
         navigationURL: undefined,
       };
-      instrumentation = new WebVitalsInstrumentation();
+      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
       enableForTest(instrumentation);
 
       const [lcpLog] = getWebVitalLogs();
@@ -544,14 +545,85 @@ describe('WebVitalsInstrumentation', () => {
       );
     });
 
-    it('should offset the timestamp by the soft navigation start', () => {
+    it('should omit the navigation url when reportSoftNavs is off', () => {
       webVitalsMock.metrics['LCP'] = softNavLCP;
-      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
+      instrumentation = new WebVitalsInstrumentation();
       enableForTest(instrumentation);
 
       const [lcpLog] = getWebVitalLogs();
-      expect(lcpLog).toBeDefined();
-      expect(toPerformanceMs(lcpLog?.hrTime ?? [0, 0])).toBeCloseTo(1500, 0);
+      expect(lcpLog?.attributes[ATTR_WEB_VITAL_NAVIGATION_ID]).toBe(7);
+      expect(lcpLog?.attributes).not.toHaveProperty(
+        ATTR_WEB_VITAL_NAVIGATION_URL,
+      );
     });
+
+    it('should sanitize the navigation url', () => {
+      webVitalsMock.metrics['LCP'] = {
+        ...softNavLCP,
+        navigationURL: 'https://example.com/next?token=secret',
+      };
+      instrumentation = new WebVitalsInstrumentation({
+        reportSoftNavs: true,
+        sanitizeUrl: defaultSanitizeUrl,
+      });
+      enableForTest(instrumentation);
+
+      const [lcpLog] = getWebVitalLogs();
+      expect(lcpLog?.attributes[ATTR_WEB_VITAL_NAVIGATION_URL]).toBe(
+        'https://example.com/next?token=REDACTED',
+      );
+    });
+
+    it.each([
+      { navigationType: 'soft-navigation', navigationStartTime: 1000 },
+      { navigationType: 'back-forward-cache', navigationStartTime: 2000 },
+    ])(
+      'should offset the timestamp by the navigation start for $navigationType',
+      ({ navigationType, navigationStartTime }) => {
+        webVitalsMock.metrics['LCP'] = {
+          ...softNavLCP,
+          navigationType,
+          navigationStartTime,
+        };
+        instrumentation = new WebVitalsInstrumentation({
+          reportSoftNavs: true,
+        });
+        enableForTest(instrumentation);
+
+        const [lcpLog] = getWebVitalLogs();
+        expect(lcpLog).toBeDefined();
+        expect(toPerformanceMs(lcpLog?.hrTime ?? [0, 0])).toBeCloseTo(
+          navigationStartTime + 500,
+          0,
+        );
+      },
+    );
+
+    // Their attribution times are already absolute performance timestamps.
+    it.each([
+      { name: 'CLS', attribution: { largestShiftTime: 200 }, expected: 200 },
+      { name: 'INP', attribution: { interactionTime: 300 }, expected: 300 },
+    ])(
+      'should not offset the $name timestamp',
+      ({ name, attribution, expected }) => {
+        webVitalsMock.metrics[name] = {
+          ...softNavLCP,
+          name,
+          value: 50,
+          attribution,
+        };
+        instrumentation = new WebVitalsInstrumentation({
+          reportSoftNavs: true,
+        });
+        enableForTest(instrumentation);
+
+        const log = getWebVitalLogs().find(
+          (record) =>
+            record.attributes[ATTR_WEB_VITAL_NAME] === name.toLowerCase(),
+        );
+        expect(log).toBeDefined();
+        expect(toPerformanceMs(log?.hrTime ?? [0, 0])).toBeCloseTo(expected, 0);
+      },
+    );
   });
 });

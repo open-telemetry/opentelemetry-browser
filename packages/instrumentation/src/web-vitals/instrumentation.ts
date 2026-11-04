@@ -98,8 +98,8 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       const { attribution } = metric as INPMetricWithAttribution;
       return attribution.interactionTime;
     }
-    // FCP, LCP, TTFB: metric.value is relative to the navigation start, which
-    // is 0 for hard navigations and the soft navigation's startTime otherwise.
+    // FCP, LCP, TTFB: metric.value is relative to the navigation start: 0 for
+    // hard navigations, the restore time for bfcache, or the soft navigation's startTime.
     return (metric.navigationStartTime ?? 0) + metric.value;
   }
 
@@ -127,13 +127,22 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     if (metric.navigationId) {
       attributes[ATTR_WEB_VITAL_NAVIGATION_ID] = metric.navigationId;
     }
-    // A metric can be reported after the route changed, so the current URL is not reliable.
-    if (metric.navigationURL !== undefined) {
-      attributes[ATTR_WEB_VITAL_NAVIGATION_URL] = metric.navigationURL;
+    const {
+      applyCustomLogRecordData,
+      includeRawAttribution,
+      reportSoftNavs,
+      sanitizeUrl,
+    } = this._config;
+    // web-vitals also sets the URL for hard navigations, so without the gate every
+    // log would carry the page URL. The current URL is not reliable, because a
+    // metric can be reported after the route changed.
+    if (reportSoftNavs && metric.navigationURL !== undefined) {
+      attributes[ATTR_WEB_VITAL_NAVIGATION_URL] = sanitizeUrl
+        ? sanitizeUrl(metric.navigationURL)
+        : metric.navigationURL;
     }
 
     const timestamp = this._getTimestampForMetric(metric);
-    const { applyCustomLogRecordData, includeRawAttribution } = this._config;
 
     const logRecord: LogRecord = {
       eventName: WEB_VITAL_EVENT_NAME,
