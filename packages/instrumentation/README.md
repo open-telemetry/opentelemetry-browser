@@ -151,9 +151,8 @@ import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentat
 ```
 
 Creates one `documentLoad` span from the navigation entry's `fetchStart` to
-`loadEventEnd`, with `url.full` and `user_agent.original` attributes. The span
-starts a new trace. Pass it to `startBrowserSdk()` and the SDK enables it with
-its tracer provider:
+`loadEventEnd`, with the `url.full` attribute. The span starts a new trace. Pass
+it to `startBrowserSdk()` and the SDK enables it with its tracer provider:
 
 ```typescript
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';

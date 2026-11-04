@@ -4,10 +4,7 @@
  */
 
 import { ROOT_CONTEXT } from '@opentelemetry/api';
-import {
-  ATTR_URL_FULL,
-  ATTR_USER_AGENT_ORIGINAL,
-} from '@opentelemetry/semantic-conventions';
+import { ATTR_URL_FULL } from '@opentelemetry/semantic-conventions';
 import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import type { DocumentLoadInstrumentationConfig } from './types.ts';
@@ -93,7 +90,6 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
         startTime: performance.timeOrigin + entry.fetchStart,
         attributes: {
           [ATTR_URL_FULL]: entry.name,
-          [ATTR_USER_AGENT_ORIGINAL]: navigator.userAgent,
         },
       },
       ROOT_CONTEXT,

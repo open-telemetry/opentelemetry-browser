@@ -165,7 +165,6 @@ describe('DocumentLoadInstrumentation', () => {
     expect(millis(span.endTime)).toBeCloseTo(performance.timeOrigin + 100, 2);
     expect(span.events).toEqual([]);
     expect(span.attributes['url.full']).toBe(entry.name);
-    expect(span.attributes['user_agent.original']).toBe(navigator.userAgent);
     expect(span.parentSpanContext).toBeUndefined();
   });
 
