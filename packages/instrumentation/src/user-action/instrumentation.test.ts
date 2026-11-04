@@ -135,13 +135,13 @@ describe('UserActionInstrumentation', () => {
   });
 
   it.each(['svg', 'path'])(
-    'captures clicks on an SVG %s inside a button',
+    'should capture clicks on an SVG %s inside a button',
     (tag) => {
       const button = document.createElement('button');
       button.id = 'icon-button';
       button.innerHTML = '<svg><path /></svg>';
       document.body.appendChild(button);
-      const target = button.querySelector(tag)!;
+      const target = button.querySelector(tag) as Element;
       target.setAttribute('data-otel-icon', 'save');
 
       dispatchMouseDownEvent(target, 0);
