@@ -5,9 +5,6 @@ This compares `@opentelemetry/instrumentation-user-interaction` 0.68.0 with
 `UserActionInstrumentation` from `experimental/user-action`. Return to
 [the migration guide](../migration-guide.md) for configuration and SDK setup.
 
-The tables cover built-in output. Application hooks, SDK processors, resources
-and exporters can add or change fields independently.
-
 ## Spans become click log records
 
 The old package creates interaction spans, including their duration and
@@ -29,20 +26,11 @@ interaction span to parent subsequent network requests.
 | No log severity                                                              | `severityNumber: 9` (`INFO`)             | New log envelope field                                                                                 |
 | Span start/end timestamps, duration and span ID                              | No newly created interaction span        | No direct replacement. A log timestamp does not describe an interaction duration                       |
 
-The click record's CSS selector can use IDs for the target and its ancestors.
-The element-attribute map is emitted even when empty. It is a structured map,
-not a JSON string or a collection of separate top-level attributes.
+The scope name changes from `@opentelemetry/instrumentation-user-interaction` to
+`@opentelemetry/browser-instrumentation/user-action`.
 
-The new implementation captures left clicks, middle clicks and right-click
-context menus as the same log event name, with the button distinguished by
-`browser.mouse_event.button`. Only supported clicks on enabled HTML elements are
-captured. `autoCapturedActions: []` disables capture. Keep other required DOM
-event coverage separately.
-
-Scope changes from `@opentelemetry/instrumentation-user-interaction` to
-`@opentelemetry/browser-instrumentation/user-action`, with the new package
-version. Custom attributes previously added through `shouldPreventSpanCreation`
-do not transfer automatically; the new customization hook receives a log record.
+Attributes added in `shouldPreventSpanCreation` don't carry over. Set them in
+`applyCustomLogRecordData` instead.
 
 ## Sources
 
