@@ -5,9 +5,6 @@ This compares `@opentelemetry/instrumentation-browser-navigation` 0.17.0 with
 `NavigationInstrumentation` from `experimental/navigation`. Return to
 [the migration guide](../migration-guide.md) for configuration and SDK setup.
 
-The tables cover built-in output. Application hooks, SDK processors, resources
-and exporters can add or change fields independently.
-
 ## Log keys and envelope fields
 
 Both packages emit navigation log records. No built-in attribute key is removed,
@@ -24,20 +21,8 @@ added or renamed between these versions. A logs pipeline remains necessary.
 | Scope name                         | `@opentelemetry/instrumentation-browser-navigation`                                                        | `@opentelemetry/browser-instrumentation/navigation`                 |
 | Scope version                      | Legacy package version                                                                                     | New package version                                                 |
 
-Update scope filters. A filter requiring INFO severity will now include these
-records even though the old instrumentation did not supply severity. There is no
-span-to-log or span-event-to-log change for this package.
-
-Both compared implementations use `currententrychange` when
-`useNavigationApiIfAvailable` is enabled and the Navigation API is available.
-Canceled navigations that do not commit are not a separate event type. The new
-package also emits its initial-load record when enabled after DOMContentLoaded
-while the document is still `interactive`, so it can report a load the old
-implementation missed at that point.
-
-`defaultSanitizeUrl` is an exported helper in the old package, not an emitted
-key. It is not exported by the new package. Keep the application-provided
-sanitizer when preserving URL redaction.
+Update scope filters. The old package didn't set a severity, so a filter on INFO
+severity now matches these records.
 
 ## Sources
 
