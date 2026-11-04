@@ -31,7 +31,3 @@ BUNDLE_SIZE_ROOT=/absolute/path/to/base npx --no-install size-limit --json > /tm
 npx --no-install size-limit --json > /tmp/head-size.json
 node scripts/bundle-size-report.js /tmp/base-size.json /tmp/head-size.json
 ```
-
-CI runs on `pull_request` with read-only permissions, no persisted checkout
-credentials, and SHA-pinned official actions. It does not post PR comments. Size
-increases do not fail the job, but build or measurement errors do.
