@@ -101,7 +101,11 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     }
     if (metric.name === 'INP') {
       const { attribution } = metric as INPMetricWithAttribution;
-      return attribution.interactionTime;
+      // A soft navigation or bfcache restore with only fast interactions reports a
+      // placeholder INP with no interaction, so time it at that navigation's start.
+      return (
+        attribution.interactionTime ?? (metric.navigationStartTime || undefined)
+      );
     }
     // FCP, LCP, TTFB: metric.value is relative to the navigation start: 0 for
     // hard navigations, the restore time for bfcache, or the soft navigation's startTime.

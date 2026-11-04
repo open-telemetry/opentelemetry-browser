@@ -649,5 +649,22 @@ describe('WebVitalsInstrumentation', () => {
         expect(toPerformanceMs(log?.hrTime ?? [0, 0])).toBeCloseTo(expected, 0);
       },
     );
+
+    it('should time a placeholder INP at the navigation start', () => {
+      webVitalsMock.metrics['INP'] = {
+        ...softNavLCP,
+        name: 'INP',
+        value: 8,
+        attribution: {},
+      };
+      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
+      enableForTest(instrumentation);
+
+      const log = getWebVitalLogs().find(
+        (record) => record.attributes[ATTR_WEB_VITAL_NAME] === 'inp',
+      );
+      expect(log).toBeDefined();
+      expect(toPerformanceMs(log?.hrTime ?? [0, 0])).toBeCloseTo(1000, 0);
+    });
   });
 });
