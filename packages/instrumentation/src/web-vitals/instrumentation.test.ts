@@ -465,8 +465,6 @@ describe('WebVitalsInstrumentation', () => {
   });
 
   describe('reportSoftNavs', () => {
-    const metrics = ['CLS', 'INP', 'LCP', 'FCP', 'TTFB'];
-
     beforeEach(() => {
       webVitalsMock.options = {};
     });
@@ -503,7 +501,7 @@ describe('WebVitalsInstrumentation', () => {
         instrumentation = new WebVitalsInstrumentation(config);
         enableForTest(instrumentation);
 
-        for (const name of metrics) {
+        for (const name of ['CLS', 'INP', 'LCP', 'FCP']) {
           expect(webVitalsMock.options[name]).toEqual({
             reportAllChanges: false,
             reportSoftNavs: expected,
@@ -511,6 +509,16 @@ describe('WebVitalsInstrumentation', () => {
         }
       },
     );
+
+    it('should not report soft navigations for TTFB', () => {
+      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
+      enableForTest(instrumentation);
+
+      expect(webVitalsMock.options['TTFB']).toEqual({
+        reportAllChanges: false,
+        reportSoftNavs: false,
+      });
+    });
 
     it('should add navigation id and url attributes', () => {
       webVitalsMock.metrics['LCP'] = softNavLCP;
@@ -552,6 +560,22 @@ describe('WebVitalsInstrumentation', () => {
 
       const [lcpLog] = getWebVitalLogs();
       expect(lcpLog?.attributes[ATTR_WEB_VITAL_NAVIGATION_ID]).toBe(7);
+      expect(lcpLog?.attributes).not.toHaveProperty(
+        ATTR_WEB_VITAL_NAVIGATION_URL,
+      );
+    });
+
+    it('should omit the navigation url when the browser does not support soft navigations', () => {
+      vi.spyOn(
+        PerformanceObserver,
+        'supportedEntryTypes',
+        'get',
+      ).mockReturnValue(['largest-contentful-paint']);
+      webVitalsMock.metrics['LCP'] = softNavLCP;
+      instrumentation = new WebVitalsInstrumentation({ reportSoftNavs: true });
+      enableForTest(instrumentation);
+
+      const [lcpLog] = getWebVitalLogs();
       expect(lcpLog?.attributes).not.toHaveProperty(
         ATTR_WEB_VITAL_NAVIGATION_URL,
       );

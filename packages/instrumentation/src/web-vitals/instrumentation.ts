@@ -38,6 +38,7 @@ import type { WebVitalsInstrumentationConfig } from './types.ts';
  */
 export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstrumentationConfig> {
   private _hasSubscribed = false;
+  private _softNavsActive = false;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
@@ -51,10 +52,14 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     }
     this._diag.debug('Subscribing listeners');
     const { reportAllChanges, reportSoftNavs } = this._config;
+    this._softNavsActive = (reportSoftNavs ?? false) && isSoftNavSupported();
     const opts = {
       reportAllChanges: reportAllChanges ?? false,
       reportSoftNavs: reportSoftNavs ?? false,
     };
+    // web-vitals reports a placeholder TTFB of 0 for each soft navigation,
+    // which would pull TTFB aggregates down.
+    const ttfbOpts = { ...opts, reportSoftNavs: false };
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
     const subscribers = [
@@ -70,7 +75,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       try {
         subscribe(
           (metric: MetricWithAttribution) => this._emitWebVital(metric),
-          opts,
+          name === 'TTFB' ? ttfbOpts : opts,
         );
       } catch (err) {
         this._diag.warn(`could not subscribe to ${name}`, toError(err));
@@ -127,16 +132,12 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     if (metric.navigationId) {
       attributes[ATTR_WEB_VITAL_NAVIGATION_ID] = metric.navigationId;
     }
-    const {
-      applyCustomLogRecordData,
-      includeRawAttribution,
-      reportSoftNavs,
-      sanitizeUrl,
-    } = this._config;
-    // web-vitals also sets the URL for hard navigations, so without the gate every
-    // log would carry the page URL. The current URL is not reliable, because a
-    // metric can be reported after the route changed.
-    if (reportSoftNavs && metric.navigationURL !== undefined) {
+    const { applyCustomLogRecordData, includeRawAttribution, sanitizeUrl } =
+      this._config;
+    // web-vitals sets the landing URL when soft navs are off or unsupported, so
+    // the URL would not identify the route. The current URL is not reliable either,
+    // because a metric can be reported after the route changed.
+    if (this._softNavsActive && metric.navigationURL !== undefined) {
       attributes[ATTR_WEB_VITAL_NAVIGATION_URL] = sanitizeUrl
         ? sanitizeUrl(metric.navigationURL)
         : metric.navigationURL;
@@ -163,3 +164,9 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     this.logger.emit(logRecord);
   }
 }
+
+// Same checks as web-vitals' internal `checkSoftNavsEnabled`, which it does not export.
+const isSoftNavSupported = (): boolean =>
+  PerformanceObserver.supportedEntryTypes.includes('soft-navigation') &&
+  typeof globalThis.PerformanceSoftNavigation?.prototype
+    ?.getLargestInteractionContentfulPaint === 'function';
