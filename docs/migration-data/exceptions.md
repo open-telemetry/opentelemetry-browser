@@ -5,9 +5,6 @@ This compares `@opentelemetry/instrumentation-web-exception` 0.17.0 with
 from `experimental/errors`. Return to
 [the migration guide](../migration-guide.md) for configuration and SDK setup.
 
-The tables cover built-in output. Application hooks, SDK processors, resources
-and exporters can add or change fields independently.
-
 ## Log keys and envelope fields
 
 Both packages emit exception log records for uncaught errors and unhandled
@@ -26,20 +23,12 @@ between these versions. A logs pipeline remains necessary.
 | Scope name             | `@opentelemetry/instrumentation-web-exception`        | `@opentelemetry/browser-instrumentation/errors`                                                |
 | Scope version          | Legacy package version                                | New package version                                                                            |
 
-The timestamps are log envelope fields, not attributes. Their absence from the
-instrumentation's `emit()` argument does not mean exported SDK log records lack
-timestamps. Neither implementation sets a log `body` by default.
+Update scope filters. Uncaught errors with no `event.error`, such as
+cross-origin `Script error.`, now get a record with the event message.
+Rejections with a null or undefined reason are skipped.
 
-Update scope filters. The new message fallback can add records such as the
-cross-origin `Script error.` case that the old implementation did not handle
-safely. Rejections with null or undefined reasons are skipped by the new
-implementation. Do not assume arbitrary rejected objects are serialized or that
-a message or stack exists for every rejection value.
-
-`applyCustomAttributes` still returns attributes merged after the built-in
-exception attributes, so it can override their values. Existing custom keys are
-application-specific and are not renamed by this migration. There is no
-span-to-log or span-event-to-log change for this package.
+`applyCustomAttributes` still runs after the built-in attributes, so it can
+override them.
 
 ## Sources
 
