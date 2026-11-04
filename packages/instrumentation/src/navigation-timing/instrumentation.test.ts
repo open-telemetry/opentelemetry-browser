@@ -106,12 +106,10 @@ describe('NavigationTimingInstrumentation', () => {
     };
   };
 
-  it.each(['load', 'retries'])(
+  it.each(['load', 'retries', 'exhausted retries'])(
     'should preserve the navigation start time after waiting for %s',
     (wait) => {
-      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-      let now = 100;
-      vi.spyOn(performance, 'now').mockImplementation(() => now);
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
       setReadyState(wait === 'load' ? 'loading' : 'complete');
       const entry = {
         name: 'https://example.test/',
@@ -122,19 +120,23 @@ describe('NavigationTimingInstrumentation', () => {
         loadEventEnd: 0,
       };
       getEntriesByTypeSpy.mockReturnValue([entry]);
-      instrumentation.enable();
+      enableForTest(instrumentation);
       expect(getNavigationTimingLogs()).toHaveLength(0);
-      now = 5000;
+      vi.setSystemTime(performance.timeOrigin + 5000);
 
       if (wait === 'load') {
         entry.loadEventEnd = 456;
         setReadyState('complete');
         window.dispatchEvent(new Event('load'));
-      } else {
+      } else if (wait === 'retries') {
         vi.runOnlyPendingTimers();
         expect(getNavigationTimingLogs()).toHaveLength(0);
         entry.loadEventEnd = 456;
         vi.runOnlyPendingTimers();
+      } else {
+        for (let i = 0; i < 6; i++) {
+          vi.runOnlyPendingTimers();
+        }
       }
 
       const logs = getNavigationTimingLogs();

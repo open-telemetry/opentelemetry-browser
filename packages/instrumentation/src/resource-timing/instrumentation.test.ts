@@ -100,6 +100,7 @@ describe('ResourceTimingInstrumentation', () => {
   afterEach(() => {
     instrumentation?.disable();
     inMemoryExporter.reset();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -107,36 +108,42 @@ describe('ResourceTimingInstrumentation', () => {
   it.each(['idle callback', 'visibilitychange', 'disable'])(
     'should preserve the resource start time when flushed by %s',
     (flush) => {
-      let now = 100;
-      vi.spyOn(performance, 'now').mockImplementation(() => now);
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const visibilityListeners: Array<() => void> = [];
+      mockDocument.addEventListener = vi.fn((event, handler) => {
+        if (event === 'visibilitychange') {
+          visibilityListeners.push(handler as () => void);
+        }
+      });
       instrumentation = new ResourceTimingInstrumentation();
-      instrumentation.enable();
+      enableForTest(instrumentation);
 
-      const startTime = 42.5;
       observerCallback(
         createMockPerformanceObserverEntryList([
-          createMockResourceEntry({ startTime }),
+          createMockResourceEntry({ startTime: 0 }),
+          createMockResourceEntry({ startTime: 42.5 }),
         ]),
         mockObserver as unknown as PerformanceObserver,
       );
       expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
-      now = 5000;
+      vi.setSystemTime(performance.timeOrigin + 5000);
 
       if (flush === 'idle callback') {
         triggerIdleCallback();
       } else if (flush === 'visibilitychange') {
         mockDocument.hidden = true;
-        const listener = mockDocument.addEventListener.mock.calls.find(
-          ([event]) => event === 'visibilitychange',
-        )?.[1] as () => void;
-        listener();
+        for (const handler of visibilityListeners) {
+          handler();
+        }
       } else {
         instrumentation.disable();
       }
 
       const records = inMemoryExporter.getFinishedLogRecords();
-      expect(records).toHaveLength(1);
-      expect(records[0]?.hrTime).toEqual(hrTime(startTime));
+      expect(records.map((record) => record.hrTime)).toEqual([
+        hrTime(0),
+        hrTime(42.5),
+      ]);
     },
   );
 
