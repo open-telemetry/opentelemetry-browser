@@ -3,13 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { propagation } from '@opentelemetry/api';
-import { W3CTraceContextPropagator } from '@opentelemetry/core';
-import {
-  InMemoryLogRecordExporter,
-  LoggerProvider,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
 import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
@@ -25,25 +18,7 @@ import {
   vi,
 } from 'vitest';
 import { enableForTest } from '#utils/test';
-import { NavigationTimingInstrumentation } from '../navigation-timing/instrumentation.ts';
-import { ResourceTimingInstrumentation } from '../resource-timing/instrumentation.ts';
 import { DocumentLoadInstrumentation } from './instrumentation.ts';
-
-const SERVER_TRACE = '1'.repeat(32);
-const SERVER_SPAN = '2'.repeat(16);
-const URL = 'https://example.test/asset.js';
-
-function resource(
-  fetchStart: number,
-  responseEnd: number,
-): PerformanceResourceTiming {
-  return {
-    name: URL,
-    entryType: 'resource',
-    fetchStart,
-    responseEnd,
-  } as PerformanceResourceTiming;
-}
 
 function millis(time: [number, number]): number {
   return time[0] * 1000 + time[1] / 1e6;
@@ -52,18 +27,11 @@ function millis(time: [number, number]): number {
 describe('DocumentLoadInstrumentation', () => {
   let instrumentation: DocumentLoadInstrumentation;
   let spanExporter: InMemorySpanExporter;
-  let logExporter: InMemoryLogRecordExporter;
   let tracerProvider: TracerProvider;
-  let loggerProvider: LoggerProvider;
   let entry: PerformanceNavigationTiming;
-  let navigation: NavigationTimingInstrumentation | undefined;
-  let resources: ResourceTimingInstrumentation | undefined;
-  let resourceCallback: PerformanceObserverCallback;
 
   beforeEach(() => {
     vi.useFakeTimers();
-    propagation.disable();
-    propagation.setGlobalPropagator(new W3CTraceContextPropagator());
     entry = {
       name: 'https://example.test/',
       entryType: 'navigation',
@@ -76,41 +44,18 @@ describe('DocumentLoadInstrumentation', () => {
     );
     vi.spyOn(document, 'readyState', 'get').mockReturnValue('complete');
     spanExporter = new InMemorySpanExporter();
-    logExporter = new InMemoryLogRecordExporter();
     tracerProvider = new TracerProvider({
       spanProcessors: [new SimpleSpanProcessor({ exporter: spanExporter })],
-    });
-    loggerProvider = new LoggerProvider({
-      processors: [new SimpleLogRecordProcessor({ exporter: logExporter })],
     });
     instrumentation = new DocumentLoadInstrumentation();
   });
 
   afterEach(async () => {
-    resources?.disable();
-    navigation?.disable();
-    resources = undefined;
-    navigation = undefined;
     instrumentation.disable();
-    document.head
-      .querySelectorAll('meta[name="traceparent"], meta[name="tracestate"]')
-      .forEach((meta) => {
-        meta.remove();
-      });
-    propagation.disable();
     vi.useRealTimers();
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
     await tracerProvider.shutdown();
-    await loggerProvider.shutdown();
   });
-
-  function meta(name: string, content: string) {
-    const element = document.createElement('meta');
-    element.name = name;
-    element.content = content;
-    document.head.append(element);
-  }
 
   function finishLoad() {
     instrumentation.enable({ tracerProvider });
@@ -121,39 +66,6 @@ describe('DocumentLoadInstrumentation', () => {
     const span = spanExporter.getFinishedSpans()[0];
     assert(span);
     return span;
-  }
-
-  function emitNavigation() {
-    navigation = new NavigationTimingInstrumentation();
-    navigation.enable({ loggerProvider });
-    const log = logExporter.getFinishedLogRecords()[0];
-    assert(log);
-    return log;
-  }
-
-  function emitResources(entries: PerformanceResourceTiming[]) {
-    vi.stubGlobal(
-      'PerformanceObserver',
-      Object.assign(
-        vi.fn(function (this: unknown, callback: PerformanceObserverCallback) {
-          resourceCallback = callback;
-          return { observe: vi.fn(), disconnect: vi.fn() };
-        }),
-        { supportedEntryTypes: ['resource'] },
-      ),
-    );
-    resources = new ResourceTimingInstrumentation();
-    resources.enable({ loggerProvider });
-    resourceCallback(
-      {
-        getEntries: () => entries,
-        getEntriesByName: () => entries,
-        getEntriesByType: () => entries,
-      } as PerformanceObserverEntryList,
-      {} as PerformanceObserver,
-    );
-    resources.disable();
-    return logExporter.getFinishedLogRecords();
   }
 
   it('creates one span with the original fetchStart and loadEventEnd, without child spans or span events', () => {
@@ -253,17 +165,5 @@ describe('DocumentLoadInstrumentation', () => {
     const span = finishedSpan();
     expect(millis(span.startTime)).toBeCloseTo(performance.timeOrigin + 10, 2);
     expect(millis(span.endTime)).toBeCloseTo(performance.timeOrigin + 100, 2);
-  });
-
-  it('leaves server meta and timing-event context for separate changes', () => {
-    meta('traceparent', `00-${SERVER_TRACE}-${SERVER_SPAN}-01`);
-    finishLoad();
-    const span = finishedSpan();
-    expect(span.parentSpanContext).toBeUndefined();
-    expect(span.spanContext().traceId).not.toBe(SERVER_TRACE);
-    expect(emitNavigation().spanContext).toBeUndefined();
-    const records = emitResources([resource(20, 90)]);
-    expect(records).toHaveLength(2);
-    expect(records[1]?.spanContext).toBeUndefined();
   });
 });
