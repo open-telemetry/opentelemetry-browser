@@ -29,12 +29,10 @@
   },
   "type": "module",
   "imports": {
-    "#instrumentation-base": "./src/InstrumentationBase/index.ts",
     "#utils": "./src/utils/index.ts",
     "#utils/test": "./src/utils/test/index.ts"
   },
   "exports": {
-    "./experimental/instrumentation-base": "./dist/InstrumentationBase/index.js",
     "./experimental/console": "./dist/console/index.js",
     "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/errors": "./dist/errors/index.js",
@@ -61,6 +59,7 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/browser-api": "^0.0.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "web-vitals": "^6.2.3"
   },

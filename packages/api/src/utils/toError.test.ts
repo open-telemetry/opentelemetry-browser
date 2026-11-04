@@ -37,6 +37,27 @@ describe('toError', () => {
     const error = toError(proxy);
 
     expect(error).toBeInstanceOf(Error);
+    expect(error.message).toBe('thrown value could not be described');
     expect(error.cause).toBe(proxy);
+  });
+
+  it.each([null, undefined])('wraps %s and keeps it as the cause', (value) => {
+    const error = toError(value);
+
+    expect(error.message).toBe(String(value));
+    expect(error.cause).toBe(value);
+  });
+
+  it('wraps an object whose toString throws', () => {
+    const value = {
+      toString() {
+        throw new Error('no');
+      },
+    };
+
+    const error = toError(value);
+
+    expect(error.message).toBe('[object Object]');
+    expect(error.cause).toBe(value);
   });
 });
