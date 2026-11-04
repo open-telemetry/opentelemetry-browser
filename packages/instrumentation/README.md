@@ -356,17 +356,11 @@ release.
 | `browser.web_vital.attribution.longest_script.subpart`               | The INP subpart assigned by `web-vitals`: `input-delay`, `processing-duration`, or `presentation-delay`. A script that starts before the interaction can be assigned `input-delay`. |
 | `browser.web_vital.attribution.longest_script.intersecting_duration` | Duration attributed to the script within the INP interaction, in milliseconds.                                                                                                      |
 
-Unavailable optional interaction fields are omitted. The longest-script fields
-are present only when `web-vitals` supplies a Long Animation Frame script
-summary. Browsers without that API still report the available interaction timing
-attributes. Zero timings and empty strings supplied by the library are
-preserved. No DOM nodes or raw performance entry arrays are added as attributes.
+The `longest_script.*` attributes are only set when `web-vitals` reports a
+longest script, which needs the Long Animation Frames API.
 
-Selectors, script invokers, source URLs and the raw attribution body can contain
-sensitive data. Opt in only when that data is appropriate to export.
-`applyCustomLogRecordData` runs after both attributes and body are set, so it
-can redact them before emission. Redacting attributes alone does not redact the
-JSON body.
+Selectors, script URLs and the raw body can contain sensitive data, which
+`applyCustomLogRecordData` can redact before export.
 
 ### Console
 
