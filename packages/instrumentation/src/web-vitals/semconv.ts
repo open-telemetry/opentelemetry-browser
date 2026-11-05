@@ -124,3 +124,12 @@ export const ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART =
  */
 export const ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION =
   'browser.web_vital.attribution.longest_script.intersecting_duration';
+/**
+ * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
+ */
+export const ATTR_WEB_VITAL_NAVIGATION_ID = 'browser.web_vital.navigation_id';
+
+/**
+ * @experimental This attribute is experimental and is subject to breaking changes in minor releases of `@opentelemetry/semantic-conventions`.
+ */
+export const ATTR_WEB_VITAL_NAVIGATION_URL = 'browser.web_vital.navigation_url';

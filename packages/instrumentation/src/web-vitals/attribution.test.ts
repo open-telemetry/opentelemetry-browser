@@ -38,6 +38,7 @@ import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
+  ATTR_WEB_VITAL_NAVIGATION_ID,
   ATTR_WEB_VITAL_NAVIGATION_TYPE,
   ATTR_WEB_VITAL_RATING,
   ATTR_WEB_VITAL_VALUE,
@@ -156,6 +157,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       [ATTR_WEB_VITAL_DELTA]: 80,
       [ATTR_WEB_VITAL_RATING]: 'good',
       [ATTR_WEB_VITAL_ID]: 'inp-fixture',
+      [ATTR_WEB_VITAL_NAVIGATION_ID]: 1,
       [ATTR_WEB_VITAL_NAVIGATION_TYPE]: 'navigate',
     });
   });
