@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.7.0...browser-sdk-v0.7.1) (2026-11-06)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @opentelemetry/browser-instrumentation bumped from ^0.10.0 to ^0.11.0
+  * peerDependencies
+    * @opentelemetry/browser-instrumentation bumped from ^0.10.0 to ^0.11.0
+
 ## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.6.0...browser-sdk-v0.7.0) (2026-10-30)
 
 
