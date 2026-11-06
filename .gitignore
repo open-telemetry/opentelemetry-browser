@@ -18,6 +18,7 @@ dist
 *.tsbuildinfo
 .cache
 .turbo
+esbuild-why-*.html
 
 # IntelliJ based IDEs
 .idea
