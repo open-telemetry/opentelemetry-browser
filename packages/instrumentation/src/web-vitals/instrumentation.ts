@@ -107,9 +107,15 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
         attribution.interactionTime ?? (metric.navigationStartTime || undefined)
       );
     }
-    // FCP, LCP, TTFB: metric.value is relative to the navigation start: 0 for
-    // hard navigations, the restore time for bfcache, or the soft navigation's startTime.
-    return (metric.navigationStartTime ?? 0) + metric.value;
+    // Durations are relative to restore time or prerender activation.
+    const navigationEntry = metric.attribution.navigationEntry;
+    const activationStart =
+      navigationEntry && 'activationStart' in navigationEntry
+        ? // Guarded because prerender activation is not available in all browsers.
+          // eslint-disable-next-line baseline-js/use-baseline
+          navigationEntry.activationStart
+        : 0;
+    return (metric.navigationStartTime || activationStart || 0) + metric.value;
   }
 
   private _emitWebVital(metric: MetricWithAttribution): void {
