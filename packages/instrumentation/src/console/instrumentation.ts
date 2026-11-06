@@ -35,7 +35,7 @@ function defaultMessageSerializer(args: unknown[]): string {
     .map((arg) => {
       try {
         if (isError(arg)) {
-          return arg.stack || `${arg.name}: ${arg.message}`;
+          return serializeError(arg);
         }
       } catch {
         // Fall back to JSON if the prototype or an Error property cannot be read.
@@ -51,6 +51,18 @@ function defaultMessageSerializer(args: unknown[]): string {
       return safeString(arg);
     })
     .join(' ');
+}
+
+function serializeError(error: Error): string {
+  const summary = error.message
+    ? `${error.name}: ${error.message}`
+    : error.name;
+  const { stack } = error;
+  if (!stack) {
+    return summary;
+  }
+  // Firefox and Safari leave the name and message out of the stack.
+  return stack.includes(summary) ? stack : `${summary}\n${stack}`;
 }
 
 function isError(value: unknown): value is Error {

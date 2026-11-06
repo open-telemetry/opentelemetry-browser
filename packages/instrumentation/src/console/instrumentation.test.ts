@@ -250,6 +250,17 @@ describe('ConsoleInstrumentation', () => {
       expect(logs[0]?.body).toBe(`Failed: ${error.stack} {"retry":false}`);
     });
 
+    it('should keep the name and message when the stack has only frames', () => {
+      const error = new TypeError('invalid request');
+      error.stack = 'request@app.js:10:5';
+
+      console.error(error);
+
+      expect(inMemoryExporter.getFinishedLogRecords()[0]?.body).toBe(
+        'TypeError: invalid request\nrequest@app.js:10:5',
+      );
+    });
+
     it('should serialize Errors from another realm', () => {
       const iframe = document.createElement('iframe');
       document.body.append(iframe);
