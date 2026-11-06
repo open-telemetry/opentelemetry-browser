@@ -368,6 +368,305 @@ describe('startBrowserSdk', () => {
     expect(diagErrorSpy).toHaveBeenCalledTimes(4);
   });
 
+  it('a null, undefined or non-instrumentation entry is skipped with one error naming its index; the others still run', async () => {
+    // Arrange
+    class ForgotNew {
+      instrumentationName = 'forgot-new';
+      enable() {}
+      disable() {}
+      isEnabled() {
+        return false;
+      }
+    }
+    const noEnable = { instrumentationName: 'no-enable' };
+    const healthy = createFakeInstrumentation('healthy');
+    const instrumentations = [
+      undefined,
+      null,
+      ForgotNew,
+      noEnable,
+      healthy,
+    ] as unknown as Instrumentation[];
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations,
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledTimes(4);
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(
+      /instrumentations\[0\] is undefined/,
+    );
+    expect(diagErrorSpy.mock.calls[1]?.[0]).toMatch(
+      /instrumentations\[1\] is null/,
+    );
+    expect(diagErrorSpy.mock.calls[2]?.[0]).toMatch(
+      /instrumentations\[2\] has no instrumentationName/,
+    );
+    expect(diagErrorSpy.mock.calls[3]?.[0]).toMatch(
+      /instrumentations\[3\] has no enable\(\)/,
+    );
+
+    // Act
+    browserSdk.disable();
+    browserSdk.enable();
+    await browserSdk.shutdown();
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledTimes(2);
+    expect(healthy.disable).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('an empty or non-string name, or only one of enable() and disable(), is skipped', () => {
+    // Arrange
+    const healthy = createFakeInstrumentation('healthy');
+    const instrumentations = [
+      { instrumentationName: '', enable() {}, disable() {} },
+      { instrumentationName: 42, enable() {}, disable() {} },
+      { instrumentationName: 'enable-only', enable() {} },
+      { instrumentationName: 'disable-only', disable() {} },
+      healthy,
+    ] as unknown as Instrumentation[];
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations,
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledTimes(4);
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(
+      /instrumentations\[0\] has no instrumentationName/,
+    );
+    expect(diagErrorSpy.mock.calls[1]?.[0]).toMatch(
+      /instrumentations\[1\] has no instrumentationName/,
+    );
+    expect(diagErrorSpy.mock.calls[2]?.[0]).toMatch(
+      /instrumentations\[2\] has no disable\(\)/,
+    );
+    expect(diagErrorSpy.mock.calls[3]?.[0]).toMatch(
+      /instrumentations\[3\] has no enable\(\)/,
+    );
+  });
+
+  it('a getter that throws or a hole in the array is skipped without throwing', () => {
+    // Arrange
+    const throwing = {
+      get instrumentationName(): string {
+        throw new Error('boom');
+      },
+    };
+    const withHole: unknown[] = new Array(3);
+    withHole[0] = throwing;
+    const healthy = createFakeInstrumentation('healthy');
+    withHole[2] = healthy;
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations: withHole as unknown as Instrumentation[],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(
+      /instrumentations\[0\] threw while being checked/,
+    );
+    expect(diagErrorSpy.mock.calls[1]?.[0]).toMatch(
+      /instrumentations\[1\] is undefined/,
+    );
+  });
+
+  it('a non-array instrumentations value is ignored with one error', () => {
+    // Arrange
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations:
+        createFakeInstrumentation() as unknown as Instrumentation[],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+    browserSdk.enable();
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(/must be an array/);
+  });
+
+  it.each([
+    ['a string', 'abc'],
+    ['a number', 42],
+    ['an array-like object', { length: 1, 0: createFakeInstrumentation() }],
+  ])('%s is not treated as a list of instrumentations', (_label, value) => {
+    // Arrange
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations: value as unknown as Instrumentation[],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(/must be an array/);
+  });
+
+  it.each([null, undefined])(
+    'instrumentations: %s is accepted without an error',
+    (value) => {
+      // Arrange
+      diagErrorSpy.mockClear();
+
+      // Act
+      browserSdk = startBrowserSdk({
+        instrumentations: value as unknown as Instrumentation[],
+        batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+      });
+
+      // Assert
+      expect(diagErrorSpy).not.toHaveBeenCalled();
+    },
+  );
+
+  it('a throwing enable getter is skipped and the others still run', () => {
+    // Arrange
+    const throwing = {
+      instrumentationName: 'throwing-enable',
+      get enable(): () => void {
+        throw new Error('boom');
+      },
+      disable() {},
+    };
+    const healthy = createFakeInstrumentation('healthy');
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations: [throwing, healthy] as unknown as Instrumentation[],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(
+      /instrumentations\[0\] threw while being checked/,
+    );
+  });
+
+  it('an instrumentations proxy that throws on read is ignored without throwing', () => {
+    // Arrange
+    const proxy = new Proxy([createFakeInstrumentation()], {
+      get(target, key, receiver) {
+        if (key === 'length') {
+          throw new Error('boom');
+        }
+        return Reflect.get(target, key, receiver) as unknown;
+      },
+    });
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations: proxy,
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(/could not be read/);
+  });
+
+  it('a name getter that throws after start does not stop the other instrumentations', () => {
+    // Arrange
+    let armed = false;
+    const flaky = {
+      get instrumentationName(): string {
+        if (armed) {
+          throw new Error('boom');
+        }
+        return 'flaky';
+      },
+      enable() {
+        throw new Error('enable failed');
+      },
+      disable() {},
+    };
+    const healthy = createFakeInstrumentation('healthy');
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      enabled: false,
+      instrumentations: [flaky, healthy] as unknown as Instrumentation[],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+    armed = true;
+    browserSdk.enable();
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(
+      /Failed to enable instrumentation flaky/,
+    );
+  });
+
+  it('entries added to the instrumentations array after start are not picked up', () => {
+    // Arrange
+    const first = createFakeInstrumentation('first');
+    const instrumentations = [first];
+    browserSdk = startBrowserSdk({
+      instrumentations,
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+    const late = createFakeInstrumentation('late');
+
+    // Act
+    instrumentations.push(late);
+    browserSdk.disable();
+    browserSdk.enable();
+
+    // Assert
+    expect(first.enable).toHaveBeenCalledTimes(2);
+    expect(late.enable).not.toHaveBeenCalled();
+  });
+
+  it('enabled: false logs a skipped entry once at start and not again on enable()', () => {
+    // Arrange
+    const healthy = createFakeInstrumentation('healthy');
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      enabled: false,
+      instrumentations: [undefined, healthy] as unknown as Instrumentation[],
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+
+    // Act
+    browserSdk.enable();
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledOnce();
+  });
+
   it('setGlobals: false does not set the global tracer provider, logger provider, propagator or context manager', () => {
     // Arrange
     const earlierTracerProvider = new TracerProvider();
