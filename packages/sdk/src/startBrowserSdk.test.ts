@@ -7,7 +7,16 @@ import type { ProxyTracerProvider } from '@opentelemetry/api';
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
-import { SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
+import { defaultResource, detectResources } from '@opentelemetry/resources';
+import {
+  InMemoryLogRecordExporter,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
+import {
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+  TracerProvider,
+} from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -19,7 +28,9 @@ import {
   vi,
 } from 'vitest';
 import type { WebSdk } from './core/types.ts';
+import { startLogsSdk } from './logs/startLogsSdk.ts';
 import { quickStartBrowserSdk, startBrowserSdk } from './startBrowserSdk.ts';
+import { startTracesSdk } from './traces/startTracesSdk.ts';
 
 // Arrange
 const SCHEDULE_DELAY = 10;
@@ -173,6 +184,9 @@ describe('startBrowserSdk', () => {
 
     // Assert
     expect(browserSdk.invalidConfig).toBeFalsy();
+    expect(browserSdk.resource?.attributes).toEqual(
+      defaultResource().attributes,
+    );
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(diagErrorSpy).not.toHaveBeenCalled();
   });
@@ -422,6 +436,180 @@ describe('startBrowserSdk', () => {
     expect(instrumentation.enable).not.toHaveBeenCalled();
     expect(instrumentation.disable).not.toHaveBeenCalled();
   });
+
+  it('runs detectors once and shares the resource with logs and traces', async () => {
+    // Arrange
+    const detector = {
+      detect: vi.fn(() => ({
+        attributes: { 'browser.language': 'en-US', 'browser.mobile': false },
+      })),
+    };
+    const logExporter = new InMemoryLogRecordExporter();
+    const spanExporter = new InMemorySpanExporter();
+    const logProcessor = new SimpleLogRecordProcessor({
+      exporter: logExporter,
+    });
+    const spanProcessor = new SimpleSpanProcessor({ exporter: spanExporter });
+
+    // Act
+    browserSdk = startBrowserSdk({
+      resourceDetectors: [detector],
+      logs: { processors: [logProcessor] },
+      traces: { processors: [spanProcessor] },
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+    await Promise.all([logProcessor.forceFlush(), spanProcessor.forceFlush()]);
+
+    // Assert
+    expect(detector.detect).toHaveBeenCalledOnce();
+    expect(logExporter.getFinishedLogRecords()).toHaveLength(1);
+    expect(spanExporter.getFinishedSpans()).toHaveLength(1);
+    expect(logExporter.getFinishedLogRecords()[0]?.resource).toBe(
+      browserSdk.resource,
+    );
+    expect(spanExporter.getFinishedSpans()[0]?.resource).toBe(
+      browserSdk.resource,
+    );
+    expect(browserSdk.resource?.attributes).toMatchObject({
+      'browser.language': 'en-US',
+      'browser.mobile': false,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(diagErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('exports immediate logs and spans after pending resource attributes resolve', async () => {
+    // Arrange
+    let resolveDetected: ((value: string) => void) | undefined;
+    const detected = new Promise<string>((resolve) => {
+      resolveDetected = resolve;
+    });
+    const detector = {
+      detect: vi.fn(() => ({
+        attributes: {
+          'browser.platform': detected,
+          'service.name': detected,
+          'service.version': detected,
+          'telemetry.sdk.name': detected,
+          'telemetry.distro.name': detected,
+          'telemetry.distro.version': detected,
+        },
+      })),
+    };
+
+    // Act
+    browserSdk = startBrowserSdk({
+      resourceDetectors: [detector],
+      resourceAttributes: {
+        'service.name': 'my-service',
+        'telemetry.distro.name': 'explicit-distro',
+        'telemetry.distro.version': 'explicit-version',
+      },
+      serviceVersion: '1.0.0',
+    });
+    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    try {
+      // Assert
+      expect(browserSdk.resource?.asyncAttributesPending).toBe(true);
+
+      // Act
+      const shutdown = browserSdk.shutdown();
+      await Promise.resolve();
+
+      // Assert
+      expect(fetchSpy).not.toHaveBeenCalled();
+
+      // Act
+      resolveDetected?.('detected-value');
+      await shutdown;
+    } finally {
+      resolveDetected?.('detected-value');
+    }
+
+    // Assert
+    expect(detector.detect).toHaveBeenCalledOnce();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    for (const args of fetchSpy.mock.calls) {
+      expect(resourceAttributesFromBody(args[1]?.body)).toMatchObject({
+        'browser.platform': 'detected-value',
+        'service.name': 'my-service',
+        'service.version': '1.0.0',
+        'telemetry.sdk.name': 'opentelemetry',
+        'telemetry.distro.name': 'detected-value',
+        'telemetry.distro.version': 'detected-value',
+      });
+    }
+    expect(diagErrorSpy).not.toHaveBeenCalled();
+  });
+
+  it('shares a pre-built resource between standalone logs and traces', async () => {
+    // Arrange
+    const detector = {
+      detect: vi.fn(() => ({ attributes: { 'browser.language': 'en-US' } })),
+    };
+    const resource = defaultResource().merge(
+      detectResources({ detectors: [detector] }),
+    );
+    const logExporter = new InMemoryLogRecordExporter();
+    const spanExporter = new InMemorySpanExporter();
+    const logProcessor = new SimpleLogRecordProcessor({
+      exporter: logExporter,
+    });
+    const spanProcessor = new SimpleSpanProcessor({ exporter: spanExporter });
+    const logsSdk = startLogsSdk({
+      resource,
+      setGlobals: false,
+      processors: [logProcessor],
+    });
+    const tracesSdk = startTracesSdk({
+      resource,
+      setGlobals: false,
+      processors: [spanProcessor],
+    });
+
+    try {
+      // Act
+      logsSdk.loggerProvider
+        ?.getLogger('logs-sdk-test')
+        .emit({ eventName: 'test' });
+      tracesSdk.tracerProvider
+        ?.getTracer('traces-sdk-test')
+        .startSpan('test')
+        .end();
+      await Promise.all([
+        logProcessor.forceFlush(),
+        spanProcessor.forceFlush(),
+      ]);
+
+      // Assert
+      expect(detector.detect).toHaveBeenCalledOnce();
+      expect(logsSdk.resource).toBe(resource);
+      expect(tracesSdk.resource).toBe(resource);
+      expect(logExporter.getFinishedLogRecords()).toHaveLength(1);
+      expect(spanExporter.getFinishedSpans()).toHaveLength(1);
+      expect(logExporter.getFinishedLogRecords()[0]?.resource).toBe(resource);
+      expect(spanExporter.getFinishedSpans()[0]?.resource).toBe(resource);
+      expect(diagErrorSpy).not.toHaveBeenCalled();
+    } finally {
+      await Promise.all([logsSdk.shutdown(), tracesSdk.shutdown()]);
+    }
+  });
+
+  it('does not run resource detectors when configuration is invalid', () => {
+    const detector = { detect: vi.fn() };
+
+    browserSdk = startBrowserSdk({
+      resourceDetectors: [detector],
+      traces: { exportConfig: { url: 'this_is_not_an_URL' } },
+    });
+
+    expect(browserSdk.invalidConfig).toBe(true);
+    expect(browserSdk.resource).toBeUndefined();
+    expect(detector.detect).not.toHaveBeenCalled();
+  });
 });
 
 describe('quickStartBrowserSdk', () => {
@@ -516,6 +704,20 @@ describe('quickStartBrowserSdk', () => {
       expect(attributes['service.name']).toBe('my-service');
       expect(attributes['service.version']).toBe('1.2.3');
     });
+  });
+
+  it('passes resource detectors to the root SDK', () => {
+    const detector = {
+      detect: vi.fn(() => ({ attributes: { 'browser.language': 'en-US' } })),
+    };
+
+    browserSdk = quickStartBrowserSdk({
+      exportUrl: 'http://otlp-signal-endpoint:4318',
+      resourceDetectors: [detector],
+    });
+
+    expect(detector.detect).toHaveBeenCalledOnce();
+    expect(browserSdk.resource?.attributes['browser.language']).toBe('en-US');
   });
 
   it('should add console processors and export via OTLP when logLevel is DEBUG', async () => {

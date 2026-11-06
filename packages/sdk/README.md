@@ -272,23 +272,22 @@ exported.
 The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
 detector for browser attributes. It detects the user agent and preferred
 language, plus platform, brands, and mobile status when the User-Agent Client
-Hints API is available.
+Hints API is available. Detection is opt-in:
 
 ```javascript
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
-import {
-  detectResources,
-  resourceFromAttributes,
-} from '@opentelemetry/resources';
 
-const resource = resourceFromAttributes({
-  'service.name': 'my-app',
-}).merge(
-  detectResources({
-    detectors: [browserDetector],
-  }),
-);
+const sdk = startBrowserSdk({
+  serviceName: 'my-app',
+  resourceDetectors: [browserDetector],
+});
 ```
+
+Detectors run once and logs and traces share the same resource, available as
+`sdk.resource` for custom providers. Startup stays synchronous; built-in
+processors wait for pending resource attributes before exporting. Before reading
+pending attributes yourself, await `sdk.resource.waitForAsyncAttributes()`.
 
 ## Configuration
 
@@ -358,7 +357,24 @@ resource attribute.
 
 #### resourceAttributes
 
-Key-value pairs to be used as resource attributes.
+Key-value pairs to be used as resource attributes. They override detection,
+except for SDK-owned `telemetry.sdk.*` and detector-supplied
+`telemetry.distro.name` and `telemetry.distro.version`. `serviceName` and
+`serviceVersion` take precedence over their corresponding attributes. Ignored
+when `resource` is provided.
+
+#### resource
+
+A pre-built resource used unchanged, skipping detection, defaults,
+`resourceAttributes`, `serviceName`, and `serviceVersion`. Pass the same object
+to `startLogsSdk` and `startTracesSdk` to share it.
+
+#### resourceDetectors
+
+Only for `startBrowserSdk` and `quickStartBrowserSdk`. A list of resource
+detectors to run once for all signals; later detectors win collisions. No
+detectors run by default. See
+[Browser resource detection](#browser-resource-detection).
 
 ### Logs configuration
 
