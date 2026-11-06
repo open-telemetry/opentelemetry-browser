@@ -201,6 +201,9 @@ version is the `browser-instrumentation` package version.
 
 ### XHR outcomes and timing
 
+See the [XHR emitted-data table](./migration-data/xhr.md) for key and signal
+changes.
+
 There is no legacy/new XHR parity harness yet. The comparison below comes from
 the [legacy XHR source at 0.223.0][legacy-xhr] and the new
 [implementation][new-xhr] and [XHR tests][xhr-tests]. Do not apply the fetch
