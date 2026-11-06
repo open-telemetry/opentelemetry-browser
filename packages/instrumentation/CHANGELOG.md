@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.10.0...browser-instrumentation-v0.11.0) (2026-11-06)
+
+
+### Features
+
+* **web-vitals:** add reportSoftNavs option ([#512](https://github.com/open-telemetry/opentelemetry-browser/issues/512)) ([ab32488](https://github.com/open-telemetry/opentelemetry-browser/commit/ab32488b21329da384c52b2cf50f1beea37a3b90))
+
+
+### Bug Fixes
+
+* **instrumentation:** use entry start time for timing events ([#540](https://github.com/open-telemetry/opentelemetry-browser/issues/540)) ([f840e4d](https://github.com/open-telemetry/opentelemetry-browser/commit/f840e4db448837a6ab0c95fc251cd4e9b0f2a6f6))
+
 ## [0.10.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.9.0...browser-instrumentation-v0.10.0) (2026-10-30)
 
 
