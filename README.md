@@ -29,14 +29,13 @@ browser-related packages across all repositories.
 ```bash
 npm install @opentelemetry/browser-instrumentation \
   @opentelemetry/api \
-  @opentelemetry/api-logs \
   @opentelemetry/sdk-logs
 ```
 
 ### Basic example
 
 ```typescript
-import { logs } from '@opentelemetry/api-logs';
+import { logs } from '@opentelemetry/api';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,

@@ -4,8 +4,7 @@
  */
 
 import type { ProxyTracerProvider } from '@opentelemetry/api';
-import { context, diag, propagation, trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { context, diag, logs, propagation, trace } from '@opentelemetry/api';
 import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
 import { SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
