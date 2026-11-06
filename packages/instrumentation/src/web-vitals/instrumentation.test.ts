@@ -96,12 +96,16 @@ describe('WebVitalsInstrumentation', () => {
     inMemoryExporter.reset();
     testContainer?.remove();
     vi.restoreAllMocks();
+    webVitalsMock.metrics = {};
   });
 
   const getWebVitalLogs = () =>
     inMemoryExporter
       .getFinishedLogRecords()
       .filter((log) => log.eventName === WEB_VITAL_EVENT_NAME);
+
+  const toPerformanceMs = ([seconds, nanos]: [number, number]) =>
+    seconds * 1e3 + nanos / 1e6 - performance.timeOrigin;
 
   const triggerVisibilityChange = () => {
     Object.defineProperty(document, 'visibilityState', {
@@ -469,10 +473,6 @@ describe('WebVitalsInstrumentation', () => {
       webVitalsMock.options = {};
     });
 
-    afterEach(() => {
-      webVitalsMock.metrics = {};
-    });
-
     const softNavLCP = {
       name: 'LCP',
       value: 500,
@@ -487,9 +487,6 @@ describe('WebVitalsInstrumentation', () => {
       navigationURL: 'https://example.com/next',
       attribution: {},
     } as unknown as LCPMetricWithAttribution;
-
-    const toPerformanceMs = ([seconds, nanos]: [number, number]) =>
-      seconds * 1e3 + nanos / 1e6 - performance.timeOrigin;
 
     it.each([
       { config: { reportSoftNavs: true }, expected: true },
@@ -665,6 +662,75 @@ describe('WebVitalsInstrumentation', () => {
       );
       expect(log).toBeDefined();
       expect(toPerformanceMs(log?.hrTime ?? [0, 0])).toBeCloseTo(1000, 0);
+    });
+  });
+
+  describe('prerendered page', () => {
+    const activationStart = 4000;
+
+    const mockNavigationEntries = (
+      entries: Partial<PerformanceNavigationTiming>[],
+    ) =>
+      vi
+        .spyOn(performance, 'getEntriesByType')
+        .mockImplementation((type) =>
+          type === 'navigation'
+            ? (entries as PerformanceNavigationTiming[])
+            : [],
+        );
+
+    const emitMetric = (
+      name: string,
+      value: number,
+      navigationType: string,
+    ) => {
+      webVitalsMock.metrics[name] = {
+        name,
+        value,
+        delta: value,
+        rating: 'good',
+        id: `v5-${name}`,
+        entries: [],
+        navigationType,
+        navigationId: 1,
+        navigationStartTime: 0,
+        attribution: {},
+      };
+      instrumentation = new WebVitalsInstrumentation();
+      enableForTest(instrumentation);
+
+      const log = getWebVitalLogs().find(
+        (record) =>
+          record.attributes[ATTR_WEB_VITAL_NAME] === name.toLowerCase(),
+      );
+      expect(log).toBeDefined();
+      return toPerformanceMs(log?.hrTime ?? [0, 0]);
+    };
+
+    // web-vitals reports these from activationStart, clamped at 0.
+    it.each([
+      { name: 'FCP', value: 40, expected: activationStart + 40 },
+      { name: 'LCP', value: 60, expected: activationStart + 60 },
+      { name: 'TTFB', value: 0, expected: activationStart },
+    ])(
+      'should offset a prerendered $name by activationStart',
+      ({ name, value, expected }) => {
+        mockNavigationEntries([{ activationStart }]);
+
+        expect(emitMetric(name, value, 'prerender')).toBeCloseTo(expected, 0);
+      },
+    );
+
+    it('should not offset a navigate FCP when activationStart is set', () => {
+      mockNavigationEntries([{ activationStart }]);
+
+      expect(emitMetric('FCP', 40, 'navigate')).toBeCloseTo(40, 0);
+    });
+
+    it('should treat a missing navigation entry as activationStart 0', () => {
+      mockNavigationEntries([]);
+
+      expect(emitMetric('FCP', 40, 'prerender')).toBeCloseTo(40, 0);
     });
   });
 });

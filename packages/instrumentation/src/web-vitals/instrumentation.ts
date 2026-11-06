@@ -107,8 +107,17 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
         attribution.interactionTime ?? (metric.navigationStartTime || undefined)
       );
     }
-    // FCP, LCP, TTFB: metric.value is relative to the navigation start: 0 for
-    // hard navigations, the restore time for bfcache, or the soft navigation's startTime.
+    // FCP, LCP, TTFB: web-vitals measures a prerendered page from activationStart,
+    // clamped at 0, so an event before activation is stamped at activation.
+    if (metric.navigationType === 'prerender') {
+      // Only Chromium prerenders, so a missing activationStart means 0.
+      const activationStart =
+        // eslint-disable-next-line baseline-js/use-baseline
+        performance.getEntriesByType('navigation')[0]?.activationStart ?? 0;
+      return activationStart + metric.value;
+    }
+    // Otherwise metric.value is relative to the navigation start: 0 for hard
+    // navigations, the restore time for bfcache, or the soft navigation's startTime.
     return (metric.navigationStartTime ?? 0) + metric.value;
   }
 
