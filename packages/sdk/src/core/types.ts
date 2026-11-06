@@ -12,6 +12,7 @@ import type {
 } from '@opentelemetry/api';
 import type { LoggerProvider } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+import type { Resource, ResourceDetector } from '@opentelemetry/resources';
 import type {
   LogRecordLimits,
   LogRecordProcessor,
@@ -114,6 +115,14 @@ export interface CommonConfig {
    * @defaultValue undefined
    */
   resourceAttributes?: Attributes;
+  /**
+   * A pre-built resource to use unchanged. When provided, `resourceAttributes`,
+   * `serviceName`, `serviceVersion`, and resource detection are not applied.
+   * Pass the same resource to standalone signal SDKs to share it.
+   *
+   * @defaultValue undefined
+   */
+  resource?: Resource;
 }
 
 /**
@@ -131,6 +140,15 @@ export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
  * here to avoid type collision.
  */
 export type RootConfig = CommonConfig & {
+  /**
+   * Resource detectors to run once for all signals. Later detectors take
+   * precedence over earlier ones. Explicit resource attributes take precedence
+   * over detected attributes, except for SDK/distro-owned telemetry attributes.
+   * Startup does not wait for asynchronous resource attributes.
+   *
+   * @defaultValue undefined
+   */
+  resourceDetectors?: ResourceDetector[];
   /**
    * Set `enabled: false` to start the SDK without enabling the
    * instrumentations, for example until the user gives consent. Call
@@ -245,6 +263,8 @@ export type TracesConfig = CommonConfig & {
 };
 
 export interface WebSdk {
+  /** The shared resource. `undefined` when the configuration is invalid. */
+  resource?: Resource;
   /**
    * `true` when the SDK refused to start because its configuration is invalid
    * — e.g. a malformed export URL or no usable processors. Left `undefined` on
@@ -272,6 +292,8 @@ export interface WebSdk {
  * The result of `startTracesSdk`.
  */
 export interface TracesSdk {
+  /** The resource. `undefined` when the configuration is invalid. */
+  resource?: Resource;
   /** `true` when the SDK refused to start because its configuration is invalid. */
   invalidConfig?: boolean;
   /** The tracer provider. `undefined` when the configuration is invalid. */
@@ -286,6 +308,8 @@ export interface TracesSdk {
  * The result of `startLogsSdk`.
  */
 export interface LogsSdk {
+  /** The resource. `undefined` when the configuration is invalid. */
+  resource?: Resource;
   /** `true` when the SDK refused to start because its configuration is invalid. */
   invalidConfig?: boolean;
   /** The logger provider. `undefined` when the configuration is invalid. */
