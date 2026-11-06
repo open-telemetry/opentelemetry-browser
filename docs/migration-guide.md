@@ -168,6 +168,9 @@ records. Review those log records and their processing separately.
 
 ### Fetch outcomes
 
+See the [fetch emitted-data table](./migration-data/fetch.md) for every built-in
+key, removed timing events, and their log replacements.
+
 The [fetch migration tests][fetch-parity] exercise both implementations in
 separate iframes. They compare span name, kind, `http.request.method`,
 `url.full`, `server.address`, and `server.port` for six scenarios. For received
