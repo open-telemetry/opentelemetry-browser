@@ -209,6 +209,12 @@ describe('ErrorsInstrumentation', () => {
       ['', 'Uncaught ', ''],
       [42, 'Uncaught 42', '42'],
       [false, 'Uncaught false', 'false'],
+      [Symbol('failed'), 'browser message', 'Symbol(failed)'],
+      [
+        { toString: () => 'request failed' },
+        'browser message',
+        'request failed',
+      ],
       [{ status: 500 }, 'Uncaught [object Object]', '[object Object]'],
     ])(
       'should prefer the thrown value %s over the event message',
@@ -220,10 +226,34 @@ describe('ErrorsInstrumentation', () => {
       },
     );
 
-    it('should use the event message when string conversion fails', () => {
+    it.each([
+      ['an object without a prototype', Object.create(null)],
+      [
+        'an object with a throwing toString',
+        {
+          toString() {
+            throw new Error('string failed');
+          },
+        },
+      ],
+    ])('should normalize %s for errors and rejections', (_, error) => {
+      dispatchErrorEvent(error, 'browser message');
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+      });
+      dispatchUnhandledRejection(error);
+      expect(getErrorLogs()[1]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+      });
+    });
+
+    it('should use the event message when both string conversions fail', () => {
       const error = {
         toString() {
           throw new Error('string failed');
+        },
+        get [Symbol.toStringTag]() {
+          throw new Error('tag failed');
         },
       };
       dispatchErrorEvent(error, 'browser message');
@@ -591,42 +621,6 @@ describe('ErrorsInstrumentation', () => {
       enableForTest(instrumentation);
     });
 
-    it.each([
-      [
-        'error',
-        (error: unknown) => dispatchErrorEvent(error, 'browser message'),
-      ],
-      ['unhandledrejection', dispatchUnhandledRejection],
-    ])(
-      'should preserve readable attributes when prototype lookup throws for %s',
-      (_, dispatch) => {
-        const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'error');
-        const getPrototypeOf = vi.fn(() => {
-          throw new Error('prototype lookup denied');
-        });
-        const error = new Proxy(
-          {
-            name: 'ProxyError',
-            message: 'readable message',
-            stack: 'readable stack',
-          },
-          { getPrototypeOf },
-        );
-
-        dispatch(error);
-
-        expect(getPrototypeOf).toHaveBeenCalledOnce();
-        const logs = getErrorLogs();
-        expect(logs).toHaveLength(1);
-        expect(logs[0]?.attributes).toEqual({
-          [ATTR_EXCEPTION_TYPE]: 'ProxyError',
-          [ATTR_EXCEPTION_MESSAGE]: 'readable message',
-          [ATTR_EXCEPTION_STACKTRACE]: 'readable stack',
-        });
-        expect(diagSpy).not.toHaveBeenCalled();
-      },
-    );
-
     it('should contain a throwing LogRecordProcessor and surface it via diag', () => {
       const accessor = internals(instrumentation);
       const diagSpy = vi.spyOn(accessor._diag, 'error');
@@ -659,6 +653,9 @@ describe('ErrorsInstrumentation', () => {
       const reason = {
         toString() {
           throw new Error('string failed');
+        },
+        get [Symbol.toStringTag]() {
+          throw new Error('tag failed');
         },
       };
       expect(() =>

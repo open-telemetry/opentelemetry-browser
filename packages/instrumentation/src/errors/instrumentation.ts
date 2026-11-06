@@ -120,13 +120,6 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     if (typeof error === 'object' && error !== null) {
       const candidate = error as Partial<Error>;
       // Keep Error-like values, including errors from another realm.
-      try {
-        if (error instanceof Error) {
-          return error;
-        }
-      } catch {
-        // A Proxy can reject prototype inspection and still expose a message.
-      }
       if (typeof candidate.message === 'string') {
         return candidate as Error;
       }
@@ -134,6 +127,11 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     try {
       return String(error);
     } catch (cause) {
+      try {
+        return Object.prototype.toString.call(error);
+      } catch {
+        // A Symbol.toStringTag getter or revoked Proxy can also throw.
+      }
       if (eventMessage) {
         return eventMessage;
       }
