@@ -34,7 +34,7 @@ function defaultMessageSerializer(args: unknown[]): string {
   return args
     .map((arg) => {
       try {
-        if (arg instanceof Error) {
+        if (isError(arg)) {
           return arg.stack || `${arg.name}: ${arg.message}`;
         }
       } catch {
@@ -51,6 +51,17 @@ function defaultMessageSerializer(args: unknown[]): string {
       return safeString(arg);
     })
     .join(' ');
+}
+
+function isError(value: unknown): value is Error {
+  if (value instanceof Error) {
+    return true;
+  }
+  // `instanceof` misses Errors from another realm, like a same-origin iframe.
+  return (
+    Object.prototype.toString.call(value) === '[object Error]' &&
+    typeof (value as Error).message === 'string'
+  );
 }
 
 function safeString(value: unknown): string {

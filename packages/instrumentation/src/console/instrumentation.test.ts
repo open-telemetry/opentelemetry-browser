@@ -250,6 +250,30 @@ describe('ConsoleInstrumentation', () => {
       expect(logs[0]?.body).toBe(`Failed: ${error.stack} {"retry":false}`);
     });
 
+    it('should serialize Errors from another realm', () => {
+      const iframe = document.createElement('iframe');
+      document.body.append(iframe);
+      const otherRealm = iframe.contentWindow as unknown as typeof globalThis;
+      const error = new otherRealm.Error('request failed');
+      error.stack = 'Error: request failed\n    at request (app.js:10:5)';
+      iframe.remove();
+
+      expect(error).not.toBeInstanceOf(Error);
+      console.error(error);
+
+      expect(inMemoryExporter.getFinishedLogRecords()[0]?.body).toBe(
+        error.stack,
+      );
+    });
+
+    it('should keep JSON for an object that only has the Error tag', () => {
+      console.log({ [Symbol.toStringTag]: 'Error', reason: 'request failed' });
+
+      expect(inMemoryExporter.getFinishedLogRecords()[0]?.body).toBe(
+        '{"reason":"request failed"}',
+      );
+    });
+
     it.each(['stack', 'name', 'message'])(
       'should fall back to JSON when Error %s throws',
       (property) => {
