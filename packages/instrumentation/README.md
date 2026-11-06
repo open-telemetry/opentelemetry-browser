@@ -129,7 +129,7 @@ new NavigationInstrumentation({
 
 `defaultSanitizeUrl` is exported for composition — it redacts `user:password@`
 credentials and a set of common sensitive query parameters (`api_key`, `token`,
-`password`, etc.).
+`password`, signed URL signatures, etc.).
 
 #### Captured Attributes
 
@@ -151,8 +151,10 @@ import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentat
 ```
 
 Creates one `documentLoad` span from the navigation entry's `fetchStart` to
-`loadEventEnd`, with the `url.full` attribute. The span starts a new trace. Pass
-it to `startBrowserSdk()` and the SDK enables it with its tracer provider:
+`loadEventEnd`, with the `url.full` attribute. Credentials and sensitive query
+values in `url.full` are redacted with `defaultSanitizeUrl`. The span starts a
+new trace. Pass it to `startBrowserSdk()` and the SDK enables it with its tracer
+provider:
 
 ```typescript
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';

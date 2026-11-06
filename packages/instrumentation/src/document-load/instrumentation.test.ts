@@ -133,6 +133,31 @@ describe('DocumentLoadInstrumentation', () => {
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
   });
 
+  it('redacts credentials and sensitive query values in url.full', () => {
+    entry = {
+      ...entry,
+      name: 'https://user:pass@example.test/file?sig=abc&X-Amz-Security-Token=def&color=blue',
+    } as PerformanceNavigationTiming;
+    finishLoad();
+    expect(finishedSpan().attributes['url.full']).toBe(
+      'https://REDACTED:REDACTED@example.test/file?sig=REDACTED&X-Amz-Security-Token=REDACTED&color=blue',
+    );
+  });
+
+  it('keeps a collection failure off the page and stops retrying', () => {
+    const brokenProvider = {
+      getTracer: () => ({
+        startSpan: () => {
+          throw new Error('broken tracer');
+        },
+      }),
+    } as unknown as TracerProvider;
+    instrumentation.enable({ tracerProvider: brokenProvider });
+    expect(() => vi.runAllTimers()).not.toThrow();
+    expect(performance.getEntriesByType).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it('cancels pending collection when disabled', () => {
     instrumentation.enable({ tracerProvider });
     instrumentation.disable();

@@ -6,6 +6,7 @@
 import { ROOT_CONTEXT } from '@opentelemetry/api';
 import { ATTR_URL_FULL } from '@opentelemetry/semantic-conventions';
 import { InstrumentationBase } from '#instrumentation-base';
+import { defaultSanitizeUrl } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import type { DocumentLoadInstrumentationConfig } from './types.ts';
 
@@ -51,17 +52,23 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
     // loadEventEnd is only populated after the load handlers return.
     this._timeout = window.setTimeout(() => {
       this._timeout = undefined;
-      if (this._collect()) {
+      const collected = this._safeExecute(
+        'failed to record document load',
+        () => this._collect(),
+      );
+      if (collected) {
         return;
       }
-      if (this._retryCount++ < MAX_RETRIES) {
+      if (collected === false && this._retryCount++ < MAX_RETRIES) {
         this._schedule();
-      } else {
+        return;
+      }
+      if (collected === false) {
         this._diag.warn(
           'Document load: no complete navigation timing available',
         );
-        this._cleanup();
       }
+      this._cleanup();
     }, this._retryCount * RETRY_DELAY_MS);
   }
 
@@ -89,7 +96,7 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
       {
         startTime: performance.timeOrigin + entry.fetchStart,
         attributes: {
-          [ATTR_URL_FULL]: entry.name,
+          [ATTR_URL_FULL]: defaultSanitizeUrl(entry.name),
         },
       },
       ROOT_CONTEXT,
