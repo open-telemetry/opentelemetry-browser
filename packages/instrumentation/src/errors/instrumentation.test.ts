@@ -5,6 +5,9 @@
 
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
+  ATTR_CODE_COLUMN_NUMBER,
+  ATTR_CODE_FILE_PATH,
+  ATTR_CODE_LINE_NUMBER,
   ATTR_EXCEPTION_MESSAGE,
   ATTR_EXCEPTION_STACKTRACE,
   ATTR_EXCEPTION_TYPE,
@@ -36,13 +39,20 @@ class ValidationError extends Error {
 // We dispatch a cancelable plain Event (the instrumentation reads
 // `event.error`, falling back to `event.message`) and call preventDefault from
 // a capture-phase listener to suppress the default reporting behavior.
-const dispatchErrorEvent = (error?: Error | string, message?: string) => {
+const dispatchErrorEvent = (
+  error?: Error | string,
+  message?: string,
+  location?: Pick<ErrorEventInit, 'filename' | 'lineno' | 'colno'>,
+) => {
   const event = new Event('error', { cancelable: true });
   if (error !== undefined) {
     Object.defineProperty(event, 'error', { value: error });
   }
   if (message !== undefined) {
     Object.defineProperty(event, 'message', { value: message });
+  }
+  for (const [key, value] of Object.entries(location ?? {})) {
+    Object.defineProperty(event, key, { value });
   }
   const suppress = (e: Event) => e.preventDefault();
   window.addEventListener('error', suppress, { capture: true });
@@ -240,6 +250,90 @@ describe('ErrorsInstrumentation', () => {
     });
   });
 
+  describe('source location', () => {
+    beforeEach(() => {
+      instrumentation = new ErrorsInstrumentation();
+      enableForTest(instrumentation);
+    });
+
+    it('should set code attributes from the error event location', () => {
+      dispatchErrorEvent(new ValidationError('boom'), undefined, {
+        filename: 'https://example.com/app.js',
+        lineno: 12,
+        colno: 34,
+      });
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_CODE_FILE_PATH]).toBe(
+        'https://example.com/app.js',
+      );
+      expect(logs[0]?.attributes[ATTR_CODE_LINE_NUMBER]).toBe(12);
+      expect(logs[0]?.attributes[ATTR_CODE_COLUMN_NUMBER]).toBe(34);
+    });
+
+    it('should set code attributes on the event.message fallback path', () => {
+      dispatchErrorEvent(undefined, 'Script error.', {
+        filename: 'https://example.com/app.js',
+        lineno: 1,
+        colno: 1,
+      });
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_CODE_FILE_PATH]).toBe(
+        'https://example.com/app.js',
+      );
+      expect(logs[0]?.attributes[ATTR_CODE_LINE_NUMBER]).toBe(1);
+      expect(logs[0]?.attributes[ATTR_CODE_COLUMN_NUMBER]).toBe(1);
+    });
+
+    it('should omit code attributes when the location is unknown', () => {
+      // ErrorEvent defaults: empty filename and zero line/column.
+      dispatchErrorEvent(new ValidationError('boom'), undefined, {
+        filename: '',
+        lineno: 0,
+        colno: 0,
+      });
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_FILE_PATH);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_LINE_NUMBER);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_COLUMN_NUMBER);
+    });
+
+    it('should set only the known parts of a partial location', () => {
+      dispatchErrorEvent(new ValidationError('boom'), undefined, {
+        filename: 'https://example.com/app.js',
+        lineno: 7,
+        colno: 0,
+      });
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_CODE_FILE_PATH]).toBe(
+        'https://example.com/app.js',
+      );
+      expect(logs[0]?.attributes[ATTR_CODE_LINE_NUMBER]).toBe(7);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_COLUMN_NUMBER);
+    });
+
+    it('should not set code attributes for unhandled rejections', () => {
+      const error = new ValidationError('Rejected!');
+      error.stack =
+        'Error: Rejected!\n    at foo (https://example.com/app.js:2:3)';
+
+      dispatchUnhandledRejection(error);
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_FILE_PATH);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_LINE_NUMBER);
+      expect(logs[0]?.attributes).not.toHaveProperty(ATTR_CODE_COLUMN_NUMBER);
+    });
+  });
+
   describe('unhandled rejection events', () => {
     beforeEach(() => {
       instrumentation = new ErrorsInstrumentation();
@@ -372,6 +466,27 @@ describe('ErrorsInstrumentation', () => {
       const logs = getErrorLogs();
       expect(logs).toHaveLength(1);
       expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe('overridden');
+    });
+
+    it('should let custom attributes override the code attributes', () => {
+      instrumentation = new ErrorsInstrumentation({
+        applyCustomAttributes: () => ({
+          [ATTR_CODE_FILE_PATH]: 'src/app.ts',
+        }),
+      });
+      enableForTest(instrumentation);
+
+      dispatchErrorEvent(new ValidationError('boom'), undefined, {
+        filename: 'https://example.com/app.min.js',
+        lineno: 1,
+        colno: 5000,
+      });
+
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_CODE_FILE_PATH]).toBe('src/app.ts');
+      expect(logs[0]?.attributes[ATTR_CODE_LINE_NUMBER]).toBe(1);
+      expect(logs[0]?.attributes[ATTR_CODE_COLUMN_NUMBER]).toBe(5000);
     });
 
     it('should still emit standard attributes when the hook throws', () => {

@@ -384,11 +384,14 @@ new ErrorsInstrumentation({
 
 Each `exception` event includes:
 
-| Attribute              | Description                                                      |
-| ---------------------- | ---------------------------------------------------------------- |
-| `exception.type`       | The error's `name` (omitted when the thrown value is a string).  |
-| `exception.message`    | The error's `message`, or the thrown string itself.              |
-| `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string). |
+| Attribute              | Description                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| `exception.type`       | The error's `name` (omitted when the thrown value is a string).                     |
+| `exception.message`    | The error's `message`, or the thrown string itself.                                 |
+| `exception.stacktrace` | The error's `stack` (omitted when the thrown value is a string).                    |
+| `code.file.path`       | The script URL from the `error` event (omitted when unknown and for rejections).    |
+| `code.line.number`     | The line number from the `error` event (omitted when unknown and for rejections).   |
+| `code.column.number`   | The column number from the `error` event (omitted when unknown and for rejections). |
 
 ---
 
