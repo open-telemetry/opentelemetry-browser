@@ -376,9 +376,16 @@ new ErrorsInstrumentation({
 });
 ```
 
-| Option                  | Type                                     | Default | Description                                                                                                                                            |
-| ----------------------- | ---------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `applyCustomAttributes` | `(error: Error \| string) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                  | Type                                                             | Default | Description                                                                                                                                            |
+| ----------------------- | ---------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `applyCustomAttributes` | `(error: Error \| string, originalError: unknown) => Attributes` | —       | Returns extra attributes to merge onto the emitted log record. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+
+Values that aren't an `Error` or an object with a string `message` are recorded
+as `String(value)`, and that string is also the first argument to
+`applyCustomAttributes`. The second argument is the original thrown value or
+rejection reason, which isn't recorded but lets the hook read fields like
+`status`. The browser's error message is only used when there's no value or it
+can't be converted to a string.
 
 #### Captured Attributes
 

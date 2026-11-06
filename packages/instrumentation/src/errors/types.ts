@@ -7,6 +7,7 @@ import type { Attributes } from '@opentelemetry/api';
 
 export type ApplyCustomAttributesFunction = (
   error: Error | string,
+  originalError: unknown,
 ) => Attributes;
 
 /**
@@ -14,7 +15,8 @@ export type ApplyCustomAttributesFunction = (
  */
 export interface ErrorsInstrumentationConfig {
   /**
-   * Optional callback invoked for each captured error or unhandled rejection.
+   * Optional callback invoked with the normalized error and the original thrown
+   * value or rejection reason.
    * Returned attributes are merged onto the emitted log record (after the
    * standard `exception.*` attributes, so they may override them).
    */
