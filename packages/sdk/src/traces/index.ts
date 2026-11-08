@@ -4,4 +4,7 @@
  */
 
 export type { TracesConfig, TracesSdk } from '../core/types.ts';
-export { startTracesSdk } from './startTracesSdk.ts';
+export {
+  DEFAULT_TRACES_EXPORT_CONFIG,
+  startTracesSdk,
+} from './startTracesSdk.ts';

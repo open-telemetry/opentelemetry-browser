@@ -382,25 +382,6 @@ describe('FetchInstrumentation', () => {
       ).toEqual([onUrl]);
     });
 
-    it('should stay off and warn when PerformanceObserver is not available', () => {
-      const { warn } = setupTestDiagLogger();
-      vi.stubGlobal('PerformanceObserver', undefined);
-      onTestFinished(() => {
-        vi.unstubAllGlobals();
-      });
-
-      instrumentation = new FetchInstrumentation();
-      enableForTest(instrumentation);
-
-      expect(instrumentation.isEnabled()).toBe(false);
-      expect(globalThis.fetch).toBe(originalFetchFunction);
-      expect(warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringMatching(/PerformanceObserver is not available/),
-        expect.any(Error),
-      );
-    });
-
     describe('when the fetch slot is non-writable', () => {
       afterEach(() => {
         Object.defineProperty(globalThis, 'fetch', {
@@ -466,16 +447,16 @@ describe('FetchInstrumentation', () => {
         expect(instrumentation.isEnabled()).toBe(false);
       });
 
-      it('should warn with the descriptive error', () => {
-        const { warn } = setupTestDiagLogger();
+      it('should log an error with the descriptive error', () => {
+        const { error } = setupTestDiagLogger();
         enableForTest(instrumentation);
 
-        // Component loggers forward to `diag.warn(namespace, message, error)`.
-        const error = warn.mock.calls[0]?.[2] as Error | undefined;
-        expect(error?.message).toBe(
+        // Component loggers forward to `diag.error(namespace, message, error)`.
+        const loggedError = error.mock.calls[0]?.[2] as Error | undefined;
+        expect(loggedError?.message).toBe(
           `Failed to patch globalThis.fetch: ${wrapError.message}`,
         );
-        expect(error?.cause).toBe(wrapError);
+        expect(loggedError?.cause).toBe(wrapError);
       });
     });
   });

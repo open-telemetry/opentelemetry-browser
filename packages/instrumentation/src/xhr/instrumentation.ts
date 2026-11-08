@@ -154,6 +154,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
               this.addEventListener('error', onError);
               this.addEventListener('timeout', onTimeout);
               this.addEventListener('load', onLoad);
+              instrumentation._callRequestHook(span, this);
               instrumentation._addHeaders(this, url, xhrContext);
             });
           } catch (e: unknown) {
@@ -260,6 +261,14 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       this._safeExecute('applyCustomAttributesOnSpan hook failed', () =>
         applyCustomAttributesOnSpan(span, xhr),
       );
+    }
+  }
+
+  private _callRequestHook(span: Span, xhr: XMLHttpRequest) {
+    const requestHook = this._config.requestHook;
+
+    if (requestHook) {
+      this._safeExecute('requestHook failed', () => requestHook(span, xhr));
     }
   }
 

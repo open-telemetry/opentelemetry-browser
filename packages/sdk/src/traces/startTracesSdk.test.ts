@@ -17,7 +17,10 @@ import {
 } from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { TracesSdk } from '../core/types.ts';
-import { startTracesSdk } from './startTracesSdk.ts';
+import {
+  DEFAULT_TRACES_EXPORT_CONFIG,
+  startTracesSdk,
+} from './startTracesSdk.ts';
 
 const BSP_SCHEDULE_DELAY = 10;
 
@@ -26,6 +29,7 @@ describe('startTracesSdk', () => {
   const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response);
   const consoleDirSpy = vi.spyOn(globalThis.console, 'dir');
   const diagErrorSpy = vi.spyOn(diag, 'error');
+  const diagWarnSpy = vi.spyOn(diag, 'warn');
   let tracesSdk: TracesSdk;
 
   // NOTE: we mock the registration of the tracer provider because
@@ -38,6 +42,8 @@ describe('startTracesSdk', () => {
   afterEach(async () => {
     fetchSpy.mockClear();
     consoleDirSpy.mockClear();
+    diagErrorSpy.mockClear();
+    diagWarnSpy.mockClear();
     await tracesSdk?.shutdown();
     trace.disable();
     context.disable();
@@ -91,7 +97,7 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(false);
   });
 
-  it('should use the default configuration for exporters', async () => {
+  it('should warn that no export URL is configured', async () => {
     // Act
     tracesSdk = startTracesSdk({
       batchProcessorConfig: {
@@ -104,16 +110,9 @@ describe('startTracesSdk', () => {
     await new Promise((r) => setTimeout(r, BSP_SCHEDULE_DELAY + 5));
 
     // Assert
-    expect(fetchSpy).toHaveBeenCalledOnce();
-    expect(fetchSpy.mock.lastCall?.[0]).toEqual(
-      'http://localhost:4318/v1/traces',
-    );
-    expect(fetchSpy.mock.lastCall?.[1]).containSubset({
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(diagWarnSpy).toHaveBeenCalled();
+    expect(diagWarnSpy.mock.lastCall?.[0]).toMatch(/Traces SDK won't export/);
   });
 
   it('should accept signal specific OTLP endpoint and headers', async () => {
@@ -143,6 +142,7 @@ describe('startTracesSdk', () => {
         bar: 'baz',
       },
     });
+    expect(diagWarnSpy).not.toHaveBeenCalled();
   });
 
   it('should append the resource attributes in exports', async () => {
@@ -152,6 +152,7 @@ describe('startTracesSdk', () => {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
+      exportConfig: DEFAULT_TRACES_EXPORT_CONFIG,
       resourceAttributes: {
         'resource.attr1': 'value 1',
         'resource.attr2': 'value 2',
@@ -186,6 +187,7 @@ describe('startTracesSdk', () => {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
+      exportConfig: DEFAULT_TRACES_EXPORT_CONFIG,
       serviceName: 'test-service',
       serviceVersion: '1.0.0',
       resourceAttributes: {
@@ -238,6 +240,11 @@ describe('startTracesSdk', () => {
     // Assert
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(exportCalled).toStrictEqual(true);
+    // sdk warns about processors resposible for exports
+    expect(diagWarnSpy).toHaveBeenCalled();
+    expect(diagWarnSpy.mock.lastCall?.[0]).toMatch(
+      /should handle Span exports/,
+    );
   });
 
   it('should add a BatchSpanProcessor into the list if exporter config is set', async () => {
@@ -355,6 +362,7 @@ describe('startTracesSdk', () => {
         // NOTE: we set a short delay to speed up tests and avoid test timeouts
         scheduledDelayMillis: BSP_SCHEDULE_DELAY,
       },
+      exportConfig: DEFAULT_TRACES_EXPORT_CONFIG,
       serviceName: 'test-service',
       serviceVersion: '1.0.0',
       sampler: new AlwaysOffSampler(),
@@ -369,6 +377,7 @@ describe('startTracesSdk', () => {
   it('should install default context manager and propagators when none are provided', () => {
     tracesSdk = startTracesSdk({
       batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+      exportConfig: DEFAULT_TRACES_EXPORT_CONFIG,
     });
 
     expect(context.active()).toBe(ROOT_CONTEXT);
@@ -394,6 +403,7 @@ describe('startTracesSdk', () => {
 
     tracesSdk = startTracesSdk({
       batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+      exportConfig: DEFAULT_TRACES_EXPORT_CONFIG,
       contextManager: customContextManager,
       propagators: [customPropagator],
     });
@@ -422,6 +432,7 @@ describe('startTracesSdk', () => {
         setGlobals: false,
         contextManager,
         batchProcessorConfig: { scheduledDelayMillis: BSP_SCHEDULE_DELAY },
+        exportConfig: DEFAULT_TRACES_EXPORT_CONFIG,
       });
 
       // Assert

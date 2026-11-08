@@ -6,8 +6,9 @@
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '#instrumentation-base';
-import { assertPerformanceObserver, getNetworkContextRegistry } from '#utils';
+import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
+import { toError } from '../utils/toError.ts';
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
@@ -75,24 +76,24 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     );
   }
 
-  protected override _init(): void {
-    assertPerformanceObserver();
-    if (!PerformanceObserver.supportedEntryTypes?.includes('resource')) {
-      throw new Error(
-        'PerformanceObserver does not support the "resource" entry type in this browser.',
-      );
-    }
-  }
-
   protected override _onEnable(): void {
     if (document.readyState === 'complete') {
       this._setupObserver();
     } else {
-      // Runs outside the lifecycle, so a throw here cannot roll back enable().
-      this._loadHandler = () =>
-        this._safeExecute('Failed to start resource PerformanceObserver', () =>
-          this._setupObserver(),
-        );
+      // Runs after enable() returned, so the base class cannot catch a throw.
+      // Mirrors its failed _onEnable() path: log an error, then disable().
+      this._loadHandler = () => {
+        try {
+          this._setupObserver();
+        } catch (err) {
+          const error = toError(err);
+          this._diag.error(
+            `enable failed at the load event: ${error.message}`,
+            error,
+          );
+          this.disable();
+        }
+      };
       window.addEventListener('load', this._loadHandler, { once: true });
     }
 
@@ -126,7 +127,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _setupObserver(): void {
     const observer = new PerformanceObserver((list) => {
-      // Fires asynchronously, so it can outlive disable().
+      // A callback queued before disconnect() can still run after disable().
       if (!this.isEnabled()) {
         return;
       }
@@ -234,6 +235,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     try {
       const record: LogRecord = {
         eventName: RESOURCE_TIMING_EVENT_NAME,
+        timestamp: entry.startTime,
         severityNumber: SeverityNumber.INFO,
         attributes: {
           [ATTR_RESOURCE_URL]: entry.name,

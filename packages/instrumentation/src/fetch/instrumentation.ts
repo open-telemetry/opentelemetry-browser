@@ -16,7 +16,6 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
-import { assertPerformanceObserver } from '../utils/assertPerformanceObserver.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getFetchBodyLength,
@@ -40,8 +39,6 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   }
 
   protected override _init(): void {
-    assertPerformanceObserver();
-
     try {
       // `_wrap` throws if a third-party script has locked globalThis.fetch via
       // Object.defineProperty(window, 'fetch', { configurable: false, ... }).

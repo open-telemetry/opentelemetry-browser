@@ -4,6 +4,7 @@ import type { Tracer } from '@opentelemetry/api';
 import { trace } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { logs } from '@opentelemetry/api-logs';
+import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
@@ -137,6 +138,7 @@ export async function initOtel(
     },
 
     instrumentations: [
+      new ElementTimingInstrumentation(),
       new ErrorsInstrumentation(),
       new LongAnimationFrameInstrumentation(),
       new NavigationTimingInstrumentation(),
