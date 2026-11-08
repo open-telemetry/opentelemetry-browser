@@ -3,15 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-// The Long Animation Frames API is not Baseline and is currently unavailable in
-// Firefox and Safari.
-// https://developer.mozilla.org/en-US/docs/Web/API/PerformanceLongAnimationFrameTiming
-/* eslint-disable baseline-js/use-baseline */
-
 import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '#instrumentation-base';
-import { assertPerformanceObserver, defaultSanitizeUrl } from '#utils';
+import { defaultSanitizeUrl } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
@@ -24,8 +19,8 @@ import {
   LONG_ANIMATION_FRAME_EVENT_NAME,
 } from './semconv.ts';
 import type {
+  LongAnimationFrameEntry,
   LongAnimationFrameInstrumentationConfig,
-  PerformanceLongAnimationFrameTiming,
 } from './types.ts';
 
 const LONG_ANIMATION_FRAME_ENTRY_TYPE = 'long-animation-frame';
@@ -41,6 +36,34 @@ const URL_VALUED_INVOKER_TYPES: ReadonlySet<string> = new Set([
   'classic-script',
   'module-script',
 ]);
+
+/**
+ * Builds the attributes of a script entry. Only URL-valued `invoker` fields are
+ * handed to `sanitizeUrl`; the selector-like ones and an unresolved
+ * `source_url` are written as the browser reports them.
+ */
+function scriptAttributes(
+  script: LongAnimationFrameEntry['scripts'][number],
+  sanitize: (url: string) => string,
+): AnyValueMap {
+  return {
+    start_time: script.startTime,
+    duration: script.duration,
+    execution_start: script.executionStart,
+    invoker: URL_VALUED_INVOKER_TYPES.has(script.invokerType)
+      ? sanitize(script.invoker)
+      : script.invoker,
+    invoker_type: script.invokerType,
+    source_url: script.sourceURL
+      ? sanitize(script.sourceURL)
+      : script.sourceURL,
+    source_function_name: script.sourceFunctionName,
+    source_char_position: script.sourceCharPosition,
+    pause_duration: script.pauseDuration,
+    forced_style_and_layout_duration: script.forcedStyleAndLayoutDuration,
+    window_attribution: script.windowAttribution,
+  };
+}
 
 /** Captures Long Animation Frames API performance entries as OpenTelemetry logs. */
 export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongAnimationFrameInstrumentationConfig> {
@@ -60,14 +83,15 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
   }
 
   protected override _init(): void {
-    assertPerformanceObserver();
+    // The API is not Baseline — Firefox and Safari do not implement it — so a
+    // browser without the entry type fails init instead of observing silently.
     if (
-      !PerformanceObserver.supportedEntryTypes?.includes(
+      !PerformanceObserver.supportedEntryTypes.includes(
         LONG_ANIMATION_FRAME_ENTRY_TYPE,
       )
     ) {
       throw new Error(
-        'Long Animation Frames API is not supported in this browser.',
+        `PerformanceObserver does not support the "${LONG_ANIMATION_FRAME_ENTRY_TYPE}" entry type in this browser.`,
       );
     }
   }
@@ -83,32 +107,26 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
         // argument, for example. Contain the failure to the entry itself so it
         // cannot skip the frames that follow it in the same callback.
         this._safeExecute('Failed to process long-animation-frame entry', () =>
-          this._emitLongAnimationFrame(
-            entry as PerformanceLongAnimationFrameTiming,
-          ),
+          this._emitLongAnimationFrame(entry as LongAnimationFrameEntry),
         );
       }
     });
 
-    try {
-      observer.observe({
-        type: LONG_ANIMATION_FRAME_ENTRY_TYPE,
-        // The browser's long animation frame buffer is replayed once, on the
-        // first enable. Disabling and re-enabling resumes live observation
-        // instead of re-emitting frames that were already logged.
-        buffered: !this._hasReplayedBufferedEntries,
-      });
-      this._observer = observer;
-      // Set only after a successful observe, so a failed first enable keeps
-      // the replay pending for the next attempt.
-      this._hasReplayedBufferedEntries = true;
-    } catch (error) {
-      observer.disconnect();
-      this._diag.error(
-        'Failed to start long-animation-frame PerformanceObserver',
-        error,
-      );
-    }
+    // Deliberately not wrapped in a try/catch: if `observe()` throws, the
+    // throw reaches the base class, which rolls the instrumentation back to
+    // `disabled` and logs the cause. Swallowing it here would leave the base
+    // in `enabled` with no observer, so a later `enable()` would do nothing.
+    observer.observe({
+      type: LONG_ANIMATION_FRAME_ENTRY_TYPE,
+      // The browser's long animation frame buffer is replayed once, on the
+      // first enable. Disabling and re-enabling resumes live observation
+      // instead of re-emitting frames that were already logged.
+      buffered: !this._hasReplayedBufferedEntries,
+    });
+    this._observer = observer;
+    // Set only after a successful observe, so a failed first enable keeps the
+    // replay pending for the next attempt.
+    this._hasReplayedBufferedEntries = true;
   }
 
   protected override _onDisable(): void {
@@ -116,9 +134,7 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     this._observer = undefined;
   }
 
-  private _emitLongAnimationFrame(
-    entry: PerformanceLongAnimationFrameTiming,
-  ): void {
+  private _emitLongAnimationFrame(entry: LongAnimationFrameEntry): void {
     if (!this.isEnabled()) {
       return;
     }
@@ -134,6 +150,8 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
     const sanitize = (url: string): string =>
       sanitizeUrl && typeof url === 'string' ? sanitizeUrl(url) : url;
 
+    const scripts = Array.isArray(entry.scripts) ? entry.scripts : [];
+
     const record: LogRecord = {
       eventName: LONG_ANIMATION_FRAME_EVENT_NAME,
       severityNumber: SeverityNumber.INFO,
@@ -142,32 +160,28 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
         [ATTR_LONG_ANIMATION_FRAME_START_TIME]: entry.startTime,
         [ATTR_LONG_ANIMATION_FRAME_DURATION]: entry.duration,
         [ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION]: entry.blockingDuration,
-        [ATTR_LONG_ANIMATION_FRAME_RENDER_START]: entry.renderStart,
-        [ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START]:
-          entry.styleAndLayoutStart,
-        [ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP]:
-          entry.firstUIEventTimestamp,
-        ...(Array.isArray(entry.scripts) && entry.scripts.length > 0
+        // The spec's getters return 0 when the frame has no such value (no
+        // rendering cycle, no style and layout, no UI event). A 0 would read as
+        // a real time at the time origin, so the attribute is omitted instead.
+        ...(entry.renderStart > 0
+          ? { [ATTR_LONG_ANIMATION_FRAME_RENDER_START]: entry.renderStart }
+          : {}),
+        ...(entry.styleAndLayoutStart > 0
           ? {
-              [ATTR_LONG_ANIMATION_FRAME_SCRIPTS]: entry.scripts.map(
-                (script): AnyValueMap => ({
-                  start_time: script.startTime,
-                  duration: script.duration,
-                  execution_start: script.executionStart,
-                  invoker: URL_VALUED_INVOKER_TYPES.has(script.invokerType)
-                    ? sanitize(script.invoker)
-                    : script.invoker,
-                  invoker_type: script.invokerType,
-                  source_url: script.sourceURL
-                    ? sanitize(script.sourceURL)
-                    : script.sourceURL,
-                  source_function_name: script.sourceFunctionName,
-                  source_char_position: script.sourceCharPosition,
-                  pause_duration: script.pauseDuration,
-                  forced_style_and_layout_duration:
-                    script.forcedStyleAndLayoutDuration,
-                  window_attribution: script.windowAttribution,
-                }),
+              [ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START]:
+                entry.styleAndLayoutStart,
+            }
+          : {}),
+        ...(entry.firstUIEventTimestamp > 0
+          ? {
+              [ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP]:
+                entry.firstUIEventTimestamp,
+            }
+          : {}),
+        ...(scripts.length > 0
+          ? {
+              [ATTR_LONG_ANIMATION_FRAME_SCRIPTS]: scripts.map((script) =>
+                scriptAttributes(script, sanitize),
               ),
             }
           : {}),

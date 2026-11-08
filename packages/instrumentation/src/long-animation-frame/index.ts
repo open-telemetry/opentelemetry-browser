@@ -5,7 +5,7 @@
 
 export { LongAnimationFrameInstrumentation } from './instrumentation.ts';
 export type {
+  LongAnimationFrameEntry,
   LongAnimationFrameInstrumentationConfig,
-  PerformanceLongAnimationFrameTiming,
-  PerformanceScriptTiming,
+  LongAnimationFrameScript,
 } from './types.ts';

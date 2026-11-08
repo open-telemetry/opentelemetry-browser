@@ -14,7 +14,6 @@ import {
   it,
   vi,
 } from 'vitest';
-import { defaultSanitizeUrl } from '#utils';
 import { setupTestLogExporter } from '#utils/test';
 import { LongAnimationFrameInstrumentation } from './instrumentation.ts';
 import {
@@ -28,8 +27,8 @@ import {
   LONG_ANIMATION_FRAME_EVENT_NAME,
 } from './semconv.ts';
 import type {
+  LongAnimationFrameEntry,
   LongAnimationFrameInstrumentationConfig,
-  PerformanceLongAnimationFrameTiming,
 } from './types.ts';
 
 // The browser-native base starts off and enables on request, unlike the
@@ -172,14 +171,6 @@ describe('LongAnimationFrameInstrumentation', () => {
   it('sanitizes source_url with defaultSanitizeUrl when nothing is configured', () => {
     instrumentation = createInstrumentation();
 
-    expect(
-      (
-        instrumentation as unknown as {
-          _config: { sanitizeUrl?: unknown };
-        }
-      )._config.sanitizeUrl,
-    ).toBe(defaultSanitizeUrl);
-
     const entry = createLongAnimationFrameEntry({
       scripts: [
         createScriptEntry({
@@ -281,16 +272,7 @@ describe('LongAnimationFrameInstrumentation', () => {
       return url;
     });
     instrumentation = createInstrumentation({ sanitizeUrl });
-    const diagError = vi
-      .spyOn(
-        (
-          instrumentation as unknown as {
-            _diag: { error: (...args: unknown[]) => void };
-          }
-        )._diag,
-        'error',
-      )
-      .mockImplementation(() => {});
+    const diagError = spyOnDiagError(instrumentation);
 
     const broken = createLongAnimationFrameEntry({
       scripts: [
@@ -364,34 +346,55 @@ describe('LongAnimationFrameInstrumentation', () => {
     );
   });
 
-  it('does not create an observer when PerformanceObserver is unavailable', () => {
+  it('stays disabled and logs a diag error when PerformanceObserver is unavailable', () => {
     vi.stubGlobal('PerformanceObserver', undefined);
+    instrumentation = new LongAnimationFrameInstrumentation();
+    const diagError = spyOnDiagError(instrumentation);
 
-    instrumentation = createInstrumentation();
+    instrumentation.enable();
 
-    expect(PerformanceObserverMock).not.toHaveBeenCalled();
+    expect(instrumentation.isEnabled()).toBe(false);
+    expect(diagError).toHaveBeenCalledWith(
+      expect.stringContaining('init failed'),
+      expect.any(Error),
+    );
   });
 
-  it('does not create an observer when supported entry types are unavailable', () => {
+  it('stays disabled and logs a diag error when supported entry types are unavailable', () => {
     Object.defineProperty(PerformanceObserverMock, 'supportedEntryTypes', {
       configurable: true,
       value: undefined,
     });
+    instrumentation = new LongAnimationFrameInstrumentation();
+    const diagError = spyOnDiagError(instrumentation);
 
-    instrumentation = createInstrumentation();
+    instrumentation.enable();
 
-    expect(PerformanceObserverMock).not.toHaveBeenCalled();
+    expect(instrumentation.isEnabled()).toBe(false);
+    expect(diagError).toHaveBeenCalledWith(
+      expect.stringContaining('init failed'),
+      expect.any(Error),
+    );
   });
 
-  it('does not create an observer when long animation frames are unsupported', () => {
+  it('stays disabled and reports the unsupported entry type', () => {
     Object.defineProperty(PerformanceObserverMock, 'supportedEntryTypes', {
       configurable: true,
       value: ['resource'],
     });
+    instrumentation = new LongAnimationFrameInstrumentation();
+    const diagError = spyOnDiagError(instrumentation);
 
-    instrumentation = createInstrumentation();
+    instrumentation.enable();
 
+    expect(instrumentation.isEnabled()).toBe(false);
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
+    expect(diagError).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'does not support the "long-animation-frame" entry type',
+      ),
+      expect.any(Error),
+    );
   });
 
   it('disconnects the observer and can be enabled again', () => {
@@ -427,19 +430,14 @@ describe('LongAnimationFrameInstrumentation', () => {
       throw new Error('observe failed');
     });
     instrumentation = new LongAnimationFrameInstrumentation();
-    vi.spyOn(
-      (
-        instrumentation as unknown as {
-          _diag: { error: (...args: unknown[]) => void };
-        }
-      )._diag,
-      'error',
-    ).mockImplementation(() => {});
+    spyOnDiagError(instrumentation);
 
+    // The failed enable rolls back to `disabled`, so this second enable() runs
+    // `_onEnable()` again instead of being ignored.
     instrumentation.enable();
-    instrumentation.disable();
     instrumentation.enable();
 
+    expect(instrumentation.isEnabled()).toBe(true);
     expect(observe).toHaveBeenNthCalledWith(2, {
       type: 'long-animation-frame',
       buffered: true,
@@ -472,32 +470,84 @@ describe('LongAnimationFrameInstrumentation', () => {
     );
   });
 
-  it('contains observer setup failures', () => {
+  it('omits scripts when the frame has no script entries', () => {
+    instrumentation = createInstrumentation();
+    const entry = createLongAnimationFrameEntry({ scripts: [] });
+
+    observerCallback(createEntryList([entry]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes).not.toHaveProperty(
+      ATTR_LONG_ANIMATION_FRAME_SCRIPTS,
+    );
+  });
+
+  it('omits the time attributes the spec reports as 0 when they have no value', () => {
+    instrumentation = createInstrumentation();
+    const entry = createLongAnimationFrameEntry({
+      renderStart: 0,
+      styleAndLayoutStart: 0,
+      firstUIEventTimestamp: 0,
+    });
+
+    observerCallback(createEntryList([entry]), {
+      disconnect,
+    } as unknown as PerformanceObserver);
+
+    const [record] = inMemoryExporter.getFinishedLogRecords();
+    expect(record?.attributes).not.toHaveProperty(
+      ATTR_LONG_ANIMATION_FRAME_RENDER_START,
+    );
+    expect(record?.attributes).not.toHaveProperty(
+      ATTR_LONG_ANIMATION_FRAME_STYLE_AND_LAYOUT_START,
+    );
+    expect(record?.attributes).not.toHaveProperty(
+      ATTR_LONG_ANIMATION_FRAME_FIRST_UI_EVENT_TIMESTAMP,
+    );
+    // The attributes that are always meaningful are still there.
+    expect(record?.attributes).toMatchObject({
+      [ATTR_LONG_ANIMATION_FRAME_START_TIME]: 100,
+      [ATTR_LONG_ANIMATION_FRAME_DURATION]: 320,
+      [ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION]: 250,
+    });
+  });
+
+  it('rolls back to disabled and logs when the observer cannot start', () => {
     observe.mockImplementation(() => {
       throw new Error('observe failed');
     });
     instrumentation = new LongAnimationFrameInstrumentation();
-    const diagError = vi
-      .spyOn(
-        (
-          instrumentation as unknown as {
-            _diag: { error: (...args: unknown[]) => void };
-          }
-        )._diag,
-        'error',
-      )
-      .mockImplementation(() => {});
+    const diagError = spyOnDiagError(instrumentation);
 
     expect(() => instrumentation.enable()).not.toThrow();
+
+    expect(instrumentation.isEnabled()).toBe(false);
     expect(diagError).toHaveBeenCalledWith(
-      'Failed to start long-animation-frame PerformanceObserver',
+      'enable failed: observe failed',
       expect.any(Error),
     );
   });
 });
 
+function spyOnDiagError(
+  instrumentation: LongAnimationFrameInstrumentation,
+): ReturnType<typeof vi.fn> {
+  return vi
+    .spyOn(
+      (
+        instrumentation as unknown as {
+          _diag: { error: (...args: unknown[]) => void };
+        }
+      )._diag,
+      'error',
+    )
+    .mockImplementation(() => {});
+}
+
 function createEntryList(
-  entries: PerformanceLongAnimationFrameTiming[],
+  entries: LongAnimationFrameEntry[],
 ): PerformanceObserverEntryList {
   return {
     getEntries: () => entries,
@@ -507,8 +557,8 @@ function createEntryList(
 }
 
 function createLongAnimationFrameEntry(
-  overrides: Partial<PerformanceLongAnimationFrameTiming> = {},
-): PerformanceLongAnimationFrameTiming {
+  overrides: Partial<LongAnimationFrameEntry> = {},
+): LongAnimationFrameEntry {
   return {
     name: 'frame',
     entryType: 'long-animation-frame',
@@ -525,10 +575,8 @@ function createLongAnimationFrameEntry(
 }
 
 function createScriptEntry(
-  overrides: Partial<
-    PerformanceLongAnimationFrameTiming['scripts'][number]
-  > = {},
-): PerformanceLongAnimationFrameTiming['scripts'][number] {
+  overrides: Partial<LongAnimationFrameEntry['scripts'][number]> = {},
+): LongAnimationFrameEntry['scripts'][number] {
   return {
     name: 'app.js',
     entryType: 'script',
@@ -546,5 +594,5 @@ function createScriptEntry(
     window: null,
     toJSON: () => ({}),
     ...overrides,
-  } as PerformanceLongAnimationFrameTiming['scripts'][number];
+  } as LongAnimationFrameEntry['scripts'][number];
 }

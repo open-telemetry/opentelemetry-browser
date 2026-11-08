@@ -3,8 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/** A script timing entry reported by the Long Animation Frames API. */
-export interface PerformanceScriptTiming extends PerformanceEntry {
+/**
+ * A script timing entry reported by the Long Animation Frames API.
+ *
+ * Named after the entry rather than after the spec's
+ * `PerformanceScriptTiming` interface: the DOM lib declares a global with that
+ * name once the API ships, and an exported type that shadows a global is
+ * confusing to import.
+ * @see https://w3c.github.io/long-animation-frames/#sec-performance-script-timing
+ */
+export interface LongAnimationFrameScript extends PerformanceEntry {
   invokerType: string;
   invoker: string;
   executionStart: DOMHighResTimeStamp;
@@ -17,13 +25,21 @@ export interface PerformanceScriptTiming extends PerformanceEntry {
   window: Window | null;
 }
 
-/** A long-animation-frame performance entry, currently missing from TypeScript DOM types. */
-export interface PerformanceLongAnimationFrameTiming extends PerformanceEntry {
+/**
+ * A long-animation-frame performance entry, currently missing from TypeScript's
+ * DOM lib.
+ *
+ * `renderStart`, `styleAndLayoutStart` and `firstUIEventTimestamp` are `0` when
+ * the frame has no such value — no rendering cycle, no UI event — which is why
+ * they are typed as always-present numbers rather than optional fields.
+ * @see https://w3c.github.io/long-animation-frames/#sec-performance-long-animation-frame-timing
+ */
+export interface LongAnimationFrameEntry extends PerformanceEntry {
   renderStart: DOMHighResTimeStamp;
   styleAndLayoutStart: DOMHighResTimeStamp;
   blockingDuration: DOMHighResTimeStamp;
   firstUIEventTimestamp: DOMHighResTimeStamp;
-  scripts: PerformanceScriptTiming[];
+  scripts: LongAnimationFrameScript[];
 }
 
 /**
