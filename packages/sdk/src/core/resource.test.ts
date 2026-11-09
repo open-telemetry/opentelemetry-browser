@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import {
   defaultResource,
   resourceFromAttributes,
@@ -143,6 +144,7 @@ describe('createResource', () => {
       { schemaUrl: 'https://opentelemetry.io/schemas/1.43.0' },
     );
     const detector = { detect: vi.fn() };
+    const diagWarnSpy = vi.spyOn(diag, 'warn');
 
     expect(
       createResource(
@@ -155,5 +157,18 @@ describe('createResource', () => {
       ),
     ).toBe(resource);
     expect(detector.detect).not.toHaveBeenCalled();
+    expect(diagWarnSpy).toHaveBeenCalledWith(
+      'A resource was provided. resourceDetectors, resourceAttributes, serviceName and serviceVersion are ignored.',
+    );
+    diagWarnSpy.mockRestore();
+  });
+
+  it('does not warn when only a resource is supplied', () => {
+    const resource = resourceFromAttributes({ 'service.name': 'shared' });
+    const diagWarnSpy = vi.spyOn(diag, 'warn');
+
+    expect(createResource({ resource }, [])).toBe(resource);
+    expect(diagWarnSpy).not.toHaveBeenCalled();
+    diagWarnSpy.mockRestore();
   });
 });

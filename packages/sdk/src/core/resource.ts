@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { diag } from '@opentelemetry/api';
 import type { Resource, ResourceDetector } from '@opentelemetry/resources';
 import {
   defaultResource,
@@ -23,6 +24,16 @@ export function createResource(
   detectors?: ResourceDetector[],
 ): Resource {
   if (config?.resource) {
+    if (
+      detectors?.length ||
+      config.resourceAttributes ||
+      config.serviceName ||
+      config.serviceVersion
+    ) {
+      diag.warn(
+        'A resource was provided. resourceDetectors, resourceAttributes, serviceName and serviceVersion are ignored.',
+      );
+    }
     return config.resource;
   }
 
