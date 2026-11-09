@@ -180,7 +180,6 @@ When you migrate:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-
 ### Maintainers
 
 - [David Luna](https://github.com/david-luna), Elastic
