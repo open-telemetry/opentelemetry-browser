@@ -234,6 +234,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     try {
       const record: LogRecord = {
         eventName: RESOURCE_TIMING_EVENT_NAME,
+        timestamp: entry.startTime,
         severityNumber: SeverityNumber.INFO,
         attributes: {
           [ATTR_RESOURCE_URL]: entry.name,

@@ -113,9 +113,17 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     this.logger.emit(logRecord);
   }
 
+  private _hasWarnedApplyCustomLogRecordData = false;
+
   private _applyCustomLogRecordData(logRecord: LogRecord) {
     const applyCustomLogRecordData = this._config.applyCustomLogRecordData;
     if (applyCustomLogRecordData) {
+      if (!this._hasWarnedApplyCustomLogRecordData) {
+        this._hasWarnedApplyCustomLogRecordData = true;
+        this._diag.warn(
+          'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+        );
+      }
       this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );

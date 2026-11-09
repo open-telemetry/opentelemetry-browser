@@ -181,7 +181,6 @@ When you migrate:
 
 See [CONTRIBUTING.md](CONTRIBUTING.md)
 
-
 ### Maintainers
 
 - [David Luna](https://github.com/david-luna), Elastic
@@ -195,6 +194,7 @@ For more information about the maintainer role, see the
 
 ### Approvers
 
+- [Aditya Reddy](https://github.com/adityareddy-dev), Independent
 - [Maxime Quentin](https://github.com/mquentin), Datadog
 
 For more information about the approver role, see the

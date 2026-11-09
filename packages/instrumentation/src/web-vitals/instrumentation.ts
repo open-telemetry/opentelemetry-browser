@@ -18,7 +18,9 @@ import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
+  ATTR_WEB_VITAL_NAVIGATION_ID,
   ATTR_WEB_VITAL_NAVIGATION_TYPE,
+  ATTR_WEB_VITAL_NAVIGATION_URL,
   ATTR_WEB_VITAL_RATING,
   ATTR_WEB_VITAL_VALUE,
   WEB_VITAL_EVENT_NAME,
@@ -35,6 +37,8 @@ import type { WebVitalsInstrumentationConfig } from './types.ts';
  */
 export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstrumentationConfig> {
   private _hasSubscribed = false;
+  private _hasWarnedApplyCustomLogRecordData = false;
+  private _softNavsActive = false;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
     super('@opentelemetry/browser-instrumentation/web-vitals', version, config);
@@ -47,9 +51,15 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       return;
     }
     this._diag.debug('Subscribing listeners');
+    const { reportAllChanges, reportSoftNavs } = this._config;
+    this._softNavsActive = (reportSoftNavs ?? false) && isSoftNavSupported();
     const opts = {
-      reportAllChanges: this._config.reportAllChanges ?? false,
+      reportAllChanges: reportAllChanges ?? false,
+      reportSoftNavs: reportSoftNavs ?? false,
     };
+    // web-vitals reports a placeholder TTFB of 0 for each soft navigation,
+    // which would pull TTFB aggregates down.
+    const ttfbOpts = { ...opts, reportSoftNavs: false };
     // CLS is only supported in Chromium. See:
     // https://github.com/GoogleChrome/web-vitals?tab=readme-ov-file#browser-support
     const subscribers = [
@@ -65,7 +75,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       try {
         subscribe(
           (metric: MetricWithAttribution) => this._emitWebVital(metric),
-          opts,
+          name === 'TTFB' ? ttfbOpts : opts,
         );
       } catch (err) {
         this._diag.warn(`could not subscribe to ${name}`, this._toError(err));
@@ -91,10 +101,15 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     }
     if (metric.name === 'INP') {
       const { attribution } = metric as INPMetricWithAttribution;
-      return attribution.interactionTime;
+      // A soft navigation or bfcache restore with only fast interactions reports a
+      // placeholder INP with no interaction, so time it at that navigation's start.
+      return (
+        attribution.interactionTime ?? (metric.navigationStartTime || undefined)
+      );
     }
-    // FCP, LCP, TTFB: metric.value is already DOMHighResTimeStamp of the event
-    return metric.value;
+    // FCP, LCP, TTFB: metric.value is relative to the navigation start: 0 for
+    // hard navigations, the restore time for bfcache, or the soft navigation's startTime.
+    return (metric.navigationStartTime ?? 0) + metric.value;
   }
 
   private _emitWebVital(metric: MetricWithAttribution): void {
@@ -117,9 +132,22 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       [ATTR_WEB_VITAL_ID]: metric.id,
       [ATTR_WEB_VITAL_NAVIGATION_TYPE]: metric.navigationType,
     };
+    // web-vitals uses 0 when the browser exposes no navigation id.
+    if (metric.navigationId) {
+      attributes[ATTR_WEB_VITAL_NAVIGATION_ID] = metric.navigationId;
+    }
+    const { applyCustomLogRecordData, includeRawAttribution, sanitizeUrl } =
+      this._config;
+    // web-vitals sets the landing URL when soft navs are off or unsupported, so
+    // the URL would not identify the route. The current URL is not reliable either,
+    // because a metric can be reported after the route changed.
+    if (this._softNavsActive && metric.navigationURL !== undefined) {
+      attributes[ATTR_WEB_VITAL_NAVIGATION_URL] = sanitizeUrl
+        ? sanitizeUrl(metric.navigationURL)
+        : metric.navigationURL;
+    }
 
     const timestamp = this._getTimestampForMetric(metric);
-    const { applyCustomLogRecordData, includeRawAttribution } = this._config;
 
     const logRecord: LogRecord = {
       eventName: WEB_VITAL_EVENT_NAME,
@@ -132,6 +160,12 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     };
 
     if (applyCustomLogRecordData) {
+      if (!this._hasWarnedApplyCustomLogRecordData) {
+        this._hasWarnedApplyCustomLogRecordData = true;
+        this._diag.warn(
+          'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+        );
+      }
       this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );
@@ -140,3 +174,9 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     this.logger.emit(logRecord);
   }
 }
+
+// Same checks as web-vitals' internal `checkSoftNavsEnabled`, which it does not export.
+const isSoftNavSupported = (): boolean =>
+  PerformanceObserver.supportedEntryTypes.includes('soft-navigation') &&
+  typeof globalThis.PerformanceSoftNavigation?.prototype
+    ?.getLargestInteractionContentfulPaint === 'function';
