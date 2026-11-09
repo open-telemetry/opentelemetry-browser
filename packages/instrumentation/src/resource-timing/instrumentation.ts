@@ -127,7 +127,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
 
   private _setupObserver(): void {
     const observer = new PerformanceObserver((list) => {
-      // Fires asynchronously, so it can outlive disable().
+      // A callback queued before disconnect() can still run after disable().
       if (!this.isEnabled()) {
         return;
       }
@@ -235,6 +235,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
     try {
       const record: LogRecord = {
         eventName: RESOURCE_TIMING_EVENT_NAME,
+        timestamp: entry.startTime,
         severityNumber: SeverityNumber.INFO,
         attributes: {
           [ATTR_RESOURCE_URL]: entry.name,

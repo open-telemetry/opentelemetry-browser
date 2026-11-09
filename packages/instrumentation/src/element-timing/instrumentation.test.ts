@@ -240,6 +240,33 @@ describe('ElementTimingInstrumentation', () => {
     expect(mockObserver.disconnect).toHaveBeenCalledTimes(1);
   });
 
+  it('should not emit entries delivered after disable', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+    instrumentation.disable();
+
+    observerCallback(
+      createMockPerformanceObserverEntryList([createMockElementEntry()]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+
+    expect(getElementTimingLogs()).toHaveLength(0);
+  });
+
+  it('should emit entries delivered after re-enable', () => {
+    instrumentation = new ElementTimingInstrumentation();
+    instrumentation.enable();
+    instrumentation.disable();
+    instrumentation.enable();
+
+    observerCallback(
+      createMockPerformanceObserverEntryList([createMockElementEntry()]),
+      mockObserver as unknown as PerformanceObserver,
+    );
+
+    expect(getElementTimingLogs()).toHaveLength(1);
+  });
+
   it('should not enable twice', () => {
     instrumentation = new ElementTimingInstrumentation();
     instrumentation.enable();

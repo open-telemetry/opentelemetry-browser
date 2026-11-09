@@ -119,10 +119,10 @@ repositories.
 
 ### Packages in this repository
 
-| Package                                                              | Description                                                                                                                                                    | Status       |
-| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Browser instrumentations: event-based (console, errors, navigation, navigation timing, resource timing, user actions, web vitals) and span-based (fetch, XHR). | experimental |
-| [@opentelemetry/browser-sdk](./packages/sdk)                         | Browser SDK components, including browser resource detection, document context, and session management.                                                        | experimental |
+| Package                                                              | Description                                                                                                                                                                    | Status       |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------ |
+| [@opentelemetry/browser-instrumentation](./packages/instrumentation) | Browser instrumentations: event-based (console, errors, navigation, navigation timing, resource timing, element timing, user actions, web vitals) and span-based (fetch, XHR). | experimental |
+| [@opentelemetry/browser-sdk](./packages/sdk)                         | Browser SDK components, including browser resource detection, document context, and session management.                                                                        | experimental |
 
 ### Migrate from classic browser instrumentations
 
@@ -194,6 +194,7 @@ For more information about the maintainer role, see the
 
 ### Approvers
 
+- [Aditya Reddy](https://github.com/adityareddy-dev), Independent
 - [Maxime Quentin](https://github.com/mquentin), Datadog
 
 For more information about the approver role, see the
