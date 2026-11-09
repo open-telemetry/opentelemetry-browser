@@ -38,6 +38,7 @@ import type { WebVitalsInstrumentationConfig } from './types.ts';
  */
 export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstrumentationConfig> {
   private _hasSubscribed = false;
+  private _hasWarnedApplyCustomLogRecordData = false;
   private _softNavsActive = false;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
@@ -160,6 +161,12 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     };
 
     if (applyCustomLogRecordData) {
+      if (!this._hasWarnedApplyCustomLogRecordData) {
+        this._hasWarnedApplyCustomLogRecordData = true;
+        this._diag.warn(
+          'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+        );
+      }
       this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );

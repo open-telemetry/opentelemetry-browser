@@ -5,7 +5,12 @@
 
 import type { Logger } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
+import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import {
+  InMemoryLogRecordExporter,
+  LoggerProvider,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import {
   afterEach,
   beforeAll,
@@ -316,6 +321,71 @@ describe('UserActionInstrumentation', () => {
       const logs = inMemoryExporter.getFinishedLogRecords();
       expect(logs.length).toBe(1);
       expect(diagErrorSpy).toHaveBeenCalled();
+    });
+
+    it('should emit a one-time deprecation warning when the hook is used', () => {
+      disableInstrumentations();
+      const customInstrumentation = new UserActionInstrumentation({
+        applyCustomLogRecordData: (logRecord) => {
+          logRecord.attributes = {
+            ...logRecord.attributes,
+            'custom.attribute': 'custom-value',
+          };
+        },
+      });
+      const diagWarnSpy = vi
+        .spyOn(
+          (
+            customInstrumentation as unknown as {
+              _diag: { warn: (...a: unknown[]) => void };
+            }
+          )._diag,
+          'warn',
+        )
+        .mockImplementation(() => {});
+
+      enableForTest(customInstrumentation);
+
+      const element = createTestElement();
+      dispatchMouseDownEvent(element, 0);
+      dispatchMouseDownEvent(element, 0);
+
+      expect(diagWarnSpy).toHaveBeenCalledTimes(1);
+      expect(diagWarnSpy).toHaveBeenCalledWith(
+        'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+      );
+    });
+  });
+
+  describe('LogRecordProcessor custom attributes', () => {
+    it('should allow custom LogRecordProcessor to add attributes in onEmit', () => {
+      disableInstrumentations();
+      const memoryExporter = new InMemoryLogRecordExporter();
+      const customProcessor: LogRecordProcessor = {
+        onEmit: (record: SdkLogRecord) => {
+          record.setAttribute('custom.processor.key', 'custom.processor.value');
+        },
+        shutdown: async () => {},
+        forceFlush: async () => {},
+      };
+      const loggerProvider = new LoggerProvider({
+        processors: [
+          customProcessor,
+          new SimpleLogRecordProcessor({ exporter: memoryExporter }),
+        ],
+      });
+
+      const customInstrumentation = new UserActionInstrumentation();
+      enableForTest(customInstrumentation, { loggerProvider });
+
+      const element = createTestElement();
+      dispatchMouseDownEvent(element, 0);
+
+      const logs = memoryExporter.getFinishedLogRecords();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes['custom.processor.key']).toBe(
+        'custom.processor.value',
+      );
     });
   });
 });
