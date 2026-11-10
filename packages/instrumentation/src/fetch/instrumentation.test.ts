@@ -40,6 +40,7 @@ import {
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
 import {
+  callWithTracingSuppressed,
   enableForTest,
   setupTestDiagLogger,
   setupTestSpanExporter,
@@ -760,6 +761,70 @@ describe('FetchInstrumentation', () => {
         await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when tracing is suppressed', () => {
+      it('should not create a span, call hooks or register a resource', async () => {
+        const requestHook = vi.fn();
+        const applyCustomAttributesOnSpan = vi.fn();
+        enableWithConfig({ requestHook, applyCustomAttributesOnSpan });
+        const url = getUrlForPath('/api/get');
+
+        const result = await callWithTracingSuppressed(() => fetch(url)).then(
+          (r) => r.json(),
+        );
+
+        expect(result).toEqual({ ok: true });
+        await expect(waitForSpan(url)).rejects.toThrow();
+        expect(requestHook).not.toHaveBeenCalled();
+        expect(applyCustomAttributesOnSpan).not.toHaveBeenCalled();
+        expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+
+      it('should not inject headers with a propagator that ignores suppression', async () => {
+        const fake: TextMapPropagator = {
+          inject: (_ctx, carrier, setter) =>
+            setter?.set(carrier, 'x-test', '1'),
+          extract: (ctx) => ctx,
+          fields: () => ['x-test'],
+        };
+        instrumentation?.disable();
+        instrumentation = new FetchInstrumentation();
+        enableForTest(instrumentation, { propagator: fake });
+        const url = getUrlForPath('/api/echo-headers.json');
+
+        const response = await callWithTracingSuppressed(() => fetch(url));
+        const { request } = await response.json();
+
+        expect(request.headers['x-test']).toBeUndefined();
+      });
+
+      it('should pass the arguments to the wrapped fetch unchanged', async () => {
+        const wrapped = vi.fn<typeof fetch>().mockResolvedValue(new Response());
+        globalThis.fetch = wrapped;
+        onTestFinished(() => {
+          globalThis.fetch = originalFetchFunction;
+        });
+        enableWithConfig();
+        const request = new Request(getUrlForPath('/api/get'));
+        const init: RequestInit = { headers: { foo: 'bar' } };
+
+        await callWithTracingSuppressed(() => fetch(request, init));
+
+        expect(wrapped).toHaveBeenCalledOnce();
+        expect(wrapped.mock.calls[0]?.[0]).toBe(request);
+        expect(wrapped.mock.calls[0]?.[1]).toBe(init);
+      });
+
+      it('should instrument requests made after suppression ends', async () => {
+        const url = getUrlForPath('/api/get');
+
+        await callWithTracingSuppressed(() => fetch(url));
+        await fetch(url);
+
+        await waitForSpan(url);
+        expect(getFetchSpans()).toHaveLength(1);
       });
     });
 

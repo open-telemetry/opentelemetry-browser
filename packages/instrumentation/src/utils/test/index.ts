@@ -4,8 +4,9 @@
  */
 
 import type { DiagLogger } from '@opentelemetry/api';
-import { DiagLogLevel, diag, trace } from '@opentelemetry/api';
+import { context, DiagLogLevel, diag, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
+import { suppressTracing } from '@opentelemetry/core';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   InMemoryLogRecordExporter,
@@ -99,4 +100,21 @@ export const getWrapDepth = (fn: unknown): number => {
     current = current.__original as { __original?: unknown };
   }
   return depth;
+};
+
+/**
+ * Calls `fn` with tracing suppressed, as an exporter does around its requests.
+ * Stubs `context.active()` because these tests register no context manager.
+ * Only synchronous code in `fn` sees the suppressed context, matching a
+ * stack-based context manager.
+ */
+export const callWithTracingSuppressed = <T>(fn: () => T): T => {
+  const active = vi
+    .spyOn(context, 'active')
+    .mockReturnValue(suppressTracing(context.active()));
+  try {
+    return fn();
+  } finally {
+    active.mockRestore();
+  }
 };
