@@ -16,7 +16,7 @@ export interface WebVitalsInstrumentationConfig {
    * Defaults to `false`.
    *
    * Interaction selectors and script URLs can contain sensitive data.
-   * Use `applyCustomLogRecordData` to redact attributes before emission.
+   * Use a custom `LogRecordProcessor` to redact attributes before export.
    */
   includeAttribution?: boolean;
 
@@ -27,7 +27,7 @@ export interface WebVitalsInstrumentationConfig {
    * attributes. Defaults to `false`.
    *
    * The raw body can contain more data than the selected attributes.
-   * Use `applyCustomLogRecordData` to redact it before emission.
+   * Use a custom `LogRecordProcessor` to redact it before export.
    *
    * Note: `applyCustomLogRecordData` runs after the body is set.
    * If the hook assigns a new `body`, it will overwrite the attribution data.

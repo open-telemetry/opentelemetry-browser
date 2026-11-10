@@ -154,7 +154,6 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     const longestScript = attribution.longestScript;
     if (longestScript) {
       // web-vitals supplies this entry only when LoAF is supported.
-      /* eslint-disable baseline-js/use-baseline */
       Object.assign(attributes, {
         [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER]:
           longestScript.entry.invoker,
@@ -169,7 +168,6 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
         [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION]:
           longestScript.intersectingDuration,
       });
-      /* eslint-enable baseline-js/use-baseline */
     }
 
     return attributes;

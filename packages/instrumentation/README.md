@@ -380,8 +380,8 @@ release.
 The `longest_script.*` attributes are only set when `web-vitals` reports a
 longest script, which needs the Long Animation Frames API.
 
-Selectors, script URLs and the raw body can contain sensitive data, which
-`applyCustomLogRecordData` can redact before export.
+Selectors, script URLs and the raw body can contain sensitive data, which a
+custom `LogRecordProcessor` can redact before export.
 
 ### Console
 
