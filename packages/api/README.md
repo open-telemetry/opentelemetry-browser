@@ -3,7 +3,8 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-url]
 
-**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
+**Note: This is an experimental package under active development. New releases
+may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
 
 The contract between browser SDKs and browser instrumentations:
 
@@ -43,7 +44,7 @@ dialog. It patches `alert()` in `_init()`, and listens for `beforeprint` in
 `_onEnable()`.
 
 ```typescript
-import { InstrumentationBase } from '@opentelemetry/browser-api/experimental/instrumentation';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 
 export class DialogInstrumentation extends InstrumentationBase {
   private _onBeforePrint = () => this._emitDialogOpen('print');

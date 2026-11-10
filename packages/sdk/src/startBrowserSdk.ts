@@ -7,7 +7,7 @@ import { diag } from '@opentelemetry/api';
 import type {
   Instrumentation,
   InstrumentationDeps,
-} from '@opentelemetry/browser-api/experimental/instrumentation';
+} from '@opentelemetry/browser-api';
 import { INVALID_CONFIG_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';

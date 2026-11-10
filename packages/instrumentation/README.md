@@ -656,10 +656,8 @@ interface: `instrumentationName`, `enable(deps?)`, `disable()` and
 The easiest way is to extend `InstrumentationBase`. It implements the lifecycle
 in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
 `Instrumentation` and `InstrumentationDeps` are exported from
-[`@opentelemetry/browser-api`](../api) at
-`@opentelemetry/browser-api/experimental/instrumentation`. Add it as a
-dependency. You do not need this package, so your instrumentation is not tied to
-its releases.
+[`@opentelemetry/browser-api`](../api). Add it as a dependency. You do not need
+this package, so your instrumentation is not tied to its releases.
 
 ```bash
 npm install @opentelemetry/browser-api
@@ -699,7 +697,7 @@ break the page. In your own `catch` blocks, pass the caught value through
 `_toError()` before you log it. A page can throw a value that is not an `Error`.
 
 ```typescript
-import { InstrumentationBase } from '@opentelemetry/browser-api/experimental/instrumentation';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 
 export interface RouteConfig {
   includeHash?: boolean;

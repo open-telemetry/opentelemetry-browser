@@ -26,11 +26,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@opentelemetry/browser-api/experimental/instrumentation': fileURLToPath(
-        new URL(
-          '../packages/api/src/instrumentation/index.ts',
-          import.meta.url,
-        ),
+      '@opentelemetry/browser-api': fileURLToPath(
+        new URL('../packages/api/src/index.ts', import.meta.url),
       ),
       '@opentelemetry/browser-instrumentation/experimental/console':
         fileURLToPath(

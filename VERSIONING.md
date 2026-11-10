@@ -1,8 +1,8 @@
 # Versioning
 
-All packages in this repository are pre-1.0, and every instrumentation and the
-instrumentation contract are exported under `./experimental/*`. Until that
-changes, any minor release may include breaking changes, in line with the
+All packages in this repository are pre-1.0, and every instrumentation is
+exported under `./experimental/*`. Until that changes, any minor release may
+include breaking changes, in line with the
 [Development status](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/versioning-and-stability.md#development)
 in the OpenTelemetry specification. Patch releases don't include breaking
 changes.

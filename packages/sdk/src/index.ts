@@ -6,7 +6,7 @@
 export type {
   Instrumentation,
   InstrumentationDeps,
-} from '@opentelemetry/browser-api/experimental/instrumentation';
+} from '@opentelemetry/browser-api';
 export type {
   LogsConfig,
   RootConfig,

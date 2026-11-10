@@ -6,7 +6,7 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '@opentelemetry/browser-api/experimental/instrumentation';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,

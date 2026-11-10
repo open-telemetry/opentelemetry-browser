@@ -9,7 +9,7 @@ import { logs } from '@opentelemetry/api-logs';
 import type {
   Instrumentation,
   InstrumentationDeps,
-} from '@opentelemetry/browser-api/experimental/instrumentation';
+} from '@opentelemetry/browser-api';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   InMemoryLogRecordExporter,

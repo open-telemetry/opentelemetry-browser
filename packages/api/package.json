@@ -20,9 +20,9 @@
   },
   "type": "module",
   "exports": {
-    "./experimental/instrumentation": {
-      "types": "./dist/instrumentation/index.d.ts",
-      "default": "./dist/instrumentation/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
