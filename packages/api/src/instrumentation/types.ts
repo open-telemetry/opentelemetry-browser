@@ -22,7 +22,7 @@ export interface InstrumentationDeps {
   readonly tracerProvider?: TracerProvider;
   /** Used for log records. The default is the global logger provider. */
   readonly loggerProvider?: LoggerProvider;
-  /** Used to inject trace context. The default is the global propagation API. */
+  /** Used to inject and extract trace context. The default is the global propagation API. */
   readonly propagator?: TextMapPropagator;
 }
 
