@@ -99,6 +99,7 @@ describe('ResourceTimingInstrumentation', () => {
 
   afterEach(() => {
     instrumentation?.disable();
+    getNetworkContextRegistry().clearDocumentLoad();
     inMemoryExporter.reset();
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -840,6 +841,130 @@ describe('ResourceTimingInstrumentation', () => {
       ).toBe(RESOURCE_TIMING_EVENT_NAME);
       expect(records[0]?.spanContext?.traceId).toBe(TRACE_ID);
       expect(records[0]?.spanContext?.spanId).toBe(SPAN_ID);
+    });
+
+    describe('document load context', () => {
+      const LOAD_TRACE_ID = 'd'.repeat(32);
+      const LOAD_SPAN_ID = 'd'.repeat(16);
+      const FETCH_TRACE_ID = 'f'.repeat(32);
+      const FETCH_SPAN_ID = 'f'.repeat(16);
+
+      function makeSpan(traceId: string, spanId: string): Span {
+        return { spanContext: () => ({ traceId, spanId }) } as Span;
+      }
+
+      function emit(entries: PerformanceResourceTiming[]) {
+        observerCallback(
+          createMockPerformanceObserverEntryList(entries),
+          mockObserver as unknown as PerformanceObserver,
+        );
+        triggerIdleCallback(10);
+        return inMemoryExporter.getFinishedLogRecords();
+      }
+
+      beforeEach(() => {
+        getNetworkContextRegistry().setDocumentLoad(
+          makeSpan(LOAD_TRACE_ID, LOAD_SPAN_ID),
+          { startPerfNow: 10, endPerfNow: 500 },
+        );
+        instrumentation = new ResourceTimingInstrumentation();
+        enableForTest(instrumentation);
+      });
+
+      it('attaches it only to resources that finish inside the load interval', () => {
+        const records = emit([
+          createMockResourceEntry({
+            name: 'https://example.com/app.js',
+            fetchStart: 20,
+            responseEnd: 300,
+          }),
+          createMockResourceEntry({
+            name: 'https://example.com/late.js',
+            fetchStart: 400,
+            responseEnd: 600,
+          }),
+        ]);
+
+        expect(records).toHaveLength(2);
+        expect(records[0]?.spanContext?.spanId).toBe(LOAD_SPAN_ID);
+        expect(records[0]?.spanContext?.traceId).toBe(LOAD_TRACE_ID);
+        expect(records[1]?.spanContext).toBeUndefined();
+      });
+
+      it('lets a fetch/XHR span take precedence inside the load interval', () => {
+        getNetworkContextRegistry().register(
+          makeSpan(FETCH_TRACE_ID, FETCH_SPAN_ID),
+          {
+            key: 'https://example.com/api',
+            startPerfNow: 50,
+            endPerfNow: 200,
+          },
+        );
+
+        const records = emit([
+          createMockResourceEntry({
+            name: 'https://example.com/api',
+            fetchStart: 60,
+            responseEnd: 150,
+          }),
+        ]);
+
+        expect(records).toHaveLength(1);
+        expect(records[0]?.spanContext?.spanId).toBe(FETCH_SPAN_ID);
+      });
+
+      it('keeps two same-URL resources apart by their timing', () => {
+        getNetworkContextRegistry().register(
+          makeSpan(FETCH_TRACE_ID, FETCH_SPAN_ID),
+          {
+            key: 'https://example.com/api',
+            startPerfNow: 700,
+            endPerfNow: 800,
+          },
+        );
+
+        const records = emit([
+          createMockResourceEntry({
+            name: 'https://example.com/api',
+            fetchStart: 100,
+            responseEnd: 200,
+          }),
+          createMockResourceEntry({
+            name: 'https://example.com/api',
+            fetchStart: 710,
+            responseEnd: 790,
+          }),
+          createMockResourceEntry({
+            name: 'https://example.com/api',
+            fetchStart: 900,
+            responseEnd: 950,
+          }),
+        ]);
+
+        expect(records).toHaveLength(3);
+        expect(records[0]?.spanContext?.spanId).toBe(LOAD_SPAN_ID);
+        expect(records[1]?.spanContext?.spanId).toBe(FETCH_SPAN_ID);
+        expect(records[2]?.spanContext).toBeUndefined();
+      });
+
+      it('keeps the context for every resource of the load', () => {
+        const records = emit([
+          createMockResourceEntry({
+            name: 'https://example.com/a.js',
+            fetchStart: 20,
+            responseEnd: 100,
+          }),
+          createMockResourceEntry({
+            name: 'https://example.com/b.css',
+            fetchStart: 30,
+            responseEnd: 120,
+          }),
+        ]);
+
+        expect(records).toHaveLength(2);
+        expect(records[0]?.spanContext?.spanId).toBe(LOAD_SPAN_ID);
+        expect(records[1]?.spanContext?.spanId).toBe(LOAD_SPAN_ID);
+      });
     });
 
     it('should flush on visibility change', () => {

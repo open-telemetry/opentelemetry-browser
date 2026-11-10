@@ -199,7 +199,18 @@ already collected the document does not emit a second span for that load.
 
 Detailed timings come from the navigation-timing and resource-timing
 instrumentations, so there are no `documentFetch` or `resourceFetch` child spans
-or span events.
+or span events. Their events carry the `documentLoad` span context instead:
+
+- The navigation-timing event gets the `documentLoad` context.
+- A resource-timing event gets it when the resource started at or after
+  `fetchStart` and finished by `loadEventEnd`. A matching fetch or XHR span
+  takes precedence. Resources that finish after `loadEventEnd` get no context.
+
+The span starts in the load handler, before those events are emitted, so the
+order the instrumentations are enabled in does not matter during load. When
+enabling them after the page has loaded, enable document load first, since
+navigation-timing emits as soon as it is enabled. Disabling document load before
+its span ends removes the context, and re-enabling it brings the same span back.
 
 ---
 
