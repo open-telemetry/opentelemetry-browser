@@ -18,7 +18,7 @@ interaction span to parent subsequent network requests.
 | `event_type`                                                                 | No corresponding attribute               | Removed. The log event name identifies a click, arbitrary configured DOM event names are not supported |
 | `target_element`                                                             | `browser.tag_name`                       | Moved from a span attribute to a log attribute, still the element tag name                             |
 | `target_xpath`                                                               | `browser.css_selector`                   | Replaced by a CSS selector, not an XPath string. Update consumers that parse or group by XPath         |
-| `url.full`                                                                   | No built-in replacement on the click log | Removed. Add a page URL through `applyCustomLogRecordData` if required                                 |
+| `url.full`                                                                   | No built-in replacement on the click log | Removed. Add a page URL with a `LogRecordProcessor` if required                                        |
 | No corresponding attribute                                                   | `browser.mouse_event.button`             | New log attribute, `left`, `middle` or `right`                                                         |
 | No corresponding attribute                                                   | `browser.page.x`                         | New log attribute, click `pageX` coordinate                                                            |
 | No corresponding attribute                                                   | `browser.page.y`                         | New log attribute, click `pageY` coordinate                                                            |
@@ -29,8 +29,8 @@ interaction span to parent subsequent network requests.
 The scope name changes from `@opentelemetry/instrumentation-user-interaction` to
 `@opentelemetry/browser-instrumentation/user-action`.
 
-Attributes added in `shouldPreventSpanCreation` don't carry over. Set them in
-`applyCustomLogRecordData` instead.
+Attributes added in `shouldPreventSpanCreation` don't carry over. Set them in a
+`LogRecordProcessor` registered with the `LoggerProvider` instead.
 
 ## Sources
 
