@@ -71,7 +71,7 @@
     "@opentelemetry/propagator-b3": "3.0.0",
     "@opentelemetry/sdk-logs": "3.0.0",
     "@opentelemetry/sdk-trace": "3.0.0",
-    "msw": "3.0.3"
+    "msw": "3.0.4"
   },
   "publishConfig": {
     "access": "public"
