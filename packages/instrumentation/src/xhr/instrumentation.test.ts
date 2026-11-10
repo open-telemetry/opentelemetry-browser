@@ -41,6 +41,7 @@ import {
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
 import {
+  callWithTracingSuppressed,
   enableForTest,
   getWrapDepth,
   setupTestDiagLogger,
@@ -885,6 +886,79 @@ describe('XhrInstrumentation', () => {
         await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when tracing is suppressed', () => {
+      it('should not create a span, call hooks or register a resource', async () => {
+        const requestHook = vi.fn();
+        const applyCustomAttributesOnSpan = vi.fn();
+        enableWithConfig({ requestHook, applyCustomAttributesOnSpan });
+        const url = getUrlForPath('/api/get');
+
+        const result = await callWithTracingSuppressed(() =>
+          doXhrRequest({ method: 'GET', url }),
+        ).then((r) => r.json());
+
+        expect(result).toEqual({ ok: true });
+        await expect(waitForSpan(url)).rejects.toThrow();
+        expect(requestHook).not.toHaveBeenCalled();
+        expect(applyCustomAttributesOnSpan).not.toHaveBeenCalled();
+        expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+
+      it('should not inject headers with a propagator that ignores suppression', async () => {
+        const fake: TextMapPropagator = {
+          inject: (_ctx, carrier, setter) =>
+            setter?.set(carrier, 'x-test', '1'),
+          extract: (ctx) => ctx,
+          fields: () => ['x-test'],
+        };
+        instrumentation?.disable();
+        instrumentation = new XhrInstrumentation();
+        enableForTest(instrumentation, { propagator: fake });
+        const url = getUrlForPath('/api/echo-headers.json');
+
+        const response = await callWithTracingSuppressed(() =>
+          doXhrRequest({ method: 'GET', url }),
+        );
+        const headers = await assertPropagationHeaders(response);
+
+        expect(headers['x-test']).toBeUndefined();
+      });
+
+      it('should check suppression at send, not at open', async () => {
+        const url = getUrlForPath('/api/get');
+        const send = (xhr: XMLHttpRequest) =>
+          new Promise((resolve) => {
+            xhr.onload = resolve;
+            xhr.send();
+          });
+
+        const sentSuppressed = new XMLHttpRequest();
+        sentSuppressed.open('GET', url);
+        await callWithTracingSuppressed(() => send(sentSuppressed));
+
+        await expect(waitForSpan(url)).rejects.toThrow();
+
+        const openedSuppressed = new XMLHttpRequest();
+        callWithTracingSuppressed(() => openedSuppressed.open('GET', url));
+        await send(openedSuppressed);
+
+        await waitForSpan(url);
+        expect(getXhrSpans()).toHaveLength(1);
+      });
+
+      it('should instrument requests made after suppression ends', async () => {
+        const url = getUrlForPath('/api/get');
+
+        await callWithTracingSuppressed(() =>
+          doXhrRequest({ method: 'GET', url }),
+        );
+        await doXhrRequest({ method: 'GET', url });
+
+        await waitForSpan(url);
+        expect(getXhrSpans()).toHaveLength(1);
       });
     });
 
