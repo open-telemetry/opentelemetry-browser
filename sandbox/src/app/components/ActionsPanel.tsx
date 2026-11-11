@@ -135,6 +135,14 @@ export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
           >
             💥 Exception
           </button>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => act('longAnimationFrame')}
+            className="btn-err"
+          >
+            🦥 Long Frame
+          </button>
         </div>
       </article>
     </>
