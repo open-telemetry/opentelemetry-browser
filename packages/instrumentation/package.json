@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-instrumentation",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "OpenTelemetry browser instrumentations.",
   "keywords": [
     "opentelemetry",
@@ -30,12 +30,10 @@
   },
   "type": "module",
   "imports": {
-    "#instrumentation-base": "./src/InstrumentationBase/index.ts",
     "#utils": "./src/utils/index.ts",
     "#utils/test": "./src/utils/test/index.ts"
   },
   "exports": {
-    "./experimental/instrumentation-base": "./dist/InstrumentationBase/index.js",
     "./experimental/console": "./dist/console/index.js",
     "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/errors": "./dist/errors/index.js",
@@ -63,6 +61,7 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/browser-api": "^0.1.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "web-vitals": "^6.2.3"
   },
@@ -74,7 +73,7 @@
     "@opentelemetry/propagator-b3": "2.12.0",
     "@opentelemetry/sdk-logs": "0.223.0",
     "@opentelemetry/sdk-trace": "2.12.0",
-    "msw": "3.0.3"
+    "msw": "3.0.4"
   },
   "publishConfig": {
     "access": "public"

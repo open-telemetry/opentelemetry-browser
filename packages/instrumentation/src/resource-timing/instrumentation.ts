@@ -5,10 +5,9 @@
 
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '#instrumentation-base';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
-import { toError } from '../utils/toError.ts';
 import { matchesUrl } from '../utils/url.ts';
 import type { IdleCallbackHandle } from './idle-callback-shim.ts';
 import {
@@ -86,7 +85,7 @@ export class ResourceTimingInstrumentation extends InstrumentationBase<ResourceT
         try {
           this._setupObserver();
         } catch (err) {
-          const error = toError(err);
+          const error = this._toError(err);
           this._diag.error(
             `enable failed at the load event: ${error.message}`,
             error,
