@@ -4,8 +4,8 @@
  */
 
 import { ROOT_CONTEXT } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { ATTR_URL_FULL } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { defaultSanitizeUrl } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import type { DocumentLoadInstrumentationConfig } from './types.ts';
