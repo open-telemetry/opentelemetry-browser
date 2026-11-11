@@ -11,7 +11,7 @@ import type {
   TracerProvider,
 } from '@opentelemetry/api';
 import type { LoggerProvider } from '@opentelemetry/api-logs';
-import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+import type { Instrumentation } from '@opentelemetry/browser-api';
 import type {
   LogRecordLimits,
   LogRecordProcessor,

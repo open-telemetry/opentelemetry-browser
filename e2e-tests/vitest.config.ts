@@ -10,6 +10,7 @@ export default defineConfig({
     // dist files, which bypasses the resolve.alias entries below that point
     // to source.
     exclude: [
+      '@opentelemetry/browser-api',
       '@opentelemetry/browser-sdk',
       '@opentelemetry/browser-instrumentation',
     ],
@@ -25,6 +26,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@opentelemetry/browser-api': fileURLToPath(
+        new URL('../packages/api/src/index.ts', import.meta.url),
+      ),
       '@opentelemetry/browser-instrumentation/experimental/console':
         fileURLToPath(
           new URL(
