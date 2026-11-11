@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TextMapPropagator } from '@opentelemetry/api';
-import { propagation, trace } from '@opentelemetry/api';
+import type { DiagLogger, TextMapPropagator } from '@opentelemetry/api';
+import { DiagLogLevel, diag, propagation, trace } from '@opentelemetry/api';
 import {
   InMemoryLogRecordExporter,
   LoggerProvider,
@@ -15,9 +15,32 @@ import {
   SimpleSpanProcessor,
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setupTestDiagLogger } from '#utils/test';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  onTestFinished,
+  vi,
+} from 'vitest';
 import { InstrumentationBase } from './InstrumentationBase.ts';
+
+const setupTestDiagLogger = () => {
+  const logger = {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    verbose: vi.fn(),
+  } satisfies DiagLogger;
+  diag.setLogger(logger, {
+    logLevel: DiagLogLevel.ALL,
+    suppressOverrideMessage: true,
+  });
+  onTestFinished(() => diag.disable());
+  return logger;
+};
 
 class Probe extends InstrumentationBase {
   public initCount = 0;
@@ -82,6 +105,10 @@ class WrapProbe extends InstrumentationBase {
     fn: () => T,
   ): T | undefined {
     return this._safeExecute(errorMessage, fn);
+  }
+
+  public exposedToError(value: unknown): Error {
+    return this._toError(value);
   }
 }
 
@@ -678,6 +705,18 @@ describe('InstrumentationBase', () => {
           expect.objectContaining({ message: 'oops', cause: 'oops' }),
         ),
       );
+    });
+  });
+
+  describe('_toError', () => {
+    it('returns an Error unchanged and wraps any other value as the cause', () => {
+      const probe = new WrapProbe('test', '1.0.0', {});
+      const error = new Error('boom');
+
+      expect(probe.exposedToError(error)).toBe(error);
+      const wrapped = probe.exposedToError('boom');
+      expect(wrapped).toBeInstanceOf(Error);
+      expect(wrapped.cause).toBe('boom');
     });
   });
 });

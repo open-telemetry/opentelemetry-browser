@@ -3,7 +3,8 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
-**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
+**Note: This is an experimental package under active development. New releases
+may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
 
 OpenTelemetry browser instrumentations, available as subpath exports under
 `./experimental/*`.
@@ -31,6 +32,8 @@ npm install @opentelemetry/browser-instrumentation
 - [User Action](#user-action) — automatic instrumentation for user actions
   (clicks)
 - [Web Vitals](#web-vitals) — automatic instrumentation for Core Web Vitals
+- [Long Animation Frames](#long-animation-frames) — automatic instrumentation
+  for Long Animation Frames (jank, and the scripts behind a slow interaction)
 - [Console](#console) — automatic instrumentation for console API calls (log,
   warn, error, info, debug)
 - [Errors](#errors) — automatic instrumentation for unhandled errors and promise
@@ -110,7 +113,8 @@ new NavigationInstrumentation({
   // path segments, query parameters, or tokens that should not be exported.
   sanitizeUrl: (url) => defaultSanitizeUrl(url),
 
-  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  // [Deprecated] Mutate the log record before it is emitted.
+  // Prefer using a custom LogRecordProcessor registered with LoggerProvider.
   applyCustomLogRecordData: (logRecord) => {
     logRecord.attributes = {
       ...logRecord.attributes,
@@ -124,7 +128,23 @@ new NavigationInstrumentation({
 | ----------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `useNavigationApiIfAvailable` | `boolean`                        | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
 | `sanitizeUrl`                 | `(url: string) => string`        | —       | Called before the URL is written to `url.full`.                                                                                                                                                                                                                 |
-| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger.                                                                                                                     |
+| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | **[Deprecated]** Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`.                       |
+
+> **Note on Custom Attributes:** `applyCustomLogRecordData` is deprecated. To
+> enrich or mutate log records with custom attributes, register a custom
+> `LogRecordProcessor` with `LoggerProvider`:
+>
+> ```typescript
+> import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+>
+> class CustomAttributesProcessor implements LogRecordProcessor {
+>   onEmit(logRecord: SdkLogRecord) {
+>     logRecord.setAttribute('app.route.id', '...');
+>   }
+>   async forceFlush() {}
+>   async shutdown() {}
+> }
+> ```
 
 `defaultSanitizeUrl` is exported for composition — it redacts `user:password@`
 credentials and a set of common sensitive query parameters (`api_key`, `token`,
@@ -277,7 +297,8 @@ new UserActionInstrumentation({
   // Array of actions to automatically capture. Default: ['click'].
   autoCapturedActions: [],
 
-  // Mutate the log record before it is emitted (e.g. attach custom attributes).
+  // [Deprecated] Mutate the log record before it is emitted.
+  // Prefer using a custom LogRecordProcessor registered with LoggerProvider.
   applyCustomLogRecordData: (logRecord) => {
     logRecord.attributes = {
       ...logRecord.attributes,
@@ -287,10 +308,10 @@ new UserActionInstrumentation({
 });
 ```
 
-| Option                     | Type                             | Default     | Description                                                                                                                                 |
-| -------------------------- | -------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `autoCapturedActions`      | `AutoCapturedUserAction[]`       | `['click']` | Array of actions to automatically capture.                                                                                                  |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —           | Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. |
+| Option                     | Type                             | Default     | Description                                                                                                                                                                                                                               |
+| -------------------------- | -------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `autoCapturedActions`      | `AutoCapturedUserAction[]`       | `['click']` | Array of actions to automatically capture.                                                                                                                                                                                                |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —           | **[Deprecated]** Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`. |
 
 #### Additional Attributes
 
@@ -320,10 +341,127 @@ Provides automatic instrumentation for
 | Option                     | Type                             | Default | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | -------------------------- | -------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `includeRawAttribution`    | `boolean`                        | `false` | When true, sets the log record body to the JSON-stringified `web-vitals` attribution object.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | Hook to modify log records before they are emitted.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `applyCustomLogRecordData` | `(logRecord: LogRecord) => void` | —       | **[Deprecated]** Hook to modify log records before they are emitted. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `reportAllChanges`         | `boolean`                        | `false` | When true, CLS, INP and LCP are reported each time their value changes, not only when the value is final. FCP and TTFB are not affected. `delta` is the change since the previous report for the same metric `id`.`web-vitals` [recommends](https://github.com/GoogleChrome/web-vitals#report-the-value-on-every-change) this for debugging, not for production.                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `reportSoftNavs`           | `boolean`                        | `false` | When true, metrics are reported again after each soft navigation (a route change in a single-page app). CLS and INP start again from zero. FCP and LCP are the paints after the soft navigation. TTFB is not reported for soft navigations. Metrics for the first page are final at the first soft navigation, so its CLS and INP can be lower than without this option. Adds `browser.web_vital.navigation_url`. Use it to group metrics by route, because a metric can be reported after the URL has changed. `browser.web_vital.navigation_id` is added when the browser exposes a navigation id, with or without this option. Requires Chromium 151 or later. Other browsers ignore this option. See the [`web-vitals` docs](https://github.com/GoogleChrome/web-vitals#report-metrics-for-soft-navigations). |
 | `sanitizeUrl`              | `(url: string) => string`        | —       | Called before the URL is written to `browser.web_vital.navigation_url`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+---
+
+### Long Animation Frames
+
+```typescript
+import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
+```
+
+Emits a `browser.long_animation_frame` event for every
+[Long Animation Frames API](https://developer.mozilla.org/en-US/docs/Web/API/PerformanceLongAnimationFrameTiming)
+entry. The API is not Baseline and is currently unavailable in Firefox and
+Safari, and it reports a frame only once it exceeds the 50 ms long-frame
+threshold, so this instrumentation stays silent on pages that are already
+responsive.
+
+The [sandbox](../../sandbox) has a **Long Frame** button that blocks the main
+thread past that threshold, so an entry can be generated on demand while
+reviewing or QAing a change locally.
+
+#### Configuration
+
+```typescript
+import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
+
+new LongAnimationFrameInstrumentation({
+  // Optional. Defaults to `defaultSanitizeUrl`, which redacts
+  // `user:password@` credentials and common sensitive query parameters
+  // (`api_key`, `token`, `password`, ...). Pass `undefined` to emit the
+  // URL-bearing fields exactly as the browser reports them.
+  sanitizeUrl: (url) => url.replace(/\/users\/\d+/, '/users/:id'),
+});
+```
+
+| Option        | Type                      | Default              | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------- | ------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sanitizeUrl` | `(url: string) => string` | `defaultSanitizeUrl` | Called before a URL-bearing field of a `scripts` entry is written: `source_url`, and `invoker` for a `classic-script` or `module-script` entry, where the spec defines it as the invoking script's source URL. For an inline script that URL is the page URL including its query string, so a `token` in it would otherwise be exported here even when `url.full` is sanitized elsewhere. Values that are not URLs — the `DOMWindow.onclick` style `invoker` of an `event-listener` entry, an unresolved `source_url` — are written unchanged and never passed to the function, so a sanitizer that parses its argument (`new URL(url)`) is safe to pass. Unlike `url.full` for navigation, fetch and xhr, this is on by default, because the value sits inside the `scripts` array where a page token is easy to miss. |
+
+#### Captured Attributes
+
+| Attribute                                               | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `browser.long_animation_frame.start_time`               | Start of the frame, in milliseconds relative to the time origin. Same clock as `render_start`, `style_and_layout_start` and `first_ui_event_timestamp`; the record timestamp is this value plus `performance.timeOrigin`.                                                                                                                                                                                                                                                                                                                     |
+| `browser.long_animation_frame.duration`                 | Total duration of the frame, in milliseconds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `browser.long_animation_frame.blocking_duration`        | Time the main thread was blocked from responding to high-priority tasks, in milliseconds: the sum, over the tasks in the frame that ran longer than 50 ms, of each task's duration minus 50 ms, with the rendering time added to the longest of them. It is not the frame's total duration and it is not split across the `scripts` entries — scripts carry `duration` and `forced_style_and_layout_duration` instead. See [the spec](https://w3c.github.io/long-animation-frames/#dom-performancelonganimationframetiming-blockingduration). |
+| `browser.long_animation_frame.render_start`             | Start of the rendering cycle, in milliseconds relative to the time origin. Omitted when the frame did not render — the spec's getter returns `0` for "no value", which would otherwise be exported as a real time at the time origin.                                                                                                                                                                                                                                                                                                         |
+| `browser.long_animation_frame.style_and_layout_start`   | Start of the style and layout cycle, in milliseconds relative to the time origin. Omitted when the frame had no style and layout cycle, for the same reason.                                                                                                                                                                                                                                                                                                                                                                                  |
+| `browser.long_animation_frame.first_ui_event_timestamp` | Time of the first UI event processed during the frame, in milliseconds relative to the time origin. Omitted when no UI event was processed in the frame, which is the common case for frames not caused by an interaction.                                                                                                                                                                                                                                                                                                                    |
+| `browser.long_animation_frame.scripts`                  | Script timing entries attributed to the frame: `start_time`, `duration`, `execution_start`, `invoker`, `invoker_type`, `source_url`, `source_function_name`, `source_char_position`, `pause_duration`, `forced_style_and_layout_duration`, `window_attribution`. `invoker` and `source_url` are passed through `sanitizeUrl` when they are URLs; see Configuration.                                                                                                                                                                           |
+
+Every entry is named `long-animation-frame` and every script entry is named
+`script` by the spec, so neither name is repeated as an attribute: the event
+name already says what the record is.
+
+#### Buffered replay and volume
+
+The instrumentation observes with `buffered: true`, so frames the browser
+retained from before it started are emitted once, on the first `enable()`. A
+later `disable()` / `enable()` cycle resumes live observation and does not
+re-emit frames that were already logged.
+
+No client-side throttle is applied. The performance timeline buffer keeps the
+first ~200 entries and leaves out the newer ones once it is full
+(`droppedEntriesCount` goes up), so it only bounds the buffered replay above; a
+live observer still receives every frame. A throttle would drop the worst frames
+first: a jank burst that produces dozens of entries would be reported as one,
+which improves the downstream p95 while the page gets worse. If a hard ceiling
+is ever needed, prefer accounting over sampling — a per-callback cap plus a
+dropped count on the following record so the loss stays visible, or the batching
+shape [Resource Timing](#resource-timing) already uses (`batchSize`,
+`maxQueueSize`, `forceProcessingAfter`, drained on an idle callback).
+
+#### Correlating frames with interactions
+
+`first_ui_event_timestamp` is a `DOMHighResTimeStamp` on the same clock as
+`Event.timeStamp`, so a frame can be related to the interaction that triggered
+it without any context plumbing. The `scripts` array then names the culprit:
+`invoker` (for example `DOMWindow.onclick`), `invoker_type` (`event-listener`),
+`source_url`, `source_function_name`, `source_char_position`, and
+`forced_style_and_layout_duration` (the time that script spent forcing style and
+layout).
+
+Do not join the two by equality. `first_ui_event_timestamp` is the `timeStamp`
+of the first UI event whose listener ran in that frame — any UI event — while a
+web-vitals INP record's `attribution.interactionTime` is the start of the
+interaction's first event entry. The two only line up when the frame happened to
+handle that first event before anything else, and a slow interaction can overlap
+more than one frame (the frame that delayed the input and the frame that ran the
+handlers), of which at most one can match.
+
+The INP side of the join is already done by [Web Vitals](#web-vitals): with
+`includeRawAttribution` enabled, every frame that overlaps the interaction is in
+the record body as `attribution.longAnimationFrameEntries`, scripts included, so
+read them from there. For any other correlation, match by overlap — a frame
+overlaps the interaction when its `start_time` precedes the interaction end and
+its `start_time + duration` follows the interaction start, both of which are on
+the frame record as attributes — rather than by an exact timestamp comparison.
+INP says which interaction was slow; Long Animation Frames say which script made
+it slow.
+
+#### Page attribution
+
+`browser.document.url.full` is stamped by `createDocumentLogRecordProcessor` and
+`createDocumentSpanProcessor`, and `LocationDocumentProvider` reads
+`location.href` at emit time, so soft navigations are reflected without extra
+bookkeeping. The URL is therefore the one current when the record is built, not
+necessarily the one the frame happened on, and the two differ more often than
+the replay caveat above suggests: the observer callback runs after the frame has
+finished, so a handler that blocks for 100 ms and then calls `history.pushState`
+is reported with the new pathname — often exactly the frame a reviewer wants to
+place. The buffered replay broadens it further, since those frames carry the URL
+current when they are emitted rather than the URL they happened on, so the first
+records of a session can be mislabelled on a page that navigates early. The
+frame's own timing is unaffected — `start_time` and the record timestamp
+describe the frame, not the URL, and the record timestamp is
+`performance.timeOrigin + start_time` — which is what the overlap match above
+uses.
 
 ### Console
 
@@ -548,7 +686,6 @@ Each `xhr` Span includes:
 | `http.response.status_code`    | HTTP response status code.                                                                                          |
 | `error.type`                   | If request failed. Describes a class of error the operation ended with.                                             |
 
-
 ## Enabling and disabling
 
 Each instrumentation has three methods: `enable()`, `disable()` and
@@ -637,8 +774,13 @@ interface: `instrumentationName`, `enable(deps?)`, `disable()` and
 
 The easiest way is to extend `InstrumentationBase`. It implements the lifecycle
 in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
-`Instrumentation` and `InstrumentationDeps` are all exported from
-`@opentelemetry/browser-instrumentation/experimental/instrumentation-base`.
+`Instrumentation` and `InstrumentationDeps` are exported from
+[`@opentelemetry/browser-api`](../api). Add it as a dependency. You do not need
+this package, so your instrumentation is not tied to its releases.
+
+```bash
+npm install @opentelemetry/browser-api
+```
 
 Override these hooks. All of them must be synchronous, because the lifecycle
 does not wait for a returned promise. Do not use `async` here: a rejection is
@@ -670,10 +812,11 @@ There is `_wrap()` but no unwrap. Patches are never removed, because other code
 may have wrapped on top of ours. So a patch must check `isEnabled()`, and pass
 the call through when it is false. Run user hooks and emit code through
 `_safeExecute()`, so that a throw, or a rejected promise, is logged and does not
-break the page.
+break the page. In your own `catch` blocks, pass the caught value through
+`_toError()` before you log it. A page can throw a value that is not an `Error`.
 
 ```typescript
-import { InstrumentationBase } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 
 export interface RouteConfig {
   includeHash?: boolean;

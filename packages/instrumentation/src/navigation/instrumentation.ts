@@ -5,7 +5,7 @@
 
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '#instrumentation-base';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,
@@ -231,11 +231,19 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
     };
   }
 
+  private _hasWarnedApplyCustomLogRecordData = false;
+
   private _applyCustomLogRecordData(logRecord: LogRecord): void {
     const cfg = this._config;
     const hook = cfg.applyCustomLogRecordData;
     if (!hook) {
       return;
+    }
+    if (!this._hasWarnedApplyCustomLogRecordData) {
+      this._hasWarnedApplyCustomLogRecordData = true;
+      this._diag.warn(
+        'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+      );
     }
     this._safeExecute('applyCustomLogRecordData hook failed', () =>
       hook(logRecord),
