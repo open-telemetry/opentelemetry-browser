@@ -35,6 +35,10 @@ type CombinedConfig = RootConfig & {
   traces?: RemoveCommonProps<TracesConfig>;
 };
 
+// A signal config with the root options that are pushed down to it.
+type SignalConfig<T> = RemoveCommonProps<T> &
+  Pick<RootConfig, 'logLevel' | 'setGlobals'>;
+
 const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
   enabled: true,
@@ -94,8 +98,8 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   }
   // Resolve each signal's config once so it can be validated here and reused
   // when starting the signals below.
-  const logsConfig: LogsConfig = config?.logs || {};
-  const tracesConfig: TracesConfig = config?.traces || {};
+  const logsConfig: SignalConfig<LogsConfig> = config?.logs || {};
+  const tracesConfig: SignalConfig<TracesConfig> = config?.traces || {};
   const signalExportUrls: [string, string | undefined][] = [
     ['Logs SDK', logsConfig.exportConfig?.url],
     ['Traces SDK', tracesConfig.exportConfig?.url],
@@ -137,8 +141,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       endpointUrl.pathname = '/v1/logs';
       logsConfig.exportConfig.url = endpointUrl.href;
     }
-    logsConfig.resource = resource;
-    logsSdk = startLogsSdk(logsConfig);
+    logsSdk = startLogsSdk({ ...logsConfig, resource });
     sdks.push(logsSdk);
   }
 
@@ -169,8 +172,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       endpointUrl.pathname = '/v1/traces';
       tracesConfig.exportConfig.url = endpointUrl.href;
     }
-    tracesConfig.resource = resource;
-    tracesSdk = startTracesSdk(tracesConfig);
+    tracesSdk = startTracesSdk({ ...tracesConfig, resource });
     sdks.push(tracesSdk);
   }
 

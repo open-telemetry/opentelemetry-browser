@@ -115,22 +115,31 @@ export interface CommonConfig {
    * @defaultValue undefined
    */
   resourceAttributes?: Attributes;
-  /**
-   * A pre-built resource to use unchanged. When provided, `resourceAttributes`,
-   * `serviceName`, `serviceVersion`, and resource detection are not applied.
-   * Pass the same resource to standalone signal SDKs to share it.
-   *
-   * @defaultValue undefined
-   */
-  resource?: Resource;
 }
+
+/**
+ * Common configuration of the signal SDKs. A pre-built `resource` is used
+ * unchanged, so it cannot be combined with `serviceName`, `serviceVersion` or
+ * `resourceAttributes`. Pass the same resource to `startLogsSdk` and
+ * `startTracesSdk` to share it.
+ */
+type SignalCommonConfig = CommonConfig &
+  (
+    | { resource?: undefined }
+    | {
+        resource: Resource;
+        serviceName?: never;
+        serviceVersion?: never;
+        resourceAttributes?: never;
+      }
+  );
 
 /**
  * Utility functions to extract the configurations from the factory
  * functions and remove the common properties (which will be already
  * available at the config root)
  */
-export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
+export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig | 'resource'>;
 
 /**
  * Root configuration options when SDKs are combined into a single
@@ -185,7 +194,7 @@ export type RootConfig = CommonConfig & {
   // sampleRate?: number;
 };
 
-export type LogsConfig = CommonConfig & {
+export type LogsConfig = SignalCommonConfig & {
   /**
    * Configuration for the LogRecord processor.
    */
@@ -209,7 +218,7 @@ export type LogsConfig = CommonConfig & {
   processors?: LogRecordProcessor[];
 };
 
-export type TracesConfig = CommonConfig & {
+export type TracesConfig = SignalCommonConfig & {
   // Context and Propagation
   /**
    * Manager use to carry context accross function boundaries. Ignored when

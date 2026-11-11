@@ -20,9 +20,10 @@ import {
 import type { CommonConfig } from './types.ts';
 
 export function createResource(
-  config?: CommonConfig,
+  config?: CommonConfig & { resource?: Resource },
   detectors?: ResourceDetector[],
 ): Resource {
+  // Types already reject these combinations, warn for untyped callers
   if (config?.resource) {
     if (
       detectors?.length ||

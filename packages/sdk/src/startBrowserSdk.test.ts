@@ -27,7 +27,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import type { WebSdk } from './core/types.ts';
+import type { TracesConfig, WebSdk } from './core/types.ts';
 import { startLogsSdk } from './logs/startLogsSdk.ts';
 import { quickStartBrowserSdk, startBrowserSdk } from './startBrowserSdk.ts';
 import { startTracesSdk } from './traces/startTracesSdk.ts';
@@ -569,6 +569,12 @@ describe('startBrowserSdk', () => {
       setGlobals: false,
       processors: [spanProcessor],
     });
+    // @ts-expect-error a pre-built resource cannot be combined with serviceName
+    const invalidConfig: TracesConfig = {
+      resource,
+      serviceName: 'my-app',
+    };
+    expect(invalidConfig.resource).toBe(resource);
 
     try {
       // Act

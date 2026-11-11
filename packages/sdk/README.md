@@ -359,14 +359,13 @@ resource attribute.
 Key-value pairs to be used as resource attributes. They override detection,
 except for SDK-owned `telemetry.sdk.*` and detector-supplied
 `telemetry.distro.name` and `telemetry.distro.version`. `serviceName` and
-`serviceVersion` take precedence over their corresponding attributes. Ignored
-when `resource` is provided.
+`serviceVersion` take precedence over their corresponding attributes.
 
 #### resource
 
-A pre-built resource used unchanged, skipping detection, defaults,
-`resourceAttributes`, `serviceName`, and `serviceVersion`. Pass the same object
-to `startLogsSdk` and `startTracesSdk` to share it.
+Only for `startLogsSdk` and `startTracesSdk`. A pre-built resource used
+unchanged, so it can't be combined with `serviceName`, `serviceVersion`, or
+`resourceAttributes`. Pass the same object to both to share it.
 
 #### resourceDetectors
 
@@ -374,6 +373,10 @@ Only for `startBrowserSdk` and `quickStartBrowserSdk`. A list of resource
 detectors to run once for all signals; later detectors win collisions. No
 detectors run by default. See
 [Browser resource detection](#browser-resource-detection).
+
+A distro can set `telemetry.distro.name` and `telemetry.distro.version` from a
+detector. Those values take precedence over `resourceAttributes`, and when no
+detector sets them the values from `resourceAttributes` are used.
 
 ### Logs configuration
 
