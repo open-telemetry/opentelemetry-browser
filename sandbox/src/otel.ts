@@ -5,6 +5,7 @@ import { logs, trace } from '@opentelemetry/api';
 import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
+import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -137,6 +138,7 @@ export async function initOtel(
     instrumentations: [
       new ElementTimingInstrumentation(),
       new ErrorsInstrumentation(),
+      new LongAnimationFrameInstrumentation(),
       new NavigationTimingInstrumentation(),
       new ResourceTimingInstrumentation({
         ignoreUrls: [config.tracesUrl, config.logsUrl],

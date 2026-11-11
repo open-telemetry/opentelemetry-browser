@@ -5,7 +5,7 @@
 
 import type { LogRecord } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api';
-import { InstrumentationBase } from '#instrumentation-base';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,

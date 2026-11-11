@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-sdk",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "OpenTelemetry browser SDK package.",
   "keywords": [
     "opentelemetry",
@@ -60,6 +60,7 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@opentelemetry/browser-api": "^0.1.0",
     "@opentelemetry/core": "^3.0.0",
     "@opentelemetry/exporter-logs-otlp-http": "^0.300.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
@@ -68,12 +69,8 @@
     "@opentelemetry/sdk-trace": "^3.0.0",
     "@opentelemetry/semantic-conventions": "^1.44.0"
   },
-  "devDependencies": {
-    "@opentelemetry/browser-instrumentation": "^0.10.0"
-  },
   "peerDependencies": {
-    "@opentelemetry/api": ">=1.10.0 <1.11.0",
-    "@opentelemetry/browser-instrumentation": "^0.10.0"
+    "@opentelemetry/api": ">=1.10.0 <1.11.0"
   },
   "publishConfig": {
     "access": "public"

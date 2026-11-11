@@ -4,7 +4,7 @@
  */
 
 import { context, SeverityNumber } from '@opentelemetry/api';
-import { InstrumentationBase } from '#instrumentation-base';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
 import type { ConsoleInstrumentationConfig, ConsoleMethod } from './types.ts';

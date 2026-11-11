@@ -5,12 +5,12 @@
 
 import type { Attributes, LogRecord } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_EXCEPTION_MESSAGE,
   ATTR_EXCEPTION_STACKTRACE,
   ATTR_EXCEPTION_TYPE,
 } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import type { ErrorsInstrumentationConfig } from './types.ts';
 
