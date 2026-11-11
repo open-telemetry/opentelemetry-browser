@@ -6,15 +6,14 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
-import { toError } from '../utils/toError.ts';
 import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
@@ -79,7 +78,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
           name === 'TTFB' ? ttfbOpts : opts,
         );
       } catch (err) {
-        this._diag.warn(`could not subscribe to ${name}`, toError(err));
+        this._diag.warn(`could not subscribe to ${name}`, this._toError(err));
       }
     }
     this._hasSubscribed = true;
