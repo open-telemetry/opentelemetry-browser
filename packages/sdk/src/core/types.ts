@@ -12,6 +12,7 @@ import type {
 } from '@opentelemetry/api';
 import type { LoggerProvider } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/browser-api';
+import type { Resource, ResourceDetector } from '@opentelemetry/resources';
 import type {
   LogRecordLimits,
   LogRecordProcessor,
@@ -117,11 +118,28 @@ export interface CommonConfig {
 }
 
 /**
+ * Common configuration of the signal SDKs. A pre-built `resource` is used
+ * unchanged, so it cannot be combined with `serviceName`, `serviceVersion` or
+ * `resourceAttributes`. Pass the same resource to `startLogsSdk` and
+ * `startTracesSdk` to share it.
+ */
+type SignalCommonConfig = CommonConfig &
+  (
+    | { resource?: undefined }
+    | {
+        resource: Resource;
+        serviceName?: never;
+        serviceVersion?: never;
+        resourceAttributes?: never;
+      }
+  );
+
+/**
  * Utility functions to extract the configurations from the factory
  * functions and remove the common properties (which will be already
  * available at the config root)
  */
-export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
+export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig | 'resource'>;
 
 /**
  * Root configuration options when SDKs are combined into a single
@@ -131,6 +149,15 @@ export type RemoveCommonProps<T> = Omit<T, keyof CommonConfig>;
  * here to avoid type collision.
  */
 export type RootConfig = CommonConfig & {
+  /**
+   * Resource detectors to run once for all signals. Later detectors take
+   * precedence over earlier ones. Explicit resource attributes take precedence
+   * over detected attributes, except for SDK/distro-owned telemetry attributes.
+   * Startup does not wait for asynchronous resource attributes.
+   *
+   * @defaultValue undefined
+   */
+  resourceDetectors?: ResourceDetector[];
   /**
    * Set `enabled: false` to start the SDK without enabling the
    * instrumentations, for example until the user gives consent. Call
@@ -167,7 +194,7 @@ export type RootConfig = CommonConfig & {
   // sampleRate?: number;
 };
 
-export type LogsConfig = CommonConfig & {
+export type LogsConfig = SignalCommonConfig & {
   /**
    * Configuration for the LogRecord processor.
    */
@@ -191,7 +218,7 @@ export type LogsConfig = CommonConfig & {
   processors?: LogRecordProcessor[];
 };
 
-export type TracesConfig = CommonConfig & {
+export type TracesConfig = SignalCommonConfig & {
   // Context and Propagation
   /**
    * Manager use to carry context accross function boundaries. Ignored when
@@ -245,6 +272,8 @@ export type TracesConfig = CommonConfig & {
 };
 
 export interface WebSdk {
+  /** The shared resource. `undefined` when the configuration is invalid. */
+  resource?: Resource;
   /**
    * `true` when the SDK refused to start because its configuration is invalid
    * — e.g. a malformed export URL or no usable processors. Left `undefined` on
@@ -272,6 +301,8 @@ export interface WebSdk {
  * The result of `startTracesSdk`.
  */
 export interface TracesSdk {
+  /** The resource. `undefined` when the configuration is invalid. */
+  resource?: Resource;
   /** `true` when the SDK refused to start because its configuration is invalid. */
   invalidConfig?: boolean;
   /** The tracer provider. `undefined` when the configuration is invalid. */
@@ -286,6 +317,8 @@ export interface TracesSdk {
  * The result of `startLogsSdk`.
  */
 export interface LogsSdk {
+  /** The resource. `undefined` when the configuration is invalid. */
+  resource?: Resource;
   /** `true` when the SDK refused to start because its configuration is invalid. */
   invalidConfig?: boolean;
   /** The logger provider. `undefined` when the configuration is invalid. */

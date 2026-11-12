@@ -271,23 +271,22 @@ exported.
 The `@opentelemetry/browser-sdk/browser-detector` subpath exports a resource
 detector for browser attributes. It detects the user agent and preferred
 language, plus platform, brands, and mobile status when the User-Agent Client
-Hints API is available.
+Hints API is available. Detection is opt-in:
 
 ```javascript
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
-import {
-  detectResources,
-  resourceFromAttributes,
-} from '@opentelemetry/resources';
 
-const resource = resourceFromAttributes({
-  'service.name': 'my-app',
-}).merge(
-  detectResources({
-    detectors: [browserDetector],
-  }),
-);
+const sdk = startBrowserSdk({
+  serviceName: 'my-app',
+  resourceDetectors: [browserDetector],
+});
 ```
+
+Detectors run once and logs and traces share the same resource, available as
+`sdk.resource` for custom providers. Startup stays synchronous; built-in
+processors wait for pending resource attributes before exporting. Before reading
+pending attributes yourself, await `sdk.resource.waitForAsyncAttributes()`.
 
 ## Configuration
 
@@ -357,7 +356,27 @@ resource attribute.
 
 #### resourceAttributes
 
-Key-value pairs to be used as resource attributes.
+Key-value pairs to be used as resource attributes. They override detection,
+except for SDK-owned `telemetry.sdk.*` and detector-supplied
+`telemetry.distro.name` and `telemetry.distro.version`. `serviceName` and
+`serviceVersion` take precedence over their corresponding attributes.
+
+#### resource
+
+Only for `startLogsSdk` and `startTracesSdk`. A pre-built resource used
+unchanged, so it can't be combined with `serviceName`, `serviceVersion`, or
+`resourceAttributes`. Pass the same object to both to share it.
+
+#### resourceDetectors
+
+Only for `startBrowserSdk` and `quickStartBrowserSdk`. A list of resource
+detectors to run once for all signals; later detectors win collisions. No
+detectors run by default. See
+[Browser resource detection](#browser-resource-detection).
+
+A distro can set `telemetry.distro.name` and `telemetry.distro.version` from a
+detector. Those values take precedence over `resourceAttributes`, and when no
+detector sets them the values from `resourceAttributes` are used.
 
 ### Logs configuration
 
