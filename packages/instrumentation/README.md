@@ -19,6 +19,11 @@ changes, and remaining gaps.
 npm install @opentelemetry/browser-instrumentation
 ```
 
+`@opentelemetry/api` is a **peer dependency** and **1.10.x is required**
+(`>=1.10.0 <1.11.0`): the instrumentations import the `logs` API from
+`@opentelemetry/api` at runtime, so an application still on 1.9.x fails to
+bundle with a missing export.
+
 ## Instrumentations
 
 - [Navigation](#navigation) — automatic instrumentation for browser navigations
@@ -48,7 +53,7 @@ them to `startBrowserSdk()` and the SDK enables them with its own providers.
 You can also enable them yourself. Call `enable()` on each one:
 
 ```typescript
-import { logs } from '@opentelemetry/api-logs';
+import { logs } from '@opentelemetry/api';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,
@@ -135,10 +140,10 @@ new NavigationInstrumentation({
 > `LogRecordProcessor` with `LoggerProvider`:
 >
 > ```typescript
-> import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+> import type { LogRecordProcessor, ReadWriteLogRecord } from '@opentelemetry/sdk-logs';
 >
 > class CustomAttributesProcessor implements LogRecordProcessor {
->   onEmit(logRecord: SdkLogRecord) {
+>   onEmit(logRecord: ReadWriteLogRecord) {
 >     logRecord.setAttribute('app.route.id', '...');
 >   }
 >   async forceFlush() {}
@@ -698,9 +703,9 @@ Each instrumentation has three methods: `enable()`, `disable()` and
   instrumentation needs.
 - The first `enable()` also locks the dependencies for the life of the instance.
   A dependency that you do not pass uses the global API from
-  `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
-  ignore `deps`. They log a warning if a passed dependency differs from the
-  locked one, and a debug message if it is the same.
+  `@opentelemetry/api`. Later `enable()` calls ignore `deps`. They log a warning
+  if a passed dependency differs from the locked one, and a debug message if it
+  is the same.
 - `disable()` stops emitting and removes listeners. Patched browser APIs stay
   patched, because other code may have wrapped them after us. A later `enable()`
   starts emitting again, unless `disable()` failed.
@@ -768,15 +773,19 @@ instrumentation cannot detect our patches, so both would record every call.
 
 ## Writing an instrumentation
 
-An instrumentation is any object that implements the `Instrumentation`
-interface: `instrumentationName`, `enable(deps?)`, `disable()` and
-`isEnabled()`. The Browser SDK accepts any such object.
+Extend `InstrumentationBase`. Do not implement the `Instrumentation` interface
+directly: the base class implements the `Instrumentation` contract the Browser
+SDK accepts (`instrumentationName`, `enable(deps?)`, `disable()` and
+`isEnabled()`) and the lifecycle in
+[Enabling and
+disabling](#enabling-and-disabling)
+— the dependency locking, the error containment of `_safeExecute()` and the
+enable/disable state machine. A direct interface implementation has to rebuild
+all of that, and misses the base class's guarantees.
 
-The easiest way is to extend `InstrumentationBase`. It implements the lifecycle
-in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
-`Instrumentation` and `InstrumentationDeps` are exported from
-[`@opentelemetry/browser-api`](../api). Add it as a dependency. You do not need
-this package, so your instrumentation is not tied to its releases.
+`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are exported
+from [`@opentelemetry/browser-api`](../api). Add it as a dependency. You do not
+need this package, so your instrumentation is not tied to its releases.
 
 ```bash
 npm install @opentelemetry/browser-api

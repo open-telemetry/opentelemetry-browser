@@ -26,15 +26,38 @@ application.
 ### Installation
 
 ```bash
-# Install the package
-npm install @opentelemetry/browser-sdk
+# Install the package and the required API peer dependency
+npm install @opentelemetry/browser-sdk @opentelemetry/api@^1.10.0
 
 # Install the instrumentations
 npm install @opentelemetry/browser-instrumentation
 ```
 
-`@opentelemetry/api` is a **peer dependency** (v1.9+). Install it in your
-application if you intend to do manual instrumentation of your web application.
+`@opentelemetry/api` is a **peer dependency** and **1.10.x is required** (the
+same `>=1.10.0 <1.11.0` range the `@opentelemetry/browser-instrumentation`
+package pins). Install it for every application, not only for manual
+instrumentation: the SDK imports the `logs` API from `@opentelemetry/api` at
+runtime, and that export only exists from 1.10.0, so an application still on
+1.9.x fails to bundle with a missing export before the SDK ever starts.
+
+### Bundler requirements
+
+The SDK depends on the OpenTelemetry JS 3.x packages (`@opentelemetry/core`,
+`resources`, `sdk-trace`, `sdk-logs` and the OTLP exporters), which resolve
+their platform-specific code through subpath imports (the `#platform` entries in
+their package `imports` maps). The bundler or test runner must resolve those
+maps:
+
+- **Vite** supports subpath imports out of the box (this repository's examples
+  and e2e tests are built with it)
+- **webpack** 5.54+ (webpack 4 cannot resolve `#platform` and fails on the
+  specifier)
+- **Jest** 29.4+ when your tests import the SDK
+- **Parcel** with the `packageExports` flag enabled
+
+A bundler without this support fails to resolve the `#platform` specifier. The
+supported bundler matrix is tracked in
+[#10](https://github.com/open-telemetry/opentelemetry-browser/issues/10).
 
 ### Initialize the SDK
 

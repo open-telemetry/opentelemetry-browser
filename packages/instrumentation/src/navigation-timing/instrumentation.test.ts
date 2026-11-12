@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Logger } from '@opentelemetry/api-logs';
+import type { Logger } from '@opentelemetry/api';
 import { hrTime } from '@opentelemetry/core';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {

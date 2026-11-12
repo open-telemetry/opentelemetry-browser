@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { logs, trace } from '@opentelemetry/api';
 import { describe, expect, it } from 'vitest';
 import { setupTestLogExporter, setupTestSpanExporter } from './index.ts';
 

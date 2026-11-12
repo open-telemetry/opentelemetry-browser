@@ -7,10 +7,10 @@ import type {
   Attributes,
   ContextManager,
   DiagLogLevel,
+  LoggerProvider,
   TextMapPropagator,
   TracerProvider,
 } from '@opentelemetry/api';
-import type { LoggerProvider } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/browser-api';
 import type {
   LogRecordLimits,

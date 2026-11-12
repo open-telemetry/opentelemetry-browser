@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { diag } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { diag, logs } from '@opentelemetry/api';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import type { LogsSdk } from '../core/types.ts';
