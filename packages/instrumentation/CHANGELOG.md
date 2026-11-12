@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.12.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.11.0...browser-instrumentation-v0.12.0) (2026-11-12)
+
+
+### Features
+
+* **instrumentation:** add document load span ([#504](https://github.com/open-telemetry/opentelemetry-browser/issues/504)) ([b3876e5](https://github.com/open-telemetry/opentelemetry-browser/commit/b3876e540f04ad0139bc7220e17de6e3c5e1f763))
+* **instrumentation:** add Long Animation Frames instrumentation ([#429](https://github.com/open-telemetry/opentelemetry-browser/issues/429)) ([d42e5e3](https://github.com/open-telemetry/opentelemetry-browser/commit/d42e5e3978c770cab7c3474784275b92dbed1890))
+
 ## [0.11.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.10.0...browser-instrumentation-v0.11.0) (2026-11-11)
 
 
