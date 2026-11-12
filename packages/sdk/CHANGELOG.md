@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.8.0...browser-sdk-v0.8.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **sdk:** skip entries that are not instrumentation instances in startBrowserSdk ([#537](https://github.com/open-telemetry/opentelemetry-browser/issues/537)) ([a775af5](https://github.com/open-telemetry/opentelemetry-browser/commit/a775af5aa682126e3ab09ce1bcdb8ee46cc71b17))
+
 ## [0.8.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.7.0...browser-sdk-v0.8.0) (2026-11-11)
 
 
