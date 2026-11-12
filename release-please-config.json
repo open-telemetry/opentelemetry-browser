@@ -5,6 +5,11 @@
   "sequential-calls": true,
   "plugins": [{ "type": "node-workspace", "updatePeerDependencies": true }],
   "packages": {
+    "packages/api": {
+      "component": "browser-api",
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0"
+    },
     "packages/instrumentation": {
       "component": "browser-instrumentation",
       "changelog-path": "CHANGELOG.md"

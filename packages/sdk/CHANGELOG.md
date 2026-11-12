@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.8.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.7.0...browser-sdk-v0.8.0) (2026-11-11)
+
+
+### Features
+
+* **api:** add browser-api package for the instrumentation contract ([#552](https://github.com/open-telemetry/opentelemetry-browser/issues/552)) ([f30c774](https://github.com/open-telemetry/opentelemetry-browser/commit/f30c774df362b30c5ca526cde488e25b9d06d556))
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#557](https://github.com/open-telemetry/opentelemetry-browser/issues/557)) ([ca2c17b](https://github.com/open-telemetry/opentelemetry-browser/commit/ca2c17b8d0af08f57beda5d1624be6ab4ad8a4a6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.0.0 to ^0.1.0
+
 ## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.6.0...browser-sdk-v0.7.0) (2026-10-30)
 
 

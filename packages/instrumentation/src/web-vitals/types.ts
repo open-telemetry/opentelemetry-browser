@@ -22,6 +22,8 @@ export interface WebVitalsInstrumentationConfig {
   /**
    * Hook to modify log records before they are emitted.
    * Use this to add custom attributes or modify the log record.
+   *
+   * @deprecated Use a custom `LogRecordProcessor` registered with `LoggerProvider` instead.
    */
   applyCustomLogRecordData?: (logRecord: LogRecord) => void;
 

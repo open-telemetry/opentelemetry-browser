@@ -6,15 +6,14 @@
 import type { Attributes } from '@opentelemetry/api';
 import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import type {
   CLSMetricWithAttribution,
   INPMetricWithAttribution,
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
-import { toError } from '../utils/toError.ts';
 import {
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
@@ -38,6 +37,7 @@ import type { WebVitalsInstrumentationConfig } from './types.ts';
  */
 export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstrumentationConfig> {
   private _hasSubscribed = false;
+  private _hasWarnedApplyCustomLogRecordData = false;
   private _softNavsActive = false;
 
   constructor(config: WebVitalsInstrumentationConfig = {}) {
@@ -78,7 +78,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
           name === 'TTFB' ? ttfbOpts : opts,
         );
       } catch (err) {
-        this._diag.warn(`could not subscribe to ${name}`, toError(err));
+        this._diag.warn(`could not subscribe to ${name}`, this._toError(err));
       }
     }
     this._hasSubscribed = true;
@@ -160,6 +160,12 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     };
 
     if (applyCustomLogRecordData) {
+      if (!this._hasWarnedApplyCustomLogRecordData) {
+        this._hasWarnedApplyCustomLogRecordData = true;
+        this._diag.warn(
+          'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+        );
+      }
       this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );
