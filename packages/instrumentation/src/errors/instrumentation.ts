@@ -42,9 +42,8 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
 
   private _onError(event: ErrorEvent | PromiseRejectionEvent): void {
     const isRejection = 'reason' in event;
-    let error: Error | string | null | undefined = isRejection
-      ? event.reason
-      : event.error;
+    const originalError: unknown = isRejection ? event.reason : event.error;
+    let error = originalError;
 
     // Cross-origin scripts deliver an ErrorEvent with `event.error` null but
     // a populated `event.message` (the canonical "Script error." sanitized
@@ -84,18 +83,25 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     // can carry a value whose `stack` getter throws) and emit (a broken
     // LogRecordProcessor) can throw, so contain the whole path.
     this._safeExecute('failed to record exception', () => {
+      const normalizedError = this._normalizeError(
+        capturedError,
+        isRejection ? undefined : event.message,
+      );
       let errorAttributes: AnyValueMap;
-      if (typeof capturedError === 'string') {
-        errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: capturedError };
+      if (typeof normalizedError === 'string') {
+        errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: normalizedError };
       } else {
         errorAttributes = {
-          [ATTR_EXCEPTION_TYPE]: capturedError.name,
-          [ATTR_EXCEPTION_MESSAGE]: capturedError.message,
-          [ATTR_EXCEPTION_STACKTRACE]: capturedError.stack,
+          [ATTR_EXCEPTION_TYPE]: normalizedError.name,
+          [ATTR_EXCEPTION_MESSAGE]: normalizedError.message,
+          [ATTR_EXCEPTION_STACKTRACE]: normalizedError.stack,
         };
       }
 
-      const customAttributes = this._applyCustomAttributes(capturedError);
+      const customAttributes = this._applyCustomAttributes(
+        normalizedError,
+        originalError,
+      );
 
       const logRecord: LogRecord = {
         eventName: EXCEPTION_EVENT_NAME,
@@ -107,14 +113,43 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     });
   }
 
-  private _applyCustomAttributes(error: Error | string): Attributes {
+  private _normalizeError(
+    error: unknown,
+    eventMessage?: string,
+  ): Error | string {
+    if (typeof error === 'object' && error !== null) {
+      const candidate = error as Partial<Error>;
+      // Keep Error-like values, including errors from another realm.
+      if (typeof candidate.message === 'string') {
+        return candidate as Error;
+      }
+    }
+    try {
+      return String(error);
+    } catch (cause) {
+      try {
+        return Object.prototype.toString.call(error);
+      } catch {
+        // A Symbol.toStringTag getter or revoked Proxy can also throw.
+      }
+      if (eventMessage) {
+        return eventMessage;
+      }
+      throw cause;
+    }
+  }
+
+  private _applyCustomAttributes(
+    error: Error | string,
+    originalError: unknown,
+  ): Attributes {
     const hook = this._config.applyCustomAttributes;
     if (!hook) {
       return {};
     }
     return (
       this._safeExecute('applyCustomAttributes hook failed', () =>
-        hook(error),
+        hook(error, originalError),
       ) ?? {}
     );
   }
