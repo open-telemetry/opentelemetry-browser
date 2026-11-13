@@ -131,6 +131,95 @@ describe('NetworkContextRegistry', () => {
       );
     });
   });
+
+  describe('document load fallback', () => {
+    const LOAD_TRACE = 'd'.repeat(32);
+    const FETCH_TRACE = 'f'.repeat(32);
+
+    function traceIdOf(ctx: ReturnType<NetworkContextRegistry['getContext']>) {
+      return ctx && trace.getSpan(ctx)?.spanContext().traceId;
+    }
+
+    beforeEach(() => {
+      registry.setDocumentLoad(makeSpan(LOAD_TRACE, 'd'.repeat(16)), {
+        startPerfNow: 10,
+        endPerfNow: 500,
+      });
+    });
+
+    it('returns the document load context for a resource inside the interval', () => {
+      const entry = makeEntry('https://example.com/app.js', 20, 300);
+      expect(traceIdOf(registry.getContext(entry))).toBe(LOAD_TRACE);
+    });
+
+    it('includes the interval boundaries', () => {
+      const entry = makeEntry('https://example.com/app.js', 10, 500);
+      expect(traceIdOf(registry.getContext(entry))).toBe(LOAD_TRACE);
+    });
+
+    it('returns undefined for a resource that finishes after the interval', () => {
+      const entry = makeEntry('https://example.com/app.js', 400, 600);
+      expect(registry.getContext(entry)).toBeUndefined();
+    });
+
+    it('returns undefined for a resource that starts before the interval', () => {
+      const entry = makeEntry('https://example.com/app.js', 5, 300);
+      expect(registry.getContext(entry)).toBeUndefined();
+    });
+
+    it('prefers a fetch/XHR span inside the interval', () => {
+      registry.register(makeSpan(FETCH_TRACE, 'f'.repeat(16)), {
+        key: 'https://example.com/api',
+        startPerfNow: 100,
+        endPerfNow: 200,
+      });
+
+      const entry = makeEntry('https://example.com/api', 110, 190);
+      expect(traceIdOf(registry.getContext(entry))).toBe(FETCH_TRACE);
+    });
+
+    it('matches two same-URL resources by time, not only by URL', () => {
+      registry.register(makeSpan(FETCH_TRACE, 'f'.repeat(16)), {
+        key: 'https://example.com/api',
+        startPerfNow: 700,
+        endPerfNow: 800,
+      });
+
+      const inside = makeEntry('https://example.com/api', 100, 200);
+      const outside = makeEntry('https://example.com/api', 710, 790);
+      expect(traceIdOf(registry.getContext(inside))).toBe(LOAD_TRACE);
+      expect(traceIdOf(registry.getContext(outside))).toBe(FETCH_TRACE);
+
+      registry.unregister(outside);
+      expect(registry.getContext(outside)).toBeUndefined();
+      expect(traceIdOf(registry.getContext(inside))).toBe(LOAD_TRACE);
+    });
+
+    it('keeps the document load context after unregister', () => {
+      const entry = makeEntry('https://example.com/app.js', 20, 300);
+      registry.unregister(entry);
+      expect(traceIdOf(registry.getContext(entry))).toBe(LOAD_TRACE);
+      expect(registry.size()).toBe(0);
+    });
+
+    it('replaces the interval when set again', () => {
+      registry.setDocumentLoad(makeSpan(LOAD_TRACE, 'd'.repeat(16)), {
+        startPerfNow: 10,
+        endPerfNow: 900,
+      });
+      const entry = makeEntry('https://example.com/app.js', 400, 600);
+      expect(traceIdOf(registry.getContext(entry))).toBe(LOAD_TRACE);
+    });
+
+    it('exposes the context without an entry and clears it', () => {
+      expect(traceIdOf(registry.getDocumentLoadContext())).toBe(LOAD_TRACE);
+      registry.clearDocumentLoad();
+      expect(registry.getDocumentLoadContext()).toBeUndefined();
+      expect(
+        registry.getContext(makeEntry('https://example.com/app.js', 20, 300)),
+      ).toBeUndefined();
+    });
+  });
 });
 
 describe('getNetworkContextRegistry', () => {

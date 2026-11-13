@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Span } from '@opentelemetry/api';
 import type { Logger } from '@opentelemetry/api-logs';
 import { hrTime } from '@opentelemetry/core';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
@@ -15,6 +16,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { getNetworkContextRegistry } from '#utils';
 import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { NavigationTimingInstrumentation } from './instrumentation.ts';
 import {
@@ -64,6 +66,7 @@ describe('NavigationTimingInstrumentation', () => {
 
   afterEach(() => {
     instrumentation.disable();
+    getNetworkContextRegistry().clearDocumentLoad();
     inMemoryExporter.reset();
     document.body.innerHTML = '';
     restoreReadyState?.();
@@ -165,6 +168,52 @@ describe('NavigationTimingInstrumentation', () => {
     expect(logs.length).toBe(1);
     expect(logs[0]?.eventName).toBe(NAVIGATION_TIMING_EVENT_NAME);
     expect(logs[0]?.attributes[ATTR_NAVIGATION_LOAD_EVENT_END]).toBe(456);
+  });
+
+  it('should attach the document load span context when one is stored', () => {
+    setReadyState('complete');
+    const TRACE_ID = '1aa6c4e2912022f20cc0f30e1cce1902';
+    const SPAN_ID = '6e65f4fc04c216ec';
+    const span = {
+      spanContext: () => ({ traceId: TRACE_ID, spanId: SPAN_ID }),
+    } as Span;
+    getNetworkContextRegistry().setDocumentLoad(span, {
+      startPerfNow: 0,
+      endPerfNow: 456,
+    });
+    getEntriesByTypeSpy.mockReturnValueOnce([
+      {
+        name: 'https://example.test/',
+        entryType: 'navigation',
+        type: 'navigate',
+        loadEventEnd: 456,
+      },
+    ]);
+
+    enableForTest(instrumentation);
+
+    const logs = getNavigationTimingLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.spanContext?.traceId).toBe(TRACE_ID);
+    expect(logs[0]?.spanContext?.spanId).toBe(SPAN_ID);
+  });
+
+  it('should emit without a span context when no document load is stored', () => {
+    setReadyState('complete');
+    getEntriesByTypeSpy.mockReturnValueOnce([
+      {
+        name: 'https://example.test/',
+        entryType: 'navigation',
+        type: 'navigate',
+        loadEventEnd: 456,
+      },
+    ]);
+
+    enableForTest(instrumentation);
+
+    const logs = getNavigationTimingLogs();
+    expect(logs.length).toBe(1);
+    expect(logs[0]?.spanContext).toBeUndefined();
   });
 
   it('should emit after load when enabled by default and page is still loading', () => {

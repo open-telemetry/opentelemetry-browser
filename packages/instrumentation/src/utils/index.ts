@@ -6,7 +6,10 @@
 export type { ContextRegistry } from './ContextRegistry.ts';
 export { getElementCSSSelector } from './getElementCSSSelector.ts';
 export { getElementXPath } from './getElementXPath.ts';
-export type { NetworkSpanData } from './NetworkContextRegistry.ts';
+export type {
+  DocumentLoadData,
+  NetworkSpanData,
+} from './NetworkContextRegistry.ts';
 export {
   getNetworkContextRegistry,
   NetworkContextRegistry,

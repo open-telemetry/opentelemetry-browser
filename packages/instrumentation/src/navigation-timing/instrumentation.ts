@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
+import { getNetworkContextRegistry } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -186,7 +188,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
       return;
     }
 
-    this.logger.emit({
+    const record: LogRecord = {
       eventName: NAVIGATION_TIMING_EVENT_NAME,
       timestamp: entry.startTime,
       severityNumber: SeverityNumber.INFO,
@@ -218,7 +220,12 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
         [ATTR_NAVIGATION_ENCODED_BODY_SIZE]: entry.encodedBodySize,
         [ATTR_NAVIGATION_DECODED_BODY_SIZE]: entry.decodedBodySize,
       },
-    });
+    };
+    const ctx = getNetworkContextRegistry().getDocumentLoadContext();
+    if (ctx) {
+      record.context = ctx;
+    }
+    this.logger.emit(record);
   }
 
   private _unsubscribeAll(): void {
