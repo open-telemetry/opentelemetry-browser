@@ -171,7 +171,6 @@ describe('DocumentLoadInstrumentation', () => {
   it.each([
     { fetchStart: 10, loadEventEnd: 0 },
     { fetchStart: 10, loadEventEnd: 5 },
-    { fetchStart: -1, loadEventEnd: 100 },
     { fetchStart: Number.NaN, loadEventEnd: 100 },
     { fetchStart: 10, loadEventEnd: Number.POSITIVE_INFINITY },
   ])('does not invent a load interval from invalid timing %j', (timing) => {
@@ -179,6 +178,14 @@ describe('DocumentLoadInstrumentation', () => {
     finishLoad();
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('starts at the time origin when fetchStart is below zero', () => {
+    entry = { ...entry, fetchStart: -3 };
+    finishLoad();
+    const span = finishedSpan();
+    expect(millis(span.startTime)).toBeCloseTo(performance.timeOrigin, 2);
+    expect(millis(span.endTime)).toBeCloseTo(performance.timeOrigin + 100, 2);
   });
 
   it('does not emit without a navigation entry', () => {

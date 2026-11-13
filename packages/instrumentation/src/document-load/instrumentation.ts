@@ -99,18 +99,21 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
       !entry ||
       !Number.isFinite(entry.fetchStart) ||
       !Number.isFinite(entry.loadEventEnd) ||
-      entry.fetchStart < 0 ||
       entry.loadEventEnd <= 0 ||
       entry.loadEventEnd < entry.fetchStart
     ) {
       return false;
     }
+    // Firefox can report fetchStart a few milliseconds below zero
+    // (https://bugzilla.mozilla.org/show_bug.cgi?id=1843850), so the span
+    // starts at the time origin instead of being dropped.
+    const fetchStart = Math.max(entry.fetchStart, 0);
 
     const parent = this.propagator.extract(ROOT_CONTEXT, document, metaGetter);
     const span = this.tracer.startSpan(
       'documentLoad',
       {
-        startTime: performance.timeOrigin + entry.fetchStart,
+        startTime: performance.timeOrigin + fetchStart,
         attributes: {
           [ATTR_URL_FULL]: defaultSanitizeUrl(entry.name),
         },
