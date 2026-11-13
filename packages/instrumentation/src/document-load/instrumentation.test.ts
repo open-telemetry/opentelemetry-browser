@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TextMapPropagator } from '@opentelemetry/api';
+import { W3CTraceContextPropagator } from '@opentelemetry/core';
+import { B3Propagator } from '@opentelemetry/propagator-b3';
 import {
   InMemorySpanExporter,
   SimpleSpanProcessor,
@@ -19,6 +22,16 @@ import {
 } from 'vitest';
 import { enableForTest } from '#utils/test';
 import { DocumentLoadInstrumentation } from './instrumentation.ts';
+
+const SERVER_TRACE = '1'.repeat(32);
+const SERVER_SPAN = '2'.repeat(16);
+
+function addMeta(name: string, content: string) {
+  const meta = document.createElement('meta');
+  meta.name = name;
+  meta.content = content;
+  document.head.append(meta);
+}
 
 function millis(time: [number, number]): number {
   return time[0] * 1000 + time[1] / 1e6;
@@ -52,13 +65,16 @@ describe('DocumentLoadInstrumentation', () => {
 
   afterEach(async () => {
     instrumentation.disable();
+    for (const meta of Array.from(document.head.querySelectorAll('meta'))) {
+      meta.remove();
+    }
     vi.useRealTimers();
     vi.restoreAllMocks();
     await tracerProvider.shutdown();
   });
 
-  function finishLoad() {
-    instrumentation.enable({ tracerProvider });
+  function finishLoad(propagator?: TextMapPropagator) {
+    instrumentation.enable({ tracerProvider, propagator });
     vi.runAllTimers();
   }
 
@@ -78,6 +94,44 @@ describe('DocumentLoadInstrumentation', () => {
     expect(span.events).toEqual([]);
     expect(span.attributes['url.full']).toBe(entry.name);
     expect(span.parentSpanContext).toBeUndefined();
+  });
+
+  it('joins the server trace from the traceparent and tracestate meta tags', () => {
+    addMeta('traceparent', `00-${SERVER_TRACE}-${SERVER_SPAN}-01`);
+    addMeta('tracestate', 'vendor=value');
+    finishLoad(new W3CTraceContextPropagator());
+    const span = finishedSpan();
+    expect(span.spanContext().traceId).toBe(SERVER_TRACE);
+    expect(span.parentSpanContext?.spanId).toBe(SERVER_SPAN);
+    expect(span.parentSpanContext?.isRemote).toBe(true);
+    expect(span.spanContext().traceState?.serialize()).toBe('vendor=value');
+  });
+
+  it('matches the meta tag name without case', () => {
+    addMeta('TraceParent', `00-${SERVER_TRACE}-${SERVER_SPAN}-01`);
+    finishLoad(new W3CTraceContextPropagator());
+    expect(finishedSpan().parentSpanContext?.spanId).toBe(SERVER_SPAN);
+  });
+
+  it('records no span when the server trace is not sampled', () => {
+    addMeta('traceparent', `00-${SERVER_TRACE}-${SERVER_SPAN}-00`);
+    finishLoad(new W3CTraceContextPropagator());
+    expect(spanExporter.getFinishedSpans()).toHaveLength(0);
+  });
+
+  it('starts a new trace when the traceparent meta tag is malformed', () => {
+    addMeta('traceparent', 'not-a-traceparent');
+    finishLoad(new W3CTraceContextPropagator());
+    expect(finishedSpan().parentSpanContext).toBeUndefined();
+  });
+
+  it('reads the meta tag the configured propagator asks for', () => {
+    addMeta('traceparent', `00-${'3'.repeat(32)}-${'4'.repeat(16)}-01`);
+    addMeta('b3', `${SERVER_TRACE}-${SERVER_SPAN}-1`);
+    finishLoad(new B3Propagator());
+    const span = finishedSpan();
+    expect(span.spanContext().traceId).toBe(SERVER_TRACE);
+    expect(span.parentSpanContext?.spanId).toBe(SERVER_SPAN);
   });
 
   it('has no side effects until enabled', () => {
@@ -117,7 +171,6 @@ describe('DocumentLoadInstrumentation', () => {
   it.each([
     { fetchStart: 10, loadEventEnd: 0 },
     { fetchStart: 10, loadEventEnd: 5 },
-    { fetchStart: -1, loadEventEnd: 100 },
     { fetchStart: Number.NaN, loadEventEnd: 100 },
     { fetchStart: 10, loadEventEnd: Number.POSITIVE_INFINITY },
   ])('does not invent a load interval from invalid timing %j', (timing) => {
@@ -125,6 +178,14 @@ describe('DocumentLoadInstrumentation', () => {
     finishLoad();
     expect(spanExporter.getFinishedSpans()).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('starts at the time origin when fetchStart is below zero', () => {
+    entry = { ...entry, fetchStart: -3 };
+    finishLoad();
+    const span = finishedSpan();
+    expect(millis(span.startTime)).toBeCloseTo(performance.timeOrigin, 2);
+    expect(millis(span.endTime)).toBeCloseTo(performance.timeOrigin + 100, 2);
   });
 
   it('does not emit without a navigation entry', () => {

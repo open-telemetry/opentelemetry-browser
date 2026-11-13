@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { TextMapGetter } from '@opentelemetry/api';
 import { ROOT_CONTEXT } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { ATTR_URL_FULL } from '@opentelemetry/semantic-conventions';
@@ -12,6 +13,20 @@ import type { DocumentLoadInstrumentationConfig } from './types.ts';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 50;
+
+// The server renders its context as <meta name="traceparent" content="...">,
+// so the propagator reads each field it needs from the meta tag of that name.
+const metaGetter: TextMapGetter<Document> = {
+  keys(doc) {
+    return Array.from(doc.getElementsByTagName('meta'), (meta) => meta.name);
+  },
+  get(doc, key) {
+    const name = key.toLowerCase();
+    return Array.from(doc.getElementsByTagName('meta')).find(
+      (meta) => meta.name.toLowerCase() === name,
+    )?.content;
+  },
+};
 
 export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoadInstrumentationConfig> {
   private _collected = false;
@@ -84,22 +99,26 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
       !entry ||
       !Number.isFinite(entry.fetchStart) ||
       !Number.isFinite(entry.loadEventEnd) ||
-      entry.fetchStart < 0 ||
       entry.loadEventEnd <= 0 ||
       entry.loadEventEnd < entry.fetchStart
     ) {
       return false;
     }
+    // Firefox can report fetchStart a few milliseconds below zero
+    // (https://bugzilla.mozilla.org/show_bug.cgi?id=1843850), so the span
+    // starts at the time origin instead of being dropped.
+    const fetchStart = Math.max(entry.fetchStart, 0);
 
+    const parent = this.propagator.extract(ROOT_CONTEXT, document, metaGetter);
     const span = this.tracer.startSpan(
       'documentLoad',
       {
-        startTime: performance.timeOrigin + entry.fetchStart,
+        startTime: performance.timeOrigin + fetchStart,
         attributes: {
           [ATTR_URL_FULL]: defaultSanitizeUrl(entry.name),
         },
       },
-      ROOT_CONTEXT,
+      parent,
     );
     this._collected = true;
     span.end(performance.timeOrigin + entry.loadEventEnd);

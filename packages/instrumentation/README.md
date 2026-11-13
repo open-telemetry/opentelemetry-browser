@@ -172,9 +172,8 @@ import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentat
 
 Creates one `documentLoad` span from the navigation entry's `fetchStart` to
 `loadEventEnd`, with the `url.full` attribute. Credentials and sensitive query
-values in `url.full` are redacted with `defaultSanitizeUrl`. The span starts a
-new trace. Pass it to `startBrowserSdk()` and the SDK enables it with its tracer
-provider:
+values in `url.full` are redacted with `defaultSanitizeUrl`. Pass it to
+`startBrowserSdk()` and the SDK enables it with its tracer provider:
 
 ```typescript
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
@@ -196,6 +195,22 @@ its original interval. During load, collection waits until `loadEventEnd` is
 populated. Missing or invalid navigation timing produces no span rather than a
 made-up end time. Disabling cancels collection. Re-enabling an instance that
 already collected the document does not emit a second span for that load.
+
+If the server that rendered the page puts its trace context in the HTML, the
+span joins that trace as a child of the server span:
+
+```html
+<meta
+  name="traceparent"
+  content="00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+>
+<meta name="tracestate" content="vendor=value">
+```
+
+The configured propagator reads each field it needs from the `<meta>` tag of the
+same name, so the W3C trace context propagator reads `traceparent` and
+`tracestate`. The span follows the server's sampling decision when the sampler
+is parent based. Without a valid server context, the span starts a new trace.
 
 Detailed timings come from the navigation-timing and resource-timing
 instrumentations, so there are no `documentFetch` or `resourceFetch` child spans
