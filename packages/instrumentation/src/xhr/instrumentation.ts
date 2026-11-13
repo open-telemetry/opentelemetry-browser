@@ -5,6 +5,7 @@
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -14,14 +15,12 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getXHRBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
-import { toError } from '../utils/toError.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type { XhrInstrumentationConfig } from './types.ts';
@@ -53,7 +52,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       this._wrap(XMLHttpRequest.prototype, 'open', this._patchOpen());
     } catch (err) {
       throw new Error(
-        `Failed to patch XMLHttpRequest.prototype.open: ${toError(err).message}`,
+        `Failed to patch XMLHttpRequest.prototype.open: ${this._toError(err).message}`,
         { cause: err },
       );
     }
@@ -62,7 +61,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       this._wrap(XMLHttpRequest.prototype, 'send', this._patchSend());
     } catch (err) {
       throw new Error(
-        `Failed to patch XMLHttpRequest.prototype.send: ${toError(err).message}. The open patch stays in place and passes calls through.`,
+        `Failed to patch XMLHttpRequest.prototype.send: ${this._toError(err).message}. The open patch stays in place and passes calls through.`,
         { cause: err },
       );
     }

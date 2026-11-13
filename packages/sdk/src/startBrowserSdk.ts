@@ -7,7 +7,7 @@ import { diag } from '@opentelemetry/api';
 import type {
   Instrumentation,
   InstrumentationDeps,
-} from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+} from '@opentelemetry/browser-api';
 import { INVALID_CONFIG_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
@@ -40,6 +40,33 @@ const DEFAULT_CONFIG: RootConfig = {
   setGlobals: true,
   logLevel: 'INFO',
 };
+
+function isInstrumentation(value: unknown): value is Instrumentation {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Partial<Instrumentation>).enable === 'function' &&
+    typeof (value as Partial<Instrumentation>).disable === 'function'
+  );
+}
+
+// Checked once at start, so a bad entry such as a class passed instead of an
+// instance logs one error, not one per enable() and disable().
+function filterInstrumentations(
+  instrumentations: readonly unknown[],
+): Instrumentation[] {
+  return instrumentations.filter(
+    (instrumentation, index): instrumentation is Instrumentation => {
+      if (isInstrumentation(instrumentation)) {
+        return true;
+      }
+      diag.error(
+        `instrumentations[${index}] is not an instrumentation; skipped`,
+      );
+      return false;
+    },
+  );
+}
 
 // One instance that throws must not stop the SDK from reaching the others.
 function forEachInstrumentation(
@@ -185,7 +212,9 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
     sdks.push(tracesSdk);
   }
 
-  const instrumentations = rootConfig.instrumentations ?? [];
+  const instrumentations = filterInstrumentations(
+    rootConfig.instrumentations ?? [],
+  );
   // The same object on every enable(), because an instance keeps the deps
   // from its first enable() for its whole life.
   const deps: InstrumentationDeps = {

@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-instrumentation",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "OpenTelemetry browser instrumentations.",
   "keywords": [
     "opentelemetry",
@@ -16,7 +16,9 @@
     "user-action",
     "web-vitals",
     "fetch",
-    "xhr"
+    "xhr",
+    "document-load",
+    "long-animation-frame"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
   "bugs": "https://github.com/open-telemetry/opentelemetry-browser/issues",
@@ -29,12 +31,10 @@
   },
   "type": "module",
   "imports": {
-    "#instrumentation-base": "./src/InstrumentationBase/index.ts",
     "#utils": "./src/utils/index.ts",
     "#utils/test": "./src/utils/test/index.ts"
   },
   "exports": {
-    "./experimental/instrumentation-base": "./dist/InstrumentationBase/index.js",
     "./experimental/console": "./dist/console/index.js",
     "./experimental/element-timing": "./dist/element-timing/index.js",
     "./experimental/errors": "./dist/errors/index.js",
@@ -44,7 +44,9 @@
     "./experimental/user-action": "./dist/user-action/index.js",
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
     "./experimental/fetch": "./dist/fetch/index.js",
-    "./experimental/xhr": "./dist/xhr/index.js"
+    "./experimental/xhr": "./dist/xhr/index.js",
+    "./experimental/document-load": "./dist/document-load/index.js",
+    "./experimental/long-animation-frame": "./dist/long-animation-frame/index.js"
   },
   "sideEffects": false,
   "files": [
@@ -61,6 +63,7 @@
   },
   "dependencies": {
     "@opentelemetry/api-logs": "^0.223.0",
+    "@opentelemetry/browser-api": "^0.1.0",
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "web-vitals": "^6.2.3"
   },
