@@ -11,8 +11,23 @@ import type { LogRecord } from '@opentelemetry/api-logs';
 export interface WebVitalsInstrumentationConfig {
   /**
    * @experimental
+   * When true, adds selected INP attribution fields as experimental log
+   * record attributes. Does not include the raw attribution body.
+   * Defaults to `false`.
+   *
+   * Interaction selectors and script URLs can contain sensitive data.
+   * Use a custom `LogRecordProcessor` to redact attributes before export.
+   */
+  includeAttribution?: boolean;
+
+  /**
+   * @experimental
    * When true, sets the log record body to the JSON-stringified
-   * `web-vitals` attribution object for the metric.
+   * `web-vitals` attribution object for the metric. Does not add attribution
+   * attributes. Defaults to `false`.
+   *
+   * The raw body can contain more data than the selected attributes.
+   * Use a custom `LogRecordProcessor` to redact it before export.
    *
    * Note: `applyCustomLogRecordData` runs after the body is set.
    * If the hook assigns a new `body`, it will overwrite the attribution data.
