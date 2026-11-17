@@ -142,6 +142,21 @@ export function createActions(tracer: Tracer, logger: Logger) {
     return iterations;
   };
 
+  // ── Console capture actions ─────────────────────────────────────────────────
+  // These call the real console, so ConsoleInstrumentation emits them as
+  // `browser.console` events. The Error argument shows the record body getting
+  // the stack, and the object argument shows the JSON serialization.
+
+  const consoleError = () => {
+    console.error(
+      new Error('Demo console.error — the stack becomes the record body'),
+    );
+  };
+
+  const consoleLog = () => {
+    console.log('demo payload', { status: 500, retry: false });
+  };
+
   const longAnimationFrame = () => {
     if (
       typeof PerformanceObserver === 'undefined' ||
@@ -203,6 +218,8 @@ export function createActions(tracer: Tracer, logger: Logger) {
     logInfo,
     logWarn,
     logError,
+    consoleError,
+    consoleLog,
     exceptionEvent,
     longAnimationFrame,
   };
