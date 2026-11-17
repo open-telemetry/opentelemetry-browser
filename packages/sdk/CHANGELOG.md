@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.8.0...browser-sdk-v0.9.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** update opentelemetry to the 3.0/0.300 generation ([#548](https://github.com/open-telemetry/opentelemetry-browser/issues/548))
+
+### Bug Fixes
+
+* **deps:** update opentelemetry to the 3.0/0.300 generation ([#548](https://github.com/open-telemetry/opentelemetry-browser/issues/548)) ([3ccd524](https://github.com/open-telemetry/opentelemetry-browser/commit/3ccd524e8d268b4748930039a07984c450c67b85))
+* **sdk:** skip entries that are not instrumentation instances in startBrowserSdk ([#537](https://github.com/open-telemetry/opentelemetry-browser/issues/537)) ([a775af5](https://github.com/open-telemetry/opentelemetry-browser/commit/a775af5aa682126e3ab09ce1bcdb8ee46cc71b17))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.1.0 to ^0.2.0
+
 ## [0.8.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.7.0...browser-sdk-v0.8.0) (2026-11-11)
 
 
