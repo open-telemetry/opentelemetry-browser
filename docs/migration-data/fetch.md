@@ -1,7 +1,7 @@
 # Fetch emitted data changes
 
 This compares `@opentelemetry/instrumentation-fetch` 0.223.0 with
-`@opentelemetry/browser-instrumentation` 0.10.0, using `FetchInstrumentation`
+`@opentelemetry/browser-instrumentation` 0.11.0, using `FetchInstrumentation`
 from `experimental/fetch`. The configuration examples in
 [the migration guide](../migration-guide.md) describe their own listed versions.
 
@@ -72,9 +72,11 @@ network span event in the compared legacy package:
 | `browser.resource_timing.next_hop_protocol`      | Network protocol, for example `h2`                                     |
 | `browser.resource_timing.render_blocking_status` | Render blocking status, when the browser exposes it                    |
 
-The logs have `severityNumber: 9` (`INFO`). A matching new fetch/XHR span can
-supply their trace context. A timing record does not recreate the legacy
-`CORS Preflight` child span, and a match is not guaranteed for every request.
+The logs have `severityNumber: 9` (`INFO`). Each log's timestamp is the entry's
+`startTime`, when the browser started fetching the resource. A matching new
+fetch/XHR span can supply their trace context. A timing record does not recreate
+the legacy `CORS Preflight` child span, and a match is not guaranteed for every
+request.
 
 Versions before 0.220.0 could also add `http.response_content_length` and
 `http.response_content_length_uncompressed` to spans. Both are absent from the
@@ -86,6 +88,6 @@ legacy 0.223.0 package already omits both old keys.
 
 - [Legacy fetch implementation](https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-fetch/src/fetch.ts)
 - [Legacy timing helper](https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/web-common/src/utils-resource-timings.ts)
-- [New fetch implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/fetch/instrumentation.ts)
-- [New resource-timing implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/resource-timing/instrumentation.ts)
-- [Fetch migration tests](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/e2e-tests/migration/fetch-migration/fetch-migration.test.ts)
+- [New fetch implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/fetch/instrumentation.ts)
+- [New resource-timing implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/resource-timing/instrumentation.ts)
+- [Fetch migration tests](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/e2e-tests/migration/fetch-migration/fetch-migration.test.ts)
