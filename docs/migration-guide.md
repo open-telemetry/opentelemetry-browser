@@ -5,9 +5,9 @@ This guide covers moving browser telemetry from `opentelemetry-js` and
 instrumentation while keeping your existing SDK setup. Other migrations change
 the telemetry signal or have gaps that need an application-specific decision.
 
-The APIs below match `@opentelemetry/browser-instrumentation` 0.8.2 and
-`@opentelemetry/browser-sdk` 0.5.0 in this repository. Both packages are
-experimental. The fetch and XHR comparisons use the legacy packages at 0.223.0;
+The APIs below match `@opentelemetry/browser-instrumentation` 0.11.0 and
+`@opentelemetry/browser-sdk` 0.8.0 in this repository. Both packages are
+experimental. The fetch and XHR comparisons use the legacy packages at 0.300.0;
 check your installed versions before applying the behavior tables to older
 releases. The overall consolidation is tracked in [#209][consolidation].
 
@@ -40,7 +40,7 @@ gaps.
 | XHR `error.type`: `error` / `timeout`                                       | `Error` / `TimeoutError`                                                           | Update error filters. HTTP status/error behavior for responses and intentional aborts stays as listed in [XHR outcomes](#xhr-outcomes-and-timing).                                                                                              |
 | XHR span starts at `open()` and waits for timing collection                 | Starts at `send()` and ends on the terminal event                                  | Recheck duration and parentage: time before `send()` is excluded and its active context determines the parent.                                                                                                                                  |
 | Network timing events, CORS preflight child spans, XHR lifecycle events     | Separate `browser.resource_timing` log records                                     | Update trace/event queries and configure logs export. Matching new fetch/XHR context can correlate records, but does not recreate the old trace structure.                                                                                      |
-| Legacy fetch/XHR instrumentation scopes                                     | `@opentelemetry/browser-instrumentation/fetch` and `/xhr`                          | Update scope filters; scope versions follow the new package. Legacy 0.223.0 already uses stable HTTP attributes, older versions need their semconv migration notes.                                                                             |
+| Legacy fetch/XHR instrumentation scopes                                     | `@opentelemetry/browser-instrumentation/fetch` and `/xhr`                          | Update scope filters; scope versions follow the new package. Legacy 0.300.0 already uses stable HTTP attributes, older versions need their semconv migration notes.                                                                             |
 | `BrowserNavigationInstrumentation`                                          | `NavigationInstrumentation`, `NavigationInstrumentationConfig`                     | Use `experimental/navigation`, retain navigation options, and update scope filters to `@opentelemetry/browser-instrumentation/navigation`. Events remain logs; test canceled and successful navigations.                                        |
 | Navigation `defaultSanitizeUrl` export                                      | Application-provided `sanitizeUrl`                                                 | Remove the helper import, it is not a public export here.                                                                                                                                                                                       |
 | `ExceptionInstrumentation`, `GlobalErrorsInstrumentationConfig`             | `ErrorsInstrumentation`, `ErrorsInstrumentationConfig`                             | Use `experimental/errors` and scope `@opentelemetry/browser-instrumentation/errors`. Keep the `applyCustomAttributes` hook; exceptions remain log events.                                                                                       |
@@ -100,10 +100,10 @@ was `GlobalErrorsInstrumentationConfig`.
 
 ## Migrate fetch and XHR first
 
-These examples use `@opentelemetry/browser-sdk` 0.5.0 and
-`@opentelemetry/browser-instrumentation` 0.8.2, which still require the 2.x SDK
-and 0.223.x experimental packages. Keep that dependency graph until Browser
-releases support SDK 3.0 and experimental 0.300.x packages.
+These examples use `@opentelemetry/browser-sdk` 0.8.0 and
+`@opentelemetry/browser-instrumentation` 0.11.0, which require the 3.0 SDK and
+0.300.x experimental packages. Keep that dependency graph in sync when
+upgrading.
 
 Install the new instrumentation package, keeping the SDK and registration
 dependencies your application already uses:
@@ -173,7 +173,7 @@ separate iframes. They compare span name, kind, `http.request.method`,
 `url.full`, `server.address`, and `server.port` for six scenarios. For received
 responses, they also compare span status, HTTP status code, and `error.type`.
 
-| Scenario                                  | Legacy fetch 0.223.0                                       | New fetch                                                                            |
+| Scenario                                  | Legacy fetch 0.300.0                                       | New fetch                                                                            |
 | ----------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Successful response                       | Status `UNSET`; received HTTP status                       | Same                                                                                 |
 | HTTP 500                                  | Status `ERROR`; HTTP status `500`; `error.type: "500"`     | Same                                                                                 |
@@ -202,12 +202,12 @@ version is the `browser-instrumentation` package version.
 ### XHR outcomes and timing
 
 There is no legacy/new XHR parity harness yet. The comparison below comes from
-the [legacy XHR source at 0.223.0][legacy-xhr] and the new
+the [legacy XHR source at 0.300.0][legacy-xhr] and the new
 [implementation][new-xhr] and [XHR tests][xhr-tests]. Do not apply the fetch
 failure behavior to legacy XHR: that package already marks network failures and
 timeouts as errors.
 
-| Scenario                            | Legacy XHR 0.223.0                                                       | New XHR                                                           |
+| Scenario                            | Legacy XHR 0.300.0                                                       | New XHR                                                           |
 | ----------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
 | HTTP 2xx or 3xx                     | Status `UNSET`; received HTTP status                                     | Same                                                              |
 | HTTP 4xx or 5xx                     | Status `ERROR`; received HTTP status; status-code string in `error.type` | Same                                                              |
@@ -231,7 +231,7 @@ configure logs export. It emits `browser.resource_timing` records and can attach
 the associated new fetch/XHR span context when a matching timing entry is found.
 It does not recreate the old trace structure.
 
-Both legacy packages at 0.223.0 already use stable HTTP attribute names such as
+Both legacy packages at 0.300.0 already use stable HTTP attribute names such as
 `http.request.method`, `url.full`, and `http.response.status_code`. For older
 versions, also consult their [fetch][legacy-fetch-readme] and
 [XHR][legacy-xhr-readme] semantic-convention notes before reusing dashboards.
@@ -328,10 +328,10 @@ If you choose to move SDK initialization, replace the existing provider startup
 with a single Browser SDK setup; do not initialize a second global provider for
 the same signal.
 
-These examples use `@opentelemetry/browser-sdk` 0.5.0 and
-`@opentelemetry/browser-instrumentation` 0.8.2, which still require the 2.x SDK
-and 0.223.x experimental packages. Keep that dependency graph until Browser
-releases support SDK 3.0 and experimental 0.300.x packages.
+These examples use `@opentelemetry/browser-sdk` 0.8.0 and
+`@opentelemetry/browser-instrumentation` 0.11.0, which require the 3.0 SDK and
+0.300.x experimental packages. Keep that dependency graph in sync when
+upgrading.
 
 Install the SDK and the API peer dependency:
 
