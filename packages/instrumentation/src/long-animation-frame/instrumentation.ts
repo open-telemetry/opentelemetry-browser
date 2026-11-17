@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Attributes, LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { defaultSanitizeUrl } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
@@ -45,7 +45,7 @@ const URL_VALUED_INVOKER_TYPES: ReadonlySet<string> = new Set([
 function scriptAttributes(
   script: LongAnimationFrameEntry['scripts'][number],
   sanitize: (url: string) => string,
-): AnyValueMap {
+): Attributes {
   return {
     start_time: script.startTime,
     duration: script.duration,
