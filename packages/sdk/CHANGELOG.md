@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.9.0...browser-sdk-v0.9.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#525](https://github.com/open-telemetry/opentelemetry-browser/issues/525)) ([37c9b48](https://github.com/open-telemetry/opentelemetry-browser/commit/37c9b488a507c4ea4ac685741ce3f09126d47206))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.2.0 to ^0.2.1
+
 ## [0.9.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.8.0...browser-sdk-v0.9.0) (2026-11-17)
 
 

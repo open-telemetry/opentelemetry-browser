@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-api-v0.2.0...browser-api-v0.2.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#525](https://github.com/open-telemetry/opentelemetry-browser/issues/525)) ([37c9b48](https://github.com/open-telemetry/opentelemetry-browser/commit/37c9b488a507c4ea4ac685741ce3f09126d47206))
+
 ## [0.2.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-api-v0.1.0...browser-api-v0.2.0) (2026-11-17)
 
 
