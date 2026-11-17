@@ -17,6 +17,7 @@
     "web-vitals",
     "fetch",
     "xhr",
+    "document-load",
     "long-animation-frame"
   ],
   "homepage": "https://github.com/open-telemetry/opentelemetry-browser",
@@ -44,6 +45,7 @@
     "./experimental/web-vitals": "./dist/web-vitals/index.js",
     "./experimental/fetch": "./dist/fetch/index.js",
     "./experimental/xhr": "./dist/xhr/index.js",
+    "./experimental/document-load": "./dist/document-load/index.js",
     "./experimental/long-animation-frame": "./dist/long-animation-frame/index.js"
   },
   "sideEffects": false,
