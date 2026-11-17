@@ -257,6 +257,9 @@ describe('FetchInstrumentation', () => {
     expect(registerData?.startPerfNow).toBeGreaterThanOrEqual(
       options.startTime,
     );
+    // NOTE: `endPerfNow` is read when the span ends, which happens after the
+    // response body has been drained, so callers must capture `endTime` once
+    // the span has been exported, not when the request promise settles.
     expect(registerData?.endPerfNow).toBeLessThanOrEqual(options.endTime);
     expect(registeredSpan).toBeDefined();
     expect(registeredSpan?.spanContext()).toEqual(options.span.spanContext());
@@ -495,10 +498,10 @@ describe('FetchInstrumentation', () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();
       await fetch(url).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -517,10 +520,10 @@ describe('FetchInstrumentation', () => {
       await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
         r.json(),
       );
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('POST');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('POST');
@@ -538,10 +541,10 @@ describe('FetchInstrumentation', () => {
       const url = getUrlForPath('/api/query');
       const startTime = performance.now();
       await fetch(url, { method: 'QUERY' }).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('QUERY');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('QUERY');
@@ -558,10 +561,10 @@ describe('FetchInstrumentation', () => {
       const url = getUrlForPath('/api/error');
       const startTime = performance.now();
       await fetch(url);
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -586,10 +589,10 @@ describe('FetchInstrumentation', () => {
       } catch (err) {
         expect(err).toBeDefined();
       }
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -611,10 +614,10 @@ describe('FetchInstrumentation', () => {
       const fetchPromise = fetch(url, { signal: controller.signal });
       controller.abort();
       await expect(fetchPromise).rejects.toThrow();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
@@ -631,10 +634,10 @@ describe('FetchInstrumentation', () => {
       const startTime = performance.now();
       const fetchPromise = fetch(url, { signal: AbortSignal.timeout(10) });
       await expect(fetchPromise).rejects.toThrow();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
@@ -651,10 +654,10 @@ describe('FetchInstrumentation', () => {
       const startTime = performance.now();
       const response = await fetch(url);
       await expect(response.text()).rejects.toThrow();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
@@ -730,10 +733,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get?api_key=secret&normal=value');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported (with sanitized URL)
         const span = await waitForSpan(defaultSanitizeUrl(url));
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -879,10 +882,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -906,10 +909,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -986,10 +989,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1011,10 +1014,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1340,10 +1343,10 @@ describe('FetchInstrumentation', () => {
         const url = 'http://example.com/api/status.json';
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
