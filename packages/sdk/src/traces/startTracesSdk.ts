@@ -36,7 +36,7 @@ export const DEFAULT_TRACES_EXPORT_CONFIG: TracesConfig['exportConfig'] = {
 
 export function startTracesSdk(config?: TracesConfig): TracesSdk {
   // Set the logger
-  setSdkLogger(config?.logLevel);
+  setSdkLogger(config);
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};

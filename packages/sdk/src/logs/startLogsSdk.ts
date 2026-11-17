@@ -32,7 +32,7 @@ export const DEFAULT_LOGS_EXPORT_CONFIG: LogsConfig['exportConfig'] = {
  */
 export function startLogsSdk(config?: LogsConfig): LogsSdk {
   // Set the logger
-  setSdkLogger(config?.logLevel);
+  setSdkLogger(config);
 
   // Resolve resource
   const resourceAttributes = config?.resourceAttributes ?? {};

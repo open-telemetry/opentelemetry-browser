@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export { getDefaultLogger } from '../core/diag.ts';
 export type { TracesConfig, TracesSdk } from '../core/types.ts';
 export {
   DEFAULT_TRACES_EXPORT_CONFIG,

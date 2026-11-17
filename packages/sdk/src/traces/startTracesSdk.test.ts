@@ -16,6 +16,7 @@ import {
   SimpleSpanProcessor,
 } from '@opentelemetry/sdk-trace';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
+import { getDefaultLogger } from '../core/diag.ts';
 import type { TracesSdk } from '../core/types.ts';
 import {
   DEFAULT_TRACES_EXPORT_CONFIG,
@@ -275,6 +276,29 @@ describe('startTracesSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
+  });
+
+  it('should not add a console exporter for a DEBUG logger', () => {
+    // Arrange
+    let exportCalled = false;
+
+    // Act
+    tracesSdk = startTracesSdk({
+      logger: getDefaultLogger('DEBUG'),
+      processors: [
+        new SimpleSpanProcessor({
+          exporter: {
+            export: () => (exportCalled = true),
+            shutdown: () => Promise.resolve(),
+          },
+        }),
+      ],
+    });
+    trace.getTracer('traces-sdk-test').startSpan('test').end();
+
+    // Assert
+    expect(exportCalled).toStrictEqual(true);
+    expect(consoleDirSpy).not.toHaveBeenCalled();
   });
 
   it('should add a SimpleSpanProcessor into the list if log level is DEBUG', () => {
