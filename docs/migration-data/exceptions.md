@@ -1,7 +1,7 @@
 # Exception emitted data changes
 
 This compares `@opentelemetry/instrumentation-web-exception` 0.17.0 with
-`@opentelemetry/browser-instrumentation` 0.10.0, using `ErrorsInstrumentation`
+`@opentelemetry/browser-instrumentation` 0.11.0, using `ErrorsInstrumentation`
 from `experimental/errors`. Return to
 [the migration guide](../migration-guide.md) for configuration and SDK setup.
 
@@ -33,5 +33,5 @@ override them.
 ## Sources
 
 - [Legacy exception implementation](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/207b9dd1c7e30c12d5dec0e54e476e361b209484/packages/instrumentation-web-exception/src/instrumentation.ts)
-- [New errors implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/errors/instrumentation.ts)
-- [New errors tests](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/errors/instrumentation.test.ts)
+- [New errors implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/errors/instrumentation.ts)
+- [New errors tests](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/errors/instrumentation.test.ts)
