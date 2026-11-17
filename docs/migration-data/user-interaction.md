@@ -1,7 +1,7 @@
 # User interaction emitted data changes
 
 This compares `@opentelemetry/instrumentation-user-interaction` 0.68.0 with
-`@opentelemetry/browser-instrumentation` 0.10.0, using
+`@opentelemetry/browser-instrumentation` 0.11.0, using
 `UserActionInstrumentation` from `experimental/user-action`. Return to
 [the migration guide](../migration-guide.md) for configuration and SDK setup.
 
@@ -36,6 +36,6 @@ Attributes added in `shouldPreventSpanCreation` don't carry over. Set them in a
 
 - [Legacy interaction implementation](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/207b9dd1c7e30c12d5dec0e54e476e361b209484/packages/instrumentation-user-interaction/src/instrumentation.ts)
 - [Legacy attribute names](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/207b9dd1c7e30c12d5dec0e54e476e361b209484/packages/instrumentation-user-interaction/src/enums/AttributeNames.ts)
-- [New user-action implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/user-action/instrumentation.ts)
-- [New attribute definitions](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/user-action/semconv.ts)
-- [New user-action tests](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/user-action/instrumentation.test.ts)
+- [New user-action implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/user-action/instrumentation.ts)
+- [New attribute definitions](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/user-action/semconv.ts)
+- [New user-action tests](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/user-action/instrumentation.test.ts)
