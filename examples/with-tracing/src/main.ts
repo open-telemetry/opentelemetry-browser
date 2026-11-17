@@ -1,6 +1,5 @@
 import './style.css';
-import { context, propagation, trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { context, logs, propagation, trace } from '@opentelemetry/api';
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
