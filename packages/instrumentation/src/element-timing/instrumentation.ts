@@ -45,8 +45,9 @@ export class ElementTimingInstrumentation extends InstrumentationBase<ElementTim
 
   protected override _init(): void {
     if (!PerformanceObserver.supportedEntryTypes.includes('element')) {
-      throw new Error(
+      throw new DOMException(
         'PerformanceObserver does not support the "element" entry type in this browser.',
+        'NotSupportedError',
       );
     }
   }

@@ -377,6 +377,45 @@ describe('InstrumentationBase', () => {
       );
     });
 
+    it('_init throws a NotSupportedError DOMException: state failed, logged at debug, no error', () => {
+      const probe = new Probe();
+      probe.initError = new DOMException('no such API', 'NotSupportedError');
+
+      probe.enable();
+
+      expect(probe.onEnableCount).toBe(0);
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.error).not.toHaveBeenCalled();
+      expect(
+        vi
+          .mocked(diagLogger.debug)
+          .mock.calls.filter(([namespace]) => namespace === 'test'),
+      ).toEqual([
+        [
+          'test',
+          expect.stringMatching(/not supported.*stays off.*no such API/),
+          expect.any(Error),
+        ],
+      ]);
+    });
+
+    it('_init throws an Error named NotSupportedError: logged at debug, no error', () => {
+      const probe = new Probe();
+      const error = new Error('no such API');
+      error.name = 'NotSupportedError';
+      probe.initError = error;
+
+      probe.enable();
+
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.error).not.toHaveBeenCalled();
+      expect(diagLogger.debug).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('no such API'),
+        error,
+      );
+    });
+
     it('_onEnable throws a non-Error: logged as an Error with the value as cause', () => {
       const probe = new Probe();
       probe.onEnableError = 'enable broke';
