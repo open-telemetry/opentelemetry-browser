@@ -1,7 +1,7 @@
 # Navigation emitted data changes
 
 This compares `@opentelemetry/instrumentation-browser-navigation` 0.17.0 with
-`@opentelemetry/browser-instrumentation` 0.10.0, using
+`@opentelemetry/browser-instrumentation` 0.11.0, using
 `NavigationInstrumentation` from `experimental/navigation`. Return to
 [the migration guide](../migration-guide.md) for configuration and SDK setup.
 
@@ -27,6 +27,6 @@ severity now matches these records.
 ## Sources
 
 - [Legacy navigation implementation](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/207b9dd1c7e30c12d5dec0e54e476e361b209484/packages/instrumentation-browser-navigation/src/instrumentation.ts)
-- [New navigation implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/navigation/instrumentation.ts)
-- [New navigation attribute definitions](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/navigation/semconv.ts)
-- [New navigation tests](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/navigation/instrumentation.test.ts)
+- [New navigation implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/navigation/instrumentation.ts)
+- [New navigation attribute definitions](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/navigation/semconv.ts)
+- [New navigation tests](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/navigation/instrumentation.test.ts)
