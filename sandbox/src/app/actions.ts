@@ -1,9 +1,12 @@
 // actions.ts — handlers for each demo button
 
-import type { Tracer } from '@opentelemetry/api';
-import { context, SpanStatusCode, trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Logger, Tracer } from '@opentelemetry/api';
+import {
+  context,
+  SeverityNumber,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -139,6 +142,21 @@ export function createActions(tracer: Tracer, logger: Logger) {
     return iterations;
   };
 
+  // ── Console capture actions ─────────────────────────────────────────────────
+  // These call the real console, so ConsoleInstrumentation emits them as
+  // `browser.console` events. The Error argument shows the record body getting
+  // the stack, and the object argument shows the JSON serialization.
+
+  const consoleError = () => {
+    console.error(
+      new Error('Demo console.error — the stack becomes the record body'),
+    );
+  };
+
+  const consoleLog = () => {
+    console.log('demo payload', { status: 500, retry: false });
+  };
+
   const longAnimationFrame = () => {
     if (
       typeof PerformanceObserver === 'undefined' ||
@@ -200,6 +218,8 @@ export function createActions(tracer: Tracer, logger: Logger) {
     logInfo,
     logWarn,
     logError,
+    consoleError,
+    consoleLog,
     exceptionEvent,
     longAnimationFrame,
   };

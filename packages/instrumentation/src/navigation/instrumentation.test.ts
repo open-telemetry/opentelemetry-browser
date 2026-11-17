@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import type {
+  LogRecordProcessor,
+  ReadWriteLogRecord,
+} from '@opentelemetry/sdk-logs';
 import {
   InMemoryLogRecordExporter,
   LoggerProvider,
@@ -493,7 +496,7 @@ describe('NavigationInstrumentation', () => {
     it('should allow custom LogRecordProcessor to add attributes in onEmit', () => {
       const memoryExporter = new InMemoryLogRecordExporter();
       const customProcessor: LogRecordProcessor = {
-        onEmit: (record: SdkLogRecord) => {
+        onEmit: (record: ReadWriteLogRecord) => {
           record.setAttribute('custom.processor.key', 'custom.processor.value');
         },
         shutdown: async () => {},

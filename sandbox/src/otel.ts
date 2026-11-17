@@ -1,13 +1,14 @@
 // otel.ts — SDK initialisation via the official @opentelemetry/browser-sdk
 
-import type { Tracer } from '@opentelemetry/api';
-import { trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { logs } from '@opentelemetry/api-logs';
+import type { Logger, Tracer } from '@opentelemetry/api';
+import { logs, trace } from '@opentelemetry/api';
+import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/console';
+import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/document-load';
 import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
+import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -138,15 +139,23 @@ export async function initOtel(
     },
 
     instrumentations: [
+      // Event-based
+      new ConsoleInstrumentation(),
       new ElementTimingInstrumentation(),
       new ErrorsInstrumentation(),
       new LongAnimationFrameInstrumentation(),
+      new NavigationInstrumentation(),
       new NavigationTimingInstrumentation(),
       new ResourceTimingInstrumentation({
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
       new UserActionInstrumentation(),
-      new WebVitalsInstrumentation({ includeRawAttribution: true }),
+      new WebVitalsInstrumentation({
+        includeRawAttribution: true,
+        reportAllChanges: true,
+      }),
+      // Span-based
+      new DocumentLoadInstrumentation(),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
         ignoreUrls: [config.tracesUrl, config.logsUrl],

@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Attributes } from '@opentelemetry/api';
-import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Attributes, LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_EXCEPTION_MESSAGE,
@@ -87,7 +86,7 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
         capturedError,
         isRejection ? undefined : event.message,
       );
-      let errorAttributes: AnyValueMap;
+      let errorAttributes: Attributes;
       if (typeof normalizedError === 'string') {
         errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: normalizedError };
       } else {
