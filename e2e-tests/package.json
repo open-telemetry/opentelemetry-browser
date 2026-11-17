@@ -12,11 +12,11 @@
     "@opentelemetry/browser-api": "file:../packages/api",
     "@opentelemetry/browser-instrumentation": "file:../packages/instrumentation",
     "@opentelemetry/browser-sdk": "file:../packages/sdk",
-    "@opentelemetry/exporter-logs-otlp-http": "^0.300.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.300.0",
-    "@opentelemetry/instrumentation-fetch": "^0.300.0",
-    "@opentelemetry/sdk-logs": "^3.0.0",
-    "@opentelemetry/sdk-trace": "^3.0.0",
+    "@opentelemetry/exporter-logs-otlp-http": "^0.301.2",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.301.2",
+    "@opentelemetry/instrumentation-fetch": "^0.301.2",
+    "@opentelemetry/sdk-logs": "^3.1.1",
+    "@opentelemetry/sdk-trace": "^3.1.1",
     "msw": "^3.0.4"
   },
   "msw": {
