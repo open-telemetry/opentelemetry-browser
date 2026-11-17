@@ -1,7 +1,7 @@
 # XHR emitted data changes
 
 This compares `@opentelemetry/instrumentation-xml-http-request` 0.223.0 with
-`@opentelemetry/browser-instrumentation` 0.10.0, using `XhrInstrumentation` from
+`@opentelemetry/browser-instrumentation` 0.11.0, using `XhrInstrumentation` from
 `experimental/xhr`. The configuration examples in
 [the migration guide](../migration-guide.md) describe their own listed versions.
 
@@ -85,9 +85,11 @@ network span event in the compared legacy package:
 | `browser.resource_timing.next_hop_protocol`      | Network protocol, for example `h2`                                     |
 | `browser.resource_timing.render_blocking_status` | Render blocking status, when the browser exposes it                    |
 
-The logs have `severityNumber: 9` (`INFO`). A matching new fetch/XHR span can
-supply their trace context. A timing record does not recreate the legacy
-`CORS Preflight` child span, and a match is not guaranteed for every request.
+The logs have `severityNumber: 9` (`INFO`). Each log's timestamp is the entry's
+`startTime`, when the browser started fetching the resource. A matching new
+fetch/XHR span can supply their trace context. A timing record does not recreate
+the legacy `CORS Preflight` child span, and a match is not guaranteed for every
+request.
 
 Versions before 0.220.0 could also add `http.response_content_length` and
 `http.response_content_length_uncompressed` to spans. Both are absent from the
@@ -100,6 +102,6 @@ legacy 0.223.0 package already omits both old keys.
 - [Legacy XHR implementation](https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-xml-http-request/src/xhr.ts)
 - [Legacy XHR event names](https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/opentelemetry-instrumentation-xml-http-request/src/enums/EventNames.ts)
 - [Legacy timing helper](https://github.com/open-telemetry/opentelemetry-js/blob/92b844e8aa7d9655e4b3560154e912c4c1ced64d/experimental/packages/web-common/src/utils-resource-timings.ts)
-- [New XHR implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/xhr/instrumentation.ts)
-- [New XHR tests](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/xhr/instrumentation.test.ts)
-- [New resource-timing implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/8802bea646f1dc70be34f782c6a2a22c6ecec7f9/packages/instrumentation/src/resource-timing/instrumentation.ts)
+- [New XHR implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/xhr/instrumentation.ts)
+- [New XHR tests](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/xhr/instrumentation.test.ts)
+- [New resource-timing implementation](https://github.com/open-telemetry/opentelemetry-browser/blob/05debbf94db36d9db2c7954cb595308c81b3cc85/packages/instrumentation/src/resource-timing/instrumentation.ts)
