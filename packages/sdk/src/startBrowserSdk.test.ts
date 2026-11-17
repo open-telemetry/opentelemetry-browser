@@ -7,15 +7,7 @@ import type { ProxyTracerProvider } from '@opentelemetry/api';
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import type { Instrumentation } from '@opentelemetry/browser-api';
-import {
-  ConsoleLogRecordExporter,
-  SimpleLogRecordProcessor,
-} from '@opentelemetry/sdk-logs';
-import {
-  ConsoleSpanExporter,
-  SimpleSpanProcessor,
-  TracerProvider,
-} from '@opentelemetry/sdk-trace';
+import { SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
   afterAll,
@@ -26,7 +18,6 @@ import {
   it,
   vi,
 } from 'vitest';
-import { getDefaultLogger } from './core/diag.ts';
 import type { WebSdk } from './core/types.ts';
 import { quickStartBrowserSdk, startBrowserSdk } from './startBrowserSdk.ts';
 
@@ -605,37 +596,6 @@ describe('quickStartBrowserSdk', () => {
         'x-test-header': 'test-value',
       },
     });
-  });
-
-  it('should export to the console and OTLP with console processors and a signal export URL', async () => {
-    // Act: the replacement for `logLevel: 'DEBUG'` shown in the README
-    browserSdk = startBrowserSdk({
-      logger: getDefaultLogger('DEBUG'),
-      logs: {
-        processors: [
-          new SimpleLogRecordProcessor({
-            exporter: new ConsoleLogRecordExporter(),
-          }),
-        ],
-        exportConfig: { url: 'http://otlp-signal-endpoint:4318/v1/logs' },
-      },
-      traces: {
-        processors: [
-          new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
-        ],
-        exportConfig: { url: 'http://otlp-signal-endpoint:4318/v1/traces' },
-      },
-    });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-    trace.getTracer('traces-sdk-test').startSpan('test').end();
-    await browserSdk.shutdown();
-
-    // Assert
-    expect(consoleDirSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy.mock.calls.map((args) => args[0]).sort()).toEqual([
-      'http://otlp-signal-endpoint:4318/v1/logs',
-      'http://otlp-signal-endpoint:4318/v1/traces',
-    ]);
   });
 
   it('should add console processors for log levels above DEBUG', async () => {

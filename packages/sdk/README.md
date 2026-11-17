@@ -48,15 +48,12 @@ This example shows how to setup the SDK exporting logs and traces to a specific
 OTLP endpoint URL with a couple of customized headers.
 
 ```javascript
-import {
-  getDefaultLogger,
-  quickStartBrowserSdk,
-} from '@opentelemetry/browser-sdk';
+import { quickStartBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK
 const sdk = quickStartBrowserSdk({
-  // Optional - logger for the SDK's own messages. Default value is getDefaultLogger('INFO')
-  logger: getDefaultLogger('INFO'),
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -75,12 +72,12 @@ resource attributes and the limits for spans and log records.
 
 ```javascript
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
-import { getDefaultLogger, startBrowserSdk } from '@opentelemetry/browser-sdk';
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
 
 // Start the SDK
 const sdk = startBrowserSdk({
-  // Optional - logger for the SDK's own messages. Default value is getDefaultLogger('INFO')
-  logger: getDefaultLogger('INFO'),
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -147,15 +144,12 @@ This example shows how to setup the logs SDK exporting to a specific OTLP
 endpoint URL with a couple of customized headers.
 
 ```javascript
-import {
-  getDefaultLogger,
-  startLogsSdk,
-} from '@opentelemetry/browser-sdk/logs';
+import { startLogsSdk } from '@opentelemetry/browser-sdk/logs';
 
 // Start the SDK
 const logsSdk = startLogsSdk({
-  // Optional - logger for the SDK's own messages. Default value is getDefaultLogger('INFO')
-  logger: getDefaultLogger('INFO'),
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -189,15 +183,12 @@ This example shows how to setup the traces SDK exporting to a specific OTLP
 endpoint URL with a couple of customized headers.
 
 ```javascript
-import {
-  getDefaultLogger,
-  startTracesSdk,
-} from '@opentelemetry/browser-sdk/traces';
+import { startTracesSdk } from '@opentelemetry/browser-sdk/traces';
 
 // Start the SDK
 const tracesSdk = startTracesSdk({
-  // Optional - logger for the SDK's own messages. Default value is getDefaultLogger('INFO')
-  logger: getDefaultLogger('INFO'),
+  // Optional - possible values are: ALL, VERBOSE, DEBUG, INFO, WARN, ERROR, NONE. Default value is 'INFO'
+  logLevel: 'INFO',
   // Optional - name of the service being instrumented. Default value is 'unknown_service'
   serviceName: 'my-service',
   // Optional - version of the service. Default value is undefined
@@ -346,60 +337,11 @@ startBrowserSdk({
 });
 ```
 
-#### logger
-
-Logger for the SDK's internal messages. The default is
-`getDefaultLogger('INFO')`, which prints them to the console.
-`getDefaultLogger(level)` takes ALL, VERBOSE, DEBUG, INFO, WARN, ERROR or NONE.
-
-You can also pass your own object implementing `DiagLogger`, for example to send
-the messages to your own logging. The SDK passes every message to it, so your
-logger decides which ones to print.
-
-```javascript
-startBrowserSdk({
-  logger: myLogger,
-});
-```
-
 #### logLevel
 
-Deprecated. Use `logger: getDefaultLogger(level)` instead.
-
-Log level for SDK's internal logger. Ignored when `logger` is set. If the value
-is set to 'DEBUG' or higher the SDK functions will append a console exporter to
-ease inspection of the data being send. To keep printing the telemetry to the
-console, add a console exporter to the signal's `processors`. Set `exportConfig`
-on the signal as well to keep exporting over OTLP.
-
-```javascript
-import {
-  SimpleLogRecordProcessor,
-  ConsoleLogRecordExporter,
-} from '@opentelemetry/sdk-logs';
-import {
-  SimpleSpanProcessor,
-  ConsoleSpanExporter,
-} from '@opentelemetry/sdk-trace';
-
-startBrowserSdk({
-  logger: getDefaultLogger('DEBUG'),
-  logs: {
-    processors: [
-      new SimpleLogRecordProcessor({
-        exporter: new ConsoleLogRecordExporter(),
-      }),
-    ],
-    exportConfig: { url: 'https://collector.mycompany.com/v1/logs' },
-  },
-  traces: {
-    processors: [
-      new SimpleSpanProcessor({ exporter: new ConsoleSpanExporter() }),
-    ],
-    exportConfig: { url: 'https://collector.mycompany.com/v1/traces' },
-  },
-});
-```
+Log level for SDK's internal logger. Default value is 'INFO'. If the value is
+set to 'DEBUG' or higher the SDK functions will append a console exporter to
+ease inspection of the data being send.
 
 #### serviceName
 

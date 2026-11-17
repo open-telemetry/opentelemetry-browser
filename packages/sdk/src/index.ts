@@ -7,7 +7,6 @@ export type {
   Instrumentation,
   InstrumentationDeps,
 } from '@opentelemetry/browser-api';
-export { getDefaultLogger } from './core/diag.ts';
 export type {
   LogsConfig,
   RootConfig,

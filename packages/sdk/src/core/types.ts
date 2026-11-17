@@ -6,7 +6,6 @@
 import type {
   Attributes,
   ContextManager,
-  DiagLogger,
   DiagLogLevel,
   TextMapPropagator,
   TracerProvider,
@@ -92,19 +91,8 @@ export interface CommonConfig {
    */
   setGlobals?: boolean;
   /**
-   * Logger for the SDK's internal messages. Pass `getDefaultLogger(level)` to
-   * print them to the console, or your own object implementing `DiagLogger`.
-   * The SDK passes every message to it, so it decides which to print.
+   * Log level for SDK's internal logger
    *
-   * @defaultValue getDefaultLogger('INFO')
-   */
-  logger?: DiagLogger;
-  /**
-   * Log level for SDK's internal logger. Ignored when `logger` is set. At
-   * `DEBUG` or louder it also adds console exporters.
-   *
-   * @deprecated Use `logger: getDefaultLogger(level)` instead. To print the
-   * telemetry to the console, add a console exporter to `processors`.
    * @defaultValue DiagLogLevel.INFO
    */
   logLevel?: keyof typeof DiagLogLevel;

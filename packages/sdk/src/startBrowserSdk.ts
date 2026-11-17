@@ -38,6 +38,7 @@ const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
   enabled: true,
   setGlobals: true,
+  logLevel: 'INFO',
 };
 
 function isInstrumentation(value: unknown): value is Instrumentation {
@@ -95,7 +96,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   const rootConfig = Object.assign({}, DEFAULT_CONFIG, config) as RootConfig;
 
   // Set the logger
-  const logger = setSdkLogger(rootConfig);
+  setSdkLogger(rootConfig?.logLevel);
 
   // TODO: questions (for the SIG?)
   // - accept resource detectors?
@@ -152,8 +153,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   if (logsConfig) {
     const isGenericEndpoint = !logsConfig.exportConfig?.url;
 
-    // Set the logger
-    logsConfig.logger = logger;
+    // Set the logLevel
     logsConfig.logLevel = rootConfig.logLevel;
     logsConfig.setGlobals = rootConfig.setGlobals;
 
@@ -184,8 +184,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   if (tracesConfig) {
     const isGenericEndpoint = !tracesConfig.exportConfig?.url;
 
-    // Set the logger
-    tracesConfig.logger = logger;
+    // Set the logLevel
     tracesConfig.logLevel = rootConfig.logLevel;
     tracesConfig.setGlobals = rootConfig.setGlobals;
 
@@ -268,12 +267,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
 
 export type QuickStartConfig = Pick<
   RootConfig,
-  | 'enabled'
-  | 'logger'
-  | 'logLevel'
-  | 'serviceName'
-  | 'serviceVersion'
-  | 'instrumentations'
+  'enabled' | 'logLevel' | 'serviceName' | 'serviceVersion' | 'instrumentations'
 > & {
   /**
    * Target URL for the SDK to send traces and logs.
@@ -293,7 +287,6 @@ export type QuickStartConfig = Pick<
 export function quickStartBrowserSdk(config: QuickStartConfig) {
   const sdkConfig: Parameters<typeof startBrowserSdk>[0] = {
     enabled: config.enabled,
-    logger: config.logger,
     logLevel: config.logLevel,
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,

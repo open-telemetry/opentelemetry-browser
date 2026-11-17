@@ -7,7 +7,6 @@ import { diag } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
 import { SimpleLogRecordProcessor } from '@opentelemetry/sdk-logs';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { getDefaultLogger } from '../core/diag.ts';
 import type { LogsSdk } from '../core/types.ts';
 import { DEFAULT_LOGS_EXPORT_CONFIG, startLogsSdk } from './startLogsSdk.ts';
 
@@ -262,30 +261,6 @@ describe('startLogsSdk', () => {
     expect(exportCalled).toStrictEqual(true);
     expect(fetchSpy).toHaveBeenCalled();
     expect(fetchSpy.mock.lastCall?.[0]).toEqual(url);
-  });
-
-  it('should not add a console exporter for a DEBUG logger', () => {
-    // Arrange
-    let exportCalled = false;
-
-    // Act
-    logsSdk = startLogsSdk({
-      logger: getDefaultLogger('DEBUG'),
-      processors: [
-        new SimpleLogRecordProcessor({
-          exporter: {
-            export: () => (exportCalled = true),
-            shutdown: () => Promise.resolve(),
-            forceFlush: () => Promise.resolve(),
-          },
-        }),
-      ],
-    });
-    logs.getLogger('logs-sdk-test').emit({ eventName: 'test' });
-
-    // Assert
-    expect(exportCalled).toStrictEqual(true);
-    expect(consoleDirSpy).not.toHaveBeenCalled();
   });
 
   it('should add a SimpleLogRecordProcessor with console exporter if the log level is DEBUG', () => {
