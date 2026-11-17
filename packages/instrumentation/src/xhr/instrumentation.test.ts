@@ -244,6 +244,9 @@ describe('XhrInstrumentation', () => {
     expect(registerData?.startPerfNow).toBeGreaterThanOrEqual(
       options.startTime,
     );
+    // NOTE: `endPerfNow` is read when the span ends, which happens after the
+    // response body has been drained, so callers must capture `endTime` once
+    // the span has been exported, not when the request promise settles.
     expect(registerData?.endPerfNow).toBeLessThanOrEqual(options.endTime);
     expect(registeredSpan).toBeDefined();
     expect(registeredSpan?.spanContext()).toEqual(options.span.spanContext());
@@ -539,12 +542,11 @@ describe('XhrInstrumentation', () => {
       await new Promise((r) => setTimeout(r, delay));
 
       const startTime = performance.now();
-      let endTime = 0;
       xhr.send();
-      xhr.onload = () => (endTime = performance.now());
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -565,10 +567,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -585,10 +587,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/api/post');
       const startTime = performance.now();
       await doXhrRequest({ method: 'POST', url }).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('POST');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('POST');
@@ -606,10 +608,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/api/query');
       const startTime = performance.now();
       await doXhrRequest({ method: 'QUERY', url }).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('QUERY');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('QUERY');
@@ -666,10 +668,10 @@ describe('XhrInstrumentation', () => {
       const fullUrl = getUrlForPath(url);
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(fullUrl);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -689,10 +691,10 @@ describe('XhrInstrumentation', () => {
       xhr.open('GET', url);
       xhr.send();
       xhr.abort();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -718,10 +720,10 @@ describe('XhrInstrumentation', () => {
 
       // wait till the timeout has passed
       await new Promise((res) => setTimeout(res, timeout + 1));
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -740,10 +742,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/api/error');
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -768,10 +770,10 @@ describe('XhrInstrumentation', () => {
       } catch (err) {
         expect(err).toBeDefined();
       }
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -790,10 +792,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/null-body-204');
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -810,10 +812,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/null-body-205');
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -830,10 +832,10 @@ describe('XhrInstrumentation', () => {
       const url = getUrlForPath('/null-body-304');
       const startTime = performance.now();
       await doXhrRequest({ method: 'GET', url });
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -855,10 +857,10 @@ describe('XhrInstrumentation', () => {
         const url = getUrlForPath('/api/get?api_key=secret&normal=value');
         const startTime = performance.now();
         await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported (with sanitized URL)
         const span = await waitForSpan(defaultSanitizeUrl(url));
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -956,10 +958,10 @@ describe('XhrInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -983,10 +985,10 @@ describe('XhrInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1070,10 +1072,10 @@ describe('XhrInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         const response = await doXhrRequest({ method: 'GET', url });
-        const endTime = performance.now();
 
         expect(await response.json()).toEqual({ ok: true });
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(requestHook).toHaveBeenCalledOnce();
         expect(diagSpy).toHaveBeenCalledWith('requestHook failed', error);
         expect(completionHook).toHaveBeenCalledOnce();
@@ -1330,10 +1332,10 @@ describe('XhrInstrumentation', () => {
         const url = 'http://example.com/api/status.json';
         const startTime = performance.now();
         await doXhrRequest({ method: 'GET', url }).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
