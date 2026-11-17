@@ -150,7 +150,10 @@ export async function initOtel(
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
       new UserActionInstrumentation(),
-      new WebVitalsInstrumentation({ includeRawAttribution: true }),
+      new WebVitalsInstrumentation({
+        includeRawAttribution: true,
+        reportAllChanges: true,
+      }),
       // Span-based
       new DocumentLoadInstrumentation(),
       new FetchInstrumentation({
