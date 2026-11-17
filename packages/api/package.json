@@ -1,6 +1,6 @@
 {
   "name": "@opentelemetry/browser-api",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "OpenTelemetry browser API: the contract between browser SDKs and instrumentations.",
   "keywords": [
     "opentelemetry",
