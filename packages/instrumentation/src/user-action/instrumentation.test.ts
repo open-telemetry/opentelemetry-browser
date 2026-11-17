@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Logger } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
-import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import type { Logger } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
+import type {
+  LogRecordProcessor,
+  ReadWriteLogRecord,
+} from '@opentelemetry/sdk-logs';
 import {
   InMemoryLogRecordExporter,
   LoggerProvider,
@@ -362,7 +365,7 @@ describe('UserActionInstrumentation', () => {
       disableInstrumentations();
       const memoryExporter = new InMemoryLogRecordExporter();
       const customProcessor: LogRecordProcessor = {
-        onEmit: (record: SdkLogRecord) => {
+        onEmit: (record: ReadWriteLogRecord) => {
           record.setAttribute('custom.processor.key', 'custom.processor.value');
         },
         shutdown: async () => {},

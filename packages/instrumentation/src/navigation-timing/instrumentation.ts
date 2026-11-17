@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import { SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import {

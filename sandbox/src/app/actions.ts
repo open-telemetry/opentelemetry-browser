@@ -1,9 +1,12 @@
 // actions.ts — handlers for each demo button
 
-import type { Tracer } from '@opentelemetry/api';
-import { context, SpanStatusCode, trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Logger, Tracer } from '@opentelemetry/api';
+import {
+  context,
+  SeverityNumber,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));

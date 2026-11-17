@@ -4,7 +4,10 @@
  */
 
 import type { Context } from '@opentelemetry/api';
-import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import type {
+  LogRecordProcessor,
+  ReadWriteLogRecord,
+} from '@opentelemetry/sdk-logs';
 import { ATTR_SESSION_ID } from './semconv.ts';
 import type { SessionProvider } from './types/SessionProvider.ts';
 
@@ -18,7 +21,7 @@ export class SessionLogRecordProcessor implements LogRecordProcessor {
     this._sessionIdProvider = sessionIdProvider;
   }
 
-  onEmit(logRecord: SdkLogRecord, _context?: Context | undefined): void {
+  onEmit(logRecord: ReadWriteLogRecord, _context?: Context | undefined): void {
     const sessionId = this._sessionIdProvider?.getSessionId();
     if (sessionId) {
       logRecord.setAttribute(ATTR_SESSION_ID, sessionId);
