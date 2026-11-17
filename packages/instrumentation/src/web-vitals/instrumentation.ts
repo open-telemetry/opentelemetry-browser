@@ -207,6 +207,7 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
         : metric.navigationURL;
     }
 
+    // The metric name is uppercase, while the web vital name attribute is lowercase.
     if (this._config.includeAttribution && metric.name === 'INP') {
       Object.assign(
         attributes,
