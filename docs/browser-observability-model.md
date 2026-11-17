@@ -49,11 +49,11 @@ The purpose of this document is to:
 
 - Provide a **comprehensive list of browser events** for telemetry.
 - Define **the purpose and behavior of each event**.
-- Help instrumentation authors and data consumers
-  **understand available browser observability signals**.
-- Clarify the
-  **purpose of events without defining their individual attributes**, which are
-  specified in their respective semantic convention documents.
+- Help instrumentation authors and data consumers **understand available browser
+  observability signals**.
+- Clarify the **purpose of events without defining their individual
+  attributes**, which are specified in their respective semantic convention
+  documents.
 
 This structure ensures that browser-related events can be consistently
 interpreted across implementations.

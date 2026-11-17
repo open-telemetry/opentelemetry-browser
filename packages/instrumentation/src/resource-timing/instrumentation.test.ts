@@ -4,6 +4,7 @@
  */
 
 import type { Span } from '@opentelemetry/api';
+import { hrTime } from '@opentelemetry/core';
 import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
 import {
   afterEach,
@@ -99,9 +100,52 @@ describe('ResourceTimingInstrumentation', () => {
   afterEach(() => {
     instrumentation?.disable();
     inMemoryExporter.reset();
+    vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(['idle callback', 'visibilitychange', 'disable'])(
+    'should preserve the resource start time when flushed by %s',
+    (flush) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      const visibilityListeners: Array<() => void> = [];
+      mockDocument.addEventListener = vi.fn((event, handler) => {
+        if (event === 'visibilitychange') {
+          visibilityListeners.push(handler as () => void);
+        }
+      });
+      instrumentation = new ResourceTimingInstrumentation();
+      enableForTest(instrumentation);
+
+      observerCallback(
+        createMockPerformanceObserverEntryList([
+          createMockResourceEntry({ startTime: 0 }),
+          createMockResourceEntry({ startTime: 42.5 }),
+        ]),
+        mockObserver as unknown as PerformanceObserver,
+      );
+      expect(inMemoryExporter.getFinishedLogRecords()).toHaveLength(0);
+      vi.setSystemTime(performance.timeOrigin + 5000);
+
+      if (flush === 'idle callback') {
+        triggerIdleCallback();
+      } else if (flush === 'visibilitychange') {
+        mockDocument.hidden = true;
+        for (const handler of visibilityListeners) {
+          handler();
+        }
+      } else {
+        instrumentation.disable();
+      }
+
+      const records = inMemoryExporter.getFinishedLogRecords();
+      expect(records.map((record) => record.hrTime)).toEqual([
+        hrTime(0),
+        hrTime(42.5),
+      ]);
+    },
+  );
 
   describe('Instrumentation lifecycle', () => {
     it('should not observe until enabled, and disconnect on disable', () => {

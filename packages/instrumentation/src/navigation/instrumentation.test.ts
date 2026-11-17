@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { InMemoryLogRecordExporter } from '@opentelemetry/sdk-logs';
+import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+import {
+  InMemoryLogRecordExporter,
+  LoggerProvider,
+  SimpleLogRecordProcessor,
+} from '@opentelemetry/sdk-logs';
 import {
   afterEach,
   beforeAll,
@@ -454,6 +459,65 @@ describe('NavigationInstrumentation', () => {
       expect(getNavigationLogs()).toHaveLength(1);
       expect(diagErrorSpy).toHaveBeenCalled();
     });
+
+    it('should emit a one-time deprecation warning when the hook is used', () => {
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation({
+        applyCustomLogRecordData: (logRecord) => {
+          (logRecord.attributes as Record<string, unknown>)['custom.key'] =
+            'custom.value';
+        },
+      });
+      const diagWarnSpy = vi
+        .spyOn(
+          (
+            instrumentation as unknown as {
+              _diag: { warn: (...a: unknown[]) => void };
+            }
+          )._diag,
+          'warn',
+        )
+        .mockImplementation(() => {});
+
+      enableForTest(instrumentation);
+      window.history.pushState({}, '', '/page-2');
+
+      expect(diagWarnSpy).toHaveBeenCalledTimes(1);
+      expect(diagWarnSpy).toHaveBeenCalledWith(
+        'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+      );
+    });
+  });
+
+  describe('LogRecordProcessor custom attributes', () => {
+    it('should allow custom LogRecordProcessor to add attributes in onEmit', () => {
+      const memoryExporter = new InMemoryLogRecordExporter();
+      const customProcessor: LogRecordProcessor = {
+        onEmit: (record: SdkLogRecord) => {
+          record.setAttribute('custom.processor.key', 'custom.processor.value');
+        },
+        shutdown: async () => {},
+        forceFlush: async () => {},
+      };
+      const loggerProvider = new LoggerProvider({
+        processors: [
+          customProcessor,
+          new SimpleLogRecordProcessor({ exporter: memoryExporter }),
+        ],
+      });
+
+      setReadyState('complete');
+      instrumentation = new NavigationInstrumentation();
+      enableForTest(instrumentation, { loggerProvider });
+
+      const logs = memoryExporter
+        .getFinishedLogRecords()
+        .filter((log) => log.eventName === BROWSER_NAVIGATION_EVENT_NAME);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes['custom.processor.key']).toBe(
+        'custom.processor.value',
+      );
+    });
   });
 
   describe('Navigation API', () => {
@@ -587,7 +651,19 @@ describe('NavigationInstrumentation', () => {
 
     it('should fall back to history patching when window.navigation is undefined', () => {
       setReadyState('complete');
-      // Ensure navigation is NOT defined (jsdom default)
+      const original = Object.getOwnPropertyDescriptor(window, 'navigation');
+      Object.defineProperty(window, 'navigation', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+      onTestFinished(() => {
+        if (original) {
+          Object.defineProperty(window, 'navigation', original);
+        } else {
+          delete (window as unknown as { navigation?: unknown }).navigation;
+        }
+      });
       expect(
         (window as unknown as { navigation?: unknown }).navigation,
       ).toBeUndefined();

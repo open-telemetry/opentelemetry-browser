@@ -35,6 +35,18 @@ export function createUISpanExporter(onSpan: LogCallback): SpanExporter {
   };
 }
 
+// Log records emitted by event-based instrumentations carry their name in
+// `eventName` and no body, so fall back to it instead of rendering "undefined".
+function describeBody(record: ReadableLogRecord): string {
+  if (typeof record.body === 'string') {
+    return record.body;
+  }
+  if (record.body === undefined) {
+    return record.eventName ?? '';
+  }
+  return JSON.stringify(record.body);
+}
+
 export function createUILogExporter(onLog: LogCallback): LogRecordExporter {
   return {
     export(
@@ -43,9 +55,10 @@ export function createUILogExporter(onLog: LogCallback): LogRecordExporter {
     ) {
       for (const r of records) {
         const sev = r.severityText ?? 'INFO';
-        const body =
-          typeof r.body === 'string' ? r.body : JSON.stringify(r.body);
-        onLog('muted', `[log] ${sev} · ${body}${shortSession(r.attributes)}`);
+        onLog(
+          'muted',
+          `[log] ${sev} · ${describeBody(r)}${shortSession(r.attributes)}`,
+        );
       }
       cb({ code: ExportResultCode.SUCCESS });
     },

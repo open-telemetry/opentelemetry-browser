@@ -95,11 +95,10 @@ interface Session {
   session, lazily starting one if `start()` was never called. `getSession()` is
   also what drives inactivity tracking: every call checks how long it has been
   since the last call, and rearms the inactivity timer if more than 5 seconds
-  have passed. In practice this means
-  **"inactivity" measures how
-  long it has been since the last span was started or log record was emitted through the session
-  processors**
-  — it is not based on raw browser input events (clicks, mouse movement, etc.).
+  have passed. In practice this means **"inactivity" measures how long it has
+  been since the last span was started or log record was emitted through the
+  session processors** — it is not based on raw browser input events (clicks,
+  mouse movement, etc.).
 - **Session reset** — happens when either the `maxDuration` timer or the
   `inactivityTimeout` timer fires. On reset, the current session ends (any
   registered `SessionObserver`s receive `onSessionEnded`), a new session is
@@ -160,12 +159,9 @@ UUID — do not use it as a security or authentication token.
 
 Persists the session as JSON under a single fixed key in `window.localStorage`.
 Because `localStorage` is shared by every tab and window open to the same
-origin,
-**all tabs on the same
-origin share one session**
-— this is "one session per browser origin," not "one session per tab." If you
-need per-tab sessions, provide a custom `SessionStore` backed by
-`sessionStorage` instead (see
+origin, **all tabs on the same origin share one session** — this is "one session
+per browser origin," not "one session per tab." If you need per-tab sessions,
+provide a custom `SessionStore` backed by `sessionStorage` instead (see
 [Custom implementations](#custom-implementations)). The store is a safe no-op in
 environments without `localStorage` (e.g. during server-side rendering) and
 where the browser blocks storage (e.g. Firefox with cookies blocked, or a

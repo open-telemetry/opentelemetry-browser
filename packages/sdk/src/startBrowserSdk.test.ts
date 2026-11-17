@@ -6,7 +6,7 @@
 import type { ProxyTracerProvider } from '@opentelemetry/api';
 import { context, diag, propagation, trace } from '@opentelemetry/api';
 import { logs } from '@opentelemetry/api-logs';
-import type { Instrumentation } from '@opentelemetry/browser-instrumentation/experimental/instrumentation-base';
+import type { Instrumentation } from '@opentelemetry/browser-api';
 import { SimpleSpanProcessor, TracerProvider } from '@opentelemetry/sdk-trace';
 import type { MockInstance } from 'vitest';
 import {
@@ -366,6 +366,47 @@ describe('startBrowserSdk', () => {
     expect(healthy.enable).toHaveBeenCalledTimes(2);
     expect(healthy.disable).toHaveBeenCalledTimes(2);
     expect(diagErrorSpy).toHaveBeenCalledTimes(4);
+  });
+
+  it('a null entry or a class passed instead of an instance is skipped with one error naming its index; the others still run', async () => {
+    // Arrange
+    class ForgotNew {
+      instrumentationName = 'forgot-new';
+      enable() {}
+      disable() {}
+      isEnabled() {
+        return false;
+      }
+    }
+    const healthy = createFakeInstrumentation('healthy');
+    const instrumentations = [
+      null,
+      ForgotNew,
+      healthy,
+    ] as unknown as Instrumentation[];
+    diagErrorSpy.mockClear();
+
+    // Act
+    browserSdk = startBrowserSdk({
+      instrumentations,
+      batchProcessorConfig: { scheduledDelayMillis: SCHEDULE_DELAY },
+    });
+
+    // Assert
+    expect(healthy.enable).toHaveBeenCalledOnce();
+    expect(diagErrorSpy).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy.mock.calls[0]?.[0]).toMatch(/instrumentations\[0\]/);
+    expect(diagErrorSpy.mock.calls[1]?.[0]).toMatch(/instrumentations\[1\]/);
+
+    // Act
+    browserSdk.disable();
+    browserSdk.enable();
+    await browserSdk.shutdown();
+
+    // Assert: skipped entries are not logged again
+    expect(healthy.enable).toHaveBeenCalledTimes(2);
+    expect(healthy.disable).toHaveBeenCalledTimes(2);
+    expect(diagErrorSpy).toHaveBeenCalledTimes(2);
   });
 
   it('setGlobals: false does not set the global tracer provider, logger provider, propagator or context manager', () => {

@@ -155,6 +155,7 @@ Look through
 see if one has already been filed. If so, feel free to react or add a comment.
 
 If not, any of the following work:
+
 - Open an issue using one of the
   [issue templates](https://github.com/open-telemetry/opentelemetry-browser/issues/new/choose).
   Examples, screenshots, clear questions, and highlighting decisions to make

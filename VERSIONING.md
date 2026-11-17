@@ -1,6 +1,6 @@
 # Versioning
 
-Both packages in this repository are pre-1.0, and every instrumentation is
+All packages in this repository are pre-1.0, and every instrumentation is
 exported under `./experimental/*`. Until that changes, any minor release may
 include breaking changes, in line with the
 [Development status](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/versioning-and-stability.md#development)
@@ -15,6 +15,33 @@ This document will be updated when a package or instrumentation becomes stable.
 - Changing a default value or default behavior
 - Changing emitted telemetry: event or span names, attribute names or values, or
   which signal is used
+
+## The instrumentation contract
+
+`@opentelemetry/browser-api` holds `Instrumentation`, `InstrumentationDeps` and
+`InstrumentationBase`. The SDK, the instrumentations in this repository and
+third-party instrumentations all depend on it as a regular dependency. An app
+can have more than one version installed, so these rules apply:
+
+- Prefer to change `Instrumentation` and `InstrumentationDeps` only by adding
+  optional fields. An instrumentation must work when a field is missing, and
+  must ignore fields it does not know. Before 1.0, a breaking change can ship in
+  a minor release, marked as breaking. The PR must say that the SDK and all
+  instrumentations, including third-party ones, have to upgrade together.
+  TypeScript does not always catch a mismatch. At runtime, the instrumentation
+  can throw, use the global API instead of the SDK's providers, or stop sending
+  telemetry.
+- Code that receives an instrumentation must use only the `Instrumentation`
+  interface. It must not check `instanceof InstrumentationBase`, because the
+  class can come from a different copy of the package.
+- A change to a protected member or hook of `InstrumentationBase` is a breaking
+  change for third-party instrumentations, even if the interface stays the same.
+  Before 1.0, it can ship in a minor release, marked as breaking. Each
+  instrumentation extends the class from its own dependency on
+  `@opentelemetry/browser-api`, so the change reaches it only when its author
+  upgrades that dependency. A TypeScript author then gets a type error for most
+  changes. A change to when a hook is called shows up only in tests or at
+  runtime.
 
 ## Marking breaking changes
 

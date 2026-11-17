@@ -23,6 +23,11 @@ const SENSITIVE_PARAMS = [
   'client_id',
   'signature',
   'hash',
+  'X-Amz-Signature',
+  'X-Amz-Credential',
+  'X-Amz-Security-Token',
+  'sig',
+  'X-Goog-Signature',
 ];
 
 /**

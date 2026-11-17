@@ -3,7 +3,8 @@
 [![NPM Published Version][npm-img]][npm-url]
 [![Apache License][license-image]][license-image]
 
-**Note: This is an experimental package under active development. New releases may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
+**Note: This is an experimental package under active development. New releases
+may include breaking changes. See [VERSIONING.md](../../VERSIONING.md).**
 
 This package provides the required components to start an OpenTelemetry SDK for
 Browser including logs and traces. Metrics are out of the scope for now
@@ -15,7 +16,8 @@ initialization or instrumentations.
 
 ## Quick Start
 
-**Note: This documentation assumes you have a bundler in your tool chain that can handle ESM modules.**
+**Note: This documentation assumes you have a bundler in your tool chain that
+can handle ESM modules.**
 
 To get started you need to install `@opentelemetry/browser-sdk` and any
 appropriate instrumentation for the events or tasks performed by your
@@ -33,7 +35,6 @@ npm install @opentelemetry/browser-instrumentation
 
 `@opentelemetry/api` is a **peer dependency** (v1.9+). Install it in your
 application if you intend to do manual instrumentation of your web application.
-
 
 ### Initialize the SDK
 
@@ -137,7 +138,6 @@ signals.
 | `@opentelemetry/browser-sdk/traces`           | `startTracesSdk` — sets up traces and sets the global TracerProvider (unless `setGlobals` is `false`) |
 | `@opentelemetry/browser-sdk/browser-detector` | `browserDetector` — detect browser resource attributes                                                |
 
-
 #### Initialize logs SDK
 
 This example shows how to setup the logs SDK exporting to a specific OTLP
@@ -176,7 +176,6 @@ logsSdk.shutdown().then(
   (err) => console.log('Error shutting down SDK', err),
 );
 ```
-
 
 #### Initialize traces SDK
 

@@ -265,6 +265,14 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
   }
 
   /**
+   * Returns `value` if it is an `Error`, or else a new `Error` with `value` as
+   * `cause`. Never throws, so it is safe to call in a `catch` block.
+   */
+  protected _toError(value: unknown): Error {
+    return toError(value);
+  }
+
+  /**
    * One-time setup, run at the first `enable()`. It only patches browser APIs
    * and checks that the browser supports what this instrumentation needs.
    * Throw if the instrumentation cannot run. Listeners belong in

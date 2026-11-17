@@ -5,7 +5,7 @@
 
 import type { LogAttributes, LogRecord } from '@opentelemetry/api-logs';
 import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '#instrumentation-base';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_ELEMENT_TIMING_ELEMENT,
