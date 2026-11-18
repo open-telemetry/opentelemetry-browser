@@ -26,8 +26,8 @@ export interface WebVitalsInstrumentationConfig {
    * `web-vitals` attribution object for the metric. Does not add attribution
    * attributes. Defaults to `false`.
    *
-   * The raw body can contain unsanitized URLs and other sensitive data.
-   * Use a custom `LogRecordProcessor` to redact it before export.
+   * INP script URLs in the body use `sanitizeUrl` or `defaultSanitizeUrl`,
+   * following the same rules as the script URL attributes.
    *
    * Note: `applyCustomLogRecordData` runs after the body is set.
    * If the hook assigns a new `body`, it will overwrite the attribution data.
@@ -74,10 +74,10 @@ export interface WebVitalsInstrumentationConfig {
   reportSoftNavs?: boolean;
 
   /**
-   * Custom function to sanitize `browser.web_vital.navigation_url` and the
-   * longest script's source URL and URL-valued invoker attributes. If unset,
-   * script URL attributes use `defaultSanitizeUrl` and the navigation URL is
-   * emitted as reported by `web-vitals`.
+   * Custom function to sanitize `browser.web_vital.navigation_url` and INP
+   * script URLs in both the attributes and the body. If unset, script URLs
+   * use `defaultSanitizeUrl` and the navigation URL is emitted as reported
+   * by `web-vitals`.
    */
   sanitizeUrl?: (url: string) => string;
 }

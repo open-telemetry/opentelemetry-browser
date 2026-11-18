@@ -80,13 +80,14 @@ type LongestScript = NonNullable<
 const createLongestScript = (
   invoker = 'BUTTON#checkout.onclick',
   invokerType: LongestScript['entry']['invokerType'] = 'event-listener',
+  startTime = 95,
 ): LongestScript => ({
   entry: {
     name: 'script',
     entryType: 'script',
-    startTime: 95,
+    startTime,
     duration: 55,
-    executionStart: 95,
+    executionStart: startTime,
     invoker,
     invokerType,
     sourceURL: 'https://example.com/checkout.js?token=secret',
@@ -97,6 +98,7 @@ const createLongestScript = (
     windowAttribution: 'self',
     toJSON() {
       return {
+        startTime: this.startTime,
         duration: this.duration,
         invoker: this.invoker,
         invokerType: this.invokerType,
@@ -106,6 +108,31 @@ const createLongestScript = (
   },
   subpart: 'input-delay',
   intersectingDuration: 50,
+});
+
+const createFrame = (
+  startTime: number,
+  duration: number,
+  scripts: PerformanceScriptTiming[],
+): PerformanceLongAnimationFrameTiming => ({
+  name: 'long-animation-frame',
+  entryType: 'long-animation-frame',
+  startTime,
+  duration,
+  renderStart: startTime + duration - 5,
+  styleAndLayoutStart: 0,
+  blockingDuration: 10,
+  firstUIEventTimestamp: 0,
+  scripts,
+  toJSON() {
+    return {
+      name: this.name,
+      startTime: this.startTime,
+      duration: this.duration,
+      blockingDuration: this.blockingDuration,
+      scripts: this.scripts.map((script) => script.toJSON()),
+    };
+  },
 });
 
 describe('WebVitalsInstrumentation INP attribution', () => {
@@ -230,7 +257,17 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       sanitizeUrl: (url) => new URL(url).pathname,
     });
     enableForTest(instrumentation);
-    const metric = createINPMetric({ longestScript: createLongestScript() });
+    const longestScript = createLongestScript();
+    const moduleScript = createLongestScript(
+      'https://example.com/checkout?token=secret',
+      'module-script',
+    );
+    const metric = createINPMetric({
+      longestScript,
+      longAnimationFrameEntries: [
+        createFrame(90, 60, [longestScript.entry, moduleScript.entry]),
+      ],
+    });
     reportINP(metric);
 
     const log = getLog();
@@ -240,8 +277,57 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     expect(
       log.attributes[ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER],
     ).toBe('BUTTON#checkout.onclick');
-    expect(log.body).toBe(JSON.stringify(metric.attribution));
-    expect(log.body).toContain('https://example.com/checkout.js?token=secret');
+    expect(log.body).toBe(
+      JSON.stringify(metric.attribution)
+        .replaceAll(
+          'https://example.com/checkout.js?token=secret',
+          '/checkout.js',
+        )
+        .replaceAll('https://example.com/checkout?token=secret', '/checkout'),
+    );
+    expect(log.body).toContain('BUTTON#checkout.onclick');
+  });
+
+  it('sanitizes every script in the body without changing the attribution', () => {
+    instrumentation = new WebVitalsInstrumentation({
+      includeRawAttribution: true,
+    });
+    enableForTest(instrumentation);
+    const longestScript = createLongestScript();
+    const classicScript = createLongestScript(
+      'https://example.com/checkout?token=secret',
+      'classic-script',
+    );
+    const moduleScript = createLongestScript(
+      'https://example.com/checkout-module?token=secret',
+      'module-script',
+      150,
+    );
+    const metric = createINPMetric({
+      longestScript,
+      longAnimationFrameEntries: [
+        createFrame(90, 60, [longestScript.entry, classicScript.entry]),
+        createFrame(150, 60, [moduleScript.entry]),
+      ],
+    });
+    for (const frame of metric.attribution.longAnimationFrameEntries) {
+      for (const script of frame.scripts) {
+        Object.freeze(script);
+      }
+      Object.freeze(frame.scripts);
+      Object.freeze(frame);
+    }
+    Object.freeze(metric.attribution.longAnimationFrameEntries);
+    Object.freeze(longestScript);
+    Object.freeze(metric.attribution);
+    const original = JSON.stringify(metric.attribution);
+
+    reportINP(metric);
+
+    const { body } = getLog();
+    expect(body).not.toContain('token=secret');
+    expect(body).toBe(original.replaceAll('token=secret', 'token=REDACTED'));
+    expect(JSON.stringify(metric.attribution)).toBe(original);
   });
 
   it.each([
@@ -261,7 +347,10 @@ describe('WebVitalsInstrumentation INP attribution', () => {
     );
     expect(log.body).toBe(
       config.includeRawAttribution
-        ? JSON.stringify(metric.attribution)
+        ? JSON.stringify(metric.attribution).replace(
+            'token=secret',
+            'token=REDACTED',
+          )
         : undefined,
     );
     if (config.includeRawAttribution) {

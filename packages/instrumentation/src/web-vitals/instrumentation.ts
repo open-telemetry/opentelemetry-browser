@@ -174,6 +174,32 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     return attributes;
   }
 
+  private _getINPAttributionBody(
+    attribution: INPMetricWithAttribution['attribution'],
+  ): string {
+    const sanitizeUrl = this._config.sanitizeUrl ?? defaultSanitizeUrl;
+    // Native performance entries expose their JSON fields through toJSON().
+    const sanitizeScript = (script: PerformanceScriptTiming) => ({
+      ...(script.toJSON?.() ?? script),
+      ...sanitizeScriptUrls(script, sanitizeUrl),
+    });
+    const { longestScript, longAnimationFrameEntries } = attribution;
+
+    return JSON.stringify({
+      ...attribution,
+      longAnimationFrameEntries: longAnimationFrameEntries.map((frame) => ({
+        ...(frame.toJSON?.() ?? frame),
+        scripts: frame.scripts.map(sanitizeScript),
+      })),
+      ...(longestScript && {
+        longestScript: {
+          ...longestScript,
+          entry: sanitizeScript(longestScript.entry),
+        },
+      }),
+    });
+  }
+
   private _emitWebVital(metric: MetricWithAttribution): void {
     if (!this.isEnabled()) {
       return;
@@ -224,7 +250,12 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       severityNumber: SeverityNumber.INFO,
       attributes,
       ...(includeRawAttribution
-        ? { body: JSON.stringify(metric.attribution) }
+        ? {
+            body:
+              metric.name === 'INP'
+                ? this._getINPAttributionBody(metric.attribution)
+                : JSON.stringify(metric.attribution),
+          }
         : {}),
       ...(timestamp !== undefined ? { timestamp } : {}),
     };
