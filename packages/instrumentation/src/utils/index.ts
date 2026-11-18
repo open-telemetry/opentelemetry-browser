@@ -11,4 +11,4 @@ export {
   getNetworkContextRegistry,
   NetworkContextRegistry,
 } from './NetworkContextRegistry.ts';
-export { defaultSanitizeUrl } from './url.ts';
+export { defaultSanitizeUrl, sanitizeScriptUrls } from './url.ts';

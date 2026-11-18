@@ -60,6 +60,38 @@ export function defaultSanitizeUrl(url: string): string {
   }
 }
 
+// Only these invoker types report a script URL. Other types report names such
+// as BUTTON#checkout.onclick.
+const URL_VALUED_INVOKER_TYPES: ReadonlySet<string> = new Set([
+  'classic-script',
+  'module-script',
+]);
+
+/** Sanitizes the URL fields of a script timing entry. */
+export function sanitizeScriptUrls(
+  script: {
+    invoker: string;
+    invokerType: string;
+    sourceURL: string;
+  },
+  sanitizeUrl?: (url: string) => string,
+): { invoker: string; sourceURL: string } {
+  const { invoker, invokerType, sourceURL } = script;
+  return {
+    invoker:
+      sanitizeUrl &&
+      typeof invoker === 'string' &&
+      URL_VALUED_INVOKER_TYPES.has(invokerType)
+        ? sanitizeUrl(invoker)
+        : invoker,
+    // The browser reports an empty string when it cannot resolve the source URL.
+    sourceURL:
+      sanitizeUrl && typeof sourceURL === 'string' && sourceURL
+        ? sanitizeUrl(sourceURL)
+        : sourceURL,
+  };
+}
+
 /**
  * Parses a URL, resolving relative URLs against document.baseURI (or location.href)
  * @param url

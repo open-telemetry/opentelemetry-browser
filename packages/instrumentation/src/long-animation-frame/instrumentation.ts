@@ -6,7 +6,7 @@
 import type { Attributes, LogRecord } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
-import { defaultSanitizeUrl } from '#utils';
+import { defaultSanitizeUrl, sanitizeScriptUrls } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
@@ -25,38 +25,18 @@ import type {
 
 const LONG_ANIMATION_FRAME_ENTRY_TYPE = 'long-animation-frame';
 
-/**
- * `invoker` is the invoking script's source URL only for these entry types. For
- * the others it is a selector-like string — `DOMWindow.onclick`,
- * `BUTTON#cart.onclick`, `IMG[src=...].onload` — which a sanitizer that parses
- * its argument rejects.
- * https://developer.mozilla.org/en-US/docs/Web/API/PerformanceScriptTiming/invoker
- */
-const URL_VALUED_INVOKER_TYPES: ReadonlySet<string> = new Set([
-  'classic-script',
-  'module-script',
-]);
-
-/**
- * Builds the attributes of a script entry. Only URL-valued `invoker` fields are
- * handed to `sanitizeUrl`; the selector-like ones and an unresolved
- * `source_url` are written as the browser reports them.
- */
 function scriptAttributes(
   script: LongAnimationFrameEntry['scripts'][number],
-  sanitize: (url: string) => string,
+  sanitizeUrl: LongAnimationFrameInstrumentationConfig['sanitizeUrl'],
 ): Attributes {
+  const { invoker, sourceURL } = sanitizeScriptUrls(script, sanitizeUrl);
   return {
     start_time: script.startTime,
     duration: script.duration,
     execution_start: script.executionStart,
-    invoker: URL_VALUED_INVOKER_TYPES.has(script.invokerType)
-      ? sanitize(script.invoker)
-      : script.invoker,
+    invoker,
     invoker_type: script.invokerType,
-    source_url: script.sourceURL
-      ? sanitize(script.sourceURL)
-      : script.sourceURL,
+    source_url: sourceURL,
     source_function_name: script.sourceFunctionName,
     source_char_position: script.sourceCharPosition,
     pause_duration: script.pauseDuration,
@@ -139,17 +119,7 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
       return;
     }
 
-    // `invoker` and `source_url` are written as the browser reports them, except
-    // that real URLs go through `sanitizeUrl`: for an inline script, that URL is
-    // the page URL including its query string. `invoker` is a selector-like
-    // string for every entry type except `classic-script` and `module-script`,
-    // and `sourceURL` is an empty string when the browser could not resolve it —
-    // a sanitizer that parses its argument (`new URL(url)`, the obvious
-    // implementation) would throw on either, so neither is handed to it.
     const { sanitizeUrl } = this._config;
-    const sanitize = (url: string): string =>
-      sanitizeUrl && typeof url === 'string' ? sanitizeUrl(url) : url;
-
     const scripts = Array.isArray(entry.scripts) ? entry.scripts : [];
 
     const record: LogRecord = {
@@ -181,7 +151,7 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
         ...(scripts.length > 0
           ? {
               [ATTR_LONG_ANIMATION_FRAME_SCRIPTS]: scripts.map((script) =>
-                scriptAttributes(script, sanitize),
+                scriptAttributes(script, sanitizeUrl),
               ),
             }
           : {}),

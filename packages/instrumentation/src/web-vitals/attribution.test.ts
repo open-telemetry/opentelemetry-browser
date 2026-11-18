@@ -73,24 +73,36 @@ const createINPMetric = (
   },
 });
 
-const createLongestScript = (): NonNullable<
+type LongestScript = NonNullable<
   INPMetricWithAttribution['attribution']['longestScript']
-> => ({
+>;
+
+const createLongestScript = (
+  invoker = 'BUTTON#checkout.onclick',
+  invokerType: LongestScript['entry']['invokerType'] = 'event-listener',
+): LongestScript => ({
   entry: {
     name: 'script',
     entryType: 'script',
     startTime: 95,
     duration: 55,
     executionStart: 95,
-    invoker: 'BUTTON#checkout.onclick',
-    invokerType: 'event-listener',
+    invoker,
+    invokerType,
     sourceURL: 'https://example.com/checkout.js?token=secret',
     sourceFunctionName: 'submitOrder',
     sourceCharPosition: 0,
     pauseDuration: 0,
     forcedStyleAndLayoutDuration: 5,
     windowAttribution: 'self',
-    toJSON: () => ({ duration: 55 }),
+    toJSON() {
+      return {
+        duration: this.duration,
+        invoker: this.invoker,
+        invokerType: this.invokerType,
+        sourceURL: this.sourceURL,
+      };
+    },
   },
   subpart: 'input-delay',
   intersectingDuration: 50,
@@ -182,7 +194,7 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER]:
         'BUTTON#checkout.onclick',
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL]:
-        'https://example.com/checkout.js?token=secret',
+        'https://example.com/checkout.js?token=REDACTED',
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME]:
         'submitOrder',
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION]: 55,
@@ -190,6 +202,46 @@ describe('WebVitalsInstrumentation INP attribution', () => {
       [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION]: 50,
     });
     expect(log.body).toBeUndefined();
+  });
+
+  it.each(['classic-script', 'module-script'] as const)(
+    'sanitizes a %s invoker by default',
+    (invokerType) => {
+      instrumentation = new WebVitalsInstrumentation({
+        includeAttribution: true,
+      });
+      enableForTest(instrumentation);
+      const longestScript = createLongestScript(
+        'https://example.com/checkout?token=secret',
+        invokerType,
+      );
+      reportINP(createINPMetric({ longestScript }));
+
+      expect(
+        getLog().attributes[ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER],
+      ).toBe('https://example.com/checkout?token=REDACTED');
+    },
+  );
+
+  it('uses the configured sanitizer for script URLs and leaves selector invokers unchanged', () => {
+    instrumentation = new WebVitalsInstrumentation({
+      includeAttribution: true,
+      includeRawAttribution: true,
+      sanitizeUrl: (url) => new URL(url).pathname,
+    });
+    enableForTest(instrumentation);
+    const metric = createINPMetric({ longestScript: createLongestScript() });
+    reportINP(metric);
+
+    const log = getLog();
+    expect(
+      log.attributes[ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL],
+    ).toBe('/checkout.js');
+    expect(
+      log.attributes[ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER],
+    ).toBe('BUTTON#checkout.onclick');
+    expect(log.body).toBe(JSON.stringify(metric.attribution));
+    expect(log.body).toContain('https://example.com/checkout.js?token=secret');
   });
 
   it.each([

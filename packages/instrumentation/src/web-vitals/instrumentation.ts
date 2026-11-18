@@ -12,6 +12,7 @@ import type {
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
+import { defaultSanitizeUrl, sanitizeScriptUrls } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY,
@@ -152,11 +153,13 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     const longestScript = attribution.longestScript;
     if (longestScript) {
       // web-vitals supplies this entry only when LoAF is supported.
+      const { invoker, sourceURL } = sanitizeScriptUrls(
+        longestScript.entry,
+        this._config.sanitizeUrl ?? defaultSanitizeUrl,
+      );
       Object.assign(attributes, {
-        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER]:
-          longestScript.entry.invoker,
-        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL]:
-          longestScript.entry.sourceURL,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER]: invoker,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL]: sourceURL,
         [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME]:
           longestScript.entry.sourceFunctionName,
         [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION]:
