@@ -144,6 +144,7 @@ describe('UserActionInstrumentation', () => {
     (tag) => {
       const button = document.createElement('button');
       button.id = 'icon-button';
+      button.setAttribute('data-otel-action', 'save');
       button.innerHTML = '<svg><path /></svg>';
       document.body.appendChild(button);
       const target = button.querySelector(tag) as Element;
