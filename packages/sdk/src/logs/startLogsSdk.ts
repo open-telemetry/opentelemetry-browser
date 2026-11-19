@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DiagLogLevel, diag } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { DiagLogLevel, diag, logs } from '@opentelemetry/api';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import {
   defaultResource,

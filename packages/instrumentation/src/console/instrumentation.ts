@@ -3,8 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { context } from '@opentelemetry/api';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import { context, SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import { ATTR_CONSOLE_METHOD, CONSOLE_LOG_EVENT_NAME } from './semconv.ts';
@@ -33,6 +32,13 @@ const SEVERITY_MAP: Record<ConsoleMethod, SeverityNumber> = {
 function defaultMessageSerializer(args: unknown[]): string {
   return args
     .map((arg) => {
+      try {
+        if (isError(arg)) {
+          return serializeError(arg);
+        }
+      } catch {
+        // Fall back to JSON if the prototype or an Error property cannot be read.
+      }
       if (typeof arg === 'object' && arg !== null) {
         try {
           return JSON.stringify(arg);
@@ -44,6 +50,29 @@ function defaultMessageSerializer(args: unknown[]): string {
       return safeString(arg);
     })
     .join(' ');
+}
+
+function serializeError(error: Error): string {
+  const summary = error.message
+    ? `${error.name}: ${error.message}`
+    : error.name;
+  const { stack } = error;
+  if (!stack) {
+    return summary;
+  }
+  // Firefox and Safari leave the name and message out of the stack.
+  return stack.includes(summary) ? stack : `${summary}\n${stack}`;
+}
+
+function isError(value: unknown): value is Error {
+  if (value instanceof Error) {
+    return true;
+  }
+  // `instanceof` misses Errors from another realm, like a same-origin iframe.
+  return (
+    Object.prototype.toString.call(value) === '[object Error]' &&
+    typeof (value as Error).message === 'string'
+  );
 }
 
 function safeString(value: unknown): string {
