@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Span } from '@opentelemetry/api';
+import type { Span, TextMapGetter } from '@opentelemetry/api';
 import { ROOT_CONTEXT } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { ATTR_URL_FULL } from '@opentelemetry/semantic-conventions';
@@ -13,6 +13,20 @@ import type { DocumentLoadInstrumentationConfig } from './types.ts';
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY_MS = 50;
+
+// The server renders its context as <meta name="traceparent" content="...">,
+// so the propagator reads each field it needs from the meta tag of that name.
+const metaGetter: TextMapGetter<Document> = {
+  keys(doc) {
+    return Array.from(doc.getElementsByTagName('meta'), (meta) => meta.name);
+  },
+  get(doc, key) {
+    const name = key.toLowerCase();
+    return Array.from(doc.getElementsByTagName('meta')).find(
+      (meta) => meta.name.toLowerCase() === name,
+    )?.content;
+  },
+};
 
 export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoadInstrumentationConfig> {
   private _collected = false;
@@ -99,7 +113,7 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
       | PerformanceNavigationTiming[]
       | undefined;
     const entry = entries?.[entries.length - 1];
-    if (!entry || !Number.isFinite(entry.fetchStart) || entry.fetchStart < 0) {
+    if (!entry || !Number.isFinite(entry.fetchStart)) {
       return undefined;
     }
     return entry;
@@ -115,16 +129,25 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
     if (!entry) {
       return undefined;
     }
+    // Firefox can report fetchStart a few milliseconds below zero
+    // (https://bugzilla.mozilla.org/show_bug.cgi?id=1843850), so the span
+    // starts at the time origin instead of being dropped.
+    const fetchStart = Math.max(entry.fetchStart, 0);
     if (!this._span) {
+      const parent = this.propagator.extract(
+        ROOT_CONTEXT,
+        document,
+        metaGetter,
+      );
       this._span = this.tracer.startSpan(
         'documentLoad',
         {
-          startTime: performance.timeOrigin + entry.fetchStart,
+          startTime: performance.timeOrigin + fetchStart,
           attributes: {
             [ATTR_URL_FULL]: defaultSanitizeUrl(entry.name),
           },
         },
-        ROOT_CONTEXT,
+        parent,
       );
     }
     const end = isValidEnd(entry, entry.loadEventEnd)
@@ -132,7 +155,7 @@ export class DocumentLoadInstrumentation extends InstrumentationBase<DocumentLoa
       : entry.loadEventStart;
     if (isValidEnd(entry, end)) {
       getNetworkContextRegistry().setDocumentLoad(this._span, {
-        startPerfNow: entry.fetchStart,
+        startPerfNow: fetchStart,
         endPerfNow: end,
       });
     }
