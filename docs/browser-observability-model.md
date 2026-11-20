@@ -78,6 +78,8 @@ client applications is being discussed
 Conventions shared across client platforms may move to that repository, while
 browser-specific conventions might remain in this repository.
 
+The attributes of these events are defined as a machine-readable semantic convention registry under [`semconv/`](https://github.com/open-telemetry/opentelemetry-browser/tree/main/semconv), which this document intentionally does not enumerate.
+
 ---
 
 ## Browser Events
