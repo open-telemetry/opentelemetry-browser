@@ -214,8 +214,14 @@ span joins that trace as a child of the server span:
 
 The configured propagator reads each field it needs from the `<meta>` tag of the
 same name, so the W3C trace context propagator reads `traceparent` and
-`tracestate`. The span follows the server's sampling decision when the sampler
-is parent based. Without a valid server context, the span starts a new trace.
+`tracestate`. With the B3 propagator, the server writes a `b3` tag instead:
+
+```html
+<meta name="b3" content="4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1">
+```
+
+The span follows the server's sampling decision when the sampler is parent
+based. Without a valid server context, the span starts a new trace.
 
 Detailed timings come from the navigation-timing and resource-timing
 instrumentations, so there are no `documentFetch` or `resourceFetch` child spans
