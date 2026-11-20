@@ -322,6 +322,26 @@ describe('DocumentLoadInstrumentation', () => {
       expect(loadSpanId()).toBeUndefined();
     });
 
+    it('starts the interval at the time origin when fetchStart is below zero', () => {
+      entry = { ...entry, fetchStart: -3 };
+      finishLoad();
+      const spanId = finishedSpan().spanContext().spanId;
+      expect(resourceSpanId(0, 50)).toBe(spanId);
+    });
+
+    it('shares the server trace from the meta tag', () => {
+      addMeta('traceparent', `00-${SERVER_TRACE}-${SERVER_SPAN}-01`);
+      finishLoad(new W3CTraceContextPropagator());
+      const ctx = getNetworkContextRegistry().getContext({
+        name: 'https://example.test/app.js',
+        fetchStart: 20,
+        responseEnd: 80,
+      } as PerformanceResourceTiming);
+      const spanContext = ctx && trace.getSpan(ctx)?.spanContext();
+      expect(spanContext?.traceId).toBe(SERVER_TRACE);
+      expect(spanContext?.spanId).toBe(finishedSpan().spanContext().spanId);
+    });
+
     it('clears the context when disabled before the span ends and keeps the span on enable', () => {
       entry = { ...entry, loadEventStart: 90, loadEventEnd: 0 };
       instrumentation.enable({ tracerProvider });
