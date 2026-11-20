@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.2](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.9.1...browser-sdk-v0.9.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **sdk:** keep the registered diag logger ([#566](https://github.com/open-telemetry/opentelemetry-browser/issues/566)) ([c6576bc](https://github.com/open-telemetry/opentelemetry-browser/commit/c6576bc08eae1402d739944e469e9c6d6b6499de))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.2.1 to ^0.3.0
+
 ## [0.9.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.9.0...browser-sdk-v0.9.1) (2026-11-17)
 
 

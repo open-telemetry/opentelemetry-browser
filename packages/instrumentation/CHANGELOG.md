@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.13.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.12.1...browser-instrumentation-v0.13.0) (2026-11-20)
+
+
+### Features
+
+* **document-load:** join the server trace from meta tags ([#564](https://github.com/open-telemetry/opentelemetry-browser/issues/564)) ([39467d8](https://github.com/open-telemetry/opentelemetry-browser/commit/39467d8ac4c5ab4e2ec908808dc786f0a8de18f4))
+
+
+### Bug Fixes
+
+* **test:** capture the request end bound after span export ([#567](https://github.com/open-telemetry/opentelemetry-browser/issues/567)) ([b9e003f](https://github.com/open-telemetry/opentelemetry-browser/commit/b9e003ff034663d47ed3a2a442c1cc5a5f839d1b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.2.1 to ^0.3.0
+
 ## [0.12.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.12.0...browser-instrumentation-v0.12.1) (2026-11-17)
 
 
