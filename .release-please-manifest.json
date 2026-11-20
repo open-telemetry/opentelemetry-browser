@@ -1,5 +1,5 @@
 {
-  "packages/api": "0.2.1",
-  "packages/instrumentation": "0.12.1",
-  "packages/sdk": "0.9.1"
+  "packages/api": "0.3.0",
+  "packages/instrumentation": "0.13.0",
+  "packages/sdk": "0.9.2"
 }
