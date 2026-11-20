@@ -648,8 +648,7 @@ describe('ErrorsInstrumentation', () => {
       }
     });
 
-    it('should contain a value that cannot be converted to a string', () => {
-      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'error');
+    it('should record a fallback message for a value that cannot be converted to a string', () => {
       const reason = {
         toString() {
           throw new Error('string failed');
@@ -661,11 +660,22 @@ describe('ErrorsInstrumentation', () => {
       expect(() =>
         dispatchUnhandledRejection(reason, 'stray browser message'),
       ).not.toThrow();
-      expect(getErrorLogs()).toHaveLength(0);
-      expect(diagSpy).toHaveBeenCalledWith(
-        'failed to record exception',
-        expect.any(Error),
-      );
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: 'Unknown error',
+      });
+    });
+
+    it('should record a fallback message for a revoked Proxy', () => {
+      const { proxy, revoke } = Proxy.revocable({}, {});
+      revoke();
+      expect(() => dispatchUnhandledRejection(proxy)).not.toThrow();
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: 'Unknown error',
+      });
+      dispatchErrorEvent(proxy, 'browser message');
+      expect(getErrorLogs()[1]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: 'browser message',
+      });
     });
 
     it('should contain a rejection reason that throws while its properties are read', () => {

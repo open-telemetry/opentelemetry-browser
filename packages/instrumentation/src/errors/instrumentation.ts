@@ -15,6 +15,7 @@ import { version } from '../../package.json' with { type: 'json' };
 import type { ErrorsInstrumentationConfig } from './types.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
+const UNKNOWN_ERROR_MESSAGE = 'Unknown error';
 
 export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumentationConfig> {
   private _onErrorHandler:
@@ -116,25 +117,22 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     error: unknown,
     eventMessage?: string,
   ): Error | string {
-    if (typeof error === 'object' && error !== null) {
-      const candidate = error as Partial<Error>;
-      // Keep Error-like values, including errors from another realm.
-      if (typeof candidate.message === 'string') {
-        return candidate as Error;
-      }
-    }
     try {
+      if (typeof error === 'object' && error !== null) {
+        const candidate = error as Partial<Error>;
+        // Keep Error-like values, including errors from another realm.
+        if (typeof candidate.message === 'string') {
+          return candidate as Error;
+        }
+      }
       return String(error);
-    } catch (cause) {
+    } catch {
       try {
         return Object.prototype.toString.call(error);
       } catch {
         // A Symbol.toStringTag getter or revoked Proxy can also throw.
       }
-      if (eventMessage) {
-        return eventMessage;
-      }
-      throw cause;
+      return eventMessage || UNKNOWN_ERROR_MESSAGE;
     }
   }
 
