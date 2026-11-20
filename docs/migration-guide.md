@@ -245,6 +245,9 @@ or use the combined [Browser SDK setup](#sdk-setup).
 
 ### Navigation and exceptions
 
+See the [navigation emitted-data table](./migration-data/navigation.md) for key
+and signal changes.
+
 Rename `BrowserNavigationInstrumentation` to `NavigationInstrumentation` and
 change its import to the navigation subpath in the mapping table. The
 `applyCustomLogRecordData`, `sanitizeUrl`, and `useNavigationApiIfAvailable`
