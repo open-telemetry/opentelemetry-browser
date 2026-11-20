@@ -14,7 +14,7 @@ import {
   it,
   vi,
 } from 'vitest';
-import { setupTestLogExporter } from '#utils/test';
+import { setupTestDiagLogger, setupTestLogExporter } from '#utils/test';
 import { LongAnimationFrameInstrumentation } from './instrumentation.ts';
 import {
   ATTR_LONG_ANIMATION_FRAME_BLOCKING_DURATION,
@@ -377,19 +377,21 @@ describe('LongAnimationFrameInstrumentation', () => {
     );
   });
 
-  it('stays disabled and reports the unsupported entry type', () => {
+  it('stays disabled and reports the unsupported entry type at debug level', () => {
     Object.defineProperty(PerformanceObserverMock, 'supportedEntryTypes', {
       configurable: true,
       value: ['resource'],
     });
+    const { debug, error } = setupTestDiagLogger();
     instrumentation = new LongAnimationFrameInstrumentation();
-    const diagError = spyOnDiagError(instrumentation);
 
     instrumentation.enable();
 
     expect(instrumentation.isEnabled()).toBe(false);
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
-    expect(diagError).toHaveBeenCalledWith(
+    expect(error).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(
+      expect.any(String),
       expect.stringContaining(
         'does not support the "long-animation-frame" entry type',
       ),

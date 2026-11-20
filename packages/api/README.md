@@ -89,7 +89,10 @@ export class DialogInstrumentation extends InstrumentationBase {
 
 - `_init()` runs once, at the first `enable()`. Use it only to patch browser
   APIs with `_wrap()`, and throw if the browser cannot run the instrumentation.
-  A failed `_init()` is final, and `isEnabled()` stays false.
+  A failed `_init()` is final, and `isEnabled()` stays false. When the browser
+  lacks an API the instrumentation needs, throw
+  `new DOMException(message, 'NotSupportedError')`. That failure is expected, so
+  it is logged at debug level; any other throw is logged as an error.
 - Patches are never removed, so a patch checks `isEnabled()` and passes the call
   through when it is false.
 - `_onEnable()` and `_onDisable()` run each time the instrumentation turns on or
