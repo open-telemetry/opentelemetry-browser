@@ -20,6 +20,7 @@ import {
 } from 'vitest';
 import { enableForTest, setupTestLogExporter } from '#utils/test';
 import { ErrorsInstrumentation } from './instrumentation.ts';
+import type { ApplyCustomAttributesFunction } from './types.ts';
 
 const EXCEPTION_EVENT_NAME = 'exception';
 const STRING_ERROR = 'Some error string.';
@@ -36,7 +37,7 @@ class ValidationError extends Error {
 // We dispatch a cancelable plain Event (the instrumentation reads
 // `event.error`, falling back to `event.message`) and call preventDefault from
 // a capture-phase listener to suppress the default reporting behavior.
-const dispatchErrorEvent = (error?: Error | string, message?: string) => {
+const dispatchErrorEvent = (error?: unknown, message?: string) => {
   const event = new Event('error', { cancelable: true });
   if (error !== undefined) {
     Object.defineProperty(event, 'error', { value: error });
@@ -53,10 +54,7 @@ const dispatchErrorEvent = (error?: Error | string, message?: string) => {
   }
 };
 
-const dispatchUnhandledRejection = (
-  reason?: Error | string | null,
-  message?: string,
-) => {
+const dispatchUnhandledRejection = (reason?: unknown, message?: string) => {
   // jsdom does not implement the PromiseRejectionEvent constructor, so we
   // synthesize an event with the same shape the instrumentation listens for.
   // A real PromiseRejectionEvent always exposes a `reason` property, so we
@@ -193,6 +191,84 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_EXCEPTION_STACKTRACE]).toBeUndefined();
     });
 
+    it('should preserve structural errors before the event message', () => {
+      const error = {
+        name: 'RemoteError',
+        message: 'original',
+        stack: 'trace',
+      };
+      dispatchErrorEvent(error, 'browser message');
+      const attributes = getErrorLogs()[0]?.attributes;
+      expect(attributes?.[ATTR_EXCEPTION_MESSAGE]).toBe('original');
+      expect(attributes?.[ATTR_EXCEPTION_TYPE]).toBe('RemoteError');
+      expect(attributes?.[ATTR_EXCEPTION_STACKTRACE]).toBe('trace');
+    });
+
+    it.each([
+      ['foo', 'Uncaught foo', 'foo'],
+      ['', 'Uncaught ', ''],
+      [42, 'Uncaught 42', '42'],
+      [false, 'Uncaught false', 'false'],
+      [Symbol('failed'), 'browser message', 'Symbol(failed)'],
+      [
+        { toString: () => 'request failed' },
+        'browser message',
+        'request failed',
+      ],
+      [{ status: 500 }, 'Uncaught [object Object]', '[object Object]'],
+    ])(
+      'should prefer the thrown value %s over the event message',
+      (error, eventMessage, message) => {
+        dispatchErrorEvent(error, eventMessage);
+        expect(getErrorLogs()[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
+          message,
+        );
+      },
+    );
+
+    it.each([
+      ['an object without a prototype', Object.create(null)],
+      [
+        'an object with a throwing toString',
+        {
+          toString() {
+            throw new Error('string failed');
+          },
+        },
+      ],
+    ])('should normalize %s for errors and rejections', (_, error) => {
+      dispatchErrorEvent(error, 'browser message');
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+      });
+      dispatchUnhandledRejection(error);
+      expect(getErrorLogs()[1]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+      });
+    });
+
+    it('should use the event message when both string conversions fail', () => {
+      const error = {
+        toString() {
+          throw new Error('string failed');
+        },
+        get [Symbol.toStringTag]() {
+          throw new Error('tag failed');
+        },
+      };
+      dispatchErrorEvent(error, 'browser message');
+      expect(getErrorLogs()[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
+        'browser message',
+      );
+    });
+
+    it('should normalize non-Error values without an event message', () => {
+      dispatchErrorEvent(Symbol('failed'));
+      expect(getErrorLogs()[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
+        'Symbol(failed)',
+      );
+    });
+
     it('should not emit and should log a diag debug message when both error and message are missing', () => {
       const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'debug');
 
@@ -265,6 +341,71 @@ describe('ErrorsInstrumentation', () => {
       expect(logs[0]?.attributes[ATTR_EXCEPTION_TYPE]).toBeUndefined();
     });
 
+    it.each([
+      [42, '42'],
+      [1n, '1'],
+      [{ value: 1n }, '[object Object]'],
+      [{ name: 'request', status: 500 }, '[object Object]'],
+      [{ stack: 'details' }, '[object Object]'],
+      [false, 'false'],
+      [{ status: 500 }, '[object Object]'],
+      [{ status: 500, statusText: 'Server Error' }, '[object Object]'],
+      [Symbol('failed'), 'Symbol(failed)'],
+      [new Response(null, { status: 500 }), '[object Response]'],
+    ])('should normalize rejection reason %s', (reason, message) => {
+      dispatchUnhandledRejection(reason);
+      const logs = getErrorLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(message);
+      expect(logs[0]?.attributes[ATTR_EXCEPTION_STACKTRACE]).toBeUndefined();
+    });
+
+    it('should convert circular objects to strings', () => {
+      const reason: { self?: unknown } = {};
+      reason.self = reason;
+      dispatchUnhandledRejection(reason);
+      expect(getErrorLogs()[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
+        '[object Object]',
+      );
+    });
+
+    it('should not serialize rejection object fields', () => {
+      const body = vi.fn(() => 'private response body'.repeat(10000));
+      const reason = {
+        token: 'private token',
+        get body() {
+          return body();
+        },
+      };
+
+      dispatchUnhandledRejection(reason);
+
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+      });
+      expect(body).not.toHaveBeenCalled();
+    });
+
+    it('should not call toJSON on rejection objects', () => {
+      const toJSON = vi.fn(() => ({ token: 'private token' }));
+      dispatchUnhandledRejection({ toJSON });
+      expect(getErrorLogs()[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
+        '[object Object]',
+      );
+      expect(toJSON).not.toHaveBeenCalled();
+    });
+
+    it('should use a custom string representation without serializing fields', () => {
+      dispatchUnhandledRejection({
+        status: 500,
+        token: 'private token',
+        toString: () => 'request failed',
+      });
+      expect(getErrorLogs()[0]?.attributes[ATTR_EXCEPTION_MESSAGE]).toBe(
+        'request failed',
+      );
+    });
+
     it('should not emit and should log a diag debug message when the reason is null', () => {
       // A PromiseRejectionEvent has no message field to fall back to, so a
       // null reason is dropped rather than surfaced as the error path's
@@ -298,6 +439,85 @@ describe('ErrorsInstrumentation', () => {
   });
 
   describe('applyCustomAttributes', () => {
+    it.each([
+      [
+        'error',
+        (reason: unknown) =>
+          dispatchErrorEvent(reason, 'Uncaught [object Object]'),
+      ],
+      ['unhandledrejection', dispatchUnhandledRejection],
+    ])(
+      'should pass the normalized and original values to the hook for %s',
+      (_, dispatch) => {
+        const reason = { status: 500 };
+        const hook = vi.fn<ApplyCustomAttributesFunction>(() => ({}));
+        instrumentation = new ErrorsInstrumentation({
+          applyCustomAttributes: hook,
+        });
+        enableForTest(instrumentation);
+
+        dispatch(reason);
+
+        expect(hook).toHaveBeenCalledWith('[object Object]', reason);
+        expect(hook.mock.calls[0]?.[1]).toBe(reason);
+      },
+    );
+
+    it('should let the hook read original fields without recording the object', () => {
+      const reason = { status: 503, token: 'private token' };
+      instrumentation = new ErrorsInstrumentation({
+        applyCustomAttributes: (_error, original) => {
+          if (
+            typeof original === 'object' &&
+            original !== null &&
+            'status' in original &&
+            typeof original.status === 'number'
+          ) {
+            return { 'app.error.status': original.status };
+          }
+          return {};
+        },
+      });
+      enableForTest(instrumentation);
+
+      dispatchUnhandledRejection(reason);
+
+      expect(getErrorLogs()[0]?.attributes).toEqual({
+        [ATTR_EXCEPTION_MESSAGE]: '[object Object]',
+        'app.error.status': 503,
+      });
+    });
+
+    it('should preserve the Error object in both hook arguments', () => {
+      const error = new ValidationError('original error');
+      const hook = vi.fn<ApplyCustomAttributesFunction>(() => ({}));
+      instrumentation = new ErrorsInstrumentation({
+        applyCustomAttributes: hook,
+      });
+      enableForTest(instrumentation);
+
+      dispatchErrorEvent(error);
+
+      expect(hook).toHaveBeenCalledWith(error, error);
+      expect(hook.mock.calls[0]?.[0]).toBe(error);
+      expect(hook.mock.calls[0]?.[1]).toBe(error);
+    });
+
+    it.each([null, undefined])(
+      'should preserve the original %s on the event-message fallback path',
+      (original) => {
+        const hook = vi.fn<ApplyCustomAttributesFunction>(() => ({}));
+        instrumentation = new ErrorsInstrumentation({
+          applyCustomAttributes: hook,
+        });
+        enableForTest(instrumentation);
+
+        dispatchErrorEvent(original, 'Script error.');
+
+        expect(hook).toHaveBeenCalledWith('Script error.', original);
+      },
+    );
+
     it('should merge custom attributes for Error objects', () => {
       instrumentation = new ErrorsInstrumentation({
         applyCustomAttributes: (error) => ({
@@ -428,12 +648,32 @@ describe('ErrorsInstrumentation', () => {
       }
     });
 
+    it('should contain a value that cannot be converted to a string', () => {
+      const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'error');
+      const reason = {
+        toString() {
+          throw new Error('string failed');
+        },
+        get [Symbol.toStringTag]() {
+          throw new Error('tag failed');
+        },
+      };
+      expect(() =>
+        dispatchUnhandledRejection(reason, 'stray browser message'),
+      ).not.toThrow();
+      expect(getErrorLogs()).toHaveLength(0);
+      expect(diagSpy).toHaveBeenCalledWith(
+        'failed to record exception',
+        expect.any(Error),
+      );
+    });
+
     it('should contain a rejection reason that throws while its properties are read', () => {
       const diagSpy = vi.spyOn(internals(instrumentation)._diag, 'error');
 
       // A promise can reject with any value. This one throws while its `stack`
       // is read, exercising the extraction path before emit is ever reached.
-      const hostileReason = {} as Error;
+      const hostileReason = { message: 'boom' } as Error;
       Object.defineProperty(hostileReason, 'stack', {
         get() {
           throw new Error('stack getter exploded');
