@@ -5,10 +5,6 @@
 
 import { DiagLogLevel, diag, logs } from '@opentelemetry/api';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import {
-  defaultResource,
-  resourceFromAttributes,
-} from '@opentelemetry/resources';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   BatchLogRecordProcessor,
@@ -19,6 +15,7 @@ import {
 import { INVALID_CONFIG_SDK } from '../core/constants.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
+import { createResource } from '../core/resource.ts';
 import type { LogsConfig, LogsSdk } from '../core/types.ts';
 
 export const DEFAULT_LOGS_EXPORT_CONFIG: LogsConfig['exportConfig'] = {
@@ -34,16 +31,7 @@ export function startLogsSdk(config?: LogsConfig): LogsSdk {
   setSdkLogger(config?.logLevel);
 
   // Resolve resource
-  const resourceAttributes = config?.resourceAttributes ?? {};
-  if (config?.serviceName) {
-    resourceAttributes['service.name'] = config.serviceName;
-  }
-  if (config?.serviceVersion) {
-    resourceAttributes['service.version'] = config.serviceVersion;
-  }
-  const resource = defaultResource().merge(
-    resourceFromAttributes(resourceAttributes),
-  );
+  const resource = createResource(config);
 
   // Resolve the list of log record processors.
   // - if provided by the user use them
@@ -109,6 +97,7 @@ export function startLogsSdk(config?: LogsConfig): LogsSdk {
   }
 
   return {
+    resource,
     loggerProvider,
     shutdown: () => loggerProvider.shutdown(),
   };

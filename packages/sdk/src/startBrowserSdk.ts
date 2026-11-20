@@ -11,6 +11,7 @@ import type {
 import { INVALID_CONFIG_SDK } from './core/constants.ts';
 import { setSdkLogger } from './core/diag.ts';
 import { parseExportUrl } from './core/exportUrl.ts';
+import { createResource } from './core/resource.ts';
 import type {
   LogsConfig,
   LogsSdk,
@@ -33,6 +34,10 @@ type CombinedConfig = RootConfig & {
   logs?: RemoveCommonProps<LogsConfig>;
   traces?: RemoveCommonProps<TracesConfig>;
 };
+
+// A signal config with the root options that are pushed down to it.
+type SignalConfig<T> = RemoveCommonProps<T> &
+  Pick<RootConfig, 'logLevel' | 'setGlobals'>;
 
 const DEFAULT_OTLP_ENDPOINT = 'http://localhost:4318';
 const DEFAULT_CONFIG: RootConfig = {
@@ -98,20 +103,6 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   // Set the logger
   setSdkLogger(rootConfig?.logLevel);
 
-  // TODO: questions (for the SIG?)
-  // - accept resource detectors?
-  // - how to avoid creating different resources (here and in signals)
-  //   - in the config? may be misleading for users seeing
-  //   - maybe using an internal module with set/get like diag
-  rootConfig.resourceAttributes ??= {};
-  if (rootConfig.serviceName) {
-    rootConfig.resourceAttributes['service.name'] = rootConfig.serviceName;
-  }
-  if (rootConfig.serviceVersion) {
-    rootConfig.resourceAttributes['service.version'] =
-      rootConfig.serviceVersion;
-  }
-
   // Export
   rootConfig.exportConfig = {
     url: DEFAULT_OTLP_ENDPOINT,
@@ -134,8 +125,8 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   }
   // Resolve each signal's config once so it can be validated here and reused
   // when starting the signals below.
-  const logsConfig: LogsConfig = config?.logs || {};
-  const tracesConfig: TracesConfig = config?.traces || {};
+  const logsConfig: SignalConfig<LogsConfig> = config?.logs || {};
+  const tracesConfig: SignalConfig<TracesConfig> = config?.traces || {};
   const signalExportUrls: [string, string | undefined][] = [
     ['Logs SDK', logsConfig.exportConfig?.url],
     ['Traces SDK', tracesConfig.exportConfig?.url],
@@ -148,6 +139,8 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       return INVALID_CONFIG_SDK;
     }
   }
+
+  const resource = createResource(rootConfig, config.resourceDetectors);
 
   // Start logs if configured
   if (logsConfig) {
@@ -175,8 +168,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       endpointUrl.pathname = '/v1/logs';
       logsConfig.exportConfig.url = endpointUrl.href;
     }
-    logsConfig.resourceAttributes = rootConfig.resourceAttributes;
-    logsSdk = startLogsSdk(logsConfig);
+    logsSdk = startLogsSdk({ ...logsConfig, resource });
     sdks.push(logsSdk);
   }
 
@@ -207,8 +199,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
       endpointUrl.pathname = '/v1/traces';
       tracesConfig.exportConfig.url = endpointUrl.href;
     }
-    tracesConfig.resourceAttributes = rootConfig.resourceAttributes;
-    tracesSdk = startTracesSdk(tracesConfig);
+    tracesSdk = startTracesSdk({ ...tracesConfig, resource });
     sdks.push(tracesSdk);
   }
 
@@ -225,6 +216,7 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
   let isShutdown = false;
 
   const sdk: WebSdk = {
+    resource,
     enable() {
       if (isShutdown) {
         return;
@@ -267,7 +259,12 @@ export function startBrowserSdk(config: CombinedConfig): WebSdk {
 
 export type QuickStartConfig = Pick<
   RootConfig,
-  'enabled' | 'logLevel' | 'serviceName' | 'serviceVersion' | 'instrumentations'
+  | 'enabled'
+  | 'logLevel'
+  | 'serviceName'
+  | 'serviceVersion'
+  | 'instrumentations'
+  | 'resourceDetectors'
 > & {
   /**
    * Target URL for the SDK to send traces and logs.
@@ -291,6 +288,7 @@ export function quickStartBrowserSdk(config: QuickStartConfig) {
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
     instrumentations: config.instrumentations,
+    resourceDetectors: config.resourceDetectors,
     // Explicit export configuration enables the Batch processors
     exportConfig: {
       url: config.exportUrl,

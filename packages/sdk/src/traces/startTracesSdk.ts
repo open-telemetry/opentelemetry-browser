@@ -12,10 +12,6 @@ import {
 } from '@opentelemetry/api';
 import { CompositePropagator } from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import {
-  defaultResource,
-  resourceFromAttributes,
-} from '@opentelemetry/resources';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace';
 import {
   BatchSpanProcessor,
@@ -28,6 +24,7 @@ import { getDefaultContextManager } from '../core/context.ts';
 import { setSdkLogger } from '../core/diag.ts';
 import { parseExportUrl } from '../core/exportUrl.ts';
 import { getDefaultPropagators } from '../core/propagation.ts';
+import { createResource } from '../core/resource.ts';
 import type { TracesConfig, TracesSdk } from '../core/types.ts';
 
 export const DEFAULT_TRACES_EXPORT_CONFIG: TracesConfig['exportConfig'] = {
@@ -39,16 +36,7 @@ export function startTracesSdk(config?: TracesConfig): TracesSdk {
   setSdkLogger(config?.logLevel);
 
   // Resolve resource
-  const resourceAttributes = config?.resourceAttributes ?? {};
-  if (config?.serviceName) {
-    resourceAttributes['service.name'] = config.serviceName;
-  }
-  if (config?.serviceVersion) {
-    resourceAttributes['service.version'] = config.serviceVersion;
-  }
-  const resource = defaultResource().merge(
-    resourceFromAttributes(resourceAttributes),
-  );
+  const resource = createResource(config);
 
   // Resolve the list of span processors.
   // - if provided by the user use them
@@ -123,6 +111,7 @@ export function startTracesSdk(config?: TracesConfig): TracesSdk {
   }
 
   return {
+    resource,
     tracerProvider,
     propagator,
     shutdown: () => tracerProvider.shutdown(),
