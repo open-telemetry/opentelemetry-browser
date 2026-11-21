@@ -1,0 +1,52 @@
+name: Bundle size
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle-size:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: head
+          persist-credentials: false
+
+      - name: Check out pull request base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: head/.nvmrc
+          package-manager-cache: false
+
+      - name: Install and build head
+        working-directory: head
+        run: |
+          npm ci
+          npm run build --workspace=@opentelemetry/browser-instrumentation --workspace=@opentelemetry/browser-sdk
+          node --test scripts/bundle-size-report.test.js
+
+      - name: Install and build base
+        working-directory: base
+        run: |
+          npm ci
+          npm run build --workspace=@opentelemetry/browser-instrumentation --workspace=@opentelemetry/browser-sdk
+
+      - name: Measure both revisions with the head tooling
+        working-directory: head
+        run: |
+          BUNDLE_SIZE_ROOT="$GITHUB_WORKSPACE/base" npx --no-install size-limit --json > "$RUNNER_TEMP/bundle-size-base.json"
+          npx --no-install size-limit --json > "$RUNNER_TEMP/bundle-size-head.json"
+
+      - name: Write comparison to job summary
+        run: node head/scripts/bundle-size-report.js "$RUNNER_TEMP/bundle-size-base.json" "$RUNNER_TEMP/bundle-size-head.json" >> "$GITHUB_STEP_SUMMARY"
