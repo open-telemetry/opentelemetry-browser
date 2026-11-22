@@ -12,7 +12,8 @@ export interface WebVitalsInstrumentationConfig {
   /**
    * @experimental
    * When true, adds selected INP attribution fields as experimental log
-   * record attributes. Does not include the raw attribution body.
+   * record attributes. Enable `includeRawAttribution` separately to add
+   * the raw attribution body.
    * Defaults to `false`.
    *
    * Script URL attributes use `sanitizeUrl` or `defaultSanitizeUrl`.
