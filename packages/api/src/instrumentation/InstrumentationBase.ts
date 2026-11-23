@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DiagLogger, TextMapPropagator, Tracer } from '@opentelemetry/api';
-import { diag, propagation, trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { logs } from '@opentelemetry/api-logs';
+import type {
+  DiagLogger,
+  Logger,
+  TextMapPropagator,
+  Tracer,
+} from '@opentelemetry/api';
+import { diag, logs, propagation, trace } from '@opentelemetry/api';
 import { toError } from '../utils/toError.ts';
 import type { Instrumentation, InstrumentationDeps } from './types.ts';
 

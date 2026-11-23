@@ -4,8 +4,7 @@
  */
 
 import type { DiagLogger } from '@opentelemetry/api';
-import { DiagLogLevel, diag, trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { DiagLogLevel, diag, logs, trace } from '@opentelemetry/api';
 import type {
   Instrumentation,
   InstrumentationDeps,

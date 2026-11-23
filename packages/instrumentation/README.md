@@ -19,10 +19,16 @@ changes, and remaining gaps.
 npm install @opentelemetry/browser-instrumentation
 ```
 
+`@opentelemetry/api` is a **peer dependency** and **1.10.x is required**
+(`>=1.10.0 <1.11.0`): the instrumentations import the `logs` API from
+`@opentelemetry/api` at runtime, so an application still on 1.9.x fails to
+bundle with a missing export.
+
 ## Instrumentations
 
 - [Navigation](#navigation) — automatic instrumentation for browser navigations
   (initial load and SPA route changes)
+- [Document Load](#document-load) — one document load span
 - [Navigation Timing](#navigation-timing) — automatic instrumentation for
   navigation timing
 - [Resource Timing](#resource-timing) — automatic instrumentation for resource
@@ -48,7 +54,7 @@ them to `startBrowserSdk()` and the SDK enables them with its own providers.
 You can also enable them yourself. Call `enable()` on each one:
 
 ```typescript
-import { logs } from '@opentelemetry/api-logs';
+import { logs } from '@opentelemetry/api';
 import {
   ConsoleLogRecordExporter,
   LoggerProvider,
@@ -135,10 +141,10 @@ new NavigationInstrumentation({
 > `LogRecordProcessor` with `LoggerProvider`:
 >
 > ```typescript
-> import type { LogRecordProcessor, SdkLogRecord } from '@opentelemetry/sdk-logs';
+> import type { LogRecordProcessor, ReadWriteLogRecord } from '@opentelemetry/sdk-logs';
 >
 > class CustomAttributesProcessor implements LogRecordProcessor {
->   onEmit(logRecord: SdkLogRecord) {
+>   onEmit(logRecord: ReadWriteLogRecord) {
 >     logRecord.setAttribute('app.route.id', '...');
 >   }
 >   async forceFlush() {}
@@ -148,7 +154,7 @@ new NavigationInstrumentation({
 
 `defaultSanitizeUrl` is exported for composition — it redacts `user:password@`
 credentials and a set of common sensitive query parameters (`api_key`, `token`,
-`password`, etc.).
+`password`, signed URL signatures, etc.).
 
 #### Captured Attributes
 
@@ -160,6 +166,66 @@ Each `browser.navigation` event includes:
 | `browser.navigation.same_document` | `true` for SPA route changes; `false` for full-page loads.                                |
 | `browser.navigation.hash_change`   | `true` when the navigation only adds or changes the URL fragment.                         |
 | `browser.navigation.type`          | One of `push`, `replace`, `reload`, `traverse` (omitted for the initial hard navigation). |
+
+---
+
+### Document Load
+
+```typescript
+import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/document-load';
+```
+
+Creates one `documentLoad` span from the navigation entry's `fetchStart` to
+`loadEventEnd`, with the `url.full` attribute. Credentials and sensitive query
+values in `url.full` are redacted with `defaultSanitizeUrl`. Pass it to
+`startBrowserSdk()` and the SDK enables it with its tracer provider:
+
+```typescript
+import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+
+const sdk = startBrowserSdk({
+  instrumentations: [new DocumentLoadInstrumentation()],
+});
+```
+
+To enable it yourself, pass the tracer provider to `enable()`:
+
+```typescript
+const documentLoad = new DocumentLoadInstrumentation();
+documentLoad.enable({ tracerProvider });
+```
+
+Enabling after the page has loaded reads the buffered navigation entry and keeps
+its original interval. During load, collection waits until `loadEventEnd` is
+populated. Missing or invalid navigation timing produces no span rather than a
+made-up end time. Disabling cancels collection. Re-enabling an instance that
+already collected the document does not emit a second span for that load.
+
+If the server that rendered the page puts its trace context in the HTML, the
+span joins that trace as a child of the server span:
+
+```html
+<meta
+  name="traceparent"
+  content="00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+>
+<meta name="tracestate" content="vendor=value">
+```
+
+The configured propagator reads each field it needs from the `<meta>` tag of the
+same name, so the W3C trace context propagator reads `traceparent` and
+`tracestate`. With the B3 propagator, the server writes a `b3` tag instead:
+
+```html
+<meta name="b3" content="4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-1">
+```
+
+The span follows the server's sampling decision when the sampler is parent
+based. Without a valid server context, the span starts a new trace.
+
+Detailed timings come from the navigation-timing and resource-timing
+instrumentations, so there are no `documentFetch` or `resourceFetch` child spans
+or span events.
 
 ---
 
@@ -698,9 +764,9 @@ Each instrumentation has three methods: `enable()`, `disable()` and
   instrumentation needs.
 - The first `enable()` also locks the dependencies for the life of the instance.
   A dependency that you do not pass uses the global API from
-  `@opentelemetry/api` or `@opentelemetry/api-logs`. Later `enable()` calls
-  ignore `deps`. They log a warning if a passed dependency differs from the
-  locked one, and a debug message if it is the same.
+  `@opentelemetry/api`. Later `enable()` calls ignore `deps`. They log a warning
+  if a passed dependency differs from the locked one, and a debug message if it
+  is the same.
 - `disable()` stops emitting and removes listeners. Patched browser APIs stay
   patched, because other code may have wrapped them after us. A later `enable()`
   starts emitting again, unless `disable()` failed.
@@ -768,15 +834,19 @@ instrumentation cannot detect our patches, so both would record every call.
 
 ## Writing an instrumentation
 
-An instrumentation is any object that implements the `Instrumentation`
-interface: `instrumentationName`, `enable(deps?)`, `disable()` and
-`isEnabled()`. The Browser SDK accepts any such object.
+Extend `InstrumentationBase`. Do not implement the `Instrumentation` interface
+directly: the base class implements the `Instrumentation` contract the Browser
+SDK accepts (`instrumentationName`, `enable(deps?)`, `disable()` and
+`isEnabled()`) and the lifecycle in
+[Enabling and
+disabling](#enabling-and-disabling)
+— the dependency locking, the error containment of `_safeExecute()` and the
+enable/disable state machine. A direct interface implementation has to rebuild
+all of that, and misses the base class's guarantees.
 
-The easiest way is to extend `InstrumentationBase`. It implements the lifecycle
-in [Enabling and disabling](#enabling-and-disabling). `InstrumentationBase`,
-`Instrumentation` and `InstrumentationDeps` are exported from
-[`@opentelemetry/browser-api`](../api). Add it as a dependency. You do not need
-this package, so your instrumentation is not tied to its releases.
+`InstrumentationBase`, `Instrumentation` and `InstrumentationDeps` are exported
+from [`@opentelemetry/browser-api`](../api). Add it as a dependency. You do not
+need this package, so your instrumentation is not tied to its releases.
 
 ```bash
 npm install @opentelemetry/browser-api

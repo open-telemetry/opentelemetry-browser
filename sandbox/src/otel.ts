@@ -1,13 +1,14 @@
 // otel.ts — SDK initialisation via the official @opentelemetry/browser-sdk
 
-import type { Tracer } from '@opentelemetry/api';
-import { trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { logs } from '@opentelemetry/api-logs';
+import type { Logger, Tracer } from '@opentelemetry/api';
+import { logs, trace } from '@opentelemetry/api';
+import { ConsoleInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/console';
+import { DocumentLoadInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/document-load';
 import { ElementTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/element-timing';
 import { ErrorsInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/errors';
 import { FetchInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/fetch';
 import { LongAnimationFrameInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/long-animation-frame';
+import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation';
 import { NavigationTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/navigation-timing';
 import { ResourceTimingInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/resource-timing';
 import { UserActionInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/user-action';
@@ -15,6 +16,7 @@ import { WebVitalsInstrumentation } from '@opentelemetry/browser-instrumentation
 import { XhrInstrumentation } from '@opentelemetry/browser-instrumentation/experimental/xhr';
 import type { TracesConfig } from '@opentelemetry/browser-sdk';
 import { startBrowserSdk } from '@opentelemetry/browser-sdk';
+import { browserDetector } from '@opentelemetry/browser-sdk/browser-detector';
 import {
   createDocumentLogRecordProcessor,
   createDocumentSpanProcessor,
@@ -114,6 +116,18 @@ export async function initOtel(
     );
   }
 
+  // ── Browser resource (opt-in) ─────────────────────────────────────────────
+  // The browser detector is NOT part of the default resource: `startBrowserSdk`
+  // only sets `service.*` and `telemetry.sdk.*`, and attaching the user agent
+  // to every record is a privacy call the SDK leaves to the app. Detecting adds
+  // `user_agent.original` plus the UA Client Hints attributes `browser.platform`,
+  // `browser.brands`, `browser.mobile` and `browser.language` (Chromium-only —
+  // other browsers get `user_agent.original` alone). The canonical equivalent
+  // outside this file:
+  //   detectResources({ detectors: [browserDetector] }).merge(resource)
+  // The sandbox is a QA playground, so it opts in to show the browser resource.
+  const browserAttributes = browserDetector.detect().attributes;
+
   // ── SDK ─────────────────────────────────────────────────────────────────────
   // startBrowserSdk registers the tracer and logger providers. For each signal
   // it keeps the custom processors above and, because `exportConfig` is set,
@@ -125,7 +139,7 @@ export async function initOtel(
   const sdk = startBrowserSdk({
     serviceName: config.serviceName,
     serviceVersion: config.serviceVersion,
-    resourceAttributes: { ...customAttrs },
+    resourceAttributes: { ...browserAttributes, ...customAttrs },
     traces: {
       processors: spanProcessors,
       exportConfig: { url: config.tracesUrl, headers: {} },
@@ -138,15 +152,23 @@ export async function initOtel(
     },
 
     instrumentations: [
+      // Event-based
+      new ConsoleInstrumentation(),
       new ElementTimingInstrumentation(),
       new ErrorsInstrumentation(),
       new LongAnimationFrameInstrumentation(),
+      new NavigationInstrumentation(),
       new NavigationTimingInstrumentation(),
       new ResourceTimingInstrumentation({
         ignoreUrls: [config.tracesUrl, config.logsUrl],
       }),
       new UserActionInstrumentation(),
-      new WebVitalsInstrumentation({ includeRawAttribution: true }),
+      new WebVitalsInstrumentation({
+        includeRawAttribution: true,
+        reportAllChanges: true,
+      }),
+      // Span-based
+      new DocumentLoadInstrumentation(),
       new FetchInstrumentation({
         propagateTraceHeaderCorsUrls: [/.*/],
         ignoreUrls: [config.tracesUrl, config.logsUrl],

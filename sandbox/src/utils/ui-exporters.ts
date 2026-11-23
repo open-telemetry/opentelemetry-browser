@@ -38,13 +38,14 @@ export function createUISpanExporter(onSpan: LogCallback): SpanExporter {
 // Log records emitted by event-based instrumentations carry their name in
 // `eventName` and no body, so fall back to it instead of rendering "undefined".
 function describeBody(record: ReadableLogRecord): string {
+  const name = record.eventName ? `${record.eventName} · ` : '';
   if (typeof record.body === 'string') {
-    return record.body;
+    return `${name}${record.body}`;
   }
   if (record.body === undefined) {
     return record.eventName ?? '';
   }
-  return JSON.stringify(record.body);
+  return `${name}${JSON.stringify(record.body)}`;
 }
 
 export function createUILogExporter(onLog: LogCallback): LogRecordExporter {

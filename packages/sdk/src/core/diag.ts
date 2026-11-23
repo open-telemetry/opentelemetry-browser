@@ -4,15 +4,19 @@
  */
 
 import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
+import { isDiagRegistered } from './isDiagRegistered.ts';
 
 /**
- * Sets the global logger with the given log level. If called a second time
- * the operation will be a noop
+ * Sets the global logger with the given log level if none is registered.
+ * Once the SDK sets a logger, later calls are a noop.
  */
 let loggerSet = false;
 export function setSdkLogger(level: keyof typeof DiagLogLevel = 'INFO') {
   if (loggerSet) {
     diag.debug('Logger for SDKs already set.');
+    return;
+  }
+  if (isDiagRegistered()) {
     return;
   }
   // Although the types will error if user pass a wrong value
