@@ -16,9 +16,9 @@ import type { Instrumentation, InstrumentationDeps } from './types.ts';
 type State = 'new' | 'enabled' | 'disabled' | 'failed';
 
 /**
- * Whether `value` is named `NotSupportedError`. Matched by name rather than
- * `instanceof DOMException`, so an equivalent error from a polyfill or from
- * another copy of this package counts too.
+ * Whether `value` is named `NotSupportedError`. Matched by name, the usual way
+ * to tell `DOMException`s apart, so a plain `Error` with that name or a
+ * `DOMException` from another realm counts too.
  */
 function isNotSupported(value: unknown): boolean {
   try {
@@ -29,7 +29,8 @@ function isNotSupported(value: unknown): boolean {
       value.name === 'NotSupportedError'
     );
   } catch {
-    // A revoked Proxy throws on `in`.
+    // A revoked Proxy throws on `in`, and a `name` getter can throw. A throw
+    // here would escape enable() before _markFailed(), so _init() could rerun.
     return false;
   }
 }
