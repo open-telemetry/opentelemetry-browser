@@ -16,6 +16,7 @@ import {
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 import { version } from '../../package.json' with { type: 'json' };
+import { isTracingSuppressed } from '../utils/isTracingSuppressed.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getFetchBodyLength,
@@ -61,7 +62,12 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         this: typeof globalThis,
         ...args: Parameters<typeof fetch>
       ): Promise<Response> {
-        if (!instrumentation.isEnabled()) {
+        // Exporters suppress tracing around their own requests. Pass those
+        // through untouched, so hooks and propagators never see them.
+        if (
+          !instrumentation.isEnabled() ||
+          isTracingSuppressed(context.active())
+        ) {
           return original.apply(this, args);
         }
 
