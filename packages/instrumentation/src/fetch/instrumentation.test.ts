@@ -40,6 +40,7 @@ import {
 } from 'vitest';
 import { defaultSanitizeUrl, getNetworkContextRegistry } from '#utils';
 import {
+  callWithTracingSuppressed,
   enableForTest,
   setupTestDiagLogger,
   setupTestSpanExporter,
@@ -186,7 +187,7 @@ describe('FetchInstrumentation', () => {
       'unhandledrejection',
       suppressBrokenStreamRejection,
     );
-    await msWorker.start();
+    await msWorker.start({ onUnhandledFrame: 'error', quiet: true });
     inMemoryExporter = setupTestSpanExporter();
   });
 
@@ -257,6 +258,9 @@ describe('FetchInstrumentation', () => {
     expect(registerData?.startPerfNow).toBeGreaterThanOrEqual(
       options.startTime,
     );
+    // NOTE: `endPerfNow` is read when the span ends, which happens after the
+    // response body has been drained, so callers must capture `endTime` once
+    // the span has been exported, not when the request promise settles.
     expect(registerData?.endPerfNow).toBeLessThanOrEqual(options.endTime);
     expect(registeredSpan).toBeDefined();
     expect(registeredSpan?.spanContext()).toEqual(options.span.spanContext());
@@ -382,25 +386,6 @@ describe('FetchInstrumentation', () => {
       ).toEqual([onUrl]);
     });
 
-    it('should stay off and warn when PerformanceObserver is not available', () => {
-      const { warn } = setupTestDiagLogger();
-      vi.stubGlobal('PerformanceObserver', undefined);
-      onTestFinished(() => {
-        vi.unstubAllGlobals();
-      });
-
-      instrumentation = new FetchInstrumentation();
-      enableForTest(instrumentation);
-
-      expect(instrumentation.isEnabled()).toBe(false);
-      expect(globalThis.fetch).toBe(originalFetchFunction);
-      expect(warn).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.stringMatching(/PerformanceObserver is not available/),
-        expect.any(Error),
-      );
-    });
-
     describe('when the fetch slot is non-writable', () => {
       afterEach(() => {
         Object.defineProperty(globalThis, 'fetch', {
@@ -466,16 +451,16 @@ describe('FetchInstrumentation', () => {
         expect(instrumentation.isEnabled()).toBe(false);
       });
 
-      it('should warn with the descriptive error', () => {
-        const { warn } = setupTestDiagLogger();
+      it('should log an error with the descriptive error', () => {
+        const { error } = setupTestDiagLogger();
         enableForTest(instrumentation);
 
-        // Component loggers forward to `diag.warn(namespace, message, error)`.
-        const error = warn.mock.calls[0]?.[2] as Error | undefined;
-        expect(error?.message).toBe(
+        // Component loggers forward to `diag.error(namespace, message, error)`.
+        const loggedError = error.mock.calls[0]?.[2] as Error | undefined;
+        expect(loggedError?.message).toBe(
           `Failed to patch globalThis.fetch: ${wrapError.message}`,
         );
-        expect(error?.cause).toBe(wrapError);
+        expect(loggedError?.cause).toBe(wrapError);
       });
     });
   });
@@ -514,10 +499,10 @@ describe('FetchInstrumentation', () => {
       const url = getUrlForPath('/api/get');
       const startTime = performance.now();
       await fetch(url).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -536,10 +521,10 @@ describe('FetchInstrumentation', () => {
       await fetch(url, { method: 'post', body: 'body_content' }).then((r) =>
         r.json(),
       );
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('POST');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('POST');
@@ -557,10 +542,10 @@ describe('FetchInstrumentation', () => {
       const url = getUrlForPath('/api/query');
       const startTime = performance.now();
       await fetch(url, { method: 'QUERY' }).then((r) => r.json());
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('QUERY');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('QUERY');
@@ -577,10 +562,10 @@ describe('FetchInstrumentation', () => {
       const url = getUrlForPath('/api/error');
       const startTime = performance.now();
       await fetch(url);
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -605,10 +590,10 @@ describe('FetchInstrumentation', () => {
       } catch (err) {
         expect(err).toBeDefined();
       }
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -630,10 +615,10 @@ describe('FetchInstrumentation', () => {
       const fetchPromise = fetch(url, { signal: controller.signal });
       controller.abort();
       await expect(fetchPromise).rejects.toThrow();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
@@ -650,10 +635,10 @@ describe('FetchInstrumentation', () => {
       const startTime = performance.now();
       const fetchPromise = fetch(url, { signal: AbortSignal.timeout(10) });
       await expect(fetchPromise).rejects.toThrow();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
@@ -670,10 +655,10 @@ describe('FetchInstrumentation', () => {
       const startTime = performance.now();
       const response = await fetch(url);
       await expect(response.text()).rejects.toThrow();
-      const endTime = performance.now();
 
       // Span is exported
       const span = await waitForSpan(url);
+      const endTime = performance.now();
       expect(span.name).toBe('GET');
       expect(span.kind).toEqual(SpanKind.CLIENT);
       expect(span.attributes[ATTR_URL_FULL]).toEqual(url);
@@ -749,10 +734,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get?api_key=secret&normal=value');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported (with sanitized URL)
         const span = await waitForSpan(defaultSanitizeUrl(url));
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -779,6 +764,70 @@ describe('FetchInstrumentation', () => {
         await expect(waitForSpan(url)).rejects.toThrow();
         // No resource registered
         expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('when tracing is suppressed', () => {
+      it('should not create a span, call hooks or register a resource', async () => {
+        const requestHook = vi.fn();
+        const applyCustomAttributesOnSpan = vi.fn();
+        enableWithConfig({ requestHook, applyCustomAttributesOnSpan });
+        const url = getUrlForPath('/api/get');
+
+        const result = await callWithTracingSuppressed(() => fetch(url)).then(
+          (r) => r.json(),
+        );
+
+        expect(result).toEqual({ ok: true });
+        await expect(waitForSpan(url)).rejects.toThrow();
+        expect(requestHook).not.toHaveBeenCalled();
+        expect(applyCustomAttributesOnSpan).not.toHaveBeenCalled();
+        expect(networkContextRegistry.register).not.toHaveBeenCalled();
+      });
+
+      it('should not inject headers with a propagator that ignores suppression', async () => {
+        const fake: TextMapPropagator = {
+          inject: (_ctx, carrier, setter) =>
+            setter?.set(carrier, 'x-test', '1'),
+          extract: (ctx) => ctx,
+          fields: () => ['x-test'],
+        };
+        instrumentation?.disable();
+        instrumentation = new FetchInstrumentation();
+        enableForTest(instrumentation, { propagator: fake });
+        const url = getUrlForPath('/api/echo-headers.json');
+
+        const response = await callWithTracingSuppressed(() => fetch(url));
+        const { request } = await response.json();
+
+        expect(request.headers['x-test']).toBeUndefined();
+      });
+
+      it('should pass the arguments to the wrapped fetch unchanged', async () => {
+        const wrapped = vi.fn<typeof fetch>().mockResolvedValue(new Response());
+        globalThis.fetch = wrapped;
+        onTestFinished(() => {
+          globalThis.fetch = originalFetchFunction;
+        });
+        enableWithConfig();
+        const request = new Request(getUrlForPath('/api/get'));
+        const init: RequestInit = { headers: { foo: 'bar' } };
+
+        await callWithTracingSuppressed(() => fetch(request, init));
+
+        expect(wrapped).toHaveBeenCalledOnce();
+        expect(wrapped.mock.calls[0]?.[0]).toBe(request);
+        expect(wrapped.mock.calls[0]?.[1]).toBe(init);
+      });
+
+      it('should instrument requests made after suppression ends', async () => {
+        const url = getUrlForPath('/api/get');
+
+        await callWithTracingSuppressed(() => fetch(url));
+        await fetch(url);
+
+        await waitForSpan(url);
+        expect(getFetchSpans()).toHaveLength(1);
       });
     });
 
@@ -898,10 +947,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -925,10 +974,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1005,10 +1054,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1030,10 +1079,10 @@ describe('FetchInstrumentation', () => {
         const url = getUrlForPath('/api/get');
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1359,10 +1408,10 @@ describe('FetchInstrumentation', () => {
         const url = 'http://example.com/api/status.json';
         const startTime = performance.now();
         await fetch(url).then((r) => r.json());
-        const endTime = performance.now();
 
         // Span is exported
         const span = await waitForSpan(url);
+        const endTime = performance.now();
         expect(span.name).toBe('GET');
         expect(span.kind).toEqual(SpanKind.CLIENT);
         expect(span.attributes[ATTR_HTTP_REQUEST_METHOD]).toEqual('GET');
@@ -1413,6 +1462,14 @@ describe('FetchInstrumentation', () => {
             const response = await fetch(url);
 
             await assertPropagationHeaders(response);
+          });
+
+          it('should not call the propagator when propagation is skipped', async () => {
+            const injectSpy = vi.spyOn(propagation, 'inject');
+            const url = 'http://example.com/api/echo-headers.json';
+            await fetch(url);
+
+            expect(injectSpy).not.toHaveBeenCalled();
           });
 
           it('should not set trace propagation headers from an earlier same origin request that used the same init', async () => {

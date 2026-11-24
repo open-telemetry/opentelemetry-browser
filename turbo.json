@@ -26,7 +26,7 @@
       "cache": false
     },
     "test": {
-      "dependsOn": ["^build", "msw:init"]
+      "dependsOn": ["build", "^build", "msw:init"]
     },
     "test:watch": {
       "dependsOn": ["msw:init"],
@@ -34,7 +34,7 @@
       "cache": false
     },
     "test:coverage": {
-      "dependsOn": ["^build", "msw:init"],
+      "dependsOn": ["build", "^build", "msw:init"],
       "outputs": ["coverage/**"]
     },
     "test:e2e": {

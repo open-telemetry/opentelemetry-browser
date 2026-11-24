@@ -5,6 +5,7 @@
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -14,14 +15,13 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
+import { isTracingSuppressed } from '../utils/isTracingSuppressed.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getXHRBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
-import { toError } from '../utils/toError.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type { XhrInstrumentationConfig } from './types.ts';
@@ -53,7 +53,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       this._wrap(XMLHttpRequest.prototype, 'open', this._patchOpen());
     } catch (err) {
       throw new Error(
-        `Failed to patch XMLHttpRequest.prototype.open: ${toError(err).message}`,
+        `Failed to patch XMLHttpRequest.prototype.open: ${this._toError(err).message}`,
         { cause: err },
       );
     }
@@ -62,7 +62,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
       this._wrap(XMLHttpRequest.prototype, 'send', this._patchSend());
     } catch (err) {
       throw new Error(
-        `Failed to patch XMLHttpRequest.prototype.send: ${toError(err).message}. The open patch stays in place and passes calls through.`,
+        `Failed to patch XMLHttpRequest.prototype.send: ${this._toError(err).message}. The open patch stays in place and passes calls through.`,
         { cause: err },
       );
     }
@@ -117,7 +117,13 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
         this: XMLHttpRequest,
         ...args: Parameters<XhrSendFunction>
       ): ReturnType<XhrSendFunction> {
-        if (!instrumentation.isEnabled()) {
+        // Exporters suppress tracing around their own requests. Pass those
+        // through untouched, so hooks and propagators never see them. Checked
+        // in `send`, not `open`, because `send` starts the request.
+        if (
+          !instrumentation.isEnabled() ||
+          isTracingSuppressed(context.active())
+        ) {
           return original.apply(this, args);
         }
 
@@ -154,6 +160,7 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
               this.addEventListener('error', onError);
               this.addEventListener('timeout', onTimeout);
               this.addEventListener('load', onLoad);
+              instrumentation._callRequestHook(span, this);
               instrumentation._addHeaders(this, url, xhrContext);
             });
           } catch (e: unknown) {
@@ -263,6 +270,14 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
     }
   }
 
+  private _callRequestHook(span: Span, xhr: XMLHttpRequest) {
+    const requestHook = this._config.requestHook;
+
+    if (requestHook) {
+      this._safeExecute('requestHook failed', () => requestHook(span, xhr));
+    }
+  }
+
   /**
    * Adds custom headers to XMLHttpRequest
    */
@@ -278,16 +293,9 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
           x.setRequestHeader(k, typeof v === 'string' ? v : String(v));
         },
       });
-    } else {
-      const headers: Partial<Record<string, unknown>> = {};
-      this.propagator.inject(ctx, headers, {
-        set: (h, k, v) => {
-          h[k] = v;
-        },
-      });
-      if (Object.keys(headers).length > 0) {
-        this._diag.debug('headers inject skipped due to CORS policy');
-      }
+    } else if (this.propagator.fields().length > 0) {
+      // Not calling inject: propagators may have side effects for headers that are never sent.
+      this._diag.debug('headers inject skipped due to CORS policy');
     }
   }
 }

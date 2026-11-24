@@ -4,13 +4,8 @@
  */
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
-import {
-  context,
-  defaultTextMapSetter,
-  SpanKind,
-  SpanStatusCode,
-  trace,
-} from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -20,15 +15,13 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
-import { assertPerformanceObserver } from '../utils/assertPerformanceObserver.ts';
+import { isTracingSuppressed } from '../utils/isTracingSuppressed.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getFetchBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
-import { toError } from '../utils/toError.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type {
@@ -46,15 +39,13 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
   }
 
   protected override _init(): void {
-    assertPerformanceObserver();
-
     try {
       // `_wrap` throws if a third-party script has locked globalThis.fetch via
       // Object.defineProperty(window, 'fetch', { configurable: false, ... }).
       this._wrap(globalThis, 'fetch', this._patchConstructor());
     } catch (err) {
       throw new Error(
-        `Failed to patch globalThis.fetch: ${toError(err).message}`,
+        `Failed to patch globalThis.fetch: ${this._toError(err).message}`,
         { cause: err },
       );
     }
@@ -71,7 +62,12 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         this: typeof globalThis,
         ...args: Parameters<typeof fetch>
       ): Promise<Response> {
-        if (!instrumentation.isEnabled()) {
+        // Exporters suppress tracing around their own requests. Pass those
+        // through untouched, so hooks and propagators never see them.
+        if (
+          !instrumentation.isEnabled() ||
+          isTracingSuppressed(context.active())
+        ) {
           return original.apply(this, args);
         }
 
@@ -381,12 +377,9 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
         });
         return { ...options, headers };
       }
-    } else {
-      const headers: Partial<Record<string, unknown>> = {};
-      this.propagator.inject(ctx, headers, defaultTextMapSetter);
-      if (Object.keys(headers).length > 0) {
-        this._diag.debug('headers inject skipped due to CORS policy');
-      }
+    } else if (this.propagator.fields().length > 0) {
+      // Not calling inject: propagators may have side effects for headers that are never sent.
+      this._diag.debug('headers inject skipped due to CORS policy');
     }
     return options;
   }

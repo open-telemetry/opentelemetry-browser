@@ -3,15 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Attributes } from '@opentelemetry/api';
-import type { AnyValueMap, LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Attributes, LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_EXCEPTION_MESSAGE,
   ATTR_EXCEPTION_STACKTRACE,
   ATTR_EXCEPTION_TYPE,
 } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import type { ErrorsInstrumentationConfig } from './types.ts';
 
@@ -84,7 +83,7 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
     // can carry a value whose `stack` getter throws) and emit (a broken
     // LogRecordProcessor) can throw, so contain the whole path.
     this._safeExecute('failed to record exception', () => {
-      let errorAttributes: AnyValueMap;
+      let errorAttributes: Attributes;
       if (typeof capturedError === 'string') {
         errorAttributes = { [ATTR_EXCEPTION_MESSAGE]: capturedError };
       } else {

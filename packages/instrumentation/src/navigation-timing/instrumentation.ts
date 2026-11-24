@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '#instrumentation-base';
+import { SeverityNumber } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_NAVIGATION_CONNECT_END,
@@ -188,6 +188,7 @@ export class NavigationTimingInstrumentation extends InstrumentationBase<Navigat
 
     this.logger.emit({
       eventName: NAVIGATION_TIMING_EVENT_NAME,
+      timestamp: entry.startTime,
       severityNumber: SeverityNumber.INFO,
       attributes: {
         [ATTR_NAVIGATION_TYPE]: entry.type,

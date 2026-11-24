@@ -1,9 +1,12 @@
 // actions.ts — handlers for each demo button
 
-import type { Tracer } from '@opentelemetry/api';
-import { context, SpanStatusCode, trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
+import type { Logger, Tracer } from '@opentelemetry/api';
+import {
+  context,
+  SeverityNumber,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -124,6 +127,52 @@ export function createActions(tracer: Tracer, logger: Logger) {
     root.end();
   };
 
+  // ── Long animation frames ────────────────────────────────────────────────────
+
+  // Busy-waits for `ms` without yielding to the event loop. A long animation
+  // frame is reported only once a frame exceeds the 50 ms threshold, so the
+  // demo has to hold the main thread for real — an async sleep would yield
+  // instead of blocking, and would report nothing.
+  const blockMainThread = (ms: number): number => {
+    const deadline = performance.now() + ms;
+    let iterations = 0;
+    while (performance.now() < deadline) {
+      iterations += 1;
+    }
+    return iterations;
+  };
+
+  // ── Console capture actions ─────────────────────────────────────────────────
+  // These call the real console, so ConsoleInstrumentation emits them as
+  // `browser.console` events. The Error argument shows the record body getting
+  // the stack, and the object argument shows the JSON serialization.
+
+  const consoleError = () => {
+    console.error(
+      new Error('Demo console.error — the stack becomes the record body'),
+    );
+  };
+
+  const consoleLog = () => {
+    console.log('demo payload', { status: 500, retry: false });
+  };
+
+  const longAnimationFrame = () => {
+    if (
+      typeof PerformanceObserver === 'undefined' ||
+      !PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame')
+    ) {
+      console.warn(
+        'Long Animation Frames API is not supported in this browser — Firefox and Safari do not implement it yet.',
+      );
+      return;
+    }
+
+    // The blocking work has to run in this task: the browser attributes the
+    // frame to the handler that blocked it (`scripts[].invoker`).
+    blockMainThread(300);
+  };
+
   // ── Log actions ─────────────────────────────────────────────────────────────
 
   const logInfo = () => {
@@ -169,6 +218,9 @@ export function createActions(tracer: Tracer, logger: Logger) {
     logInfo,
     logWarn,
     logError,
+    consoleError,
+    consoleLog,
     exceptionEvent,
+    longAnimationFrame,
   };
 }

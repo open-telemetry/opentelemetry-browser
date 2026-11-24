@@ -30,7 +30,9 @@ import { parseExportUrl } from '../core/exportUrl.ts';
 import { getDefaultPropagators } from '../core/propagation.ts';
 import type { TracesConfig, TracesSdk } from '../core/types.ts';
 
-const DEFAULT_TRACES_OTLP_ENDPOINT = 'http://localhost:4318/v1/traces';
+export const DEFAULT_TRACES_EXPORT_CONFIG: TracesConfig['exportConfig'] = {
+  url: 'http://localhost:4318/v1/traces',
+};
 
 export function startTracesSdk(config?: TracesConfig): TracesSdk {
   // Set the logger
@@ -56,9 +58,19 @@ export function startTracesSdk(config?: TracesConfig): TracesSdk {
   if (config?.processors) {
     spanProcessors.push(...config.processors);
   }
-  if (!config?.processors || config?.exportConfig) {
-    const tracesEndpoint =
-      config?.exportConfig?.url || DEFAULT_TRACES_OTLP_ENDPOINT;
+
+  if (typeof config?.exportConfig?.url !== 'string') {
+    if (spanProcessors.length) {
+      diag.warn(
+        'Export configuration URL is missing. Configured processors should handle Span exports.',
+      );
+    } else {
+      diag.warn(
+        "Export configuration URL is missing. Traces SDK won't export any Spans.",
+      );
+    }
+  } else {
+    const tracesEndpoint = config.exportConfig.url;
 
     // Bail out on an invalid URL instead of silently skipping the exporter,
     // which would leave the SDK running without exporting the telemetry.
@@ -75,6 +87,7 @@ export function startTracesSdk(config?: TracesConfig): TracesSdk {
       }),
     );
   }
+
   // For any level equal or louder than `DEBUG` add console exporters
   // to get traces print into the DevTools console.
   const logLevel = config?.logLevel && DiagLogLevel[config?.logLevel];

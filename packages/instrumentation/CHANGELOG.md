@@ -1,5 +1,91 @@
 # Changelog
 
+## [0.12.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.12.0...browser-instrumentation-v0.12.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#525](https://github.com/open-telemetry/opentelemetry-browser/issues/525)) ([37c9b48](https://github.com/open-telemetry/opentelemetry-browser/commit/37c9b488a507c4ea4ac685741ce3f09126d47206))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.2.0 to ^0.2.1
+
+## [0.12.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.11.0...browser-instrumentation-v0.12.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** update opentelemetry to the 3.0/0.300 generation ([#548](https://github.com/open-telemetry/opentelemetry-browser/issues/548))
+
+### Features
+
+* **instrumentation:** add document load span ([#504](https://github.com/open-telemetry/opentelemetry-browser/issues/504)) ([b3876e5](https://github.com/open-telemetry/opentelemetry-browser/commit/b3876e540f04ad0139bc7220e17de6e3c5e1f763))
+* **instrumentation:** add Long Animation Frames instrumentation ([#429](https://github.com/open-telemetry/opentelemetry-browser/issues/429)) ([d42e5e3](https://github.com/open-telemetry/opentelemetry-browser/commit/d42e5e3978c770cab7c3474784275b92dbed1890))
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry to the 3.0/0.300 generation ([#548](https://github.com/open-telemetry/opentelemetry-browser/issues/548)) ([3ccd524](https://github.com/open-telemetry/opentelemetry-browser/commit/3ccd524e8d268b4748930039a07984c450c67b85))
+* **instrumentation:** preserve console Error details ([#491](https://github.com/open-telemetry/opentelemetry-browser/issues/491)) ([0db8cba](https://github.com/open-telemetry/opentelemetry-browser/commit/0db8cba97431fb10161536e387b82abbf6baa27a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.1.0 to ^0.2.0
+
+## [0.11.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.10.0...browser-instrumentation-v0.11.0) (2026-11-11)
+
+
+### Features
+
+* **api:** add browser-api package for the instrumentation contract ([#552](https://github.com/open-telemetry/opentelemetry-browser/issues/552)) ([f30c774](https://github.com/open-telemetry/opentelemetry-browser/commit/f30c774df362b30c5ca526cde488e25b9d06d556))
+* **instrumentation:** deprecate applyCustomLogRecordData in favor of LogRecordProcessor ([#440](https://github.com/open-telemetry/opentelemetry-browser/issues/440)) ([#462](https://github.com/open-telemetry/opentelemetry-browser/issues/462)) ([1d12edf](https://github.com/open-telemetry/opentelemetry-browser/commit/1d12edf638e2a4f0d07658a9d670e7f080581b1c))
+* **web-vitals:** add reportSoftNavs option ([#512](https://github.com/open-telemetry/opentelemetry-browser/issues/512)) ([ab32488](https://github.com/open-telemetry/opentelemetry-browser/commit/ab32488b21329da384c52b2cf50f1beea37a3b90))
+
+
+### Bug Fixes
+
+* **deps:** regenerate msw service worker for 3.0.4 ([#560](https://github.com/open-telemetry/opentelemetry-browser/issues/560)) ([14a7ccc](https://github.com/open-telemetry/opentelemetry-browser/commit/14a7ccca7df1e71797ea3edca48ebebc8b673b65))
+* **deps:** update dependencies ([#557](https://github.com/open-telemetry/opentelemetry-browser/issues/557)) ([ca2c17b](https://github.com/open-telemetry/opentelemetry-browser/commit/ca2c17b8d0af08f57beda5d1624be6ab4ad8a4a6))
+* **instrumentation:** use entry start time for timing events ([#540](https://github.com/open-telemetry/opentelemetry-browser/issues/540)) ([f840e4d](https://github.com/open-telemetry/opentelemetry-browser/commit/f840e4db448837a6ab0c95fc251cd4e9b0f2a6f6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.0.0 to ^0.1.0
+
+## [0.10.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.9.0...browser-instrumentation-v0.10.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **instrumentation:** add browser-native InstrumentationBase and migrate instrumentations ([#278](https://github.com/open-telemetry/opentelemetry-browser/issues/278))
+
+### Features
+
+* add element timing instrumentation ([#396](https://github.com/open-telemetry/opentelemetry-browser/issues/396)) ([d1a3b7b](https://github.com/open-telemetry/opentelemetry-browser/commit/d1a3b7bd65831473ee9d314437252a02144df6c4))
+* **instrumentation:** align fetch and XHR hooks ([#515](https://github.com/open-telemetry/opentelemetry-browser/issues/515)) ([3e9bbb8](https://github.com/open-telemetry/opentelemetry-browser/commit/3e9bbb8824b888a8223491e37e5668e2b4d04f7b))
+
+
+### Bug Fixes
+
+* **element-timing:** ignore observer entries delivered after disable ([#533](https://github.com/open-telemetry/opentelemetry-browser/issues/533)) ([acf372d](https://github.com/open-telemetry/opentelemetry-browser/commit/acf372dfb9f65a26a045af02e138334b22b7cbc9))
+* **instrumentation:** skip the propagator when trace header propagation is skipped ([#500](https://github.com/open-telemetry/opentelemetry-browser/issues/500)) ([3e231e1](https://github.com/open-telemetry/opentelemetry-browser/commit/3e231e1da7930fa23a1ada15ab274277122b0f48))
+* **resource-timing:** remove refs to window in idle shim ([#536](https://github.com/open-telemetry/opentelemetry-browser/issues/536)) ([df1fd53](https://github.com/open-telemetry/opentelemetry-browser/commit/df1fd530682ee8c2f512778451533e1cca11cac0))
+
+
+### Code Refactoring
+
+* **instrumentation:** add browser-native InstrumentationBase and migrate instrumentations ([#278](https://github.com/open-telemetry/opentelemetry-browser/issues/278)) ([89802db](https://github.com/open-telemetry/opentelemetry-browser/commit/89802db94aa734fefc4f488a4281b4ce89d6c08c))
+
 ## [0.9.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-instrumentation-v0.8.2...browser-instrumentation-v0.9.0) (2026-10-22)
 
 

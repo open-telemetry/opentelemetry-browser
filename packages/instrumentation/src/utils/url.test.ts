@@ -11,6 +11,20 @@ import {
   serverPortFromUrl,
 } from './url.ts';
 
+describe('defaultSanitizeUrl', () => {
+  it.each([
+    'X-Amz-Signature',
+    'X-Amz-Credential',
+    'X-Amz-Security-Token',
+    'sig',
+    'X-Goog-Signature',
+  ])('should redact the %s value of a signed URL', (param) => {
+    expect(
+      defaultSanitizeUrl(`https://example.test/file?${param}=abc&color=blue`),
+    ).toBe(`https://example.test/file?${param}=REDACTED&color=blue`);
+  });
+});
+
 describe('parseUrl', () => {
   const urlFields: Array<keyof URL> = [
     'hash',

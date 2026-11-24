@@ -1,5 +1,83 @@
 # Changelog
 
+## [0.9.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.9.0...browser-sdk-v0.9.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **deps:** update opentelemetry ([#525](https://github.com/open-telemetry/opentelemetry-browser/issues/525)) ([37c9b48](https://github.com/open-telemetry/opentelemetry-browser/commit/37c9b488a507c4ea4ac685741ce3f09126d47206))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.2.0 to ^0.2.1
+
+## [0.9.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.8.0...browser-sdk-v0.9.0) (2026-11-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* **deps:** update opentelemetry to the 3.0/0.300 generation ([#548](https://github.com/open-telemetry/opentelemetry-browser/issues/548))
+
+### Bug Fixes
+
+* **deps:** update opentelemetry to the 3.0/0.300 generation ([#548](https://github.com/open-telemetry/opentelemetry-browser/issues/548)) ([3ccd524](https://github.com/open-telemetry/opentelemetry-browser/commit/3ccd524e8d268b4748930039a07984c450c67b85))
+* **sdk:** skip entries that are not instrumentation instances in startBrowserSdk ([#537](https://github.com/open-telemetry/opentelemetry-browser/issues/537)) ([a775af5](https://github.com/open-telemetry/opentelemetry-browser/commit/a775af5aa682126e3ab09ce1bcdb8ee46cc71b17))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.1.0 to ^0.2.0
+
+## [0.8.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.7.0...browser-sdk-v0.8.0) (2026-11-11)
+
+
+### Features
+
+* **api:** add browser-api package for the instrumentation contract ([#552](https://github.com/open-telemetry/opentelemetry-browser/issues/552)) ([f30c774](https://github.com/open-telemetry/opentelemetry-browser/commit/f30c774df362b30c5ca526cde488e25b9d06d556))
+
+
+### Bug Fixes
+
+* **deps:** update dependencies ([#557](https://github.com/open-telemetry/opentelemetry-browser/issues/557)) ([ca2c17b](https://github.com/open-telemetry/opentelemetry-browser/commit/ca2c17b8d0af08f57beda5d1624be6ab4ad8a4a6))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @opentelemetry/browser-api bumped from ^0.0.0 to ^0.1.0
+
+## [0.7.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.6.0...browser-sdk-v0.7.0) (2026-10-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **sdk:** do not set default HTTP exporter ([#532](https://github.com/open-telemetry/opentelemetry-browser/issues/532))
+* **instrumentation:** add browser-native InstrumentationBase and migrate instrumentations ([#278](https://github.com/open-telemetry/opentelemetry-browser/issues/278))
+
+### Features
+
+* **sdk:** do not set default HTTP exporter ([#532](https://github.com/open-telemetry/opentelemetry-browser/issues/532)) ([0009cd9](https://github.com/open-telemetry/opentelemetry-browser/commit/0009cd920fc905087ad6e921d69a5891a43ba507))
+
+
+### Code Refactoring
+
+* **instrumentation:** add browser-native InstrumentationBase and migrate instrumentations ([#278](https://github.com/open-telemetry/opentelemetry-browser/issues/278)) ([89802db](https://github.com/open-telemetry/opentelemetry-browser/commit/89802db94aa734fefc4f488a4281b4ce89d6c08c))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * devDependencies
+    * @opentelemetry/browser-instrumentation bumped from ^0.9.0 to ^0.10.0
+  * peerDependencies
+    * @opentelemetry/browser-instrumentation bumped from ^0.9.0 to ^0.10.0
+
 ## [0.6.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-sdk-v0.5.0...browser-sdk-v0.6.0) (2026-10-22)
 
 

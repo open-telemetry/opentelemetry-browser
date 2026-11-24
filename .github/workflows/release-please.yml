@@ -17,10 +17,11 @@ jobs:
       pull-requests: write
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
+      browser-api-release_created: ${{ steps.release.outputs['packages/api--release_created'] }}
       browser-instrumentation-release_created: ${{ steps.release.outputs['packages/instrumentation--release_created'] }}
       browser-sdk-release_created: ${{ steps.release.outputs['packages/sdk--release_created'] }}
     steps:
-      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+      - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
         id: app-token
         with:
           client-id: ${{ vars.OTELBOT_BROWSER_CLIENT_ID }}
@@ -57,6 +58,11 @@ jobs:
       - run: npm run build
 
       - run: npm run validate
+
+      # Publish first: the instrumentation and SDK packages depend on it.
+      - name: Publish @opentelemetry/browser-api
+        if: needs.release-please.outputs.browser-api-release_created == 'true'
+        run: npm publish --workspace=packages/api --provenance --access public
 
       - name: Publish @opentelemetry/browser-instrumentation
         if: needs.release-please.outputs.browser-instrumentation-release_created == 'true'

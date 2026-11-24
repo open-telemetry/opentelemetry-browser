@@ -4,8 +4,12 @@
  */
 
 import type { DiagLogger } from '@opentelemetry/api';
-import { DiagLogLevel, diag, trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { context, DiagLogLevel, diag, logs, trace } from '@opentelemetry/api';
+import type {
+  Instrumentation,
+  InstrumentationDeps,
+} from '@opentelemetry/browser-api';
+import { suppressTracing } from '@opentelemetry/core';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
   InMemoryLogRecordExporter,
@@ -19,10 +23,6 @@ import {
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
 import { onTestFinished, vi } from 'vitest';
-import type {
-  Instrumentation,
-  InstrumentationDeps,
-} from '#instrumentation-base';
 
 /**
  * setupTestLogExporter is a utility function that sets up a test log exporter for use in testing.
@@ -99,4 +99,21 @@ export const getWrapDepth = (fn: unknown): number => {
     current = current.__original as { __original?: unknown };
   }
   return depth;
+};
+
+/**
+ * Calls `fn` with tracing suppressed, as an exporter does around its requests.
+ * Stubs `context.active()` because these tests register no context manager.
+ * Only synchronous code in `fn` sees the suppressed context, matching a
+ * stack-based context manager.
+ */
+export const callWithTracingSuppressed = <T>(fn: () => T): T => {
+  const active = vi
+    .spyOn(context, 'active')
+    .mockReturnValue(suppressTracing(context.active()));
+  try {
+    return fn();
+  } finally {
+    active.mockRestore();
+  }
 };

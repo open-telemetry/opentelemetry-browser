@@ -4,4 +4,8 @@
  */
 
 export { XhrInstrumentation } from './instrumentation.ts';
-export type { XhrInstrumentationConfig } from './types.ts';
+export type {
+  XhrCustomAttributeFunction,
+  XhrInstrumentationConfig,
+  XhrRequestHookFunction,
+} from './types.ts';

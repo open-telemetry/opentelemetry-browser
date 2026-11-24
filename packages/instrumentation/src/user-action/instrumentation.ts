@@ -2,9 +2,9 @@
  * Copyright The OpenTelemetry Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '#instrumentation-base';
+import type { LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { getElementCSSSelector } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
@@ -113,9 +113,17 @@ export class UserActionInstrumentation extends InstrumentationBase<UserActionIns
     this.logger.emit(logRecord);
   }
 
+  private _hasWarnedApplyCustomLogRecordData = false;
+
   private _applyCustomLogRecordData(logRecord: LogRecord) {
     const applyCustomLogRecordData = this._config.applyCustomLogRecordData;
     if (applyCustomLogRecordData) {
+      if (!this._hasWarnedApplyCustomLogRecordData) {
+        this._hasWarnedApplyCustomLogRecordData = true;
+        this._diag.warn(
+          'applyCustomLogRecordData is deprecated. Use a custom LogRecordProcessor registered with LoggerProvider instead.',
+        );
+      }
       this._safeExecute('applyCustomLogRecordData hook failed', () =>
         applyCustomLogRecordData(logRecord),
       );
