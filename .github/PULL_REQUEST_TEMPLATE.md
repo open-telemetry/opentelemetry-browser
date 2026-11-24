@@ -30,7 +30,7 @@ Please delete options that are not relevant.
 - [ ] Bug fix (non-breaking change which fixes an issue)
 - [ ] New feature (non-breaking change which adds functionality)
 - [ ] Breaking change (fix or feature that would cause existing functionality to
-  not work as expected)
+      not work as expected)
 - [ ] This change requires a documentation update
 
 ## How Has This Been Tested?
@@ -47,7 +47,7 @@ test configuration
 - [ ] Unit tests have been added
 - [ ] Documentation has been updated
 - [ ] Disclose AI usage, see the
-  [OpenTelemetry Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md):
+      [OpenTelemetry Generative AI policy](https://github.com/open-telemetry/community/blob/main/policies/genai.md):
   - [ ] No AI used
   - [ ] AI-assisted
   - [ ] Bulk AI-generated
