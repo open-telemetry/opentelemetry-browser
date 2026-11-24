@@ -4,8 +4,11 @@
  */
 
 import type { DiagLogger } from '@opentelemetry/api';
-import { context, DiagLogLevel, diag, trace } from '@opentelemetry/api';
-import { logs } from '@opentelemetry/api-logs';
+import { context, DiagLogLevel, diag, logs, trace } from '@opentelemetry/api';
+import type {
+  Instrumentation,
+  InstrumentationDeps,
+} from '@opentelemetry/browser-api';
 import { suppressTracing } from '@opentelemetry/core';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import {
@@ -20,10 +23,6 @@ import {
   TracerProvider,
 } from '@opentelemetry/sdk-trace';
 import { onTestFinished, vi } from 'vitest';
-import type {
-  Instrumentation,
-  InstrumentationDeps,
-} from '#instrumentation-base';
 
 /**
  * setupTestLogExporter is a utility function that sets up a test log exporter for use in testing.

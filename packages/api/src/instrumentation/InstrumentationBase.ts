@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DiagLogger, TextMapPropagator, Tracer } from '@opentelemetry/api';
-import { diag, propagation, trace } from '@opentelemetry/api';
-import type { Logger } from '@opentelemetry/api-logs';
-import { logs } from '@opentelemetry/api-logs';
+import type {
+  DiagLogger,
+  Logger,
+  TextMapPropagator,
+  Tracer,
+} from '@opentelemetry/api';
+import { diag, logs, propagation, trace } from '@opentelemetry/api';
 import { toError } from '../utils/toError.ts';
 import type { Instrumentation, InstrumentationDeps } from './types.ts';
 
@@ -262,6 +265,14 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
     } catch (err) {
       return onError(err);
     }
+  }
+
+  /**
+   * Returns `value` if it is an `Error`, or else a new `Error` with `value` as
+   * `cause`. Never throws, so it is safe to call in a `catch` block.
+   */
+  protected _toError(value: unknown): Error {
+    return toError(value);
   }
 
   /**

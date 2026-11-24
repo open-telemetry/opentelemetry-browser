@@ -5,6 +5,7 @@
 
 import type { Attributes, Context, Span } from '@opentelemetry/api';
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
   ATTR_ERROR_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
@@ -14,7 +15,6 @@ import {
   ATTR_SERVER_PORT,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { InstrumentationBase } from '#instrumentation-base';
 import { version } from '../../package.json' with { type: 'json' };
 import { isTracingSuppressed } from '../utils/isTracingSuppressed.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
@@ -22,7 +22,6 @@ import {
   getFetchBodyLength,
   normalizeHttpRequestMethod,
 } from '../utils/request.ts';
-import { toError } from '../utils/toError.ts';
 import { matchesUrl, parseUrl, serverPortFromUrl } from '../utils/url.ts';
 import { ATTR_HTTP_REQUEST_BODY_SIZE } from './semconv.ts';
 import type {
@@ -46,7 +45,7 @@ export class FetchInstrumentation extends InstrumentationBase<FetchInstrumentati
       this._wrap(globalThis, 'fetch', this._patchConstructor());
     } catch (err) {
       throw new Error(
-        `Failed to patch globalThis.fetch: ${toError(err).message}`,
+        `Failed to patch globalThis.fetch: ${this._toError(err).message}`,
         { cause: err },
       );
     }

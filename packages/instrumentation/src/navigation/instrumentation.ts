@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogRecord } from '@opentelemetry/api-logs';
-import { SeverityNumber } from '@opentelemetry/api-logs';
-import { InstrumentationBase } from '#instrumentation-base';
+import type { LogRecord } from '@opentelemetry/api';
+import { SeverityNumber } from '@opentelemetry/api';
+import { InstrumentationBase } from '@opentelemetry/browser-api';
 import { version } from '../../package.json' with { type: 'json' };
 import {
   ATTR_BROWSER_NAVIGATION_HASH_CHANGE,

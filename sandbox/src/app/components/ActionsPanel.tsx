@@ -119,6 +119,22 @@ export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
           >
             🚨 Error
           </button>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => act('consoleError')}
+            className="btn-err"
+          >
+            🖨️ console.error
+          </button>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => act('consoleLog')}
+            className="btn-resource"
+          >
+            🖨️ console.log
+          </button>
         </div>
       </article>
 
@@ -134,6 +150,14 @@ export function ActionsPanel({ ready, act, sessionId }: ActionsPanelProps) {
             className="btn-err"
           >
             💥 Exception
+          </button>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => act('longAnimationFrame')}
+            className="btn-err"
+          >
+            🦥 Long Frame
           </button>
         </div>
       </article>
