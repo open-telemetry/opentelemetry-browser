@@ -16,6 +16,7 @@ import {
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
 import { version } from '../../package.json' with { type: 'json' };
+import { isTracingSuppressed } from '../utils/isTracingSuppressed.ts';
 import { getNetworkContextRegistry } from '../utils/NetworkContextRegistry.ts';
 import {
   getXHRBodyLength,
@@ -116,7 +117,13 @@ export class XhrInstrumentation extends InstrumentationBase<XhrInstrumentationCo
         this: XMLHttpRequest,
         ...args: Parameters<XhrSendFunction>
       ): ReturnType<XhrSendFunction> {
-        if (!instrumentation.isEnabled()) {
+        // Exporters suppress tracing around their own requests. Pass those
+        // through untouched, so hooks and propagators never see them. Checked
+        // in `send`, not `open`, because `send` starts the request.
+        if (
+          !instrumentation.isEnabled() ||
+          isTracingSuppressed(context.active())
+        ) {
           return original.apply(this, args);
         }
 

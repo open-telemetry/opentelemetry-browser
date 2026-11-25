@@ -7,7 +7,7 @@
  * - Please do NOT modify this file.
  */
 
-const PACKAGE_VERSION = '3.0.4'
+const PACKAGE_VERSION = '3.0.7'
 const INTEGRITY_CHECKSUM = '0bd5af64c8dc112df5e0c5e9c8a2b15a'
 const IS_MOCKED_RESPONSE = Symbol('isMockedResponse')
 // Cache Storage is shared by the whole origin. Scope the cache name

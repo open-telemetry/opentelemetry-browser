@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { Attributes } from '@opentelemetry/api';
 import { diag } from '@opentelemetry/api';
 import type { Resource, ResourceDetector } from '@opentelemetry/resources';
 import {
@@ -60,13 +61,16 @@ export function createResource(
       defaults.attributes[ATTR_TELEMETRY_SDK_VERSION],
   });
 
+  const distroAttributes: Attributes = {};
+  if (distroName !== undefined) {
+    distroAttributes[ATTR_TELEMETRY_DISTRO_NAME] = distroName;
+  }
+  if (distroVersion !== undefined) {
+    distroAttributes[ATTR_TELEMETRY_DISTRO_VERSION] = distroVersion;
+  }
+
   return defaults
-    .merge(
-      resourceFromAttributes({
-        [ATTR_TELEMETRY_DISTRO_NAME]: distroName,
-        [ATTR_TELEMETRY_DISTRO_VERSION]: distroVersion,
-      }),
-    )
+    .merge(resourceFromAttributes(distroAttributes))
     .merge(detectResources({ detectors }))
     .merge(resourceFromAttributes(applicationAttributes))
     .merge(sdkAttributes);
