@@ -270,6 +270,10 @@ and `@opentelemetry/browser-instrumentation/errors`.
 
 ### User interactions
 
+See the
+[user-interaction emitted-data table](./migration-data/user-interaction.md) for
+key and signal changes.
+
 The old `UserInteractionInstrumentation` creates spans and accepts arbitrary DOM
 `eventNames` plus `shouldPreventSpanCreation`. The new
 `UserActionInstrumentation` emits `browser.user_action.click` log events.
