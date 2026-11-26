@@ -287,8 +287,8 @@ describe('ElementTimingInstrumentation', () => {
     });
   });
 
-  it('should stay off and log one error when the element entry type is unsupported', () => {
-    const { error } = setupTestDiagLogger();
+  it('should stay off and log at debug level when the element entry type is unsupported', () => {
+    const { debug, error } = setupTestDiagLogger();
     (
       PerformanceObserverMock as unknown as { supportedEntryTypes: string[] }
     ).supportedEntryTypes = [];
@@ -299,10 +299,10 @@ describe('ElementTimingInstrumentation', () => {
 
     expect(instrumentation.isEnabled()).toBe(false);
     expect(PerformanceObserverMock).not.toHaveBeenCalled();
-    expect(error).toHaveBeenCalledTimes(1);
-    expect(error).toHaveBeenCalledWith(
+    expect(error).not.toHaveBeenCalled();
+    expect(debug).toHaveBeenCalledWith(
       expect.any(String),
-      expect.stringMatching(/"element" entry type/),
+      expect.stringMatching(/not supported.*"element" entry type/),
       expect.any(Error),
     );
   });

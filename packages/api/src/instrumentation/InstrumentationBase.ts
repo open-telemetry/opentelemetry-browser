@@ -15,6 +15,26 @@ import type { Instrumentation, InstrumentationDeps } from './types.ts';
 
 type State = 'new' | 'enabled' | 'disabled' | 'failed';
 
+/**
+ * Whether `value` is named `NotSupportedError`. Matched by name, the usual way
+ * to tell `DOMException`s apart, so a plain `Error` with that name or a
+ * `DOMException` from another realm counts too.
+ */
+function isNotSupported(value: unknown): boolean {
+  try {
+    return (
+      typeof value === 'object' &&
+      value !== null &&
+      'name' in value &&
+      value.name === 'NotSupportedError'
+    );
+  } catch {
+    // A revoked Proxy throws on `in`, and a `name` getter can throw. A throw
+    // here would escape enable() before _markFailed(), so _init() could rerun.
+    return false;
+  }
+}
+
 interface Resolved {
   deps: InstrumentationDeps | undefined;
   tracer: Tracer;
@@ -78,7 +98,16 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
         this._init();
       } catch (err) {
         // Never retried: a second _init() could wrap an API twice.
-        this._markFailed({ reason: 'init failed', cause: err });
+        if (isNotSupported(err)) {
+          // Expected in browsers without the API, so not an error.
+          this._markFailed({
+            reason: 'not supported',
+            cause: err,
+            level: 'debug',
+          });
+        } else {
+          this._markFailed({ reason: 'init failed', cause: err });
+        }
         return;
       }
       this._runOnEnable();
@@ -110,13 +139,15 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
   private _markFailed({
     reason,
     cause,
+    level = 'error',
   }: {
     reason: string;
     cause: unknown;
+    level?: 'error' | 'debug';
   }): void {
     this._state = 'failed';
     const error = toError(cause);
-    this._diag.error(
+    this._diag[level](
       `${reason}, so this instrumentation stays off: ${error.message}`,
       error,
     );
@@ -278,8 +309,10 @@ export abstract class InstrumentationBase<ConfigType extends object = object>
   /**
    * One-time setup, run at the first `enable()`. It only patches browser APIs
    * and checks that the browser supports what this instrumentation needs.
-   * Throw if the instrumentation cannot run. Listeners belong in
-   * `_onEnable()`. Must be synchronous and must not call `enable()` or
+   * Throw if the instrumentation cannot run. When the browser lacks an API it
+   * needs, throw `new DOMException(message, 'NotSupportedError')`: that is
+   * logged at debug level, and any other throw as an error. Listeners belong
+   * in `_onEnable()`. Must be synchronous and must not call `enable()` or
    * `disable()`.
    */
   protected _init(): void {}

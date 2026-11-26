@@ -320,7 +320,7 @@ attribute must be present before the element is first painted:
 
 Entries recorded before the instrumentation was enabled are captured via
 buffered mode. Element Timing is Chromium-only. On other browsers the
-instrumentation stays disabled and logs a diag message.
+instrumentation stays disabled and logs a diag message at debug level.
 
 #### Captured Attributes
 
@@ -807,13 +807,15 @@ To keep an instrumentation fully off, with no patches, do not call `enable()`.
 
 Init can fail, for example when a needed browser API is missing or another
 script has locked it. A passed provider that cannot give a tracer or logger
-fails the same way. The reason is logged as an error through the OpenTelemetry
-diag logger, so set one with `diag.setLogger()` to see it. A failed
-instrumentation stays off for good. Later calls to `enable()` only log a debug
-line. A `disable()` that throws, for example when a listener cannot be removed,
-is also logged as an error and keeps the instrumentation off in the same way. An
-`_onEnable()` that throws is logged as an error, and a later `enable()` tries
-again, unless the `_onDisable()` that cleans up after it throws too.
+fails the same way. The reason is logged through the OpenTelemetry diag logger,
+so set one with `diag.setLogger()` to see it. A missing browser API is expected,
+so it is logged at debug level, and you need `DiagLogLevel.DEBUG` to see it. Any
+other init failure is logged as an error. A failed instrumentation stays off for
+good. Later calls to `enable()` only log a debug line. A `disable()` that
+throws, for example when a listener cannot be removed, is also logged as an
+error and keeps the instrumentation off in the same way. An `_onEnable()` that
+throws is logged as an error, and a later `enable()` tries again, unless the
+`_onDisable()` that cleans up after it throws too.
 
 ### Differences from classic instrumentations
 
@@ -859,7 +861,10 @@ call `enable()` or `disable()`.
 
 - `_init()` runs once, at the first `enable()`. It only patches browser APIs
   with `_wrap()` and checks that the browser supports what the instrumentation
-  needs. Throw if the instrumentation cannot run. A failed init is final.
+  needs. Throw if the instrumentation cannot run. A failed init is final. When
+  the browser lacks an API the instrumentation needs, throw
+  `new DOMException(message, 'NotSupportedError')`. That failure is logged at
+  debug level instead of as an error.
 - `_onEnable()` runs each time `enable()` turns emission on. Add listeners and
   observers here, including buffered ones. If it throws, `_onDisable()` runs to
   remove what it added, and a later `enable()` tries again. If that

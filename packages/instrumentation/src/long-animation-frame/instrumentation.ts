@@ -90,8 +90,9 @@ export class LongAnimationFrameInstrumentation extends InstrumentationBase<LongA
         LONG_ANIMATION_FRAME_ENTRY_TYPE,
       )
     ) {
-      throw new Error(
+      throw new DOMException(
         `PerformanceObserver does not support the "${LONG_ANIMATION_FRAME_ENTRY_TYPE}" entry type in this browser.`,
+        'NotSupportedError',
       );
     }
   }

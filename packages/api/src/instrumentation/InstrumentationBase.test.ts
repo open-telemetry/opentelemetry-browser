@@ -377,6 +377,89 @@ describe('InstrumentationBase', () => {
       );
     });
 
+    it('_init throws a NotSupportedError DOMException: state failed, logged at debug, no error, later enable does nothing', () => {
+      const probe = new Probe();
+      probe.initError = new DOMException('no such API', 'NotSupportedError');
+
+      probe.enable();
+      probe.enable();
+
+      expect(probe.initCount).toBe(1);
+      expect(probe.onEnableCount).toBe(0);
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.error).not.toHaveBeenCalled();
+      expect(
+        vi
+          .mocked(diagLogger.debug)
+          .mock.calls.filter(([namespace]) => namespace === 'test'),
+      ).toEqual([
+        [
+          'test',
+          expect.stringMatching(/not supported.*stays off.*no such API/),
+          expect.any(Error),
+        ],
+        ['test', expect.stringMatching(/enable\(\) ignored.*failed earlier/)],
+      ]);
+    });
+
+    it('_init throws a DOMException with another name: logged as an error', () => {
+      const probe = new Probe();
+      probe.initError = new DOMException('blocked', 'SecurityError');
+
+      probe.enable();
+
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringMatching(/init failed.*blocked/),
+        expect.any(Error),
+      );
+      expect(
+        vi
+          .mocked(diagLogger.debug)
+          .mock.calls.filter(([namespace]) => namespace === 'test'),
+      ).toEqual([]);
+    });
+
+    it('_init throws a revoked Proxy: logged as an error, enable() does not throw, later enable does nothing', () => {
+      // `in` throws on a revoked Proxy, so the NotSupportedError check must not
+      // let that escape.
+      const probe = new Probe();
+      const { proxy, revoke } = Proxy.revocable({}, {});
+      revoke();
+      probe.initError = proxy;
+
+      expect(() => probe.enable()).not.toThrow();
+      probe.enable();
+
+      expect(probe.initCount).toBe(1);
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.error).toHaveBeenCalledTimes(1);
+      expect(diagLogger.error).toHaveBeenCalledWith(
+        'test',
+        expect.stringMatching(/init failed.*could not be described/),
+        expect.any(Error),
+      );
+    });
+
+    it('_init throws an Error named NotSupportedError: logged at debug, no error', () => {
+      const probe = new Probe();
+      const error = new Error('no such API');
+      error.name = 'NotSupportedError';
+      probe.initError = error;
+
+      probe.enable();
+
+      expect(probe.isEnabled()).toBe(false);
+      expect(diagLogger.error).not.toHaveBeenCalled();
+      expect(diagLogger.debug).toHaveBeenCalledWith(
+        'test',
+        expect.stringContaining('no such API'),
+        error,
+      );
+    });
+
     it('_onEnable throws a non-Error: logged as an Error with the value as cause', () => {
       const probe = new Probe();
       probe.onEnableError = 'enable broke';
