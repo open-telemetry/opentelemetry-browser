@@ -4,6 +4,7 @@
  */
 
 import type { TextMapPropagator } from '@opentelemetry/api';
+import { trace } from '@opentelemetry/api';
 import { W3CTraceContextPropagator } from '@opentelemetry/core';
 import { B3Propagator } from '@opentelemetry/propagator-b3';
 import {
@@ -20,6 +21,7 @@ import {
   it,
   vi,
 } from 'vitest';
+import { getNetworkContextRegistry } from '#utils';
 import { enableForTest } from '#utils/test';
 import { DocumentLoadInstrumentation } from './instrumentation.ts';
 
@@ -65,6 +67,7 @@ describe('DocumentLoadInstrumentation', () => {
 
   afterEach(async () => {
     instrumentation.disable();
+    getNetworkContextRegistry().clearDocumentLoad();
     for (const meta of Array.from(document.head.querySelectorAll('meta'))) {
       meta.remove();
     }
@@ -76,6 +79,23 @@ describe('DocumentLoadInstrumentation', () => {
   function finishLoad(propagator?: TextMapPropagator) {
     instrumentation.enable({ tracerProvider, propagator });
     vi.runAllTimers();
+  }
+
+  function loadSpanId(): string | undefined {
+    const ctx = getNetworkContextRegistry().getDocumentLoadContext();
+    return ctx && trace.getSpan(ctx)?.spanContext().spanId;
+  }
+
+  function resourceSpanId(
+    fetchStart: number,
+    responseEnd: number,
+  ): string | undefined {
+    const ctx = getNetworkContextRegistry().getContext({
+      name: 'https://example.test/app.js',
+      fetchStart,
+      responseEnd,
+    } as PerformanceResourceTiming);
+    return ctx && trace.getSpan(ctx)?.spanContext().spanId;
   }
 
   function finishedSpan() {
@@ -251,5 +271,97 @@ describe('DocumentLoadInstrumentation', () => {
     const span = finishedSpan();
     expect(millis(span.startTime)).toBeCloseTo(performance.timeOrigin + 10, 2);
     expect(millis(span.endTime)).toBeCloseTo(performance.timeOrigin + 100, 2);
+  });
+
+  describe('context for resource-timing and navigation-timing', () => {
+    it('stores the span context in the load handler, before loadEventEnd is known', () => {
+      vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
+      entry = { ...entry, loadEventStart: 90, loadEventEnd: 0 };
+      instrumentation.enable({ tracerProvider });
+      expect(loadSpanId()).toBeUndefined();
+
+      window.dispatchEvent(new Event('load'));
+      const spanId = loadSpanId();
+      expect(spanId).toBeDefined();
+      expect(resourceSpanId(20, 80)).toBe(spanId);
+      // Might have finished after the load event, so no context yet.
+      expect(resourceSpanId(20, 95)).toBeUndefined();
+
+      entry = { ...entry, loadEventEnd: 100 };
+      vi.runAllTimers();
+      expect(finishedSpan().spanContext().spanId).toBe(spanId);
+      expect(resourceSpanId(20, 95)).toBe(spanId);
+      expect(resourceSpanId(20, 100)).toBe(spanId);
+      expect(resourceSpanId(20, 101)).toBeUndefined();
+      expect(resourceSpanId(5, 50)).toBeUndefined();
+    });
+
+    it('uses the original interval when enabled after load', () => {
+      vi.advanceTimersByTime(5000);
+      instrumentation.enable({ tracerProvider });
+      const spanId = loadSpanId();
+      expect(spanId).toBeDefined();
+      expect(resourceSpanId(10, 100)).toBe(spanId);
+      expect(resourceSpanId(10, 4000)).toBeUndefined();
+      vi.runAllTimers();
+      expect(finishedSpan().spanContext().spanId).toBe(spanId);
+    });
+
+    it('clears the context when the load interval never completes', () => {
+      entry = { ...entry, loadEventStart: 90, loadEventEnd: 0 };
+      instrumentation.enable({ tracerProvider });
+      expect(loadSpanId()).toBeDefined();
+      vi.runAllTimers();
+      expect(spanExporter.getFinishedSpans()).toHaveLength(0);
+      expect(loadSpanId()).toBeUndefined();
+    });
+
+    it('stores no context without a valid fetchStart', () => {
+      entry = { ...entry, fetchStart: Number.NaN };
+      instrumentation.enable({ tracerProvider });
+      expect(loadSpanId()).toBeUndefined();
+    });
+
+    it('starts the interval at the time origin when fetchStart is below zero', () => {
+      entry = { ...entry, fetchStart: -3 };
+      finishLoad();
+      const spanId = finishedSpan().spanContext().spanId;
+      expect(resourceSpanId(0, 50)).toBe(spanId);
+    });
+
+    it('shares the server trace from the meta tag', () => {
+      addMeta('traceparent', `00-${SERVER_TRACE}-${SERVER_SPAN}-01`);
+      finishLoad(new W3CTraceContextPropagator());
+      const ctx = getNetworkContextRegistry().getContext({
+        name: 'https://example.test/app.js',
+        fetchStart: 20,
+        responseEnd: 80,
+      } as PerformanceResourceTiming);
+      const spanContext = ctx && trace.getSpan(ctx)?.spanContext();
+      expect(spanContext?.traceId).toBe(SERVER_TRACE);
+      expect(spanContext?.spanId).toBe(finishedSpan().spanContext().spanId);
+    });
+
+    it('clears the context when disabled before the span ends and keeps the span on enable', () => {
+      entry = { ...entry, loadEventStart: 90, loadEventEnd: 0 };
+      instrumentation.enable({ tracerProvider });
+      const spanId = loadSpanId();
+      instrumentation.disable();
+      expect(loadSpanId()).toBeUndefined();
+
+      entry = { ...entry, loadEventEnd: 100 };
+      instrumentation.enable({ tracerProvider });
+      expect(loadSpanId()).toBe(spanId);
+      vi.runAllTimers();
+      expect(spanExporter.getFinishedSpans()).toHaveLength(1);
+      expect(finishedSpan().spanContext().spanId).toBe(spanId);
+    });
+
+    it('keeps the context of an ended span after disable', () => {
+      finishLoad();
+      const spanId = finishedSpan().spanContext().spanId;
+      instrumentation.disable();
+      expect(loadSpanId()).toBe(spanId);
+    });
   });
 });
