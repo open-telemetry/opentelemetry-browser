@@ -26,7 +26,7 @@ export interface NavigationInstrumentationConfig {
    * @deprecated Use a custom `LogRecordProcessor` registered with `LoggerProvider` instead.
    */
   applyCustomLogRecordData?: ApplyCustomLogRecordDataFunction;
-  /** Use the Navigation API `currententrychange` event if available (experimental). Defaults to false. */
+  /** Use the Navigation API `currententrychange` event if available (experimental). Defaults to true. */
   useNavigationApiIfAvailable?: boolean;
   /** Custom function to sanitize URLs before adding to log records. */
   sanitizeUrl?: SanitizeUrlFunction;
