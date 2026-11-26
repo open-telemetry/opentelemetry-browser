@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-api-v0.2.1...browser-api-v0.3.0) (2026-11-26)
+
+
+### Features
+
+* **document-load:** join the server trace from meta tags ([#564](https://github.com/open-telemetry/opentelemetry-browser/issues/564)) ([39467d8](https://github.com/open-telemetry/opentelemetry-browser/commit/39467d8ac4c5ab4e2ec908808dc786f0a8de18f4))
+
 ## [0.2.1](https://github.com/open-telemetry/opentelemetry-browser/compare/browser-api-v0.2.0...browser-api-v0.2.1) (2026-11-17)
 
 
