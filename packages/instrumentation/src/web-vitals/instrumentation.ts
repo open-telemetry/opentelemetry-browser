@@ -12,8 +12,22 @@ import type {
   MetricWithAttribution,
 } from 'web-vitals/attribution';
 import { onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals/attribution';
+import { defaultSanitizeUrl, sanitizeScriptUrls } from '#utils';
 import { version } from '../../package.json' with { type: 'json' };
 import {
+  ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY,
+  ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TARGET,
+  ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TYPE,
+  ATTR_WEB_VITAL_ATTRIBUTION_LOAD_STATE,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL,
+  ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART,
+  ATTR_WEB_VITAL_ATTRIBUTION_NEXT_PAINT_TIME,
+  ATTR_WEB_VITAL_ATTRIBUTION_PRESENTATION_DELAY,
+  ATTR_WEB_VITAL_ATTRIBUTION_PROCESSING_DURATION,
   ATTR_WEB_VITAL_DELTA,
   ATTR_WEB_VITAL_ID,
   ATTR_WEB_VITAL_NAME,
@@ -111,6 +125,81 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
     return (metric.navigationStartTime ?? 0) + metric.value;
   }
 
+  private _getINPAttributionAttributes(
+    attribution: INPMetricWithAttribution['attribution'],
+  ): Attributes {
+    const attributes: Attributes = {
+      [ATTR_WEB_VITAL_ATTRIBUTION_INPUT_DELAY]: attribution.inputDelay,
+      [ATTR_WEB_VITAL_ATTRIBUTION_PROCESSING_DURATION]:
+        attribution.processingDuration,
+      [ATTR_WEB_VITAL_ATTRIBUTION_PRESENTATION_DELAY]:
+        attribution.presentationDelay,
+      [ATTR_WEB_VITAL_ATTRIBUTION_LOAD_STATE]: attribution.loadState,
+    };
+
+    if (attribution.interactionTarget !== undefined) {
+      attributes[ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TARGET] =
+        attribution.interactionTarget;
+    }
+    if (attribution.interactionType !== undefined) {
+      attributes[ATTR_WEB_VITAL_ATTRIBUTION_INTERACTION_TYPE] =
+        attribution.interactionType;
+    }
+    if (attribution.nextPaintTime !== undefined) {
+      attributes[ATTR_WEB_VITAL_ATTRIBUTION_NEXT_PAINT_TIME] =
+        attribution.nextPaintTime;
+    }
+
+    const longestScript = attribution.longestScript;
+    if (longestScript) {
+      // web-vitals supplies this entry only when LoAF is supported.
+      const { invoker, sourceURL } = sanitizeScriptUrls(
+        longestScript.entry,
+        this._config.sanitizeUrl ?? defaultSanitizeUrl,
+      );
+      Object.assign(attributes, {
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INVOKER]: invoker,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_URL]: sourceURL,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SOURCE_FUNCTION_NAME]:
+          longestScript.entry.sourceFunctionName,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_DURATION]:
+          longestScript.entry.duration,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_SUBPART]:
+          longestScript.subpart,
+        [ATTR_WEB_VITAL_ATTRIBUTION_LONGEST_SCRIPT_INTERSECTING_DURATION]:
+          longestScript.intersectingDuration,
+      });
+    }
+
+    return attributes;
+  }
+
+  private _getINPAttributionBody(
+    attribution: INPMetricWithAttribution['attribution'],
+  ): string {
+    const sanitizeUrl = this._config.sanitizeUrl ?? defaultSanitizeUrl;
+    // Native performance entries expose their JSON fields through toJSON().
+    const sanitizeScript = (script: PerformanceScriptTiming) => ({
+      ...(script.toJSON?.() ?? script),
+      ...sanitizeScriptUrls(script, sanitizeUrl),
+    });
+    const { longestScript, longAnimationFrameEntries } = attribution;
+
+    return JSON.stringify({
+      ...attribution,
+      longAnimationFrameEntries: longAnimationFrameEntries.map((frame) => ({
+        ...(frame.toJSON?.() ?? frame),
+        scripts: frame.scripts.map(sanitizeScript),
+      })),
+      ...(longestScript && {
+        longestScript: {
+          ...longestScript,
+          entry: sanitizeScript(longestScript.entry),
+        },
+      }),
+    });
+  }
+
   private _emitWebVital(metric: MetricWithAttribution): void {
     if (!this.isEnabled()) {
       return;
@@ -146,6 +235,14 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
         : metric.navigationURL;
     }
 
+    // The metric name is uppercase, while the web vital name attribute is lowercase.
+    if (this._config.includeAttribution && metric.name === 'INP') {
+      Object.assign(
+        attributes,
+        this._getINPAttributionAttributes(metric.attribution),
+      );
+    }
+
     const timestamp = this._getTimestampForMetric(metric);
 
     const logRecord: LogRecord = {
@@ -153,7 +250,12 @@ export class WebVitalsInstrumentation extends InstrumentationBase<WebVitalsInstr
       severityNumber: SeverityNumber.INFO,
       attributes,
       ...(includeRawAttribution
-        ? { body: JSON.stringify(metric.attribution) }
+        ? {
+            body:
+              metric.name === 'INP'
+                ? this._getINPAttributionBody(metric.attribution)
+                : JSON.stringify(metric.attribution),
+          }
         : {}),
       ...(timestamp !== undefined ? { timestamp } : {}),
     };

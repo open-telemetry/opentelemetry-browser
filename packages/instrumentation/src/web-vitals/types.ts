@@ -11,8 +11,24 @@ import type { LogRecord } from '@opentelemetry/api';
 export interface WebVitalsInstrumentationConfig {
   /**
    * @experimental
+   * When true, adds selected INP attribution fields as experimental log
+   * record attributes. Enable `includeRawAttribution` separately to add
+   * the raw attribution body.
+   * Defaults to `false`.
+   *
+   * Script URL attributes use `sanitizeUrl` or `defaultSanitizeUrl`.
+   * Use a custom `LogRecordProcessor` to redact selectors before export.
+   */
+  includeAttribution?: boolean;
+
+  /**
+   * @experimental
    * When true, sets the log record body to the JSON-stringified
-   * `web-vitals` attribution object for the metric.
+   * `web-vitals` attribution object for the metric. Does not add attribution
+   * attributes. Defaults to `false`.
+   *
+   * INP script URLs in the body use `sanitizeUrl` or `defaultSanitizeUrl`,
+   * following the same rules as the script URL attributes.
    *
    * Note: `applyCustomLogRecordData` runs after the body is set.
    * If the hook assigns a new `body`, it will overwrite the attribution data.
@@ -59,8 +75,10 @@ export interface WebVitalsInstrumentationConfig {
   reportSoftNavs?: boolean;
 
   /**
-   * Custom function to sanitize `browser.web_vital.navigation_url` before
-   * adding it to log records.
+   * Custom function to sanitize `browser.web_vital.navigation_url` and INP
+   * script URLs in both the attributes and the body. If unset, script URLs
+   * use `defaultSanitizeUrl` and the navigation URL is emitted as reported
+   * by `web-vitals`.
    */
   sanitizeUrl?: (url: string) => string;
 }
