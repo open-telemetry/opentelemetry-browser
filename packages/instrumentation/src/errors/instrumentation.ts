@@ -7,6 +7,9 @@ import type { Attributes, LogRecord } from '@opentelemetry/api';
 import { SeverityNumber } from '@opentelemetry/api';
 import { InstrumentationBase } from '@opentelemetry/browser-api';
 import {
+  ATTR_CODE_COLUMN_NUMBER,
+  ATTR_CODE_FILE_PATH,
+  ATTR_CODE_LINE_NUMBER,
   ATTR_EXCEPTION_MESSAGE,
   ATTR_EXCEPTION_STACKTRACE,
   ATTR_EXCEPTION_TYPE,
@@ -92,6 +95,20 @@ export class ErrorsInstrumentation extends InstrumentationBase<ErrorsInstrumenta
           [ATTR_EXCEPTION_MESSAGE]: capturedError.message,
           [ATTR_EXCEPTION_STACKTRACE]: capturedError.stack,
         };
+      }
+
+      // Rejections carry no location, and ErrorEvent reports an unknown one
+      // as an empty filename and zero line/column, so only set known values.
+      if (!isRejection) {
+        if (typeof event.filename === 'string' && event.filename.length > 0) {
+          errorAttributes[ATTR_CODE_FILE_PATH] = event.filename;
+        }
+        if (typeof event.lineno === 'number' && event.lineno > 0) {
+          errorAttributes[ATTR_CODE_LINE_NUMBER] = event.lineno;
+        }
+        if (typeof event.colno === 'number' && event.colno > 0) {
+          errorAttributes[ATTR_CODE_COLUMN_NUMBER] = event.colno;
+        }
       }
 
       const customAttributes = this._applyCustomAttributes(capturedError);
