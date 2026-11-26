@@ -259,6 +259,9 @@ not a public export of the current Browser instrumentation package. Supply an
 application sanitizer through `sanitizeUrl` instead of copying the helper
 import.
 
+See the [exception emitted-data table](./migration-data/exceptions.md) for key
+and log envelope changes.
+
 Rename `ExceptionInstrumentation` to `ErrorsInstrumentation` and change its
 import to the errors subpath. It still records uncaught errors and unhandled
 promise rejections as `exception` log events. The custom-attribute hook remains
