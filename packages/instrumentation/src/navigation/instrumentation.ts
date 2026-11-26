@@ -119,7 +119,7 @@ export class NavigationInstrumentation extends InstrumentationBase<NavigationIns
 
   private _getNavigationApi(): NavigationApi | undefined {
     const cfg = this._config;
-    if (!cfg.useNavigationApiIfAvailable) {
+    if (cfg.useNavigationApiIfAvailable === false) {
       return undefined;
     }
     return (window as unknown as { navigation?: NavigationApi }).navigation;

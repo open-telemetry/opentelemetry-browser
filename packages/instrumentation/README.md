@@ -98,7 +98,7 @@ import { NavigationInstrumentation } from '@opentelemetry/browser-instrumentatio
 Emits a `browser.navigation` event for the initial page load (hard navigation)
 and for subsequent in-page navigations (soft navigations), including
 `history.pushState`, `history.replaceState`, `popstate`, and hash changes. When
-enabled via config, the
+available, the
 [Navigation API](https://developer.mozilla.org/en-US/docs/Web/API/Navigation_API)
 is used in preference to patching `history`.
 
@@ -112,7 +112,7 @@ import {
 
 new NavigationInstrumentation({
   // Use window.navigation (Navigation API) when available instead of
-  // patching history.pushState / history.replaceState. Default: false.
+  // patching history.pushState / history.replaceState. Default: true.
   useNavigationApiIfAvailable: true,
 
   // Rewrite the captured URL before it is emitted. Useful for stripping
@@ -130,11 +130,11 @@ new NavigationInstrumentation({
 });
 ```
 
-| Option                        | Type                             | Default | Description                                                                                                                                                                                                                                                     |
-| ----------------------------- | -------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useNavigationApiIfAvailable` | `boolean`                        | `false` | When `true`, subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable. The choice is made once, at the first `enable()`. |
-| `sanitizeUrl`                 | `(url: string) => string`        | —       | Called before the URL is written to `url.full`.                                                                                                                                                                                                                 |
-| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | **[Deprecated]** Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`.                       |
+| Option                        | Type                             | Default | Description                                                                                                                                                                                                                                                                |
+| ----------------------------- | -------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useNavigationApiIfAvailable` | `boolean`                        | `true`  | Subscribes to the Navigation API (`currententrychange`) instead of patching `history.pushState` / `history.replaceState`. Falls back to history patching when the Navigation API is unavailable or when this is `false`. The choice is made once, at the first `enable()`. |
+| `sanitizeUrl`                 | `(url: string) => string`        | —       | Called before the URL is written to `url.full`.                                                                                                                                                                                                                            |
+| `applyCustomLogRecordData`    | `(logRecord: LogRecord) => void` | —       | **[Deprecated]** Hook to modify log records before they are emitted. Errors thrown from this hook are caught and logged via the instrumentation diag logger. Prefer using a custom `LogRecordProcessor` registered with `LoggerProvider`.                                  |
 
 > **Note on Custom Attributes:** `applyCustomLogRecordData` is deprecated. To
 > enrich or mutate log records with custom attributes, register a custom

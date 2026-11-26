@@ -248,11 +248,13 @@ or use the combined [Browser SDK setup](#sdk-setup).
 Rename `BrowserNavigationInstrumentation` to `NavigationInstrumentation` and
 change its import to the navigation subpath in the mapping table. The
 `applyCustomLogRecordData`, `sanitizeUrl`, and `useNavigationApiIfAvailable`
-options remain available. When explicitly enabled, the Navigation API path
-observes committed `currententrychange` events. The current legacy navigation
-source also uses this event; check your installed release before assuming this
-behavior changed during migration. Exercise canceled navigations as well as
-successful route changes when checking application behavior.
+options remain available, but `useNavigationApiIfAvailable` defaults to `true`
+here and to `false` in the legacy package. Unless you set it to `false`,
+navigations are recorded from committed Navigation API `currententrychange`
+events where the browser supports them, instead of from patched
+`history.pushState` / `history.replaceState` and `popstate`. Exercise canceled
+navigations as well as successful route changes when checking application
+behavior.
 
 The legacy navigation package also exported `defaultSanitizeUrl`. That helper is
 not a public export of the current Browser instrumentation package. Supply an

@@ -96,7 +96,9 @@ describe('NavigationInstrumentation', () => {
 
     it('should not double-subscribe when enabling twice', () => {
       setReadyState('loading');
-      instrumentation = new NavigationInstrumentation();
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: false,
+      });
       const addSpy = vi.spyOn(window, 'addEventListener');
 
       enableForTest(instrumentation);
@@ -334,7 +336,9 @@ describe('NavigationInstrumentation', () => {
   describe('partial history patch', () => {
     it('should not wrap replaceState again after pushState fails', () => {
       setReadyState('complete');
-      instrumentation = new NavigationInstrumentation();
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: false,
+      });
       const wrapped: string[] = [];
       // Stubbed rather than locking `history.pushState` for real, because a
       // non-configurable slot cannot be undone and would break later tests.
@@ -539,6 +543,50 @@ describe('NavigationInstrumentation', () => {
         }
       };
     };
+
+    it('should use the Navigation API by default when available', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+      const origPushState = window.history.pushState;
+
+      instrumentation = new NavigationInstrumentation();
+      enableForTest(instrumentation);
+      inMemoryExporter.reset();
+      stub.dispatchEvent(new Event('currententrychange'));
+
+      expect(window.history.pushState).toBe(origPushState);
+      const logs = getNavigationLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_URL_FULL]).toBe(
+        'http://localhost/nav-api-path',
+      );
+    });
+
+    it('should patch history instead when useNavigationApiIfAvailable is false', () => {
+      setReadyState('complete');
+      const stub = new EventTarget() as EventTarget & {
+        currentEntry: { url: string };
+      };
+      stub.currentEntry = { url: 'http://localhost/nav-api-path' };
+      onTestFinished(installNavigationApi(stub));
+
+      instrumentation = new NavigationInstrumentation({
+        useNavigationApiIfAvailable: false,
+      });
+      enableForTest(instrumentation);
+      inMemoryExporter.reset();
+      stub.dispatchEvent(new Event('currententrychange'));
+      window.history.pushState({}, '', '/history-path');
+
+      const logs = getNavigationLogs();
+      expect(logs).toHaveLength(1);
+      expect(logs[0]?.attributes[ATTR_URL_FULL]).toBe(location.href);
+      expect(logs[0]?.attributes[ATTR_BROWSER_NAVIGATION_TYPE]).toBe('push');
+    });
 
     it('should not patch history.pushState when Navigation API is used', () => {
       setReadyState('complete');
